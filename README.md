@@ -91,57 +91,38 @@ The system demonstrates:
 5. Agent generates mediation recommendation with citations
 6. Conversation memory preserves dispute context over time
 
-## Tech Stack
+## Getting Started
 
-### Core AI
-- Gemini 1.5 Pro / Flash
-- Google AI Studio
-- Vertex AI Agent Builder
-- Google ADK
-- Gemini CLI
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Google Cloud Project with Gemini API access
 
-### Infrastructure
-- Firebase
-- Firestore
-- Cloud Run
-- Firebase Hosting
+### Installation & Local Run
+1. **Backend**:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   python src/api/main.py
+   ```
+2. **Frontend**:
+   ```bash
+   cd web
+   pnpm install
+   pnpm dev
+   ```
 
-### Intelligence Layer
-- RAG pipeline for bylaws and records
-- OCR + document parsing
-- M-Pesa statement ingestion
-- Multilingual prompt orchestration
+## Documentation Deep Dives
+Detailed information for judges and team members:
+- [**Architecture**](docs/ARCHITECTURE.md): Agent logic, tools, and reasoning loops.
+- [**Frontend**](docs/FRONTEND.md): Tech stack and UI components.
+- [**Team**](docs/TEAM.md): Roles and responsibilities.
 
-## Google Cloud & Agentathon Requirements
-
-Sikizana is built in compliance with all mandatory GDG Nairobi Agentathon technical requirements:
-- Uses Gemini models for core reasoning and mediation
-- Built using Google AI tooling
-- Deployed on Google Cloud Run
-- Public GitHub repository
-- Demonstrates genuine agent behavior
-- Supports autonomous reasoning and retrieval workflows
-
-## Vision
-
-Trust is infrastructure.
-
-Chamas are one of Africa’s most important systems for collective finance and community coordination. Sikizana strengthens that trust layer using AI that is culturally local, multilingual, transparent, and community-first.
-
-## Future Roadmap
-
-- WhatsApp integration
-- Voice-first mediation
-- SACCO support
-- Cooperative governance tooling
-- Fraud and anomaly detection
-- Meeting summarization
-- AI-generated financial transparency reports
-- Multi-agent negotiation simulations
-
-## Team
-
-Built at the GDG Nairobi Agentathon — exploring how autonomous AI agents can solve real Kenyan problems through practical, deployable systems.
+## Deployment
+Sikizana is deployed on **Google Cloud Run**.
+- **Live Demo**: [URL Placeholder]
+- **Deployment Guide**: See `infra/deploy.sh`.
 
 ## Pre-commit hooks (secrets & linting)
 
