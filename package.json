@@ -1,0 +1,29 @@
+{
+  "name": "sikizana",
+  "version": "1.0.0",
+  "description": "AI-powered dispute resolution for chamas.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint 'src/**' --ext .js,.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/udirobert/sikizana.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "eslint": "^8.50.0"
+  },
+  "bugs": {
+    "url": "https://github.com/udirobert/sikizana/issues"
+  },
+  "homepage": "https://github.com/udirobert/sikizana#readme"
+}
