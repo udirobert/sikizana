@@ -1,8 +1,47 @@
-node_modules
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
 .env
 .env.local
+.env.*.local
+
+# OS
 .DS_Store
-dist
-build
-.firebase
+Thumbs.db
+
+# Build / output
+dist/
+build/
+coverage/
+.nyc_output/
+
+# Firebase
+.firebase/
+
+# Logs
 *.log
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Caches
+.cache/
+.parcel-cache/
+
+# Misc
+.DS_Store
+
