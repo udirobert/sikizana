@@ -1,14 +1,12 @@
-# Team Roles & Responsibilities
+# Solo Build Status
 
-| Role | Member | Focus Area |
-| :--- | :--- | :--- |
-| **Agent Architect** | @udirobert | Gemini 3.1 Pro logic, Sheng/Kiswahili prompt engineering, ADK reasoning loops. |
-| **RAG & Data Engineer** | @Muchoki_Dave | Vertex AI Agent Builder setup, M-Pesa PDF/CSV parsing logic, Data Store management. |
-| **Frontend Developer** | @VictorKibuchi | Next.js UI/UX, chat components, responsive design, voice input (optional). |
-| **Full-stack Integrator** | @OKELLOJULIUS_KE | FastAPI backend, Firestore persistent memory, API-to-UI bridging. |
-| **DevOps & Product** | @obonyo_sam81289 | Cloud Run deployment, README/Docs quality, Demo video, Pitch preparation. |
+Sikizana was originally conceived as a team project but is now being built, maintained, and evolved by a **Solo Developer**.
 
-## Communication
-- **GitHub**: Primary source of truth for code.
-- **WhatsApp/Slack**: Real-time coordination.
-- **Standups**: Quick sync at the start of each session.
+## Developer
+- **@udirobert**: Handling the full-stack agent architecture, Vara Network integration, decentralized arbitration logic, and Kenyan linguistic prompt engineering (Sheng/Kiswahili).
+
+## Strategy
+As a solo build, the project prioritizes:
+- **Core Agent Intelligence**: Deepening the reasoning capabilities of the Gemini-powered arbitrator.
+- **On-chain Reliability**: Ensuring the Vara/Sails contract logic is robust for decentralized coordination.
+- **Lean UX**: Focusing on a highly functional chat interface that solves the core dispute resolution problem.
