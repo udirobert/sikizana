@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { VaraConnect } from "@/components/VaraConnect";
 
 interface Message {
   role: "user" | "agent";
@@ -54,9 +55,12 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center bg-gray-50 p-4 font-sans">
       <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg flex flex-col h-[85vh]">
         {/* Header */}
-        <div className="p-4 border-b bg-green-600 text-white rounded-t-xl">
-          <h1 className="text-xl font-bold italic tracking-tight">SIKIZANA</h1>
-          <p className="text-xs opacity-80">AI-Powered Chama Mediation</p>
+        <div className="p-4 border-b bg-green-600 text-white rounded-t-xl flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-bold italic tracking-tight">SIKIZANA</h1>
+            <p className="text-xs opacity-80">AI-Powered Chama Mediation</p>
+          </div>
+          <VaraConnect />
         </div>
 
         {/* Chat Area */}
