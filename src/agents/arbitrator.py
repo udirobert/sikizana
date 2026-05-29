@@ -13,6 +13,7 @@ from src.services.vara_service import VaraService
 from src.tools.payments import initiate_premium_resolution
 from src.tools.vision_audit import analyze_ledger_image
 from src.services.ipfs_service import PinataIPFSService
+from src.services.reputation_service import generate_bank_readiness_report
 
 vara = VaraService()
 ipfs = PinataIPFSService()
@@ -51,7 +52,8 @@ def get_arbitrator_agent():
             analyze_ledger_image,
             upload_evidence_to_ipfs,
             submit_verdict_to_blockchain,
-            initiate_premium_resolution
+            initiate_premium_resolution,
+            generate_bank_readiness_report
         ]
     )
 
