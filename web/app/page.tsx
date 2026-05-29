@@ -14,6 +14,7 @@ export default function Home() {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,9 +28,12 @@ export default function Home() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage = input.trim();
+    const userMessage = isPremium 
+      ? `[PREMIUM AUDIT REQUESTED] ${input.trim()}`
+      : input.trim();
+
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: input.trim() }]);
     setIsLoading(true);
 
     try {
@@ -48,6 +52,7 @@ export default function Home() {
       ]);
     } finally {
       setIsLoading(false);
+      if (isPremium) setIsPremium(false);
     }
   };
 
@@ -58,7 +63,7 @@ export default function Home() {
         <div className="p-4 border-b bg-green-600 text-white rounded-t-xl flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold italic tracking-tight">SIKIZANA</h1>
-            <p className="text-xs opacity-80">AI-Powered Chama Mediation</p>
+            <p className="text-xs opacity-80">Professional AI Mediation Service</p>
           </div>
           <VaraConnect />
         </div>
@@ -90,25 +95,49 @@ export default function Home() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 border-t flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Eleza shida yako hapa (e.g., 'Sheria ya mkopo ni gani?')"
-            className="flex-1 p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-          <button
-            onClick={handleSend}
-            disabled={isLoading}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition"
-          >
-            Tuma
-          </button>
+        <div className="p-4 border-t flex flex-col gap-3">
+          <div className="flex items-center gap-2 px-1">
+            <button 
+              onClick={() => setIsPremium(!isPremium)}
+              className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${
+                isPremium 
+                ? "bg-amber-100 border-amber-500 text-amber-700 shadow-sm" 
+                : "bg-gray-50 border-gray-200 text-gray-500"
+              }`}
+            >
+              {isPremium ? "✨ Premium Audit Active (100 KES)" : "Standard Mediation"}
+            </button>
+            <span className="text-[10px] text-gray-400">
+              {isPremium ? "Agent will perform deep financial cross-referencing." : "Basic query."}
+            </span>
+          </div>
+          
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && handleSend()}
+              placeholder={isPremium ? "Eleza mzozo kwa undani..." : "Eleza shida yako hapa..."}
+              className={`flex-1 p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+                isPremium ? "focus:ring-amber-500 border-amber-200 bg-amber-50/20" : "focus:ring-green-500"
+              }`}
+            />
+            <button
+              onClick={handleSend}
+              disabled={isLoading}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                isPremium 
+                ? "bg-amber-600 text-white hover:bg-amber-700" 
+                : "bg-green-600 text-white hover:bg-green-700"
+              } disabled:opacity-50`}
+            >
+              Tuma
+            </button>
+          </div>
         </div>
       </div>
-      <p className="mt-4 text-[10px] text-gray-400">Built for GDG Nairobi Agentathon 2026</p>
+      <p className="mt-4 text-[10px] text-gray-400">Competing in Vara Agents Arena & XPRIZE Build with Gemini 2026</p>
     </main>
   );
 }
