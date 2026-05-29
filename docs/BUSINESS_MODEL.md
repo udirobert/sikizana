@@ -1,39 +1,42 @@
-# Sikizana: Business Model & Social Impact
+# Sikizana: Global Business Model & Social Impact
 
 ## 1. The "Grand Challenge" (XPRIZE Alignment)
-Africa’s informal economy is powered by **Chamas** (self-help groups). In Kenya alone, over 300,000 chamas manage an estimated **$250 billion KES** annually. However, much of this capital is "stuck" or lost due to:
-- **Trust Deficits**: Lack of transparent record-keeping.
-- **Dispute Deadlocks**: No affordable way to mediate conflicts over loans or contributions.
-- **Financial Exclusion**: Informal records are not recognized by traditional banks.
+Over **2.4 billion people** globally rely on informal savings groups—known as **ROSCAs** (Rotating Savings and Credit Associations)—to manage their finances. While these groups are the backbone of local economies, they are plagued by "The Trust Bottleneck":
+- **Africa**: 300,000+ *Chamas* in Kenya alone manage $2.5B+ USD annually.
+- **Latin America**: *Tandas* and *Socios* drive community entrepreneurship.
+- **South & East Asia**: *Chit Funds* and *Hui* provide vital seed capital.
+- **Global Diaspora**: *Sou-sou* groups power immigrant communities in NYC, London, and Paris.
 
-**Sikizana solves this by providing AI-native, decentralized arbitration that turns informal trust into verifiable financial data.**
+**Sikizana is the Global Protocol for Informal Trust.** It provides AI-native, decentralized arbitration that turns informal social capital into verifiable, bank-ready financial data.
 
 ## 2. Business Model (Viability)
-Sikizana operates as a **Decentralized Agent Service (DAS)** with three revenue streams:
+Sikizana operates as a **Decentralized Agent Service (DAS)** with three scalable revenue streams:
 
 ### A. Pay-Per-Resolution (Freemium)
-- **Basic Mediation**: Free for small disputes (e.g., < 1,000 KES).
-- **Premium Resolution**: 100 KES (~$0.75) per resolution for larger sums.
-- **Workflow**: Agent detects a high-value dispute -> Triggers M-Pesa STK Push -> Performs Deep Audit -> Records Immutable Verdict on Vara Network.
+- **Basic Mediation**: Free for small disputes to drive user acquisition and "Reputation Building."
+- **Premium Resolution**: A fixed fee (e.g., $1.00 or 100 KES) for high-value disputes (> $50).
+- **Global Payouts**: Integrated with local rails (M-Pesa, UPI, Pix) and on-chain stablecoins (USDC/USDT).
 
-### B. "Trust-as-a-Service" for Banks
-- Banks currently refuse to lend to chamas because they cannot verify internal governance.
-- Sikizana provides a **"Chama Health Score"** based on resolved disputes and contribution consistency on the Vara Network.
-- Banks pay a lead-generation or verification fee to access these pre-vetted groups.
+### B. "Trust-as-a-Service" for Global Banks
+- Traditional banks lose billions in potential loans because they cannot verify ROSCA behavior.
+- Sikizana provides a **"Universal Social Credit Score"** based on Vara Network audit trails.
+- Financial institutions pay subscription fees to access these "pre-vetted" community portfolios for micro-lending.
 
-### C. Enterprise Compliance
-- Large micro-finance institutions (MFIs) use Sikizana to automate the mediation of their group-lending portfolios.
+### C. The "Active Arbitrator" API
+- Sikizana integrates as a **mediation-plugin** for existing "Passive Ledger" apps (e.g., ChamaSoft, Bloom Money, Esusu). 
+- Partners pay a license fee to offer their users "Automatic Conflict Resolution."
 
 ## 3. Go-to-Market (Traction)
-- **Phase 1 (Hackathon/Pilot)**: Pilot with 10 chamas in Nairobi (Dandora and Kibera regions).
-- **Phase 2 (Growth)**: Partner with "Chama Management Apps" (e.g., Chamasoft, Malipo) to provide Sikizana as an integrated mediation plugin.
-- **Phase 3 (Scale)**: Expand to SACCOs (Savings and Credit Cooperative Organizations).
+- **Phase 1 (Kenya Pilot)**: Pilot with 50 chamas in Nairobi and rural Central Kenya.
+- **Phase 2 (Regional Expansion)**: Entry into Nigeria (Esusu/Sou-sou) and South Africa (Stokvels) via partnerships with local fintech rails.
+- **Phase 3 (Global Scale)**: A borderless protocol where any ROSCA, anywhere, can use Sikizana to resolve disputes on the Vara Network.
 
 ## 4. Technical Moat (AI-Native Operations)
-- **Linguistic Nuance**: The only agent trained on "Kisheng" (Sheng/Kiswahili) nuance for African community contexts.
-- **Multimodal Auditing**: Combines RAG (Bylaw analysis) with Financial Auditing (M-Pesa CSV/PDF parsing).
-- **Decentralized Finality**: Uses Vara Network to ensure that even if the AI company disappears, the "Truth" of the mediation remains on-chain.
+- **Polyglot Mediation**: Leveraging Gemini's multilingual capabilities to handle Sheng, Yoruba, Hindi, and Spanish.
+- **Multimodal Auditing**: AI that cross-references physical bank/mobile money statements with digital bylaws.
+- **Decentralized Finality**: Using the **Vara Network** to ensure that mediation verdicts are immutable, transparent, and portable across borders.
 
 ## 5. Social Impact
-- **Financial Literacy**: The agent educates members on their rights and financial responsibilities during every mediation.
-- **Women's Empowerment**: Chamas are predominantly female-led; Sikizana provides a safe, neutral space for women to resolve conflicts without intimidation.
+- **Financial Literacy**: Real-time education on financial rights during disputes.
+- **Economic Inclusion**: Bringing the $500B+ "unbanked" informal capital into the formal economy.
+- **Gender Equality**: Providing neutral, AI-driven arbitration for female-led savings groups, reducing social friction and intimidation.
