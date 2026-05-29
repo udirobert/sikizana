@@ -1,15 +1,24 @@
-# Sikizana: AI-Powered Decentralized Arbitration
+# Sikizana: The Global Protocol for Informal Trust
 
-**Resolving chama disputes with AI and Decentralized Trust.**
+**Autonomous AI Arbitration for the World's Unbanked Communities.**
 
-Sikizana is an autonomous AI mediation agent built for Kenyan chamas (self-help groups). It blends financial evidence (M-Pesa) with community governance (Bylaws) and decentralized coordination to resolve disputes fairly and transparently in English, Kiswahili, and Sheng.
+Sikizana is an AI-native Decentralized Agent Service (DAS) designed to resolve disputes in informal savings groups—known globally as **ROSCAs** (*Chamas* in Kenya, *Sou-sou* in West Africa, *Tandas* in Latin America, and *Stokvels* in South Africa). 
+
+By blending AI reasoning (Gemini 1.5/3.1) with financial evidence and decentralized trust (Vara Network), Sikizana turns informal social capital into verifiable financial data.
 
 ---
 
 ### 🏆 Hackathon Participation
 This project is currently competing in:
 1.  **Vara Agents Arena Season 1**: Focusing on the **Social & Coordination** track with decentralized arbitration.
-2.  **XPRIZE Connect Hackathon**: Leveraging AI to enhance community resilience and financial inclusion.
+2.  **XPRIZE Build with Gemini**: Leveraging AI to solve the "Grand Challenge" of global financial inclusion.
+
+---
+
+## The "Grand Challenge"
+Over **2.4 billion people** globally manage their savings through informal groups. However, these groups frequently collapse due to **unresolved internal disputes**, trust deficits, and poor record-keeping. 
+
+Sikizana moves beyond "Passive Bookkeeping" into **Active Arbitration**, providing an impartial, evidence-based mediator that is available 24/7 in local languages (English, Kiswahili, Sheng, and more).
 
 ---
 
@@ -18,36 +27,28 @@ Sikizana is currently being developed and maintained by a **solo developer** (@u
 
 ---
 
-## The Problem
-...
-
-Kenya has over 300,000 registered chamas managing billions of shillings in collective savings, lending, and investments.
-
-Most chamas do not collapse because of poor financial performance — they collapse because of unresolved internal disputes. These conflicts are often emotional, undocumented, and difficult to verify fairly.
-
 ## Our Solution
 
-Sikizana acts as an AI arbitration and mediation agent for chamas. By integrating with the **Vara Network**, Sikizana moves beyond a simple chatbot into a **Decentralized Agent Service (DAS)**.
+Sikizana acts as an **Active Arbitrator**. It doesn't just record what happened; it resolves what went wrong.
 
 The system ingests:
-- Chama bylaws
-- M-Pesa statements
-- Contribution records
-- Loan histories
+- **Governance Documents**: Bylaws, rules, and penalties.
+- **Financial Evidence**: M-Pesa statements, bank PDFs, and CSV records.
+- **Natural Language Context**: Member testimonies and dispute details.
 
 It then:
-- **Analyzes Evidence**: Using Gemini 3.1 Pro to reason across financial records and legal bylaws.
-- **Multilingual Mediation**: Handles English, Kiswahili, and Sheng naturally.
-- **Commits Resolutions to Blockchain**: Once a verdict is reached, the agent signs and submits the resolution hash to the Vara Network.
+- **Analyzes Evidence**: Using Gemini 1.5/3.1 to reason across financial records and legal bylaws.
+- **Multilingual Mediation**: Handles English, Kiswahili, and Sheng naturally to ensure accessibility.
+- **Commits Resolutions to Blockchain**: Once a verdict is reached, the agent signs and submits the resolution hash to the **Vara Network**, creating an immutable audit trail for banks and members.
 
 ## Features
 
-- **On-chain Dispute Management**: Decentralized tracking of chama conflicts.
-- **AI-powered mediation** (Gemini 3.1 Pro & Google ADK).
+- **On-chain Dispute Management**: Decentralized tracking of group conflicts.
+- **AI-powered mediation** (Gemini 1.5/3.1 & Google ADK).
 - **Multilingual support** (English, Kiswahili, Sheng).
-- **M-Pesa statement analysis** & **RAG** for bylaws.
-- **Wallet Integration**: Support for Vara/Polkadot wallets (SubWallet, Enkrypt).
-- **Transparent Audit Trail**: Every mediation step is verifiable on-chain.
+- **Deep Multimodal Audit**: AI-driven analysis of M-Pesa and financial PDFs.
+- **Premium Resolution**: Professional-grade auditing with M-Pesa payment integration.
+- **Transparent Audit Trail**: Every mediation step is verifiable on the Vara blockchain.
 
 ## Technical Architecture
 
@@ -57,13 +58,13 @@ It then:
 - **Framework**: Sails.
 
 ### 2. Off-chain (Python Agent)
-- **Brain**: Gemini 3.1 Pro.
+- **Brain**: Gemini 1.5/3.1 Pro.
 - **Orchestration**: Google Agent Development Kit (ADK).
-- **Vara Service**: Python client interacting with the Vara testnet/mainnet.
+- **Business Logic**: Native "Premium Resolution" workflow with payment simulation.
 
 ### 3. Frontend (Next.js)
 - **Web3 Layer**: `@gear-js/api` and `@gear-js/react-hooks` for blockchain interaction.
-- **Wallet**: Polkadot/Vara extension support.
+- **Wallet**: Support for Polkadot/Vara extensions (SubWallet, Enkrypt).
 
 ## Getting Started
 
@@ -95,9 +96,10 @@ It then:
    ```
 
 ## Documentation Deep Dives
+- [**Business Model & Impact**](docs/BUSINESS_MODEL.md): Global vision, revenue streams, and the ROSCA "Grand Challenge."
+- [**Competitive Landscape**](docs/COMPETITIVE_LANDSCAPE.md): The "Active Arbitrator" moat vs. "Passive Ledgers."
 - [**Vara Integration Guide**](docs/VARA.md): Details on the on-chain logic and Sails implementation.
 - [**Architecture**](docs/ARCHITECTURE.md): Agent logic, tools, and reasoning loops.
-- [**Frontend**](docs/FRONTEND.md): Tech stack and UI components.
 
 ## Deployment
 Sikizana is deployed on **Google Cloud Run**.
