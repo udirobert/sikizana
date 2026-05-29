@@ -11,19 +11,27 @@ from src.tools.rag_engine import get_bylaw_retriever
 from src.tools.finance import analyze_mpesa_records
 from src.services.vara_service import VaraService
 from src.tools.payments import initiate_premium_resolution
+from src.tools.vision_audit import analyze_ledger_image
+from src.services.ipfs_service import PinataIPFSService
 
 vara = VaraService()
+ipfs = PinataIPFSService()
 
-def submit_verdict_to_blockchain(dispute_id: int, verdict_summary: str) -> str:
+def upload_evidence_to_ipfs(file_path: str) -> str:
+    """Uploads a dispute evidence file (ledger photo, PDF) to IPFS."""
+    return ipfs.upload_file(file_path)
+
+def submit_verdict_to_blockchain(dispute_id: int, verdict_summary: str, evidence_cid: str = "") -> str:
     """
     Submits the final mediation verdict to the Vara Network on-chain program.
-    This ensures the resolution is transparent, immutable, and verifiable.
     """
+    # In a production hackathon entry, we would upload the verdict_summary to IPFS 
+    # and get a CID, then submit that CID to the Vara contract.
     mock_cid = f"ipfs://{hash(verdict_summary)}"
     success = vara.submit_verdict(dispute_id, mock_cid, private_key=os.getenv("VARA_PRIVATE_KEY", ""))
     
     if success:
-        return f"Successfully recorded verdict on Vara Network. CID: {mock_cid}"
+        return f"Successfully recorded verdict on Vara Network. CID: {mock_cid} | Evidence: {evidence_cid}"
     return "Failed to record verdict on-chain."
 
 def get_arbitrator_agent():
@@ -40,6 +48,8 @@ def get_arbitrator_agent():
         tools=[
             AgentTool(agent=bylaw_agent),
             analyze_mpesa_records,
+            analyze_ledger_image,
+            upload_evidence_to_ipfs,
             submit_verdict_to_blockchain,
             initiate_premium_resolution
         ]
