@@ -28,11 +28,15 @@ pub struct Dispute {
 
 The Sikizana AI agent (Python) interacts with Vara using the `gear-py` SDK.
 
-### Workflow:
-1. **Detection**: The agent can monitor the Vara Network for new `DisputeRegistered` events.
-2. **Analysis**: Once a dispute is detected, the agent fetches the `metadata_cid` (containing bylaws and transaction references) from IPFS.
-3. **Reasoning**: The agent uses Gemini 3.1 Pro to analyze the evidence.
-4. **Resolution**: After reaching a verdict, the agent sends a `ResolveDispute` message to the Vara program, including the `verdict_cid`.
+### Workflow (current implementation):
+1. **User-Initiated**: A chama member opens the web app, describes a dispute, and optionally pays 100 KES via M-Pesa for the deep-audit tier. Standard mediation is free; premium is gated on a confirmed Daraja callback.
+2. **Evidence Ingestion**: The agent pulls evidence into context - bylaws via RAG, M-Pesa CSVs/PDFs, optional ledger photos via Gemini vision, and any uploaded files pinned to IPFS via Pinata.
+3. **Reasoning**: The agent uses Gemini 1.5/3.1 Pro to analyze the evidence against the chama's bylaws, with multilingual support for English, Kiswahili, and Sheng.
+4. **Verdict Commitment**: After reaching a verdict, the agent computes an IPFS CID for the resolution summary and calls `submit_verdict_to_blockchain` to record it on Vara via `VaraService.submit_verdict`.
+5. **Reputation**: A separate `generate_bank_readiness_report` tool derives a Chama Health Score from the on-chain verdict history for bank loan applications.
+
+### Roadmap (autonomous monitor):
+The current implementation is **user-invocable** through the chat UI. The planned autonomous mode - where the agent listens for `DisputeRegistered` events and proactively offers mediation - is on the Phase 3 roadmap.
 
 ## Frontend Integration (Next.js)
 
@@ -49,3 +53,17 @@ Vara Network's **Actor Model** and **Persistent Memory** make it the ideal platf
 - **Asynchronous Messaging**: Perfect for agents that need to wait for external data (like financial verification) before committing a result.
 - **Scalability**: Low latency and high throughput allow Sikizana to scale to thousands of chamas across Kenya.
 - **Security**: Rust-based smart contracts ensure that the arbitration logic is secure and predictable.
+
+## Payment Gating Flow
+
+Vara verdict commitment is the natural end-state of the premium payment flow:
+
+```
+User pays 100 KES via M-Pesa -> Daraja callback CONFIRMED
+  -> Agent runs deep audit (Gemini + vision + RAG)
+  -> Verdict recorded on Vara Network (immutable proof)
+  -> Chama Health Score updated
+  -> Bank readiness report refreshed
+```
+
+This makes the Vara Network the **settlement layer** for every paid dispute, providing the audit trail banks need before extending credit to informal groups.

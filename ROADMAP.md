@@ -20,10 +20,12 @@ This roadmap tracks the journey from hackathon prototype to a revenue-generating
 - [x] **Payment Persistence**: SQLite store tracking every payment from PENDING to CONFIRMED.
 - [x] **Revenue Dashboard API**: `GET /api/revenue` endpoint for hackathon revenue evidence.
 - [x] **Agent Payment Gating**: `verify_premium_payment` tool prevents deep audit without confirmed payment.
+- [x] **E2E Sandbox Verified**: OAuth, STK Push, async callback all working against sandbox via ngrok.
+- [x] **Production Deploy Pipeline**: Dockerfile + Secret Manager deploy script ready.
 - [ ] **Safaricom Business Onboarding**: Register paybill/till number for production Daraja access.
 - [ ] **Business Registration**: Kenyan LLC/Ltd for corporate ID submission.
 - [ ] **Pilot Chama Acquisition**: Onboard 3-5 real chamas as paying customers.
-- [ ] **Production Deployment**: Cloud Run with public callback URL for Daraja webhooks.
+- [ ] **Cloud Run Deploy**: Replace ngrok with a stable production URL.
 - [ ] **Marketing & GTM**: Community outreach, SACCO partnerships, chama federation networks.
 
 ## Phase 3: Scale & Intelligence

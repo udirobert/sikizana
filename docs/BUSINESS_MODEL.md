@@ -23,7 +23,7 @@ Sikizana operates as a **Decentralized Agent Service (DAS)** with three scalable
 - Financial institutions pay subscription fees to access these "pre-vetted" community portfolios for micro-lending.
 
 ### C. The "Active Arbitrator" API
-- Sikizana integrates as a **mediation-plugin** for existing "Passive Ledger" apps (e.g., ChamaSoft, Bloom Money, Esusu). 
+- Sikizana integrates as a **mediation-plugin** for existing "Passive Ledger" apps (e.g., ChamaSoft, Bloom Money, Esusu).
 - Partners pay a license fee to offer their users "Automatic Conflict Resolution."
 
 ## 3. Go-to-Market (Traction)
