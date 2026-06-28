@@ -2,7 +2,7 @@
 
 **Autonomous AI Arbitration for the World's Unbanked Communities.**
 
-Sikizana is an AI-native Decentralized Agent Service (DAS) designed to resolve disputes in informal savings groups—known globally as **ROSCAs** (*Chamas* in Kenya, *Sou-sou* in West Africa, *Tandas* in Latin America, and *Stokvels* in South Africa). 
+Sikizana is an AI-native Decentralized Agent Service (DAS) designed to resolve disputes in informal savings groups—known globally as **ROSCAs** (*Chamas* in Kenya, *Sou-sou* in West Africa, *Tandas* in Latin America, and *Stokvels* in South Africa).
 
 By blending AI reasoning (Gemini 1.5/3.1) with financial evidence and decentralized trust (Vara Network), Sikizana turns informal social capital into verifiable financial data.
 
@@ -16,7 +16,7 @@ This project is currently competing in:
 ---
 
 ## The "Grand Challenge"
-Over **2.4 billion people** globally manage their savings through informal groups. However, these groups frequently collapse due to **unresolved internal disputes**, trust deficits, and poor record-keeping. 
+Over **2.4 billion people** globally manage their savings through informal groups. However, these groups frequently collapse due to **unresolved internal disputes**, trust deficits, and poor record-keeping.
 
 Sikizana moves beyond "Passive Bookkeeping" into **Active Arbitration**, providing an impartial, evidence-based mediator that is available 24/7 in local languages (English, Kiswahili, Sheng, and more).
 
@@ -122,5 +122,52 @@ Sikizana collects real revenue via Safaricom Daraja STK Push. To enable:
    DARAJA_CALLBACK_URL=https://your-domain.com/api/payments/callback
    PREMIUM_RESOLUTION_KES=100
    ```
-5. The callback URL must be publicly reachable (use ngrok in dev: `ngrok http 8080`).
-6. Revenue is persisted in `data/payments.db` (SQLite) and exposed at `GET /api/revenue` for hackathon evidence.
+5. The callback URL must be publicly reachable.
+
+### Local development with ngrok
+
+```bash
+# Terminal 1: backend
+python3.11 -m uvicorn src.api.main:app --host 127.0.0.1 --port 8080
+
+# Terminal 2: tunnel
+ngrok http 8080
+# Copy the https://*.ngrok-free.app URL into DARAJA_CALLBACK_URL + /api/payments/callback
+```
+
+### Testing the sandbox flow
+
+```bash
+# Fire a sandbox STK Push to the Safaricom test number (PIN: 174379)
+curl -X POST http://127.0.0.1:8080/api/payments/stk-push \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"254708374149","amount":1,"dispute_context":"test"}'
+
+# Poll for status (CONFIRMED once user enters PIN)
+curl http://127.0.0.1:8080/api/payments/status/ws_CO_...
+
+# Aggregated revenue
+curl http://127.0.0.1:8080/api/revenue
+```
+
+### Production: Cloud Run + Secret Manager
+
+```bash
+# One-time: store credentials in Secret Manager
+echo -n "$KEY" | gcloud secrets create daraja-consumer-key --data-file=-
+# ...repeat for daraja-consumer-secret, daraja-passkey, gemini-api-key
+
+# Deploy (uses Secret Manager references automatically)
+./infra/deploy.sh
+```
+
+After deploy, update `DARAJA_CALLBACK_URL` in the Safaricom Daraja portal to the Cloud Run service URL + `/api/payments/callback`.
+
+## Agent runtime (optional)
+
+The Google ADK agent stack (`google-labs-adk`) is not on PyPI. The FastAPI
+backend runs without it; the `/chat` endpoint returns a graceful fallback
+when the agent is unavailable, so payment testing works without it. To
+enable the full Gemini mediator in production, see `agent_runtime.txt`.
+
+Revenue is persisted in `data/payments.db` (SQLite) and exposed at `GET /api/revenue` for hackathon evidence.

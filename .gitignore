@@ -46,3 +46,6 @@ __pycache__/
 .DS_Store
 
 venv_new/
+data/*.db
+data/*.db-wal
+data/*.db-shm
