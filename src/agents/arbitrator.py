@@ -10,7 +10,7 @@ load_dotenv()
 from src.tools.rag_engine import get_bylaw_retriever
 from src.tools.finance import analyze_mpesa_records
 from src.services.vara_service import VaraService
-from src.tools.payments import initiate_premium_resolution
+from src.tools.payments import initiate_premium_resolution, verify_premium_payment
 from src.tools.vision_audit import analyze_ledger_image
 from src.services.ipfs_service import PinataIPFSService
 from src.services.reputation_service import generate_bank_readiness_report
@@ -53,6 +53,7 @@ def get_arbitrator_agent():
             upload_evidence_to_ipfs,
             submit_verdict_to_blockchain,
             initiate_premium_resolution,
+            verify_premium_payment,
             generate_bank_readiness_report
         ]
     )

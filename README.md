@@ -105,3 +105,22 @@ It then:
 Sikizana is deployed on **Google Cloud Run**.
 - **Live Demo**: [URL Placeholder]
 - **Deployment Guide**: See `infra/deploy.sh`.
+
+## Real M-Pesa Payments (Daraja API)
+Sikizana collects real revenue via Safaricom Daraja STK Push. To enable:
+
+1. Register a Safaricom Daraja account at [developer.safaricom.co.ke](https://developer.safaricom.co.ke).
+2. Create an app to get `Consumer Key` and `Consumer Secret`.
+3. Onboard a Paybill or Till number shortcode and request STK Push passkey.
+4. Set environment variables (see `.env.example`):
+   ```
+   DARAJA_ENV=sandbox                # or production
+   DARAJA_CONSUMER_KEY=...
+   DARAJA_CONSUMER_SECRET=...
+   DARAJA_SHORTCODE=174379           # sandbox test shortcode
+   DARAJA_PASSKEY=...
+   DARAJA_CALLBACK_URL=https://your-domain.com/api/payments/callback
+   PREMIUM_RESOLUTION_KES=100
+   ```
+5. The callback URL must be publicly reachable (use ngrok in dev: `ngrok http 8080`).
+6. Revenue is persisted in `data/payments.db` (SQLite) and exposed at `GET /api/revenue` for hackathon evidence.

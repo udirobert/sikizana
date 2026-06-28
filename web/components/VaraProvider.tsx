@@ -1,7 +1,7 @@
 "use client";
 
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { gearApi } from '@gear-js/api';
+import { GearApi } from '@gear-js/api';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 interface VaraContextType {
@@ -27,7 +27,7 @@ export function VaraProvider({ children }: { children: ReactNode }) {
     const initApi = async () => {
       try {
         const provider = new WsProvider('wss://testnet.vara.network');
-        const gear = await gearApi(provider);
+        const gear = await new GearApi({ provider });
         setApi(gear);
         setIsApiReady(true);
       } catch (error) {
