@@ -1,40 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRevenue } from "@/hooks/useRevenue";
 
-interface RevenueData {
-  total_payments: number;
-  confirmed_count: number;
-  total_revenue_kes: number | null;
-  pending_count: number;
-  failed_count: number;
-}
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
-
+/**
+ * Live revenue counter in the header. Renders nothing when there are no
+ * payments yet (avoids an empty badge on first launch).
+ */
 export function RevenueBadge() {
-  const [revenue, setRevenue] = useState<RevenueData | null>(null);
-
-  useEffect(() => {
-    const fetchRevenue = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/revenue`);
-        const data = await res.json();
-        setRevenue(data);
-      } catch {
-        // silently fail - badge is non-critical
-      }
-    };
-    fetchRevenue();
-    const interval = setInterval(fetchRevenue, 15000);
-    return () => clearInterval(interval);
-  }, []);
+  const revenue = useRevenue();
 
   if (!revenue || revenue.total_payments === 0) {
     return null;
   }
 
   const totalKes = revenue.total_revenue_kes || 0;
+  const confirmed = revenue.confirmed_count || 0;
 
   return (
     <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
@@ -44,9 +24,7 @@ export function RevenueBadge() {
       <span className="text-[11px] font-semibold text-emerald-700">
         {totalKes.toLocaleString()} KES
       </span>
-      <span className="text-[10px] text-emerald-500">
-        ({revenue.confirmed_count} paid)
-      </span>
+      <span className="text-[10px] text-emerald-500">({confirmed} paid)</span>
     </div>
   );
 }

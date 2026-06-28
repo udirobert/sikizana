@@ -1,11 +1,13 @@
 """
-Simple SQLite-backed payment record store.
-Tracks STK Push requests from initiation through Daraja callback confirmation.
-Used as evidence of real revenue for hackathon submission.
+SQLite-backed stores with schema migration.
+
+Adds:
+  - schema_version table for migration tracking
+  - feedback table for thumbs up/down on agent messages
 """
 
-import sqlite3
 import os
+import sqlite3
 from datetime import datetime, timezone
 
 DB_PATH = os.getenv("PAYMENT_DB_PATH", "data/payments.db")
@@ -16,12 +18,15 @@ def _get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
-def init_db():
-    conn = _get_db()
-    conn.execute(
+# ---- Migrations ----
+
+MIGRATIONS: list[tuple[int, str]] = [
+    (
+        1,
         """
         CREATE TABLE IF NOT EXISTS payments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,11 +40,62 @@ def init_db():
             dispute_context TEXT,
             created_at TEXT NOT NULL,
             confirmed_at TEXT
+        );
+    """,
+    ),
+    (
+        2,
+        """
+        CREATE TABLE IF NOT EXISTS feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            thread_id TEXT NOT NULL,
+            message_index INTEGER NOT NULL,
+            rating TEXT NOT NULL CHECK (rating IN ('up', 'down')),
+            comment TEXT,
+            created_at TEXT NOT NULL,
+            UNIQUE(thread_id, message_index)
+        );
+    """,
+    ),
+]
+
+
+def init_db() -> None:
+    conn = _get_db()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL
         )
         """
     )
     conn.commit()
+
+    current = conn.execute("SELECT COALESCE(MAX(version), 0) AS v FROM schema_version").fetchone()[
+        "v"
+    ]
+    for version, sql in MIGRATIONS:
+        if version <= current:
+            continue
+        conn.executescript(sql)
+        conn.execute(
+            "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
+            (version, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
     conn.close()
+
+
+def get_db_version() -> int:
+    init_db()
+    conn = _get_db()
+    row = conn.execute("SELECT COALESCE(MAX(version), 0) AS v FROM schema_version").fetchone()
+    conn.close()
+    return row["v"]
+
+
+# ---- Payments ----
 
 
 def create_payment(
@@ -67,7 +123,7 @@ def create_payment(
         (checkout_request_id,),
     ).fetchone()
     conn.close()
-    return dict(row)
+    return dict(row) if row else {}
 
 
 def get_payment(checkout_request_id: str) -> dict | None:
@@ -109,7 +165,6 @@ def confirm_payment(
 
 
 def get_revenue_summary() -> dict:
-    """Aggregate revenue stats for hackathon evidence / dashboard."""
     init_db()
     conn = _get_db()
     row = conn.execute(
@@ -125,3 +180,58 @@ def get_revenue_summary() -> dict:
     ).fetchone()
     conn.close()
     return dict(row) if row else {}
+
+
+# ---- Feedback ----
+
+
+def record_feedback(
+    thread_id: str,
+    message_index: int,
+    rating: str,
+    comment: str | None = None,
+) -> dict:
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO feedback (thread_id, message_index, rating, comment, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(thread_id, message_index) DO UPDATE SET
+            rating = excluded.rating,
+            comment = COALESCE(excluded.comment, feedback.comment),
+            created_at = excluded.created_at
+        """,
+        (thread_id, message_index, rating, comment, now),
+    )
+    conn.commit()
+    row = conn.execute(
+        """
+        SELECT
+            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as upvotes,
+            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as downvotes,
+            COUNT(*) as total
+        FROM feedback
+        WHERE thread_id = ?
+        """,
+        (thread_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {"upvotes": 0, "downvotes": 0, "total": 0}
+
+
+def get_feedback_summary() -> dict:
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        """
+        SELECT
+            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as upvotes,
+            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as downvotes,
+            COUNT(*) as total
+        FROM feedback
+        """
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else {"upvotes": 0, "downvotes": 0, "total": 0}

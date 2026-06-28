@@ -46,7 +46,7 @@ gcloud run deploy "$SERVICE_NAME" \
     --min-instances 0 \
     --max-instances 4 \
     --set-env-vars="PORT=8080,DARAJA_ENV=production" \
-    --set-secrets="DARAJA_CONSUMER_KEY=daraja-consumer-key:latest,DARAJA_CONSUMER_SECRET=daraja-consumer-secret:latest,DARAJA_PASSKEY=daraja-passkey:latest,GEMINI_API_KEY=gemini-api-key:latest" \
+    --set-secrets="DARAJA_CONSUMER_KEY=daraja-consumer-key:latest,DARAJA_CONSUMER_SECRET=daraja-consumer-secret:latest,DARAJA_PASSKEY=daraja-passkey:latest,GEMINI_API_KEY=gemini-api-key:latest" \ # pragma: allowlist secret
     --project "$PROJECT_ID"
 
 echo ""
