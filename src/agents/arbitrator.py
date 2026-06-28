@@ -26,11 +26,11 @@ def submit_verdict_to_blockchain(dispute_id: int, verdict_summary: str, evidence
     """
     Submits the final mediation verdict to the Vara Network on-chain program.
     """
-    # In a production hackathon entry, we would upload the verdict_summary to IPFS 
+    # In a production hackathon entry, we would upload the verdict_summary to IPFS
     # and get a CID, then submit that CID to the Vara contract.
     mock_cid = f"ipfs://{hash(verdict_summary)}"
     success = vara.submit_verdict(dispute_id, mock_cid, private_key=os.getenv("VARA_PRIVATE_KEY", ""))
-    
+
     if success:
         return f"Successfully recorded verdict on Vara Network. CID: {mock_cid} | Evidence: {evidence_cid}"
     return "Failed to record verdict on-chain."
@@ -41,7 +41,7 @@ def get_arbitrator_agent():
         instruction = f.read()
 
     bylaw_agent = get_bylaw_retriever()
-    
+
     return LlmAgent(
         name="arbitrator",
         model="gemini-1.5-pro", # Aligning with XPRIZE preference for 1.5/3.1
@@ -61,12 +61,12 @@ def get_arbitrator_agent():
 async def run_arbitrator(user_input: str, thread_id: str = None):
     agent = get_arbitrator_agent()
     runner = Runner()
-    
+
     response_text = ""
     async for event in runner.run(agent, user_input):
         if event.agent_name == "arbitrator" and event.event_type == "text_chunk":
             response_text += event.text
-            
+
     return response_text
 
 if __name__ == "__main__":

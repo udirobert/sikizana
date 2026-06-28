@@ -3,6 +3,7 @@ Premium Resolution payment tool. Backed by Safaricom Daraja STK Push for real
 M-Pesa collections. Payment status is checked against the SQLite store; only
 confirmed payments unlock the deep audit / IPFS / on-chain submission flow.
 """
+
 import os
 import asyncio
 from src.services.daraja_service import DarajaService
@@ -58,16 +59,10 @@ def initiate_premium_resolution(amount: float, phone_number: str) -> str:
     try:
         loop = asyncio.get_event_loop()
         if loop.is_running():
-            return asyncio.ensure_future(
-                _stk_push_async(amount_int, phone_number, "agent-call")
-            )
-        return loop.run_until_complete(
-            _stk_push_async(amount_int, phone_number, "agent-call")
-        )
+            return asyncio.ensure_future(_stk_push_async(amount_int, phone_number, "agent-call"))
+        return loop.run_until_complete(_stk_push_async(amount_int, phone_number, "agent-call"))
     except RuntimeError:
-        return asyncio.run(
-            _stk_push_async(amount_int, phone_number, "agent-call")
-        )
+        return asyncio.run(_stk_push_async(amount_int, phone_number, "agent-call"))
 
 
 def verify_premium_payment(checkout_request_id: str) -> str:

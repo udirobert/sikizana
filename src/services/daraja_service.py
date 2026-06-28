@@ -3,6 +3,7 @@ Safaricom Daraja API client for real M-Pesa STK Push payments.
 Requires Daraja app credentials (consumer_key, consumer_secret) and
 a shortcode + passkey registered for STK Push on the Safaricom portal.
 """
+
 from base64 import b64encode
 import os
 import time
@@ -39,9 +40,7 @@ class DarajaService:
 
         url = f"{BASE_URL}/oauth/v1/generate?grant_type=client_credentials"
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                url, auth=(self.consumer_key, self.consumer_secret)
-            )
+            resp = await client.get(url, auth=(self.consumer_key, self.consumer_secret))
             resp.raise_for_status()
             data = resp.json()
 
@@ -54,9 +53,7 @@ class DarajaService:
         raw = f"{self.shortcode}{self.passkey}{timestamp}".encode()
         return b64encode(raw).decode()
 
-    async def stk_push(
-        self, phone_number: str, amount: int, account_reference: str
-    ) -> dict:
+    async def stk_push(self, phone_number: str, amount: int, account_reference: str) -> dict:
         """
         Trigger an STK Push prompt to the user's phone.
         Returns the raw Daraja response containing CheckoutRequestID.
