@@ -32,14 +32,26 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
-from src.agents.arbitrator import run_arbitrator
-
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    response = await run_arbitrator(request.message, request.thread_id)
+    # Lazy import so the payment routes work even when the Google ADK agent
+    # stack is not installed (e.g. during sandbox payment testing).
+    try:
+        from src.agents.arbitrator import run_arbitrator
+        response = await run_arbitrator(request.message, request.thread_id)
+    except ImportError as e:
+        return {
+            "response": (
+                "Sikizana mediator offline (agent runtime not installed). "
+                f"Detail: {e}"
+            ),
+            "thread_id": request.thread_id or "new-thread",
+            "agent_available": False,
+        }
     return {
         "response": response,
-        "thread_id": request.thread_id or "new-thread"
+        "thread_id": request.thread_id or "new-thread",
+        "agent_available": True,
     }
 
 
