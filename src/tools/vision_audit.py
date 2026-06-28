@@ -21,21 +21,21 @@ def analyze_ledger_image(image_path: str, query: str = "Extract all transactions
     try:
         # Load the image
         img = Image.open(image_path)
-        
+
         # System Prompt for Vision-to-Data
         prompt = f"""
         You are a professional forensic auditor for informal savings groups (ROSCAs/Chamas).
         Analyze the provided image (ledger, receipt, or bank statement).
-        
+
         Task: {query}
-        
+
         Guidelines:
         1. Extract Date, Member Name, Amount, and Transaction Type (Contribution, Loan, Fine, Payout).
         2. If handwriting is unclear, provide your best guess but mark it with [?].
         3. Format the output as a clean table or bulleted list.
         4. If it's a receipt, verify the total and the M-Pesa/Bank reference code.
         """
-        
+
         response = vision_model.generate_content([prompt, img])
         return response.text
 

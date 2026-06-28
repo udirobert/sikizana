@@ -37,7 +37,7 @@ class PinataIPFSService:
                     files={'file': f},
                     headers=headers
                 )
-            
+
             if response.status_code == 200:
                 cid = response.json().get('IpfsHash')
                 return f"ipfs://{cid}"

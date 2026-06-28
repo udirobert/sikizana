@@ -12,7 +12,7 @@ def get_bylaw_retriever():
     """
     data_store_id = os.getenv("VERTEX_AI_DATA_STORE_ID")
     project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
-    
+
     if data_store_id and project_id:
         # Full RAG implementation with Vertex AI
         search_tool = VertexAiSearchTool(
@@ -31,10 +31,10 @@ def get_bylaw_retriever():
             data_path = os.path.join("data", "sample_bylaws.txt")
             if not os.path.exists(data_path):
                 return "Error: Bylaws file not found."
-            
+
             with open(data_path, 'r') as f:
                 content = f.read()
-            
+
             # Simple keyword check for the prototype
             query_lower = query.lower()
             if "loan" in query_lower:
@@ -43,7 +43,7 @@ def get_bylaw_retriever():
                 return "Section 1: Monthly contributions are 2,000 KES by the 5th."
             if "fine" in query_lower or "penalty" in query_lower:
                 return "Section 2: Late contributions fine is 200 KES/week. Missed meeting fine is 500 KES."
-            
+
             return f"No specific section found in bylaws for '{query}'.\nFull Bylaws Content:\n{content[:500]}..."
 
         return LlmAgent(

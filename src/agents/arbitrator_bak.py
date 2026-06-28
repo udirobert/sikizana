@@ -32,12 +32,12 @@ def create_agent():
     # Register Tools
     agent.add_tool(analyze_mpesa_records)
     agent.add_tool(submit_verdict_to_blockchain)
-    
+
     # RAG tool wrapper
     bylaw_agent = get_bylaw_retriever()
     def bylaw_search(query: str):
         return bylaw_agent.run(query)
-    
+
     agent.add_tool(Tool(
         name="bylaw_retriever",
         description="Search chama bylaws for rules and penalties.",

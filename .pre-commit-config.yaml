@@ -1,20 +1,56 @@
 repos:
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.6.0
-  hooks:
-    - id: trailing-whitespace
-    - id: end-of-file-fixer
-    - id: check-yaml
-    - id: check-added-large-files
-- repo: https://github.com/Yelp/detect-secrets
-  rev: v1.3.0
-  hooks:
-    - id: detect-secrets-hook
-      args: ["--baseline", ".secrets.baseline"]
-- repo: local
-  hooks:
-    - id: eslint-npm-run
-      name: eslint (npm run lint)
-      entry: npm run lint
-      language: system
-      types: [javascript, javascriptreact, typescript, tsx]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            web/pnpm-lock\.yaml|
+            .*package-lock\.json
+          )$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: ["--fix", "--exit-non-zero-on-fix"]
+      - id: ruff-format
+        files: ^src/(services/daraja_service\.py|services/payment_store\.py|tools/payments\.py)$
+
+  - repo: local
+    hooks:
+      - id: eslint-web
+        name: eslint (web)
+        entry: bash -c 'cd web && npx eslint . --max-warnings=0'
+        language: system
+        types: [javascript, ts, tsx]
+        pass_filenames: false
+
+      - id: tsc-web
+        name: tsc type-check (web)
+        entry: bash -c 'cd web && npx tsc --noEmit'
+        language: system
+        types: [ts, tsx]
+        pass_filenames: false
+
+      - id: python-syntax
+        name: Python syntax check
+        entry: bash -c 'python3 -m compileall -q src/'
+        language: system
+        pass_filenames: false

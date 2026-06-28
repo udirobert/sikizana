@@ -3,6 +3,7 @@ Simple SQLite-backed payment record store.
 Tracks STK Push requests from initiation through Daraja callback confirmation.
 Used as evidence of real revenue for hackathon submission.
 """
+
 import sqlite3
 import os
 from datetime import datetime, timezone

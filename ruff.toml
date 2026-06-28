@@ -1,0 +1,9 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+extend-per-file-ignores = { "src/agents/arbitrator.py" = ["E402"], "src/api/main.py" = ["E402"], "src/tools/rag_engine.py" = ["F401"], "src/services/vara_service.py" = ["F401"], "src/services/reputation_service.py" = ["F401"], "src/tools/vision_audit.py" = ["F401"], "src/tools/finance.py" = ["F401"] }
+
+[format]
+quote-style = "double"
+indent-style = "space"
