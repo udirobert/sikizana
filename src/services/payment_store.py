@@ -57,6 +57,51 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
     """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE IF NOT EXISTS leads (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chama_name TEXT NOT NULL,
+            contact_name TEXT,
+            contact_phone TEXT,
+            contact_handle TEXT,
+            language TEXT DEFAULT 'sw',
+            county TEXT,
+            source TEXT,
+            status TEXT DEFAULT 'contacted',
+            notes TEXT,
+            owner TEXT,
+            claimed_at TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(contact_phone);
+        CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+        CREATE INDEX IF NOT EXISTS idx_leads_owner ON leads(owner);
+
+        CREATE TABLE IF NOT EXISTS activity_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+            actor TEXT,
+            event TEXT NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_activity_lead ON activity_log(lead_id);
+
+        CREATE TABLE IF NOT EXISTS testimonials (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            lead_id INTEGER REFERENCES leads(id),
+            chama_name TEXT,
+            contact_name TEXT,
+            quote TEXT NOT NULL,
+            language TEXT DEFAULT 'sw',
+            approved_public INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+    """,
+    ),
 ]
 
 

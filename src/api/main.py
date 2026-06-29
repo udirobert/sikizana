@@ -7,6 +7,7 @@ Wires together:
   - Revenue + feedback aggregation
   - Structured JSON logging, server-side validation, per-IP rate limiting
 """
+
 from __future__ import annotations
 
 import os
@@ -47,6 +48,7 @@ app.add_middleware(
 
 # ---- Health / root ----
 
+
 @app.get("/")
 async def root():
     return {"status": "online", "message": "Sikizana API is running"}
@@ -63,6 +65,7 @@ async def health():
 
 # ---- Chat ----
 
+
 class ChatRequest(BaseModel):
     message: str
     thread_id: str | None = None
@@ -76,6 +79,7 @@ async def chat(request: ChatRequest):
     # Lazy import so payment routes work without the ADK runtime.
     try:
         from src.agents.arbitrator import run_arbitrator
+
         response = await run_arbitrator(request.message, request.thread_id)
         agent_available = True
     except ImportError as exc:
@@ -108,6 +112,7 @@ async def chat(request: ChatRequest):
 
 
 # ---- Payments ----
+
 
 class StkPushRequest(BaseModel):
     phone: str = Field(..., min_length=9, max_length=20)
@@ -208,12 +213,26 @@ async def payment_status(checkout_request_id: str):
 
 @app.get("/api/revenue")
 async def revenue():
+    """Hackathon revenue evidence + business dashboard."""
+    from src.services.leads import funnel_summary as _funnel, list_testimonials as _testi
+
     summary = get_revenue_summary()
     feedback = get_feedback_summary()
-    return {**summary, "feedback": feedback}
+    testimonials_count = len(_testi(approved_only=False))
+    approved_testimonials_count = len(_testi(approved_only=True))
+    return {
+        **summary,
+        "feedback": feedback,
+        "testimonials": {
+            "total": testimonials_count,
+            "approved_public": approved_testimonials_count,
+        },
+        "funnel": _funnel(),
+    }
 
 
 # ---- Feedback ----
+
 
 class FeedbackRequest(BaseModel):
     thread_id: str = Field(..., min_length=1, max_length=64)
@@ -239,6 +258,217 @@ async def feedback(req: FeedbackRequest):
         },
     )
     return {"received": True, "summary": summary}
+
+
+# ---- Leads / GTM ----
+
+import hmac
+from src.services.leads import (
+    VALID_LEAD_STATUSES,
+    add_testimonial,
+    claim_lead,
+    create_lead,
+    daily_revenue,
+    funnel_summary,
+    list_activity,
+    list_leads,
+    list_testimonials,
+    log_activity,
+    scoreboard,
+    update_lead_status,
+)
+
+# Shared password for /team. Set via env in production; default is a placeholder
+# that callers must override. Pure shared-secret auth is fine for a hackathon.
+_TEAM_PASSWORD = os.getenv("TEAM_PASSWORD", "sikizana-team-2026")
+
+
+def _require_team(request: Request) -> bool:
+    """Verify the X-Team-Token header matches the shared password.
+    Returns True if the caller is allowed to see team data."""
+    provided = request.headers.get("X-Team-Token", "")
+    return hmac.compare_digest(provided, _TEAM_PASSWORD)
+
+
+class LeadCreate(BaseModel):
+    chama_name: str = Field(..., min_length=2, max_length=120)
+    contact_name: str | None = Field(default=None, max_length=120)
+    contact_phone: str | None = Field(default=None, max_length=20)
+    contact_handle: str | None = Field(default=None, max_length=120)
+    language: str = Field(default="sw", pattern="^(en|sw|sheng)$")
+    county: str | None = Field(default=None, max_length=60)
+    source: str | None = Field(default=None, max_length=60)
+    status: str = Field(default="contacted")
+    notes: str | None = Field(default=None, max_length=2000)
+    owner: str | None = Field(default=None, max_length=60)
+
+
+@app.post("/api/leads")
+async def leads_create(req: LeadCreate, request: Request):
+    """Anyone (incl. anonymous) can create a lead - this powers the quick
+    capture form on /team AND the auto-capture from the onboarding flow."""
+    if req.status not in VALID_LEAD_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {req.status}")
+
+    # Normalise phone for consistent matching later.
+    phone = req.contact_phone
+    if phone:
+        try:
+            from src.services.validation import normalise_kenyan_phone
+
+            normalised = normalise_kenyan_phone(phone)
+            if normalised:
+                phone = normalised
+        except Exception:  # noqa: BLE001
+            pass
+
+    lead = create_lead(
+        chama_name=req.chama_name,
+        contact_name=req.contact_name,
+        contact_phone=phone,
+        contact_handle=req.contact_handle,
+        language=req.language,
+        county=req.county,
+        source=req.source or "team_form",
+        status=req.status,
+        notes=req.notes,
+        owner=req.owner,
+    )
+    log.info(
+        "lead_created",
+        extra={"lead_id": lead["id"], "owner": req.owner, "source": req.source},
+    )
+    return lead
+
+
+@app.get("/api/leads")
+async def leads_list(
+    request: Request,
+    owner: str | None = None,
+    status_filter: str | None = None,
+    limit: int = 200,
+):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    return list_leads(owner=owner, status=status_filter, limit=limit)
+
+
+@app.post("/api/leads/{lead_id}/status")
+async def lead_update_status(lead_id: int, request: Request):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    body = await request.json()
+    new_status = body.get("status")
+    actor = body.get("actor")
+    notes = body.get("notes")
+    if new_status not in VALID_LEAD_STATUSES:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    updated = update_lead_status(lead_id, new_status, actor=actor, notes=notes)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    log.info(
+        "lead_status_changed",
+        extra={"lead_id": lead_id, "status": new_status, "actor": actor},
+    )
+    return updated
+
+
+@app.post("/api/leads/{lead_id}/claim")
+async def lead_claim(lead_id: int, request: Request):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    body = await request.json()
+    actor = body.get("actor")
+    if not actor:
+        raise HTTPException(status_code=400, detail="actor required")
+    updated = claim_lead(lead_id, actor)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    log.info("lead_claimed", extra={"lead_id": lead_id, "actor": actor})
+    return updated
+
+
+@app.post("/api/leads/{lead_id}/activity")
+async def lead_log_activity(lead_id: int, request: Request):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    body = await request.json()
+    actor = body.get("actor")
+    event = body.get("event")
+    notes = body.get("notes")
+    if not event:
+        raise HTTPException(status_code=400, detail="event required")
+    activity_id = log_activity(lead_id, actor=actor, event=event, notes=notes)
+    log.info(
+        "activity_logged",
+        extra={"lead_id": lead_id, "actor": actor, "event": event},
+    )
+    return {"id": activity_id}
+
+
+@app.get("/api/leads/{lead_id}/activity")
+async def lead_activity(lead_id: int, request: Request, limit: int = 50):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    return list_activity(lead_id=lead_id, limit=limit)
+
+
+@app.get("/api/leads/aggregate/scoreboard")
+async def leads_scoreboard(request: Request, actor: str | None = None):
+    """Per-owner revenue attribution. The core /team scoreboard data."""
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    return scoreboard(actor=actor)
+
+
+@app.get("/api/leads/aggregate/funnel")
+async def leads_funnel(request: Request):
+    """Lead count by status — for the pipeline overview."""
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    return funnel_summary()
+
+
+@app.get("/api/leads/aggregate/daily-revenue")
+async def leads_daily_revenue(request: Request):
+    if not _require_team(request):
+        raise HTTPException(status_code=401, detail="Team token required")
+    return daily_revenue()
+
+
+# ---- Testimonials (public read, team write) ----
+
+
+class TestimonialCreate(BaseModel):
+    chama_name: str = Field(..., min_length=2, max_length=120)
+    quote: str = Field(..., min_length=5, max_length=600)
+    contact_name: str | None = Field(default=None, max_length=120)
+    language: str = Field(default="sw", pattern="^(en|sw|sheng)$")
+    approved_public: bool = False
+
+
+@app.post("/api/testimonials")
+async def testimonial_create(req: TestimonialCreate, request: Request):
+    """Anonymous users can submit testimonials via the in-chat prompt.
+    Approval happens via the /team dashboard before they appear on /impact."""
+    row = add_testimonial(
+        chama_name=req.chama_name,
+        quote=req.quote,
+        contact_name=req.contact_name,
+        language=req.language,
+        approved_public=req.approved_public,
+    )
+    log.info(
+        "testimonial_submitted",
+        extra={"chama_name": req.chama_name, "approved": req.approved_public},
+    )
+    return row
+
+
+@app.get("/api/testimonials")
+async def testimonial_list(approved_only: bool = True):
+    """Public by default. Authenticated callers can pass ?approved_only=false."""
+    return list_testimonials(approved_only=approved_only)
 
 
 # ---- Entrypoint ----

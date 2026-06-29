@@ -130,7 +130,21 @@ function ChatView() {
         ? `Poa ${chamaName ? `${chamaName}` : ""}! Sema kuhusu ule mzozo, nitakusaidia.`
         : `Welcome${chamaName ? ` to ${chamaName}` : ""}! Tell me about your dispute.`;
     addMessage({ role: "agent", content: greeting });
-    void disputeKind;
+
+    // Auto-capture this chama as a lead so the team has signal to follow up.
+    if (chamaName && chamaName.trim().length >= 2) {
+      void endpoints.leads
+        .create({
+          chama_name: chamaName.trim(),
+          language: selectedLanguage,
+          source: "onboarding",
+          notes: disputeKind ? `First dispute type: ${disputeKind}` : undefined,
+          status: "demoed",
+        })
+        .catch(() => {
+          // Best-effort: don't break the chat if the backend is offline.
+        });
+    }
   };
 
   const handleStartSample = (description: string) => {

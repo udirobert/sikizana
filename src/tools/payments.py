@@ -92,6 +92,9 @@ def handle_daraja_callback(callback_body: dict) -> dict:
     """
     API helper: process an incoming Daraja STK Push callback payload.
     Idempotent: re-confirming an already-confirmed payment is a no-op.
+
+    On success, attributes the payment to a matching lead (by phone) so
+    apprentices get credit for driving the conversion.
     """
     parsed = DarajaService.parse_callback(callback_body)
     updated = confirm_payment(
@@ -100,4 +103,18 @@ def handle_daraja_callback(callback_body: dict) -> dict:
         mpesa_receipt=parsed.get("mpesa_receipt") or "",
         result_desc=parsed.get("result_desc") or "",
     )
+
+    if parsed["success"]:
+        try:
+            from src.services.leads import attach_payment_to_lead
+
+            attach_payment_to_lead(
+                phone=parsed.get("phone") or (updated or {}).get("phone", ""),
+                checkout_id=parsed["checkout_request_id"],
+                amount=parsed.get("amount") or 0,
+            )
+        except Exception:  # noqa: BLE001
+            # Lead attribution is best-effort; never break the payment path.
+            pass
+
     return {"parsed": parsed, "record": updated}
