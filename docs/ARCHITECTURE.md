@@ -50,13 +50,27 @@ Frontend toggle Premium -> enters phone number
   -> POST /api/payments/stk-push {phone, amount, dispute_context}
     -> DarajaService.stk_push() -> Safaricom sends STK prompt to user's phone
     -> PaymentStore creates PENDING record
+    -> LeadsService.find_lead_by_phone() links checkout to a lead
   -> User enters M-Pesa PIN on phone
   -> Safaricom POST /api/payments/callback (async webhook)
     -> DarajaService.parse_callback() extracts receipt, amount, status
     -> PaymentStore confirms payment (CONFIRMED/FAILED)
+    -> LeadsService.attach_payment_to_lead() attributes revenue
+       to the apprentice who claimed the lead
   -> Frontend polls GET /api/payments/status/{checkout_id} every 3s
   -> Once CONFIRMED, frontend sends premium chat to /chat
   -> Agent calls verify_premium_payment before running deep audit
 ```
 
 All payments are persisted in SQLite (`data/payments.db`) and aggregated at `GET /api/revenue` for business viability evidence.
+
+## GTM Pipeline
+
+```
+/arbitrate first visit
+  -> OnboardingFlow (language -> chama name -> dispute kind)
+  -> LeadsService.create_lead() with source='onboarding', status='demoed'
+  -> Apprentice finds it in /team, claims it, follows up
+```
+
+Apprentices authenticate to `/team` with a shared password (`TEAM_PASSWORD` env var). Protected endpoints require the `X-Team-Token` header. The `/impact` page is fully public and pulls live numbers from `/api/revenue`.
