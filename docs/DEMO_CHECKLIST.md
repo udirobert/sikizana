@@ -1,48 +1,55 @@
 # Sikizana Books — Demo Checklist (Day of Hackathon)
 
-## BEFORE THE PITCH (30 min before)
+## LIVE URL
 
-### 1. Start the backend
+**https://sikizana.persidian.com**
+
+Everything is deployed on the VPS. No local setup needed for the demo.
+
+---
+
+## BEFORE THE PITCH (10 min before)
+
+### 1. Verify the live site
+Open: **https://sikizana.persidian.com/books**
+
+Check:
+- Siki the Owl mascot appears in the nav and chat header
+- "● Xero Live" badge in the top right
+- Proactive audit notification appears ("I've audited your books...")
+- Quick Audit sidebar shows 9 unreconciled, 1 overdue
+
+If the site is down:
 ```bash
-cd ~/Dev/sikizana
-source .venv/bin/activate
-python -m uvicorn src.api.main:app --port 8000
+ssh nuncio-vultr "cd ~/sikizana && sudo docker compose -f docker-compose.vps.yml restart"
 ```
-Verify: `curl http://localhost:8000/api/xero/status` → `{"live": true, "mode": "live"}`
 
-If it says `"live": false`:
+If Xero says "Demo Data" instead of "Live":
 ```bash
-xero login  # re-authenticate with Xero
-# then restart the backend
+ssh nuncio-vultr "sudo docker exec sikizana-api xero login"
+# follow the OAuth flow, then restart:
+ssh nuncio-vultr "cd ~/sikizana && sudo docker compose -f docker-compose.vps.yml restart sikizana-api"
 ```
 
-### 2. Start the frontend
-```bash
-cd ~/Dev/sikizana/web
-npm run dev
-```
-Open: `http://localhost:3000/books`
-
-### 3. Verify the agent works
-In the chat box, type: "Check my books"
-- Agent should respond within 10-15 seconds
-- Should mention 9 unreconciled transactions and 1 overdue invoice
+### 2. Test the agent
+In the chat box, type: "What is my net profit?"
+- Siki's eyes should shift to "look" mode (loading)
+- Tool calls appear in the trace
+- Response within 10-15 seconds with £4,883.13
 
 If agent doesn't respond:
-- Check `NVIDIA_API_KEY` is in `.env`
-- Check backend logs for errors
-- Fallback: use the backup video
+- Check NVIDIA_API_KEY is set: `ssh nuncio-vultr "cat ~/sikizana/.env"`
+- Check backend logs: `ssh nuncio-vultr "sudo docker logs sikizana-api --tail 20"`
 
-### 4. Open the pitch slides
+### 3. Open the pitch slides
 ```bash
 open ~/Dev/sikizana/docs/pitch-slides.html
 ```
 Press `T` to start the 3-minute timer.
 Press `→` or `Space` to advance slides.
 
-### 5. Have the backup video ready
-If wifi is flaky or the live demo fails, play the backup video.
-Have it queued in a browser tab or video player.
+### 4. Have a backup tab ready
+Open https://sikizana.persidian.com/books in a second tab as fallback.
 
 ---
 
@@ -53,18 +60,22 @@ Have it queued in a browser tab or video player.
 - Slide 1-2
 
 ### 0:30-1:40 — Demo (THE BIG MOMENT)
-- Switch to /books in browser
-- Show proactive audit notification
+- Switch to https://sikizana.persidian.com/books
+- Point out Siki the Owl mascot in the nav
+- Show proactive audit notification (auto-appears on page load)
 - Type: "Check my books and tell me what's wrong"
+- Watch the tool call trace stream in real-time (transparency!)
 - Wait for response (10-15s — DON'T talk over it, let it land)
 - Type: "What's my net profit this month?"
-- Wait for response
+- Wait for response (£4,883.13)
+- If time: upload a receipt or ask about overdue invoices
 - Slides 3-5 if needed
 
 ### 1:40-2:30 — Tech
 - Slide 6 (architecture)
 - Mention: NVIDIA NIM, Xero CLI, webhooks, multimodal
-- "40% less repetitive API calls" (webhook stat)
+- Mention Siki mascot: "Built entirely from SVG rectangles, no images"
+- Mention streaming transparency: "Users see every tool call in real-time"
 
 ### 2:30-3:00 — Future
 - Slide 7 (roadmap)
@@ -78,31 +89,29 @@ Have it queued in a browser tab or video player.
 - Stay calm, take a breath
 - Reference Q&A anticipation sheet
 - If asked something unexpected: "That's a great question. Here's how I'd approach that..."
-- Bridge back to strengths: human-in-the-loop, proven architecture, live Xero data
+- Bridge back to strengths: human-in-the-loop, streaming transparency, live Xero data, Siki mascot
 
 ---
 
 ## IF THINGS GO WRONG
 
-### Backend won't start
-→ Use backup video, pitch from slides
+### Site is down
+→ SSH to VPS and restart: `ssh nuncio-vultr "cd ~/sikizana && sudo docker compose -f docker-compose.vps.yml restart"`
+→ If still down: pitch from slides (they're self-contained HTML)
 
 ### Xero CLI not authenticated
-→ `xero login` → re-authenticate → restart backend
-→ If no time: the app falls back to mock data (still works, just not "live")
+→ `ssh nuncio-vultr "sudo docker exec sikizana-api xero login"`
+→ Follow OAuth flow, then restart the API container
+→ If no time: the app falls back to demo data (still works, just not "live")
 
 ### Agent doesn't respond
-→ Check NVIDIA_API_KEY in .env
-→ Restart backend
+→ Check NVIDIA_API_KEY: `ssh nuncio-vultr "cat ~/sikizana/.env"`
+→ Restart: `ssh nuncio-vultr "cd ~/sikizana && sudo docker compose -f docker-compose.vps.yml restart sikizana-api"`
 → If no time: show the chat UI and explain what it would do
 
-### Frontend won't build
-→ `cd web && rm -rf .next && npm run dev`
-→ If no time: use backup video
-
 ### No wifi at all
-→ Play backup video from local file
 → Pitch from slides (they're self-contained HTML)
+→ Screenshot the live site beforehand as backup
 
 ---
 
@@ -110,6 +119,7 @@ Have it queued in a browser tab or video player.
 
 | Metric | Value |
 |--------|-------|
+| Live URL | https://sikizana.persidian.com |
 | Xero subscribers | 4.4 million |
 | Unreconciled transactions | 9 |
 | Overdue invoices | 1 (£270.63) |
@@ -122,4 +132,4 @@ Have it queued in a browser tab or video player.
 | Agent tools | 10 |
 | Bookkeeper cost (traditional) | £50-100/month |
 | Our price (planned) | £15-25/month |
-| Webhook API call reduction | 40% |
+| Mascot | Siki the Owl (pure SVG, 5 moods) |

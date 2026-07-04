@@ -1,15 +1,21 @@
 # Sikizana Books — Xero App & Agent Hackathon Submission
 
+## Live URL
+
+**https://sikizana.persidian.com**
+
+- `/` — Landing page with Siki the Owl mascot
+- `/books` — AI Bookkeeper chat (live Xero data)
+- `/arbitrate` — Savings group arbitration (legacy feature)
+
 ## The Pitch (30 seconds)
 
 Sikizana Books is an AI bookkeeper that reads your Xero books, finds the
 discrepancies your accountant would charge you £200 to find, explains
 everything in plain English, and proposes the fixing journal entries.
 
-We built it by repurposing the agent architecture from our Kenyan chama
-arbitration platform (Sikizana) — because the core problem is identical:
-nobody reconciles their books, and when discrepancies pile up, nobody
-can afford to fix them.
+Meet **Siki the Owl** — your AI bookkeeping companion. Siki watches over
+your books, finds what others miss, and talks to you in plain English.
 
 ## The Problem
 
@@ -39,6 +45,25 @@ Sikizana Books is an AI agent that does what a bookkeeper does:
    aren't covering costs yet."
 5. **Proposes fixes** — generates correct journal entries with the
    right account codes, and waits for your approval before posting.
+
+## Siki the Owl — Mascot & Brand
+
+Siki is the face of Sikizana Books. Built entirely from SVG `<rect>`
+elements (pixel art style, inspired by Claude AI's mascot approach),
+Siki has five animated moods that reflect the app's state:
+
+- **Idle** — gentle breathing (waiting for you)
+- **Look** — eyes shift left/right (investigating your books)
+- **Wave** — wing rotates up/down (greeting)
+- **Walk** — body bobs, wings sway (strolling through transactions)
+- **Celebrate** — hops with confetti (journal entry approved!)
+
+All animations are CSS keyframe-based — no images, no GIFs, no video
+files. Pure code, ~5KB total.
+
+Siki appears in the nav, chat header, empty states, loading
+indicators, success overlays, and the homepage hero with a speech
+bubble that changes based on mood.
 
 ## How It Uses Xero
 
@@ -85,14 +110,18 @@ The agent uses OpenAI-compatible function calling via NVIDIA NIM. The
 NVIDIA API handles tool-call orchestration; we execute the actual
 Python functions that call the Xero CLI and feed results back.
 
+**Streaming transparency**: The agent streams tool calls and results
+in real-time via Server-Sent Events (SSE). Users see exactly which
+Xero tools the agent is calling and what it found — no black box.
+
 The agent always proposes before acting. Journal entries require user
 approval. This is human-in-the-loop design — the agent does the
 analysis, the human makes the final call.
 
 ## Demo
 
-Visit `/books` to chat with the bookkeeper. The demo runs on **live
-Xero data** from a Demo Company (UK) with:
+Visit **https://sikizana.persidian.com/books** to chat with Siki. The
+demo runs on **live Xero data** from a Demo Company (UK) with:
 
 - 23 bank transactions (9 unreconciled)
 - 10 invoices (1 overdue, £270.63 outstanding)
@@ -106,14 +135,16 @@ Try these queries:
 4. "What are these unreconciled transactions?"
 
 ### Proactive features:
-- **Auto-audit on page load** — the agent runs `find_discrepancies`
+- **Auto-audit on page load** — Siki runs `find_discrepancies`
   automatically when you open `/books` and shows a notification
-- **Webhook alerts** — when Xero pushes a webhook, the agent surfaces
+- **Webhook alerts** — when Xero pushes a webhook, Siki surfaces
   a proactive alert
-- **Receipt upload** — drag a receipt photo onto the chat, the agent
+- **Receipt upload** — drag a receipt photo onto the chat, Siki
   reads it with vision AI and matches it to a transaction
-- **Success animation** — when you approve a journal entry, a
-  transitions.dev success check plays
+- **Success animation** — when you approve a journal entry, Siki
+  celebrates with confetti and a transitions.dev success check
+- **Rotated reveal transition** — Codrops-inspired page transition
+  when entering the books page
 
 ## Tech Stack
 
@@ -124,8 +155,20 @@ Try these queries:
 | Xero integration | Xero CLI + Xero Webhooks |
 | Backend | Python / FastAPI |
 | Frontend | Next.js 16 / React 19 / Tailwind CSS |
+| Mascot | Siki the Owl — pure SVG pixel art, CSS keyframe animations |
 | Vision | Multimodal receipt matching |
-| Motion design | transitions.dev patterns, Emil Kowalski design engineering |
+| Motion design | transitions.dev patterns, Codrops rotated reveal, Emil Kowalski design engineering |
+| Deployment | Docker Compose on VPS, Coolify Traefik proxy, Let's Encrypt HTTPS |
+
+## Deployment
+
+Both frontend and backend run on a single VPS (144.202.117.160) via
+Docker Compose, behind Coolify's Traefik proxy:
+
+- `sikizana-api` — FastAPI backend on port 8081
+- `sikizana-web` — Next.js standalone on port 3000
+- Traefik routes `/api/*` to the backend, everything else to the frontend
+- HTTPS via Let's Encrypt (auto-renewed by Traefik)
 
 ## Why This Wins
 
@@ -133,38 +176,36 @@ Try these queries:
    orchestrates autonomously — it plans, gathers evidence, cross-references,
    and proposes fixes. That's agentic AI, not a prompt template.
 
-2. **Solves a real, expensive problem.** 4.4M Xero subscribers. Most
+2. **Streaming transparency.** Users see every tool call and result in
+   real-time. No black box — you watch Siki investigate your books.
+
+3. **Solves a real, expensive problem.** 4.4M Xero subscribers. Most
    can't afford a bookkeeper. This replaces £50-100/month of bookkeeping
    labour with an AI agent that costs pence per query.
 
-3. **Human-in-the-loop.** The agent proposes, the human approves. No
+4. **Human-in-the-loop.** The agent proposes, the human approves. No
    autonomous journal entries without consent. Safe by design.
 
-4. **Multimodal.** Receipt photos → Vision AI → matched to Xero
+5. **Multimodal.** Receipt photos → Vision AI → matched to Xero
    transactions. This is the bridge between physical and digital
    bookkeeping that small businesses actually need.
 
-5. **Proactive, not reactive.** Webhooks mean the agent comes to you —
+6. **Proactive, not reactive.** Webhooks mean Siki comes to you —
    "Hey, you have a new unreconciled transaction" — instead of waiting
    for you to notice problems at tax time.
 
-6. **Proven architecture.** We didn't build from scratch — we repurposed
-   a working agent architecture from our Kenyan chama arbitration
-   platform. The reasoning loop (gather evidence → analyse → propose
-   fix → await approval) is battle-tested in a harder domain
-   (multilingual, informal financial records).
+7. **Memorable mascot.** Siki the Owl gives the product personality
+   and makes AI bookkeeping feel approachable — not intimidating.
 
 ## Team
 
-Solo build by @udirobert, using AI-assisted development tools. The
-underlying agent architecture was built and tested in production for
-the Kenyan chama (ROSCA) market.
+Solo build by @udirobert, using AI-assisted development tools.
 
 ## What's Next
 
 - **Xero App Store listing** — package as a Xero app for distribution
   to 4.4M subscribers.
-- **Premium tier** — free audit, paid auto-fix (the agent posts the
+- **Premium tier** — free audit, paid auto-fix (Siki posts the
   journal entries for you after approval).
 - **Receipt inbox** — WhatsApp/email forwarding for receipt matching
   without leaving the chat.
