@@ -68,15 +68,17 @@ def _load_prompt() -> str:
 # that their question was understood, before the LLM responds.
 
 _STATUS_PATTERNS: list[tuple[list[str], str]] = [
-    (["profit", "loss", "p&l", "pnl", "income statement", "net profit", "revenue"],
+    (["overview", "summary", "quick look", "how are things", "how's my business"],
+     "Pulling together your business overview…"),
+    (["profit", "loss", "p&l", "pnl", "income statement", "net profit", "revenue", "profitable"],
      "Pulling your P&L report to answer that…"),
     (["balance sheet", "assets", "liabilities", "equity"],
      "Fetching your balance sheet…"),
-    (["invoice", "overdue", "unpaid", "outstanding", "owed"],
+    (["invoice", "overdue", "unpaid", "outstanding", "owed", "owes me"],
      "Checking your invoices for overdue items…"),
     (["reconcil", "unreconciled", "bank transaction", "matching", "match"],
      "Scanning your bank transactions for unreconciled items…"),
-    (["discrepanc", "audit", "health check", "wrong", "error", "mistake"],
+    (["discrepanc", "audit", "health check", "wrong", "error", "mistake", "needs attention", "needs fixing", "what needs"],
      "Auditing your books for discrepancies…"),
     (["journal", "entry", "adjust", "correct", "fix"],
      "Preparing a journal entry to fix that…"),

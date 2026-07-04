@@ -51,4 +51,5 @@ export const StorageKeys = {
   LAST_PHONE: "sikizana.phone",
   ONBOARDED: "sikizana.onboarded",
   SAMPLE_DISPUTE: "sikizana.sample_dispute",
+  BOOKS_VISITED: "sikizana.books_visited",
 } as const;

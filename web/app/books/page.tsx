@@ -17,6 +17,7 @@ import { SikiMascot, SikiMascotAnimated } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
+import { localStore, StorageKeys } from "@/lib/storage";
 
 interface DiscrepancyData {
   unreconciled: Array<{
@@ -71,6 +72,8 @@ function BooksView() {
   const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [dismissedWelcome, setDismissedWelcome] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +86,18 @@ function BooksView() {
     const timer = setTimeout(() => setStaggerShown(true), 100);
     return () => clearTimeout(timer);
   }, []);
+
+  // Detect first-time visit to show welcome onboarding.
+  useEffect(() => {
+    const visited = localStore.get<boolean>(StorageKeys.BOOKS_VISITED, false);
+    if (!visited) setShowWelcome(true);
+  }, []);
+
+  const dismissWelcome = () => {
+    localStore.set(StorageKeys.BOOKS_VISITED, true);
+    setShowWelcome(false);
+    setDismissedWelcome(true);
+  };
 
   // Fetch quick-audit data + Xero status + P&L on mount.
   useEffect(() => {
@@ -288,7 +303,7 @@ function BooksView() {
       <div className="flex-1 flex items-stretch justify-center p-4 gap-4">
         {/* Dashboard Sidebar */}
         <aside className="hidden lg:flex flex-col w-72 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
-          {/* Org header */}
+          {/* Org header — skeleton uses SkeletonReveal for consistency */}
           <div className="pb-3 border-b border-stone-100">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
@@ -306,105 +321,146 @@ function BooksView() {
                 </span>
               )}
             </div>
-            {orgData ? (
-              <div>
-                <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
-                <p className="text-[10px] text-stone-400 mt-0.5">
-                  {orgData.baseCurrency} · {orgData.countryCode}
-                  {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <div className="h-3 w-32 bg-stone-100 rounded animate-pulse" />
-                <div className="h-2 w-24 bg-stone-100 rounded animate-pulse" />
-              </div>
-            )}
+            <SkeletonReveal isLoading={!orgData} className="h-[40px]" skeletonClassName="rounded-md">
+              {orgData && (
+                <div>
+                  <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
+                  <p className="text-[10px] text-stone-400 mt-0.5">
+                    {orgData.baseCurrency} · {orgData.countryCode}
+                    {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
+                  </p>
+                </div>
+              )}
+            </SkeletonReveal>
           </div>
 
-          {/* P&L Summary */}
-          <SkeletonReveal
-            isLoading={pnLoading}
-            className="h-[120px]"
-            skeletonClassName="rounded-xl"
-          >
-            {profitAndLoss && (
-              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
-                    P&amp;L This Month
-                  </span>
-                  <span className="text-[9px] text-stone-400">
-                    {new Date(profitAndLoss.reportDate).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[9px] text-stone-400">Revenue</div>
-                    <div className="text-sm font-bold text-emerald-700">
-                      £{profitAndLoss.revenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+          {/* P&L Summary — with contextual hint for first-time users */}
+          <div>
+            <div className="flex items-center gap-1 mb-1.5">
+              <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+                Profit &amp; Loss
+              </span>
+              {showWelcome && (
+                <span className="text-[9px] text-sky-500 font-medium">← your money at a glance</span>
+              )}
+            </div>
+            <SkeletonReveal
+              isLoading={pnLoading}
+              className="h-[120px]"
+              skeletonClassName="rounded-xl"
+            >
+              {profitAndLoss && (
+                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-stone-400">This month</span>
+                    <span className="text-[9px] text-stone-400">
+                      as of {new Date(profitAndLoss.reportDate).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <div className="text-[9px] text-stone-400">Revenue</div>
+                      <div className="text-sm font-bold text-emerald-700">
+                        £{profitAndLoss.revenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[9px] text-stone-400">Expenses</div>
+                      <div className="text-sm font-bold text-red-600">
+                        £{profitAndLoss.expenses.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-[9px] text-stone-400">Expenses</div>
-                    <div className="text-sm font-bold text-red-600">
-                      £{profitAndLoss.expenses.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  <div className="pt-2 border-t border-stone-200">
+                    <div className="text-[9px] text-stone-400">Net Profit</div>
+                    <div className="text-lg font-bold text-stone-900">
+                      £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                     </div>
                   </div>
                 </div>
-                <div className="pt-2 border-t border-stone-200">
-                  <div className="text-[9px] text-stone-400">Net Profit</div>
-                  <div className="text-lg font-bold text-stone-900">
-                    £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </SkeletonReveal>
+              )}
+            </SkeletonReveal>
+          </div>
 
-          {/* Health Check */}
+          {/* Health Check — with contextual hint for first-time users */}
           <div className="space-y-2">
-            <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
-              Health Check
-            </h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
+                Health Check
+              </h3>
+              {showWelcome && (
+                <span className="text-[9px] text-sky-500 font-medium">← things to fix</span>
+              )}
+            </div>
+
+            {/* Unreconciled — skeleton shows until data arrives, then real number */}
             <SkeletonReveal
               isLoading={auditLoading}
               className="h-[64px]"
               skeletonClassName="rounded-xl"
             >
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
-                    Unreconciled
+              {discrepancies && (
+                <div className={`rounded-xl p-3 border ${
+                  unreconciledCount > 0
+                    ? "bg-amber-50 border-amber-200"
+                    : "bg-emerald-50 border-emerald-200"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className={`text-[10px] uppercase tracking-wide font-semibold ${
+                      unreconciledCount > 0 ? "text-amber-600" : "text-emerald-600"
+                    }`}>
+                      Unreconciled
+                    </div>
+                    <div className={`text-xl font-bold ${
+                      unreconciledCount > 0 ? "text-amber-900" : "text-emerald-900"
+                    }`}>
+                      <AnimatedNumber value={unreconciledCount} />
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-amber-900">
-                    <AnimatedNumber value={unreconciledCount} />
+                  <div className={`text-[10px] mt-0.5 ${
+                    unreconciledCount > 0 ? "text-amber-700" : "text-emerald-700"
+                  }`}>
+                    {unreconciledCount > 0
+                      ? "bank transactions need matching"
+                      : "all transactions matched"}
                   </div>
                 </div>
-                <div className="text-[10px] text-amber-700 mt-0.5">
-                  bank transactions need matching
-                </div>
-              </div>
+              )}
             </SkeletonReveal>
 
+            {/* Overdue — same pattern */}
             <SkeletonReveal
               isLoading={auditLoading}
               className="h-[64px]"
               skeletonClassName="rounded-xl"
             >
-              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-[10px] uppercase tracking-wide text-red-600 font-semibold">
-                    Overdue Invoices
+              {discrepancies && (
+                <div className={`rounded-xl p-3 border ${
+                  overdueCount > 0
+                    ? "bg-red-50 border-red-200"
+                    : "bg-emerald-50 border-emerald-200"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className={`text-[10px] uppercase tracking-wide font-semibold ${
+                      overdueCount > 0 ? "text-red-600" : "text-emerald-600"
+                    }`}>
+                      Overdue Invoices
+                    </div>
+                    <div className={`text-xl font-bold ${
+                      overdueCount > 0 ? "text-red-900" : "text-emerald-900"
+                    }`}>
+                      <AnimatedNumber value={overdueCount} />
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-red-900">
-                    <AnimatedNumber value={overdueCount} />
+                  <div className={`text-[10px] mt-0.5 ${
+                    overdueCount > 0 ? "text-red-700" : "text-emerald-700"
+                  }`}>
+                    {overdueCount > 0
+                      ? `£${totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding`
+                      : "all invoices paid on time"}
                   </div>
                 </div>
-                <div className="text-[10px] text-red-700 mt-0.5">
-                  £{totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding
-                </div>
-              </div>
+              )}
             </SkeletonReveal>
 
             {discrepancies && unreconciledCount === 0 && overdueCount === 0 && (
@@ -530,28 +586,65 @@ function BooksView() {
                 {/* Staggered text reveal for the empty state */}
                 <div className={`t-stagger ${staggerShown ? "is-shown" : ""}`}>
                   <h2 className="t-stagger-line t-stagger-line--1 text-lg font-semibold text-stone-800 mb-1">
-                    Hi! I'm Siki, your AI Bookkeeper
+                    {showWelcome ? "Welcome! I'm Siki" : "Hi! I'm Siki, your AI Bookkeeper"}
                   </h2>
                   <p className="t-stagger-line t-stagger-line--2 text-sm text-stone-500 max-w-sm">
-                    I reconcile your Xero transactions, find overdue invoices, explain your
-                    P&amp;L in plain English, and propose journal entries to fix discrepancies.
+                    {showWelcome
+                      ? "I'm your AI bookkeeper. I read your Xero data, find what needs fixing, and explain your finances in plain English — no accounting jargon."
+                      : "I reconcile your Xero transactions, find overdue invoices, explain your P&L in plain English, and propose journal entries to fix discrepancies."}
                   </p>
                 </div>
 
+                {/* First-time welcome banner with value prop */}
+                {showWelcome && (
+                  <div className="mt-4 w-full max-w-sm bg-sky-50 border border-sky-200 rounded-xl p-4 fade-in-up text-left">
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 mt-0.5">
+                        <span className="text-lg">✨</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold text-sky-900">Here's what I can do for you</p>
+                        <ul className="text-[11px] text-sky-700 mt-1.5 space-y-1">
+                          <li>📊 <span className="font-medium">Explain your P&L</span> — no accounting degree needed</li>
+                          <li>🔍 <span className="font-medium">Find what's broken</span> — unreconciled transactions, overdue invoices</li>
+                          <li>💰 <span className="font-medium">Find money you're owed</span> — chase overdue payments</li>
+                          <li>📝 <span className="font-medium">Fix discrepancies</span> — propose journal entries for you</li>
+                        </ul>
+                        <p className="text-[10px] text-sky-600 mt-2.5">
+                          The sidebar shows a live snapshot of your books. Try a question below to see me in action →
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={dismissWelcome}
+                      className="text-[10px] text-sky-600 hover:text-sky-800 mt-2 font-medium"
+                    >
+                      Got it, dismiss
+                    </button>
+                  </div>
+                )}
+
                 <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
                   <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-400 font-semibold text-left">
-                    Try a sample query
+                    {showWelcome ? "Try one of these to get started" : "Try a sample query"}
                   </p>
                   {SAMPLE_QUERIES.map((sample, i) => (
                     <button
                       key={sample.id}
                       onClick={() => handleStartSample(sample.description)}
-                      className="text-left text-xs text-stone-600 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 transition-colors btn-press fade-in-up"
+                      className="text-left text-xs text-stone-600 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg px-3 py-2.5 transition-colors btn-press fade-in-up group"
                       style={{ animationDelay: `${300 + i * 60}ms` }}
                     >
-                      <div className="font-medium text-stone-800">{sample.title}</div>
+                      <div className="flex items-center justify-between">
+                        <div className="font-medium text-stone-800">{sample.title}</div>
+                        {sample.hint && (
+                          <span className="text-[9px] text-stone-400 group-hover:text-sky-500 transition-colors">
+                            {sample.hint}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-stone-400 mt-0.5 line-clamp-2">
-                        {sample.description.slice(0, 80)}...
+                        {sample.description}
                       </div>
                     </button>
                   ))}

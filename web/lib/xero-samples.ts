@@ -1,34 +1,41 @@
 /**
- * Sample queries for the bookkeeper demo. Lets judges quickly see the
- * agent's capabilities without typing a full question.
+ * Sample queries for the bookkeeper demo.
+ * Written in the voice of a small business owner — not an accountant.
+ * Each query leads to an "aha moment" where the agent demonstrates
+ * tangible value (saves time, finds money, explains complexity).
  */
 
 export interface SampleQuery {
   id: string;
   title: string;
   description: string;
+  hint?: string;
 }
 
 export const SAMPLE_QUERIES: SampleQuery[] = [
   {
-    id: "audit",
-    title: "Audit my books",
-    description: "Can you check my books and tell me if everything is reconciled? What needs attention?",
+    id: "overview",
+    title: "Give me a quick overview",
+    description: "Can you give me a quick overview of my business finances? What's my revenue, profit, and anything that needs my attention?",
+    hint: "Best place to start",
   },
   {
     id: "overdue",
     title: "Who owes me money?",
-    description: "Show me all overdue invoices. Who hasn't paid and how much is outstanding?",
+    description: "Show me all overdue invoices. Who hasn't paid and how much is outstanding in total?",
+    hint: "Finds money you're owed",
   },
   {
     id: "profit",
-    title: "How am I doing?",
-    description: "Give me my profit and loss for the last 90 days and explain it in plain English. Am I profitable?",
+    title: "Am I actually profitable?",
+    description: "Give me my profit and loss for this month and explain it in plain English. Am I profitable compared to last month?",
+    hint: "Plain-English P&L",
   },
   {
-    id: "unreconciled",
-    title: "What are these transactions?",
-    description: "I have some unreconciled bank transactions. Can you look at them and tell me what they might be?",
+    id: "reconcile",
+    title: "What needs fixing?",
+    description: "Can you check my books and tell me what needs attention? Are there any unreconciled transactions or discrepancies?",
+    hint: "Instant health check",
   },
 ];
 
