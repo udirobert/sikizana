@@ -12,7 +12,7 @@ const STEPS = ["language", "chama", "kind"] as const;
 
 export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
   const [step, setStep] = useState<(typeof STEPS)[number]>("language");
-  const [language, setLanguage] = useState<Language>("sw");
+  const [language, setLanguage] = useState<Language>("en");
   const [chamaName, setChamaName] = useState("");
   const [disputeKind, setDisputeKind] = useState("");
 
@@ -64,16 +64,14 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {step === "language" && (
           <>
             <div>
-              <h2 className="text-lg font-bold text-stone-900">Karibu!</h2>
+              <h2 className="text-lg font-bold text-stone-900">Welcome!</h2>
               <p className="text-sm text-stone-500 mt-1">
-                Niambie lugha unayopendelea. Unaweza kubadilisha baadaye.
+                Choose your preferred language. You can change this later.
               </p>
             </div>
             <div className="space-y-2">
               {[
-                { value: "sw" as const, label: "Kiswahili", desc: "Standard Swahili" },
                 { value: "en" as const, label: "English", desc: "Standard English" },
-                { value: "sheng" as const, label: "Sheng", desc: "Nairobi street Swahili" },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -95,16 +93,16 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {step === "chama" && (
           <>
             <div>
-              <h2 className="text-lg font-bold text-stone-900">Jina la chama yako?</h2>
+              <h2 className="text-lg font-bold text-stone-900">What's your group name?</h2>
               <p className="text-sm text-stone-500 mt-1">
-                Tutaiboresha uchunguzi kwa kujua chama unachowakilisha.
+                We'll tailor the analysis based on your group.
               </p>
             </div>
             <input
               type="text"
               value={chamaName}
               onChange={(e) => setChamaName(e.target.value)}
-              placeholder="Mfano: Mwangaza Women Group"
+              placeholder="Example: Sunshine Women Group"
               className="w-full p-3 border border-stone-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
               autoFocus
             />
@@ -114,17 +112,17 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
         {step === "kind" && (
           <>
             <div>
-              <h2 className="text-lg font-bold text-stone-900">Aina ya mzozo?</h2>
+              <h2 className="text-lg font-bold text-stone-900">What type of dispute?</h2>
               <p className="text-sm text-stone-500 mt-1">
-                Chagua aina inayofanana zaidi na hali yako.
+                Choose the category that best fits your situation.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-2">
               {[
-                { value: "contribution", label: "Michango haijalipwa", desc: "Member hasn't paid contributions" },
-                { value: "loan", label: "Mkopo haujarejeshewa", desc: "Loan repayment dispute" },
-                { value: "fraud", label: "Kudanganya kifedha", desc: "Suspected fraud or misappropriation" },
-                { value: "other", label: "Kitu kingine", desc: "Other dispute" },
+                { value: "contribution", label: "Unpaid contributions", desc: "Member hasn't paid contributions" },
+                { value: "loan", label: "Loan repayment dispute", desc: "Loan repayment dispute" },
+                { value: "fraud", label: "Suspected fraud", desc: "Suspected fraud or misappropriation" },
+                { value: "other", label: "Other dispute", desc: "Other dispute" },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -149,7 +147,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
               onClick={back}
               className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition"
             >
-              Rudi
+              Back
             </button>
           )}
           <button
@@ -157,7 +155,7 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
             disabled={!canAdvance()}
             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {step === "kind" ? "Anza" : "Endelea"}
+            {step === "kind" ? "Start" : "Continue"}
           </button>
         </div>
       </div>
@@ -165,11 +163,11 @@ export function OnboardingFlow({ onComplete }: OnboardingFlowProps) {
       <button
         onClick={() => {
           localStore.set(StorageKeys.ONBOARDED, true);
-          onComplete("sw", chamaName, disputeKind);
+          onComplete("en", chamaName, disputeKind);
         }}
         className="text-[11px] text-stone-400 hover:text-stone-600 mt-4"
       >
-        Ruka (skip)
+        Skip
       </button>
     </div>
   );

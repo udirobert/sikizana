@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sikizana - AI Chama Arbitrator",
-  description: "Resolving chama disputes with AI and Vara Network",
+  title: "Sikizana Books — AI Bookkeeper for Xero",
+  description: "AI-powered bookkeeping for Xero. Reconcile transactions, find discrepancies, and get plain-English P&L explanations.",
 };
 
 export default function RootLayout({

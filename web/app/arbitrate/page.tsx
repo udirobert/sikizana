@@ -77,13 +77,13 @@ function ChatView() {
     } catch (e) {
       const detail =
         e instanceof ApiError
-          ? `Sikizana imeshindwa kujibu (${e.status}).`
+          ? `Sikizana couldn't respond (${e.status}).`
           : e instanceof Error
           ? e.message
-          : "Hitilafu isiyojulikana.";
+          : "Unknown error.";
       addMessage({
         role: "agent",
-        content: `Pole sana, ${detail} Jaribu tena baadaye.`,
+        content: `Sorry, ${detail} Please try again later.`,
       });
       setErrorBanner(detail);
     } finally {
@@ -123,15 +123,10 @@ function ChatView() {
     localStore.set(StorageKeys.ONBOARDED, true);
     localStore.set(StorageKeys.PREFERRED_LANGUAGE, selectedLanguage);
     window.dispatchEvent(new Event("sikizana:storage"));
-    const greeting =
-      selectedLanguage === "sw"
-        ? `Karibu ${chamaName ? `kwa ${chamaName}` : ""}! Niambie kuhusu mzozo wako.`
-        : selectedLanguage === "sheng"
-        ? `Poa ${chamaName ? `${chamaName}` : ""}! Sema kuhusu ule mzozo, nitakusaidia.`
-        : `Welcome${chamaName ? ` to ${chamaName}` : ""}! Tell me about your dispute.`;
+    const greeting = `Welcome${chamaName ? ` to ${chamaName}` : ""}! Tell me about your dispute.`;
     addMessage({ role: "agent", content: greeting });
 
-    // Auto-capture this chama as a lead so the team has signal to follow up.
+    // Auto-capture this group as a lead so the team has signal to follow up.
     if (chamaName && chamaName.trim().length >= 2) {
       void endpoints.leads
         .create({
@@ -168,7 +163,7 @@ function ChatView() {
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                AI Arbitration for Chamas
+                AI Arbitration for Savings Groups
               </p>
             </div>
           </div>
@@ -193,12 +188,7 @@ function ChatView() {
               <p className="text-sm font-semibold text-stone-800">Sikizana Arbitrator</p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Online · AI-Powered ·{" "}
-                {prefs.language === "sw"
-                  ? "Kiswahili"
-                  : prefs.language === "sheng"
-                  ? "Sheng"
-                  : "English"}
+                Online · AI-Powered · English
               </p>
             </div>
             <div className="flex items-center gap-1.5 px-2 py-1 bg-stone-100 rounded-lg">
@@ -215,9 +205,9 @@ function ChatView() {
               <button
                 onClick={newSession}
                 className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100"
-                title="Anza mazungumzo mapya"
+                title="Start new conversation"
               >
-                Mpya
+                New
               </button>
             )}
           </div>
@@ -228,7 +218,7 @@ function ChatView() {
               <button
                 onClick={() => setErrorBanner(null)}
                 className="text-red-500 hover:text-red-700"
-                aria-label="Funga"
+                aria-label="Close"
               >
                 ×
               </button>
@@ -244,18 +234,10 @@ function ChatView() {
                   </svg>
                 </div>
                 <h2 className="text-lg font-semibold text-stone-800 mb-1">
-                  {prefs.language === "sw"
-                    ? "Karibu kwa Sikizana"
-                    : prefs.language === "sheng"
-                    ? "Poa, karibu!"
-                    : "Welcome to Sikizana"}
+                  Welcome to Sikizana
                 </h2>
                 <p className="text-sm text-stone-500 max-w-sm">
-                  {prefs.language === "sw"
-                    ? "Mimi ni AI arbitrator wako. Niambie kuhusu mzozo wa chama yako, nami nitakusaidia kupata suluhisho."
-                    : prefs.language === "sheng"
-                    ? "Mimi ni AI arbitrator yako. Sema kuhusu ule mzozo wa chama, nitakusaidia."
-                    : "I'm your AI arbitrator. Tell me about your chama dispute and I'll help you reach a resolution."}
+                  I'm your AI arbitrator. Tell me about your group's dispute and I'll help you find a resolution.
                 </p>
                 <p className="text-[11px] text-stone-400 mt-3 max-w-sm">
                   The more details you share (names, dates, amounts, what happened), the better the verdict.
@@ -354,13 +336,7 @@ function ChatView() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                placeholder={
-                  prefs.language === "sw"
-                    ? "Eleza mzozo wako..."
-                    : prefs.language === "sheng"
-                    ? "Sema kuhusu mzozo..."
-                    : "Describe your dispute..."
-                }
+                placeholder="Describe your dispute..."
                 disabled={isLoading}
                 className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:opacity-50"
               />
@@ -368,7 +344,7 @@ function ChatView() {
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
                 className="p-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Tuma (Standard Mediation - Free)"
+                title="Send (Standard Mediation - Free)"
                 aria-label="Send"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -413,7 +389,7 @@ function ChatView() {
 
       {pendingReceipt && (
         <div className="fixed bottom-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg text-xs fade-in-up">
-          <div className="font-semibold">Malipo yamekamilika!</div>
+          <div className="font-semibold">Payment complete!</div>
           <div className="opacity-80">
             {pendingReceipt.amount} KES
             {pendingReceipt.mpesa_receipt && ` · Receipt ${pendingReceipt.mpesa_receipt}`}

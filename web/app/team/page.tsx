@@ -45,7 +45,7 @@ interface LeadFormState {
   contact_name: string;
   contact_phone: string;
   contact_handle: string;
-  language: "en" | "sw" | "sheng";
+  language: "en";
   county: string;
   source: string;
   notes: string;
@@ -57,7 +57,7 @@ const EMPTY_LEAD_FORM: LeadFormState = {
   contact_name: "",
   contact_phone: "",
   contact_handle: "",
-  language: "sw",
+  language: "en",
   county: "",
   source: "team_form",
   notes: "",
@@ -67,28 +67,28 @@ const EMPTY_LEAD_FORM: LeadFormState = {
 const OUTREACH_TEMPLATES = [
   {
     id: "whatsapp_pitch_sw",
-    label: "WhatsApp intro (Swahili)",
-    body: "Habari! Nina huduma inayoitwa Sikizana — AI arbitrator for chama disputes. Unaweza kueleza mzozo wenu kwa Kiswahili na kupata suluhisho la haraka. 100 KES tu kwa deep audit + IPFS certificate. Mtu atafikiria kujaribu?",
+    label: "WhatsApp intro (English)",
+    body: "Hi! I have a service called Sikizana — an AI arbitrator for savings group disputes. You can describe your dispute in English and get a quick resolution. Just 100 KES for a deep audit + certificate. Want to give it a try?",
   },
   {
     id: "whatsapp_pitch_en",
     label: "WhatsApp intro (English)",
-    body: "Hi! Sikizana is an AI arbitrator for chama/ROSCAs that settles disputes by following your constitution. Tell the dispute in English/Swahili/Sheng and get a written verdict in under a minute. 100 KES for the deep audit + downloadable certificate. Free sample at the link.",
+    body: "Hi! Sikizana is an AI arbitrator for savings groups that settles disputes by following your constitution. Tell the dispute in English and get a written verdict in under a minute. 100 KES for the deep audit + downloadable certificate. Free sample at the link.",
   },
   {
     id: "price_objection",
     label: "When they ask about the price",
-    body: "100 KES is a tenth of what a single in-person chama meeting costs once you factor in venue, snacks, and lost hours. The full audit takes 60 seconds and we send back a written ruling they can show the treasurer and the constitution.",
+    body: "100 KES is a tenth of what a single in-person group meeting costs once you factor in venue, snacks, and lost hours. The full audit takes 60 seconds and we send back a written ruling they can show the treasurer and the constitution.",
   },
   {
     id: "followup",
     label: "Follow-up (day 3)",
-    body: "Habari yako? Nilikuwa nimewasiliana kuhusu Sikizana — arbitrator wa chama disputes anayepatikana kwa bei ndogo. Kama chama yenu ina swali lolote kuhusu uongozi au michango, hii ni njia rahisi kupata jibu la haraka. Twende tukusaidie leo?",
+    body: "How are you? I was reaching out about Sikizana — an affordable arbitrator for group disputes. If your group has any questions about leadership or contributions, this is an easy way to get a quick answer. Shall we help you today?",
   },
   {
     id: "testimonial_ask",
     label: "After paid audit — ask for testimonial",
-    body: "Asante kwa kutumia Sikizana! Unaweza kunisaidia kwa sentensi moja kuhusu uzoefu wenu? Quote fupi itasaidia chama zingine kujua huduma hii. Tutaitumia tu kwa idhini yako.",
+    body: "Thank you for using Sikizana! Could you help us with one sentence about your experience? A short quote will help other groups learn about this service. We'll only use it with your permission.",
   },
 ];
 
@@ -437,7 +437,7 @@ export default function TeamDashboard() {
             gap: 14,
           }}
         >
-          <Field label="Chama name" required>
+          <Field label="Group name" required>
             <input
               required
               value={formState.chama_name}
@@ -486,14 +486,12 @@ export default function TeamDashboard() {
               onChange={(e) =>
                 setFormState({
                   ...formState,
-                  language: e.target.value as "en" | "sw" | "sheng",
+                  language: e.target.value as "en",
                 })
               }
               style={inputStyle}
             >
-              <option value="sw">Swahili</option>
               <option value="en">English</option>
-              <option value="sheng">Sheng</option>
             </select>
           </Field>
           <Field label="County">
@@ -681,7 +679,7 @@ export default function TeamDashboard() {
         <p style={{ color: "var(--muted)" }}>Loading…</p>
       ) : leads.length === 0 ? (
         <p style={{ color: "var(--muted)" }}>
-          No leads yet. Hit + Add lead to capture your first chama contact.
+          No leads yet. Hit + Add lead to capture your first contact.
         </p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

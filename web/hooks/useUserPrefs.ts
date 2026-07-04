@@ -10,7 +10,7 @@ interface UserPrefs {
   language: Language;
 }
 
-const SERVER_SNAPSHOT: UserPrefs = { onboarded: false, language: "sw" };
+const SERVER_SNAPSHOT: UserPrefs = { onboarded: false, language: "en" };
 
 function subscribe(callback: () => void) {
   const handler = () => callback();
@@ -21,7 +21,7 @@ function subscribe(callback: () => void) {
 function getSnapshot(): UserPrefs {
   return {
     onboarded: localStore.get<boolean>(StorageKeys.ONBOARDED, false),
-    language: localStore.get<Language>(StorageKeys.PREFERRED_LANGUAGE, "sw"),
+    language: localStore.get<Language>(StorageKeys.PREFERRED_LANGUAGE, "en"),
   };
 }
 

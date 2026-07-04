@@ -50,11 +50,11 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
     setErrorDetail("");
     const cleaned = phone.replace(/[\s\-]/g, "");
     if (!cleaned) {
-      setError("Tafadhali ingiza namba ya simu.");
+      setError("Please enter a phone number.");
       return;
     }
     if (!isValidKenyanPhone(cleaned)) {
-      setError("Namba si sahihi. Mfano: 0712345678");
+      setError("Invalid number. Example: 0712345678");
       return;
     }
 
@@ -69,13 +69,13 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
       checkoutId = pushData.CheckoutRequestID;
       if (!checkoutId) {
         setErrorDetail(
-          pushData.errorMessage || pushData.ResponseDescription || "Hakuna jibu kutoka M-Pesa.",
+          pushData.errorMessage || pushData.ResponseDescription || "No response from M-Pesa.",
         );
         setState("failed");
         return;
       }
     } catch (e) {
-      setErrorDetail(e instanceof Error ? e.message : "Hitilafu ya mtandao.");
+      setErrorDetail(e instanceof Error ? e.message : "Network error.");
       setState("failed");
       return;
     }
@@ -105,7 +105,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
           return;
         }
         if (status.status === "FAILED") {
-          setErrorDetail(status.result_desc || "Malipo yameshindwa.");
+          setErrorDetail(status.result_desc || "Payment failed.");
           setState("failed");
           return;
         }
@@ -114,9 +114,9 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
       }
     }
     setErrorDetail(
-      `Hujamaliza M-Pesa ndani ya ${Math.round(
+      `Your M-Pesa window expired after ${Math.round(
         (POLL_MAX_ATTEMPTS * POLL_INTERVAL_MS) / 1000,
-      )} sekunde.`,
+      )} seconds.`,
     );
     setState("timeout");
   };
@@ -156,7 +156,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
             {!isProcessing && (
               <button
                 onClick={() => handleClose()}
-                aria-label="Funga"
+                aria-label="Close"
                 className="text-white/70 hover:text-white transition"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +221,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
                 {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
                 {phone && isValidKenyanPhone(phone.replace(/[\s\-]/g, "")) && (
                   <p className="text-[10px] text-stone-400 mt-1">
-                    Tutatumia: {formatKenyanPhone(phone)}
+                    We'll use: {formatKenyanPhone(phone)}
                   </p>
                 )}
               </div>
@@ -274,8 +274,8 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
               <div>
                 <p className="text-sm font-medium text-stone-700">
                   {state === "pushing"
-                    ? "Inatuma ombi kwa Safaricom..."
-                    : `Angalia simu yako (${maskPhone(phone)}). Ingiza PIN yako.`}
+                    ? "Sending request to Safaricom..."
+                    : `Check your phone (${maskPhone(phone)}). Enter your PIN.`}
                 </p>
                 <div className="flex justify-center gap-1 mt-3">
                   <span className="typing-dot w-2 h-2 bg-amber-400 rounded-full" />
@@ -283,7 +283,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
                   <span className="typing-dot w-2 h-2 bg-amber-400 rounded-full" />
                 </div>
                 <p className="text-[10px] text-stone-400 mt-3">
-                  Inasubiri M-Pesa... {ticker.seconds}m {String(ticker.seconds).padStart(2, "0")}
+                  Waiting for M-Pesa... {ticker.seconds}m {String(ticker.seconds).padStart(2, "0")}
                   s ({attempt}/{POLL_MAX_ATTEMPTS})
                 </p>
               </div>
@@ -303,7 +303,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
                 </svg>
               </div>
               <p className="text-sm font-medium text-stone-700">
-                Malipo yamekubaliwa! Tunafanya uchunguzi wa kina...
+                Payment approved! Running deep audit...
               </p>
             </div>
           )}
@@ -322,7 +322,7 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
               </div>
               <div>
                 <p className="text-sm font-medium text-stone-700">
-                  {state === "timeout" ? "Muda wa Malipo Umeisha" : "Malipo Yameshindwa"}
+                  {state === "timeout" ? "Payment Time Expired" : "Payment Failed"}
                 </p>
                 {errorDetail && <p className="text-xs text-stone-500 mt-2 px-4">{errorDetail}</p>}
               </div>
@@ -331,13 +331,13 @@ export function PaymentModal({ isOpen, amount, onClose, onPaid }: PaymentModalPr
                   onClick={() => setState("idle")}
                   className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition"
                 >
-                  Jaribu Tena
+                  Try Again
                 </button>
                 <button
                   onClick={() => handleClose()}
                   className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium rounded-lg transition"
                 >
-                  Funga
+                  Close
                 </button>
               </div>
             </div>

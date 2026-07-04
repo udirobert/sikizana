@@ -55,7 +55,7 @@ export default function ImpactPage() {
   return (
     <div style={{ padding: "32px 20px 80px", maxWidth: 900, margin: "0 auto" }}>
       <header style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Real impact from real chamas</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Real impact from real groups</h1>
         <p style={{ fontSize: 15, color: "var(--muted)", marginTop: 6 }}>
           Live numbers from Sikizana&apos;s Daraja M-Pesa settlement ledger.
           Updated every 30 seconds.
@@ -130,7 +130,7 @@ export default function ImpactPage() {
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
-          What chamas are saying
+          What groups are saying
         </h2>
         {testimonials.length === 0 ? (
           <p
@@ -194,11 +194,11 @@ export default function ImpactPage() {
         }}
       >
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-          Bring Sikizana to your chama
+          Bring Sikizana to your group
         </h2>
         <p style={{ fontSize: 14, color: "var(--foreground)", marginBottom: 12 }}>
           Resolve disputes in minutes, with a written verdict you can pin to the
-          chama record.
+          group record.
         </p>
         <a
           href="/arbitrate"

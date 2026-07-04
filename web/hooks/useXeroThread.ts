@@ -6,7 +6,7 @@ import type { Message } from "@/lib/types";
 
 /**
  * Separate thread persistence for Xero/bookkeeper mode.
- * Uses its own localStorage keys so chama and Xero chats don't collide.
+ * Uses its own localStorage keys so arbitration and Xero chats don't collide.
  */
 
 const XERO_THREAD_KEY = "sikizana.xero.thread_id";

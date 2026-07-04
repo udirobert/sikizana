@@ -66,7 +66,7 @@ export function FeedbackButtons({
         </svg>
       </button>
       {rating && (
-        <span className="text-[10px] text-stone-500 ml-1">Asante!</span>
+        <span className="text-[10px] text-stone-500 ml-1">Thanks!</span>
       )}
     </div>
   );

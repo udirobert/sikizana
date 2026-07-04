@@ -13,6 +13,8 @@ import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
+import { SikiMascot, SikiMascotAnimated } from "@/components/SikiMascot";
+import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 
@@ -205,14 +207,12 @@ function BooksView() {
 
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
+      {/* Rotated reveal transition — slides away on page load */}
+      <RotatedReveal />
       <nav className="bg-white border-b border-stone-200 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-gradient-to-br from-sky-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </div>
+            <SikiMascot size={36} mood="idle" />
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA BOOKS</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
@@ -236,7 +236,7 @@ function BooksView() {
               href="/"
               className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Chama Mode
+              Home
             </Link>
           </div>
         </div>
@@ -294,12 +294,15 @@ function BooksView() {
             </SkeletonReveal>
 
             {discrepancies && unreconciledCount === 0 && overdueCount === 0 && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 fade-in-up">
-                <div className="text-xs font-semibold text-emerald-800">
-                  ✓ Books look clean
-                </div>
-                <div className="text-[10px] text-emerald-700 mt-1">
-                  No discrepancies detected
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 fade-in-up flex items-center gap-3">
+                <SikiMascot size={36} mood="celebrate" />
+                <div>
+                  <div className="text-xs font-semibold text-emerald-800">
+                    Books look clean!
+                  </div>
+                  <div className="text-[10px] text-emerald-700 mt-0.5">
+                    No discrepancies detected
+                  </div>
                 </div>
               </div>
             )}
@@ -339,19 +342,15 @@ function BooksView() {
         <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[78vh] overflow-hidden border border-stone-200">
           <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                </svg>
-              </div>
+              <SikiMascot size={40} mood={isLoading ? "look" : "idle"} />
               <div className="absolute bottom-0 right-0 w-3 h-3 bg-sky-400 border-2 border-white rounded-full" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-stone-800">Sikizana Bookkeeper</p>
+              <p className="text-sm font-semibold text-stone-800">Siki the Bookkeeper</p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
                 {isLoading ? (
-                  <span className="t-shimmer">Thinking...</span>
+                  <span className="t-shimmer">Investigating your books...</span>
                 ) : (
                   <span>Online · Xero Connected</span>
                 )}
@@ -384,10 +383,8 @@ function BooksView() {
           {/* Proactive audit notification — the "Active Arbitrator" */}
           {proactiveAudit && messages.length === 0 && (
             <div className="bg-sky-50 border-b border-sky-200 px-4 py-3 flex items-start gap-3 fade-in-up">
-              <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+              <div className="shrink-0">
+                <SikiMascot size={36} mood="look" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-sky-900">Audit Complete</p>
@@ -407,15 +404,14 @@ function BooksView() {
           <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                <div className="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                {/* Mascot in the empty state — animated, cycling moods */}
+                <div className="mb-4 fade-in-up">
+                  <SikiMascotAnimated size={100} />
                 </div>
                 {/* Staggered text reveal for the empty state */}
                 <div className={`t-stagger ${staggerShown ? "is-shown" : ""}`}>
                   <h2 className="t-stagger-line t-stagger-line--1 text-lg font-semibold text-stone-800 mb-1">
-                    Your AI Bookkeeper
+                    Hi! I'm Siki, your AI Bookkeeper
                   </h2>
                   <p className="t-stagger-line t-stagger-line--2 text-sm text-stone-500 max-w-sm">
                     I reconcile your Xero transactions, find overdue invoices, explain your
@@ -460,10 +456,8 @@ function BooksView() {
                 }`}
               >
                 {msg.role === "agent" && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                    </svg>
+                  <div className="shrink-0">
+                    <SikiMascot size={32} mood="idle" />
                   </div>
                 )}
                 <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
@@ -508,10 +502,8 @@ function BooksView() {
 
             {isLoading && (
               <div className="flex gap-2.5 fade-in-up">
-                <div className="w-8 h-8 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center shrink-0">
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                  </svg>
+                <div className="shrink-0">
+                  <SikiMascot size={32} mood="look" />
                 </div>
                 <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
                   <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
@@ -569,7 +561,8 @@ function BooksView() {
       {showSuccessCheck && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up">
           <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4">
-            <SuccessCheck show={showSuccessCheck} size={64} className="text-emerald-600" />
+            <SikiMascot size={80} mood="celebrate" />
+            <SuccessCheck show={showSuccessCheck} size={48} className="text-emerald-600" />
             <p className="text-sm font-semibold text-stone-800">Journal entry posted to Xero</p>
             <p className="text-xs text-stone-500">Your books are now reconciled.</p>
           </div>

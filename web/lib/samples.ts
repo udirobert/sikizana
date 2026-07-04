@@ -14,16 +14,16 @@ export const SAMPLE_DISPUTES: SampleDispute[] = [
   {
     id: "unpaid-contributions",
     title: "Unpaid contributions (3 months)",
-    language: "sw",
+    language: "en",
     description:
-      "Mwanachama mmoja wa chama yetu, Bi Wanjiku, amelipa tu miezi 2 kati ya 6. Anadai alipwa kupitia M-Pesa lakini hakuna kumbukumbu. Tunataka Sikizana aangalie transaction history.",
+      "One member of our group, Ms. Wanjiku, has only paid 2 out of 6 months. She claims she paid via M-Pesa but there's no record. We want Sikizana to review the transaction history.",
   },
   {
     id: "missing-treasurer",
     title: "Treasurer unreachable with funds",
-    language: "sw",
+    language: "en",
     description:
-      "Treasurer wetu, Bwana Otieno, hayupo tangu wiki mbili na ana pesa za chama KES 45,000. M-Pesa yake imezimwa. Chama kina wasiwasi mkubwa.",
+      "Our treasurer, Mr. Otieno, has been absent for two weeks and has KES 45,000 of group funds. His M-Pesa is offline. The group is very concerned.",
   },
   {
     id: "loan-default",
@@ -35,9 +35,9 @@ export const SAMPLE_DISPUTES: SampleDispute[] = [
   {
     id: "profit-sharing",
     title: "Annual profit distribution",
-    language: "sw",
+    language: "en",
     description:
-      "Mwaka huu chama kilipata faida ya KES 150,000. Baadhi ya wanachama wanataka mgawanyiko sawa, wengine wanataka kwa mchango. Bylaws zetu hazieleweki kuhusu hili.",
+      "This year our group made KES 150,000 profit. Some members want equal distribution, others want it based on contribution. Our bylaws are unclear on this.",
   },
 ];
 
