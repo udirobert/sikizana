@@ -50,6 +50,61 @@ def _run_cli(args: list[str], timeout: int = 30) -> dict[str, Any] | list[Any] |
         return None
 
 
+def _parse_report(report: dict[str, Any]) -> dict[str, Any]:
+    """
+    Parse a Xero CLI report (P&L, Balance Sheet, Trial Balance) into a
+    simplified flat structure with key totals extracted.
+
+    The CLI returns reports in Xero's ReportResponse format with nested
+    rows/cells. We extract the summary numbers (Total Income, Total
+    Expenses, Net Profit, etc.) into a simple dict that the agent and
+    frontend can use directly.
+    """
+    rows = report.get("rows", [])
+    totals: dict[str, float] = {}
+    line_items: list[dict[str, str]] = []
+
+    def _extract_rows(row_list: list[dict[str, Any]]) -> None:
+        for row in row_list:
+            row_type = row.get("rowType", "")
+            cells = row.get("cells", [])
+            if row_type in ("Row", "SummaryRow") and len(cells) >= 2:
+                label = cells[0].get("value", "")
+                value_str = cells[1].get("value", "0")
+                try:
+                    value = float(value_str.replace(",", ""))
+                except (ValueError, TypeError):
+                    value = 0.0
+                if row_type == "SummaryRow":
+                    totals[label] = value
+                else:
+                    line_items.append({"label": label, "value": value_str})
+            # Recurse into nested sections
+            if "rows" in row:
+                _extract_rows(row["rows"])
+
+    _extract_rows(rows)
+
+    # Map common Xero report labels to our standard keys
+    revenue = totals.get("Total Income", 0.0)
+    expenses = totals.get("Total Operating Expenses", 0.0)
+    net_profit = totals.get("Net Profit", totals.get("Net Loss", 0.0))
+    if net_profit == 0.0 and revenue and expenses:
+        net_profit = revenue - expenses
+
+    return {
+        "reportName": report.get("reportName", ""),
+        "reportTitles": report.get("reportTitles", []),
+        "reportDate": report.get("reportDate", ""),
+        "revenue": revenue,
+        "expenses": expenses,
+        "netProfit": net_profit,
+        "totals": totals,
+        "lineItems": line_items,
+        "raw": report,  # Keep raw for the agent if it wants detail
+    }
+
+
 # ---------------------------------------------------------------------------
 # Mock data — realistic UK small business (a café) for hackathon demos.
 # This is what the agent reasons over when Xero credentials aren't configured.
@@ -177,11 +232,13 @@ class XeroService:
         # CLI binary must exist AND be authenticated (a profile configured).
         # We probe with `org details` — if it fails for any reason (not
         # installed, no profile, expired token), we use mock data.
+        # We don't cache this permanently — each method call re-checks
+        # live data availability so token refreshes are picked up.
         if not _cli_available():
             self.use_mock = True
             log.info("xero_using_mock", extra={"reason": "cli_not_found"})
         else:
-            probe = _run_cli(["org", "details"], timeout=10)
+            probe = _run_cli(["org", "details"], timeout=30)
             if probe is not None:
                 self.use_mock = False
             else:
@@ -189,13 +246,25 @@ class XeroService:
                 log.info("xero_using_mock", extra={"reason": "cli_not_authenticated"})
 
     def is_live(self) -> bool:
-        return not self.use_mock
+        """Check if the CLI is currently authenticated (not cached)."""
+        if not _cli_available():
+            return False
+        # Quick probe — if it works, we're live
+        probe = _run_cli(["org", "details"], timeout=30)
+        if probe is not None:
+            self.use_mock = False
+            return True
+        self.use_mock = True
+        return False
 
     # ---- Organisation ----
 
     def get_organisation(self) -> dict[str, Any]:
         live = _run_cli(["org", "details"])
         if live is not None:
+            # CLI returns a list of orgs; take the first one
+            if isinstance(live, list):
+                return live[0] if live else {}
             return live  # type: ignore[return-value]
         return _MOCK_ORG
 
@@ -280,7 +349,7 @@ class XeroService:
             args += ["--to", to_date]
         live = _run_cli(args)
         if live is not None:
-            return live  # type: ignore[return-value]
+            return _parse_report(live)  # type: ignore[arg-type]
         pl = dict(_MOCK_PL)
         if from_date:
             pl["fromDate"] = from_date
@@ -294,7 +363,7 @@ class XeroService:
             args += ["--date", as_of]
         live = _run_cli(args)
         if live is not None:
-            return live  # type: ignore[return-value]
+            return _parse_report(live)  # type: ignore[arg-type]
         bs = dict(_MOCK_BALANCE_SHEET)
         if as_of:
             bs["asOf"] = as_of
