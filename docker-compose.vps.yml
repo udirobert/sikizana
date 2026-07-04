@@ -1,6 +1,8 @@
-# Sikizana Books — VPS deployment via Docker Compose
-# Uses Coolify's Traefik proxy for HTTPS on sikizana.persidian.com
-# Port 8081 is exposed directly for fallback/HTTP access.
+# Sikizana Books — full-stack VPS deployment
+# Backend: FastAPI on port 8081
+# Frontend: Next.js standalone on port 3000
+# Both served via Coolify's Traefik proxy on sikizana.persidian.com
+
 services:
   sikizana-api:
     build: .
@@ -13,10 +15,25 @@ services:
       - XERO_KEY_STORAGE=file
       - PAYMENT_DB_PATH=/app/data/payments.db
     volumes:
-      # Mount Xero CLI config (tokens + encryption key) from host
       - /home/linuxuser/.config/xero-command-line:/root/.config/xero-command-line:ro
-      # Persist SQLite database
       - sikizana-data:/app/data
+    networks:
+      - coolify
+      - sikizana
+
+  sikizana-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: sikizana-web
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://sikizana-api:8081
+      - PORT=3000
+    depends_on:
+      - sikizana-api
     networks:
       - coolify
       - sikizana

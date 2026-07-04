@@ -24,7 +24,9 @@ export class ApiError extends Error {
   }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8080";
+// When deployed on the VPS, the API is on the same domain (Traefik routes /api/* to the backend).
+// In dev, it falls back to localhost:8080.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 export interface RequestOptions {
