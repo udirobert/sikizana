@@ -22,7 +22,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.tools.xero_tools import (
+    create_xero_journal_entry,
     find_discrepancies,
+    get_tax_insights,
     get_xero_balance_sheet,
     get_xero_chart_of_accounts,
     get_xero_contacts,
@@ -80,8 +82,12 @@ _STATUS_PATTERNS: list[tuple[list[str], str]] = [
      "Scanning your bank transactions for unreconciled items…"),
     (["discrepanc", "audit", "health check", "wrong", "error", "mistake", "needs attention", "needs fixing", "what needs"],
      "Auditing your books for discrepancies…"),
-    (["journal", "entry", "adjust", "correct", "fix"],
+    (["journal", "entry", "adjust", "correct", "fix", "approve", "post it", "create it"],
      "Preparing a journal entry to fix that…"),
+    (["tax", "deduction", "deductible", "hmrc", "corporation tax", "ct600", "write off", "allowable"],
+     "Analyzing your expenses for tax insights…"),
+    (["cash flow", "cashflow", "liquidity", "runway"],
+     "Checking your cash flow position…"),
     (["contact", "customer", "supplier", "vendor"],
      "Looking up your contacts in Xero…"),
     (["account", "chart of accounts", "ledger", "code"],
@@ -241,6 +247,43 @@ _TOOL_DEFS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_xero_journal_entry",
+            "description": "Create and post a manual journal entry directly to Xero. This is the WRITE-BACK action — only call this AFTER the user has approved a proposed journal entry. Requires the same parameters as propose_journal_entry.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Description of what the journal entry is for",
+                    },
+                    "debit_account_code": {
+                        "type": "string",
+                        "description": "The account code to debit",
+                    },
+                    "credit_account_code": {
+                        "type": "string",
+                        "description": "The account code to credit",
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": "The amount in the organisation's base currency",
+                    },
+                },
+                "required": ["description", "debit_account_code", "credit_account_code", "amount"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_tax_insights",
+            "description": "Analyze expenses for tax optimization — estimates UK Corporation Tax, flags non-deductible expenses (client entertainment), identifies missed deductions (software/subscriptions), and checks cash flow impact of overdue invoices. Call this when the user asks about tax, deductions, or HMRC.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
 ]
 
 # Map tool names to actual Python functions
@@ -255,6 +298,8 @@ _TOOL_FUNCS = {
     "get_xero_contacts": get_xero_contacts,
     "match_receipt_to_transaction": match_receipt_to_transaction,
     "propose_journal_entry": propose_journal_entry,
+    "create_xero_journal_entry": create_xero_journal_entry,
+    "get_tax_insights": get_tax_insights,
 }
 
 
@@ -332,6 +377,8 @@ async def run_bookkeeper_streaming(
         "get_xero_contacts": "Searching contacts",
         "match_receipt_to_transaction": "Reading receipt with vision AI",
         "propose_journal_entry": "Preparing journal entry",
+        "create_xero_journal_entry": "Posting journal entry to Xero",
+        "get_tax_insights": "Analyzing tax insights",
     }
 
     # Agent loop: call the model, execute tools, feed results back
@@ -393,12 +440,44 @@ async def run_bookkeeper_streaming(
             messages.append(assistant_msg)
 
             # Execute each tool call
+            proposed_this_turn = False
             for tc in msg.tool_calls:
                 tool_name = tc.function.name
                 try:
                     tool_args = json.loads(tc.function.arguments) if tc.function.arguments else {}
                 except json.JSONDecodeError:
                     tool_args = {}
+
+                # Safety: block create_xero_journal_entry if proposed in same turn
+                if tool_name == "create_xero_journal_entry" and proposed_this_turn:
+                    result = (
+                        "BLOCKED: You just proposed this journal entry. You must wait for the user to approve it "
+                        "in their next message before calling create_xero_journal_entry. "
+                        "Ask the user: 'Would you like me to post this journal entry to Xero? Reply approve to confirm.'"
+                    )
+                    yield {
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "label": tool_labels.get(tool_name, tool_name),
+                        "args": tool_args,
+                    }
+                    summary = "Blocked — waiting for user approval"
+                    yield {
+                        "type": "tool_result",
+                        "tool": tool_name,
+                        "label": tool_labels.get(tool_name, tool_name),
+                        "summary": summary,
+                    }
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "content": result,
+                    })
+                    continue
+
+                # Track if a journal entry was proposed this turn
+                if tool_name == "propose_journal_entry":
+                    proposed_this_turn = True
 
                 # Stream the tool call event
                 yield {
@@ -507,6 +586,16 @@ def _summarize_tool_result(tool_name: str, result: str) -> str:
         return result[:80]
     elif tool_name == "propose_journal_entry":
         return "Journal entry prepared — awaiting approval"
+    elif tool_name == "create_xero_journal_entry":
+        if "✓" in result:
+            return "Journal entry posted to Xero ✓"
+        return result[:80]
+    elif tool_name == "get_tax_insights":
+        # Extract the tax estimate line
+        for line in result.split("\n"):
+            if "Estimated Tax" in line or "Corporation Tax" in line:
+                return line.strip()
+        return "Tax insights generated"
     elif tool_name == "match_receipt_to_transaction":
         return "Receipt analyzed and matched"
     return result[:80]

@@ -1,10 +1,9 @@
 /**
  * Sample queries for the bookkeeper demo.
- * Written in the voice of a small business owner — not an accountant.
+ * Anchored to Rishi — an expanding retailer with cash flow stress.
  * Each query leads to an "aha moment" where the agent demonstrates
  * tangible value (saves time, finds money, explains complexity).
  */
-
 export interface SampleQuery {
   id: string;
   title: string;
@@ -22,14 +21,14 @@ export const SAMPLE_QUERIES: SampleQuery[] = [
   {
     id: "overdue",
     title: "Who owes me money?",
-    description: "Show me all overdue invoices. Who hasn't paid and how much is outstanding in total?",
+    description: "Show me all overdue invoices. Who hasn't paid, how much is outstanding, and how long are they overdue?",
     hint: "Finds money you're owed",
   },
   {
-    id: "profit",
-    title: "Am I actually profitable?",
-    description: "Give me my profit and loss for this month and explain it in plain English. Am I profitable compared to last month?",
-    hint: "Plain-English P&L",
+    id: "tax",
+    title: "How much tax will I owe?",
+    description: "Can you estimate my Corporation Tax and check if I'm missing any deductible expenses or claiming things I shouldn't?",
+    hint: "Tax insights + HMRC flags",
   },
   {
     id: "reconcile",

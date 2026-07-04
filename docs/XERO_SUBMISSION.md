@@ -5,46 +5,56 @@
 **https://sikizana.persidian.com**
 
 - `/` — Landing page with Siki the Owl mascot
-- `/books` — AI Bookkeeper chat (live Xero data)
+- `/books` — AI Finance Assistant chat (live Xero data)
+- `/pricing` — Freemium pricing tiers (Stripe-ready)
 - `/arbitrate` — Savings group arbitration (legacy feature)
 
 ## The Pitch (30 seconds)
 
-Sikizana Books is an AI bookkeeper that reads your Xero books, finds the
-discrepancies your accountant would charge you £200 to find, explains
-everything in plain English, and proposes the fixing journal entries.
+Sikizana Books is an AI finance assistant that finds money you're owed,
+estimates your tax bill, explains your numbers in plain English, and
+fixes discrepancies — all from your Xero data, in seconds.
 
-Meet **Siki the Owl** — your AI bookkeeping companion. Siki watches over
+Meet **Siki the Owl** — your AI finance companion. Siki watches over
 your books, finds what others miss, and talks to you in plain English.
 
 ## The Problem
 
 Xero has 4.4 million small business subscribers. Most of them are not
 accountants. They log transactions but never reconcile. They ignore
-overdue invoices. They don't understand their P&L. When tax season
-arrives, they pay an accountant £200+ to clean up months of mess — or
-they file wrong and pay penalties.
+overdue invoices — money they're owed. They don't understand their P&L.
+And when tax season arrives, they pay an accountant £200+ to clean up
+months of mess — or they file wrong and pay HMRC penalties.
 
-The bookkeeping gap is not a knowledge problem. It's a cost problem.
-Small businesses know they should reconcile. They just can't afford
-the £50-100/month a bookkeeper charges, and Xero's built-in
-reconciliation tools require you to know what you're doing.
+The bookkeeping gap is not a knowledge problem. It's a time and cost
+problem. Small businesses know they should reconcile. They just can't
+afford the £50-100/month a bookkeeper charges, and they don't have
+time to dig through Xero's reports.
 
 ## The Solution
 
-Sikizana Books is an AI agent that does what a bookkeeper does:
+Sikizana Books is an AI agent that does what a bookkeeper does — and
+more:
 
-1. **Audits your books** — finds unreconciled bank transactions, overdue
+1. **Finds money you're owed** — identifies overdue invoices, shows
+   who hasn't paid, how much is outstanding, and how long it's overdue.
+   Validated pain point: "automatically send invoice reminders for all
+   overdue invoices" is a top-voted request on productideas.xero.com.
+2. **Estimates your tax bill** — calculates UK Corporation Tax, flags
+   non-deductible expenses (client entertainment), identifies missed
+   deductions (software/subscriptions), and connects cash flow to tax
+   liability. The Cleo pattern: deterministic financial logic + plain-
+   English explanation.
+3. **Audits your books** — finds unreconciled bank transactions, overdue
    invoices, and trial balance imbalances automatically.
-2. **Identifies what things are** — reads bank transaction references
-   ("CARD PAYMENT 0542 12JUN LIDL") and classifies them correctly.
-3. **Matches receipts** — multimodal vision AI reads receipt photos and
-   matches them to Xero bank transactions.
 4. **Explains your finances** — translates "Net Profit: -£2,705" into
    "You're running at a loss. Your rent is 41% of expenses. Sales
    aren't covering costs yet."
-5. **Proposes fixes** — generates correct journal entries with the
-   right account codes, and waits for your approval before posting.
+5. **Fixes discrepancies** — proposes journal entries with the right
+   account codes, waits for your approval, then posts directly to Xero.
+   Human-in-the-loop by design.
+6. **Matches receipts** — multimodal vision AI reads receipt photos and
+   matches them to Xero bank transactions.
 
 ## Siki the Owl — Mascot & Brand
 

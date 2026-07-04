@@ -691,10 +691,10 @@ function BooksView() {
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-sky-900">Here's what I can do for you</p>
                         <ul className="text-[11px] text-sky-700 mt-1.5 space-y-1">
-                          <li>📊 <span className="font-medium">Explain your P&L</span> — no accounting degree needed</li>
-                          <li>🔍 <span className="font-medium">Find what's broken</span> — unreconciled transactions, overdue invoices</li>
-                          <li>💰 <span className="font-medium">Find money you're owed</span> — chase overdue payments</li>
-                          <li>📝 <span className="font-medium">Fix discrepancies</span> — propose journal entries for you</li>
+                          <li>💰 <span className="font-medium">Find money you're owed</span> — overdue invoices, who hasn't paid</li>
+                          <li>📊 <span className="font-medium">Estimate your tax bill</span> — Corporation Tax + deductible expenses</li>
+                          <li>📈 <span className="font-medium">Explain your P&L</span> — plain English, no jargon</li>
+                          <li>✍️ <span className="font-medium">Fix discrepancies</span> — propose & post journal entries to Xero</li>
                         </ul>
                         <p className="text-[10px] text-sky-600 mt-2.5">
                           The sidebar shows a live snapshot of your books. Try a question below to see me in action →
