@@ -24,12 +24,20 @@ export default function LandingPage() {
             </div>
             <span className="text-base font-bold text-stone-900">SIKIZANA</span>
           </div>
-          <Link
-            href="/arbitrate"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition"
-          >
-            Anza Sasa
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/books"
+              className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
+            >
+              Sikizana Books (Xero)
+            </Link>
+            <Link
+              href="/arbitrate"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
+            >
+              Anza Sasa
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -49,8 +57,14 @@ export default function LandingPage() {
         </p>
         <div className="mt-8 flex items-center justify-center gap-3 flex-wrap">
           <Link
+            href="/books"
+            className="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-6 py-3 rounded-xl transition shadow-md btn-press"
+          >
+            Sikizana Books (Xero)
+          </Link>
+          <Link
             href="/arbitrate"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl transition shadow-md"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-6 py-3 rounded-xl transition shadow-md btn-press"
           >
             Anza Mazungumzo
           </Link>

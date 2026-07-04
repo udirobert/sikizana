@@ -283,4 +283,37 @@ export const endpoints = {
     list: (approved_only = true) =>
       api.get<Testimonial[]>(`/api/testimonials${approved_only ? "?approved_only=true" : ""}`),
   },
+
+  // ---- Xero (Bookkeeper mode) ----
+
+  xero: {
+    chat: (message: string, thread_id?: string) =>
+      api.post<ChatResponse>("/api/xero/chat", { message, thread_id }),
+    status: () => api.get<{ live: boolean; mode: "live" | "demo" }>("/api/xero/status"),
+    organisation: () => api.get<Record<string, unknown>>("/api/xero/organisation"),
+    discrepancies: () =>
+      api.get<{ unreconciled: unknown[]; overdue: unknown[] }>("/api/xero/discrepancies"),
+    invoices: (params?: { status?: string; invoice_type?: string }) => {
+      const search = new URLSearchParams();
+      if (params?.status) search.set("status", params.status);
+      if (params?.invoice_type) search.set("invoice_type", params.invoice_type);
+      const q = search.toString();
+      return api.get<unknown[]>(`/api/xero/invoices${q ? "?" + q : ""}`);
+    },
+    bankTransactions: (txn_type?: string) => {
+      const q = txn_type ? `?txn_type=${txn_type}` : "";
+      return api.get<unknown[]>(`/api/xero/bank-transactions${q}`);
+    },
+    profitAndLoss: (from_date?: string, to_date?: string) => {
+      const search = new URLSearchParams();
+      if (from_date) search.set("from_date", from_date);
+      if (to_date) search.set("to_date", to_date);
+      const q = search.toString();
+      return api.get<Record<string, unknown>>(`/api/xero/profit-and-loss${q ? "?" + q : ""}`);
+    },
+    balanceSheet: (as_of?: string) => {
+      const q = as_of ? `?as_of=${as_of}` : "";
+      return api.get<Record<string, unknown>>(`/api/xero/balance-sheet${q}`);
+    },
+  },
 };

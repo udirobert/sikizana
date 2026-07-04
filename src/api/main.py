@@ -471,6 +471,103 @@ async def testimonial_list(approved_only: bool = True):
     return list_testimonials(approved_only=approved_only)
 
 
+# ---- Xero (Bookkeeper mode) ----
+
+
+class XeroChatRequest(BaseModel):
+    message: str
+    thread_id: str | None = None
+
+
+@app.post("/api/xero/chat")
+async def xero_chat(req: XeroChatRequest):
+    """Bookkeeper agent — Xero reconciliation, P&L, invoice matching."""
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="message must not be empty")
+
+    try:
+        from src.agents.bookkeeper import run_bookkeeper
+
+        response = await run_bookkeeper(req.message, req.thread_id)
+        agent_available = True
+    except ImportError as exc:
+        log.warning("bookkeeper_runtime_missing", extra={"error": str(exc)})
+        response = (
+            "Sikizana Books is warming up. The Xero connection is being established; "
+            "the bookkeeper agent will be back shortly."
+        )
+        agent_available = False
+    except Exception as exc:  # noqa: BLE001
+        log.error("bookkeeper_runtime_error", extra={"error": str(exc)}, exc_info=True)
+        response = "Sorry, there's a temporary issue with the bookkeeper. Please try again."
+        agent_available = False
+
+    log.info(
+        "xero_chat_completed",
+        extra={
+            "thread_id": req.thread_id,
+            "message_len": len(req.message),
+            "response_len": len(response),
+            "agent_available": agent_available,
+        },
+    )
+
+    return {
+        "response": response,
+        "thread_id": req.thread_id or "xero-new-thread",
+        "agent_available": agent_available,
+    }
+
+
+@app.get("/api/xero/organisation")
+async def xero_organisation():
+    from src.services.xero_service import XeroService
+    return XeroService().get_organisation()
+
+
+@app.get("/api/xero/discrepancies")
+async def xero_discrepancies():
+    """Quick audit — unreconciled transactions + overdue invoices."""
+    from src.services.xero_service import XeroService
+    svc = XeroService()
+    return {
+        "unreconciled": svc.find_unreconciled_transactions(),
+        "overdue": svc.find_overdue_invoices(),
+    }
+
+
+@app.get("/api/xero/invoices")
+async def xero_invoices(status: str | None = None, invoice_type: str | None = None):
+    from src.services.xero_service import XeroService
+    return XeroService().list_invoices(status=status, invoice_type=invoice_type)
+
+
+@app.get("/api/xero/bank-transactions")
+async def xero_bank_txns(txn_type: str | None = None):
+    from src.services.xero_service import XeroService
+    return XeroService().list_bank_transactions(txn_type=txn_type)
+
+
+@app.get("/api/xero/profit-and-loss")
+async def xero_pl(from_date: str | None = None, to_date: str | None = None):
+    from src.services.xero_service import XeroService
+    return XeroService().get_profit_and_loss(from_date=from_date, to_date=to_date)
+
+
+@app.get("/api/xero/balance-sheet")
+async def xero_bs(as_of: str | None = None):
+    from src.services.xero_service import XeroService
+    return XeroService().get_balance_sheet(as_of=as_of)
+
+
+@app.get("/api/xero/status")
+async def xero_status():
+    """Whether the Xero CLI is connected (live) or using mock data."""
+    from src.services.xero_service import XeroService
+    svc = XeroService()
+    return {"live": svc.is_live(), "mode": "live" if svc.is_live() else "demo"}
+
+
 # ---- Entrypoint ----
 
 if __name__ == "__main__":

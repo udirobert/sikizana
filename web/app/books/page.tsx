@@ -1,0 +1,432 @@
+"use client";
+
+import { useEffect, useRef, useState, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useXeroThread } from "@/hooks/useXeroThread";
+import { ApiError, endpoints } from "@/lib/api";
+import { MarkdownMessage } from "@/components/MarkdownMessage";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { SkeletonReveal } from "@/components/SkeletonReveal";
+import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
+
+interface DiscrepancyData {
+  unreconciled: Array<{
+    id: string;
+    date: string;
+    type: string;
+    contact: { name: string };
+    total: number;
+    reference: string;
+  }>;
+  overdue: Array<{
+    id: string;
+    invoiceNumber: string;
+    contact: { name: string };
+    amountDue: number;
+    dueDate: string;
+  }>;
+}
+
+function BooksView() {
+  const searchParams = useSearchParams();
+  const { threadId, messages, addMessage, ensureThread, newSession } = useXeroThread();
+
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [discrepancies, setDiscrepancies] = useState<DiscrepancyData | null>(null);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [xeroMode, setXeroMode] = useState<"live" | "demo" | "unknown">("unknown");
+  const [orgName, setOrgName] = useState<string>("");
+  const [staggerShown, setStaggerShown] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Trigger staggered text reveal on mount.
+  useEffect(() => {
+    const timer = setTimeout(() => setStaggerShown(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch quick-audit data + Xero status on mount.
+  useEffect(() => {
+    void endpoints.xero.status().then((s) => setXeroMode(s.mode)).catch(() => {});
+    void endpoints.xero
+      .organisation()
+      .then((o) => setOrgName((o as { name?: string }).name ?? ""))
+      .catch(() => {});
+    void endpoints.xero
+      .discrepancies()
+      .then((d) => {
+        setDiscrepancies(d as DiscrepancyData);
+        setAuditLoading(false);
+      })
+      .catch(() => setAuditLoading(false));
+  }, []);
+
+  // Seed sample query from URL param.
+  const sampleId = searchParams.get("sample");
+  const sample = sampleId ? findQuery(sampleId) : undefined;
+  const shouldSeed = Boolean(sample && messages.length === 0 && !input);
+  if (shouldSeed) {
+    setInput(sample!.description);
+  }
+
+  const sendToAgent = async (message: string) => {
+    setIsLoading(true);
+    setErrorBanner(null);
+    const tid = ensureThread();
+    try {
+      const data = await endpoints.xero.chat(message, tid);
+      addMessage({ role: "agent", content: data.response });
+    } catch (e) {
+      const detail =
+        e instanceof ApiError
+          ? `Bookkeeper error (${e.status}).`
+          : e instanceof Error
+            ? e.message
+            : "Unknown error.";
+      addMessage({
+        role: "agent",
+        content: `Sorry, ${detail} Please try again.`,
+      });
+      setErrorBanner(detail);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSend = () => {
+    if (!input.trim() || isLoading) return;
+    const text = input.trim();
+    setInput("");
+    addMessage({ role: "user", content: text });
+    void sendToAgent(text);
+  };
+
+  const handleStartSample = (description: string) => {
+    setInput(description);
+  };
+
+  const unreconciledCount = discrepancies?.unreconciled.length ?? 0;
+  const overdueCount = discrepancies?.overdue.length ?? 0;
+  const totalOverdue = discrepancies?.overdue.reduce((sum, i) => sum + i.amountDue, 0) ?? 0;
+
+  return (
+    <main className="min-h-screen bg-stone-100 flex flex-col">
+      <nav className="bg-white border-b border-stone-200 px-4 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-sky-600 to-blue-700 rounded-lg flex items-center justify-center shadow-sm">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA BOOKS</h1>
+              <p className="text-[10px] text-stone-500 leading-none mt-0.5">
+                AI Bookkeeper for Xero
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span
+              className={`text-[10px] font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
+                xeroMode === "live"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : xeroMode === "demo"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-stone-100 text-stone-500"
+              }`}
+            >
+              {xeroMode === "live" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
+            </span>
+            <Link
+              href="/"
+              className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+            >
+              Chama Mode
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <div className="flex-1 flex items-stretch justify-center p-4 gap-4">
+        {/* Quick Audit Sidebar */}
+        <aside className="hidden lg:flex flex-col w-64 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-4">
+          <div>
+            <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide mb-1">
+              Quick Audit
+            </h2>
+            {orgName && (
+              <p className="text-[11px] text-stone-500 mb-3">{orgName}</p>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {/* Unreconciled — skeleton while loading, animated number when loaded */}
+            <SkeletonReveal
+              isLoading={auditLoading}
+              className="h-[72px]"
+              skeletonClassName="rounded-xl"
+            >
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
+                  Unreconciled
+                </div>
+                <div className="text-2xl font-bold text-amber-900 mt-1">
+                  <AnimatedNumber value={unreconciledCount} />
+                </div>
+                <div className="text-[10px] text-amber-700 mt-0.5">
+                  bank transactions need matching
+                </div>
+              </div>
+            </SkeletonReveal>
+
+            {/* Overdue — skeleton while loading, animated number when loaded */}
+            <SkeletonReveal
+              isLoading={auditLoading}
+              className="h-[72px]"
+              skeletonClassName="rounded-xl"
+            >
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                <div className="text-[10px] uppercase tracking-wide text-red-600 font-semibold">
+                  Overdue Invoices
+                </div>
+                <div className="text-2xl font-bold text-red-900 mt-1">
+                  <AnimatedNumber value={overdueCount} />
+                </div>
+                <div className="text-[10px] text-red-700 mt-0.5">
+                  £{totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding
+                </div>
+              </div>
+            </SkeletonReveal>
+
+            {discrepancies && unreconciledCount === 0 && overdueCount === 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 fade-in-up">
+                <div className="text-xs font-semibold text-emerald-800">
+                  ✓ Books look clean
+                </div>
+                <div className="text-[10px] text-emerald-700 mt-1">
+                  No discrepancies detected
+                </div>
+              </div>
+            )}
+          </div>
+
+          {discrepancies && discrepancies.unreconciled.length > 0 && (
+            <div className="flex-1 overflow-y-auto scroll-thin">
+              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-2">
+                Unreconciled Transactions
+              </h3>
+              <div className="space-y-2">
+                {discrepancies.unreconciled.slice(0, 6).map((t, i) => (
+                  <div
+                    key={t.id}
+                    className="text-[10px] border border-stone-100 rounded-lg p-2 fade-in-up"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <div className="font-medium text-stone-700">
+                      £{t.total.toFixed(2)}
+                    </div>
+                    <div className="text-stone-400 truncate">{t.reference}</div>
+                    <div className="text-stone-400">{t.date}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-stone-100 pt-3">
+            <p className="text-[9px] text-stone-400 leading-relaxed">
+              Powered by Gemini + Xero MCP. Demo data shown when Xero CLI is not connected.
+            </p>
+          </div>
+        </aside>
+
+        {/* Chat */}
+        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[78vh] overflow-hidden border border-stone-200">
+          <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
+            <div className="relative">
+              <div className="w-10 h-10 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </div>
+              <div className="absolute bottom-0 right-0 w-3 h-3 bg-sky-400 border-2 border-white rounded-full" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-stone-800">Sikizana Bookkeeper</p>
+              <p className="text-[11px] text-stone-500 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
+                {isLoading ? (
+                  <span className="t-shimmer">Thinking...</span>
+                ) : (
+                  <span>Online · Powered by Gemini · Xero Connected</span>
+                )}
+              </p>
+            </div>
+            {messages.length > 0 && (
+              <button
+                onClick={newSession}
+                className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+                title="Start a new conversation"
+              >
+                New
+              </button>
+            )}
+          </div>
+
+          {errorBanner && (
+            <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 flex items-center justify-between fade-in-up">
+              <span>{errorBanner}</span>
+              <button
+                onClick={() => setErrorBanner(null)}
+                className="text-red-500 hover:text-red-700 btn-press"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-center px-8">
+                <div className="w-16 h-16 bg-sky-50 rounded-2xl flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                {/* Staggered text reveal for the empty state */}
+                <div className={`t-stagger ${staggerShown ? "is-shown" : ""}`}>
+                  <h2 className="t-stagger-line t-stagger-line--1 text-lg font-semibold text-stone-800 mb-1">
+                    Your AI Bookkeeper
+                  </h2>
+                  <p className="t-stagger-line t-stagger-line--2 text-sm text-stone-500 max-w-sm">
+                    I reconcile your Xero transactions, find overdue invoices, explain your
+                    P&amp;L in plain English, and propose journal entries to fix discrepancies.
+                  </p>
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
+                  <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-400 font-semibold text-left">
+                    Try a sample query
+                  </p>
+                  {SAMPLE_QUERIES.map((sample, i) => (
+                    <button
+                      key={sample.id}
+                      onClick={() => handleStartSample(sample.description)}
+                      className="text-left text-xs text-stone-600 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg px-3 py-2 transition-colors btn-press fade-in-up"
+                      style={{ animationDelay: `${300 + i * 60}ms` }}
+                    >
+                      <div className="font-medium text-stone-800">{sample.title}</div>
+                      <div className="text-stone-400 mt-0.5 line-clamp-2">
+                        {sample.description.slice(0, 80)}...
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex gap-2.5 fade-in-up ${
+                  msg.role === "user" ? "flex-row-reverse" : "flex-row"
+                }`}
+              >
+                {msg.role === "agent" && (
+                  <div className="w-8 h-8 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                  </div>
+                )}
+                <div
+                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-sky-600 text-white rounded-tr-sm"
+                      : "bg-stone-100 text-stone-800 rounded-tl-sm"
+                  }`}
+                >
+                  {msg.role === "agent" ? (
+                    <MarkdownMessage source={msg.content} />
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex gap-2.5 fade-in-up">
+                <div className="w-8 h-8 bg-gradient-to-br from-sky-500 to-blue-600 rounded-full flex items-center justify-center shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                </div>
+                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
+                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
+                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <div className="border-t border-stone-100 p-3 bg-stone-50/50">
+            <div className="flex gap-2 items-end">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                placeholder="Ask about your books, invoices, or P&L..."
+                disabled={isLoading}
+                className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={isLoading || !input.trim()}
+                className="p-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed btn-press"
+                title="Send"
+                aria-label="Send"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex items-center justify-center mt-2">
+              <span className="text-[10px] text-stone-500">
+                Sikizana Books · AI Bookkeeper for Xero · Powered by Gemini
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <footer className="text-center py-3">
+        <p className="text-[10px] text-stone-400">
+          Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
+        </p>
+      </footer>
+    </main>
+  );
+}
+
+export default function BooksPage() {
+  return (
+    <Suspense fallback={null}>
+      <BooksView />
+    </Suspense>
+  );
+}
