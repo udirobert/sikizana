@@ -568,6 +568,20 @@ async def xero_status():
     return {"live": svc.is_live(), "mode": "live" if svc.is_live() else "demo"}
 
 
+@app.get("/api/xero/accounts")
+async def xero_accounts():
+    """Chart of accounts from Xero."""
+    from src.services.xero_service import XeroService
+    return XeroService().list_accounts()
+
+
+@app.get("/api/xero/contacts")
+async def xero_contacts():
+    """Contacts (customers/suppliers) from Xero."""
+    from src.services.xero_service import XeroService
+    return XeroService().list_contacts()
+
+
 @app.post("/api/xero/upload-receipt")
 async def xero_upload_receipt(file: UploadFile = File(...)):
     """

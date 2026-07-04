@@ -32,7 +32,7 @@ Sikizana Books is an AI agent that does what a bookkeeper does:
    invoices, and trial balance imbalances automatically.
 2. **Identifies what things are** — reads bank transaction references
    ("CARD PAYMENT 0542 12JUN LIDL") and classifies them correctly.
-3. **Matches receipts** — multimodal Gemini reads receipt photos and
+3. **Matches receipts** — multimodal vision AI reads receipt photos and
    matches them to Xero bank transactions.
 4. **Explains your finances** — translates "Net Profit: -£2,705" into
    "You're running at a loss. Your rent is 41% of expenses. Sales
@@ -44,14 +44,13 @@ Sikizana Books is an AI agent that does what a bookkeeper does:
 
 Sikizana Books integrates with Xero via:
 
-- **Xero MCP Server** — the agent calls Xero's accounting API through
-  the Model Context Protocol, giving it structured access to invoices,
-  bank transactions, contacts, accounts, and reports.
-- **Xero CLI** — a subprocess bridge for OAuth2 PKCE authentication and
-  tenant management. The agent shells out to `xero` commands with
-  `--json` output.
-- **Xero Agentic SDK patterns** — the agent is built on Google ADK
-  (the same framework used in Xero's own agent toolkit examples).
+- **Xero CLI** — OAuth2 PKCE authentication and full API access. The
+  agent shells out to `xero` commands with `--json` output for
+  structured data retrieval.
+- **Xero Webhooks** — real-time event notifications. When a new
+  transaction or invoice lands in Xero, Xero pushes a webhook to our
+  endpoint, and the agent proactively alerts the user — no polling
+  required.
 
 ### Xero data the agent reads:
 - Bank transactions (reconciled vs unreconciled)
@@ -68,7 +67,7 @@ Sikizana Books integrates with Xero via:
 ```
 User asks a question
   ↓
-Bookkeeper Agent (Gemini 1.5 Pro, Google ADK)
+Bookkeeper Agent (Llama 3.3 70B via NVIDIA NIM)
   ├── find_discrepancies()        → scans for unreconciled + overdue + TB imbalance
   ├── get_xero_transactions()     → searches bank transactions by reference
   ├── get_xero_invoices()         → lists invoices with overdue flags
@@ -76,11 +75,15 @@ Bookkeeper Agent (Gemini 1.5 Pro, Google ADK)
   ├── get_xero_profit_and_loss()  → pulls P&L for plain-English explanation
   ├── get_xero_balance_sheet()    → pulls balance sheet
   ├── get_xero_contacts()         → searches customers/suppliers
-  ├── match_receipt_to_transaction() → Gemini Vision reads receipt photo
+  ├── match_receipt_to_transaction() → Vision AI reads receipt photo
   └── propose_journal_entry()     → generates the fixing entry (awaiting approval)
   ↓
 Plain-English response with findings + recommended actions
 ```
+
+The agent uses OpenAI-compatible function calling via NVIDIA NIM. The
+NVIDIA API handles tool-call orchestration; we execute the actual
+Python functions that call the Xero CLI and feed results back.
 
 The agent always proposes before acting. Journal entries require user
 approval. This is human-in-the-loop design — the agent does the
@@ -88,30 +91,41 @@ analysis, the human makes the final call.
 
 ## Demo
 
-Visit `/books` to chat with the bookkeeper. The demo runs on realistic
-mock data (a London café called "The Daily Grind Ltd") with:
+Visit `/books` to chat with the bookkeeper. The demo runs on **live
+Xero data** from a Demo Company (UK) with:
 
-- 8 bank transactions (4 unreconciled)
-- 7 invoices (1 overdue, £1,250 outstanding)
-- A trial balance imbalance
-- A P&L showing a £2,705 loss
+- 23 bank transactions (9 unreconciled)
+- 10 invoices (1 overdue, £270.63 outstanding)
+- P&L: Revenue £5,039.80, Net Profit £4,883.13
+- 90 accounts, 52 contacts
 
 Try these queries:
 1. "Can you check my books and tell me if everything is reconciled?"
 2. "Show me all overdue invoices. Who hasn't paid?"
-3. "Give me my P&L for the last 90 days and explain it in plain English."
+3. "Give me my P&L and explain it in plain English."
 4. "What are these unreconciled transactions?"
+
+### Proactive features:
+- **Auto-audit on page load** — the agent runs `find_discrepancies`
+  automatically when you open `/books` and shows a notification
+- **Webhook alerts** — when Xero pushes a webhook, the agent surfaces
+  a proactive alert
+- **Receipt upload** — drag a receipt photo onto the chat, the agent
+  reads it with vision AI and matches it to a transaction
+- **Success animation** — when you approve a journal entry, a
+  transitions.dev success check plays
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
-| Agent brain | Gemini 1.5 Pro |
-| Agent orchestration | Google Agent Development Kit (ADK) |
-| Xero integration | Xero MCP Server + Xero CLI |
+| Agent brain | Llama 3.3 70B (NVIDIA NIM) |
+| Agent orchestration | Custom tool-calling loop (OpenAI-compatible) |
+| Xero integration | Xero CLI + Xero Webhooks |
 | Backend | Python / FastAPI |
 | Frontend | Next.js 16 / React 19 / Tailwind CSS |
-| Vision | Gemini 1.5 Flash (multimodal receipt matching) |
+| Vision | Multimodal receipt matching |
+| Motion design | transitions.dev patterns, Emil Kowalski design engineering |
 
 ## Why This Wins
 
@@ -126,11 +140,15 @@ Try these queries:
 3. **Human-in-the-loop.** The agent proposes, the human approves. No
    autonomous journal entries without consent. Safe by design.
 
-4. **Multimodal.** Receipt photos → Gemini Vision → matched to Xero
+4. **Multimodal.** Receipt photos → Vision AI → matched to Xero
    transactions. This is the bridge between physical and digital
    bookkeeping that small businesses actually need.
 
-5. **Proven architecture.** We didn't build from scratch — we repurposed
+5. **Proactive, not reactive.** Webhooks mean the agent comes to you —
+   "Hey, you have a new unreconciled transaction" — instead of waiting
+   for you to notice problems at tax time.
+
+6. **Proven architecture.** We didn't build from scratch — we repurposed
    a working agent architecture from our Kenyan chama arbitration
    platform. The reasoning loop (gather evidence → analyse → propose
    fix → await approval) is battle-tested in a harder domain
