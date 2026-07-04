@@ -116,22 +116,51 @@ def get_xero_profit_and_loss(
 ) -> str:
     """Retrieve the Profit & Loss report for a date range. Empty dates = last 90 days."""
     pl = _xero.get_profit_and_loss(from_date=from_date or None, to_date=to_date or None)
-    summary = f"Profit & Loss ({pl['fromDate']} to {pl['toDate']}):\n"
-    for row in pl["rows"]:
-        summary += f"- {row['account']} ({row['code']}): £{row['value']:,.2f}\n"
-    summary += f"\nNet Profit: £{pl['netProfit']:,.2f}"
+    # Handle both live (parsed report) and mock formats
+    if "totals" in pl:
+        # Live CLI format (from _parse_report)
+        titles = pl.get("reportTitles", [])
+        period = titles[-1] if titles else ""
+        summary = f"Profit & Loss ({period}):\n"
+        for item in pl.get("lineItems", [])[:15]:
+            summary += f"- {item['label']}: £{item['value']}\n"
+        totals = pl.get("totals", {})
+        for label, value in totals.items():
+            summary += f"- {label}: £{value:,.2f}\n"
+        summary += f"\nRevenue: £{pl.get('revenue', 0):,.2f}\n"
+        summary += f"Expenses: £{pl.get('expenses', 0):,.2f}\n"
+        summary += f"Net Profit: £{pl.get('netProfit', 0):,.2f}"
+    else:
+        # Mock format
+        summary = f"Profit & Loss ({pl.get('fromDate', '?')} to {pl.get('toDate', '?')}):\n"
+        for row in pl.get("rows", []):
+            summary += f"- {row.get('account', '?')} ({row.get('code', '?')}): £{row.get('value', 0):,.2f}\n"
+        summary += f"\nNet Profit: £{pl.get('netProfit', 0):,.2f}"
     return summary
 
 
 def get_xero_balance_sheet(as_of: str = "") -> str:
     """Retrieve the Balance Sheet as of a date. Empty = today."""
     bs = _xero.get_balance_sheet(as_of=as_of or None)
-    summary = f"Balance Sheet (as of {bs['asOf']}):\n"
-    for row in bs["rows"]:
-        summary += f"- {row['account']} ({row['code']}): £{row['value']:,.2f}\n"
-    summary += f"\nTotal Assets: £{bs['totalAssets']:,.2f}\n"
-    summary += f"Total Liabilities: £{bs['totalLiabilities']:,.2f}\n"
-    summary += f"Net Assets: £{bs['netAssets']:,.2f}"
+    # Handle both live (parsed report) and mock formats
+    if "totals" in bs:
+        # Live CLI format (from _parse_report)
+        titles = bs.get("reportTitles", [])
+        period = titles[-1] if titles else ""
+        summary = f"Balance Sheet ({period}):\n"
+        for item in bs.get("lineItems", [])[:15]:
+            summary += f"- {item['label']}: £{item['value']}\n"
+        totals = bs.get("totals", {})
+        for label, value in totals.items():
+            summary += f"- {label}: £{value:,.2f}\n"
+    else:
+        # Mock format
+        summary = f"Balance Sheet (as of {bs.get('asOf', '?')}):\n"
+        for row in bs.get("rows", []):
+            summary += f"- {row.get('account', '?')} ({row.get('code', '?')}): £{row.get('value', 0):,.2f}\n"
+        summary += f"\nTotal Assets: £{bs.get('totalAssets', 0):,.2f}\n"
+        summary += f"Total Liabilities: £{bs.get('totalLiabilities', 0):,.2f}\n"
+        summary += f"Net Assets: £{bs.get('netAssets', 0):,.2f}"
     return summary
 
 
@@ -168,10 +197,18 @@ def find_discrepancies() -> str:
 
     # Check for trial balance imbalance
     tb = _xero.get_trial_balance()
-    if abs(tb["totalDebit"] - tb["totalCredit"]) > 0.01:
+    # Handle both live (parsed report) and mock formats
+    total_debit = tb.get("totalDebit", 0)
+    total_credit = tb.get("totalCredit", 0)
+    if "totals" in tb:
+        # Live CLI format — look for debit/credit in totals
+        totals = tb.get("totals", {})
+        total_debit = totals.get("Total Debits", totals.get("Debits", 0))
+        total_credit = totals.get("Total Credits", totals.get("Credits", 0))
+    if abs(total_debit - total_credit) > 0.01:
         findings.append(
             f"\n⚠ TRIAL BALANCE IMBALANCE: "
-            f"Debits £{tb['totalDebit']:,.2f} ≠ Credits £{tb['totalCredit']:,.2f}"
+            f"Debits £{total_debit:,.2f} ≠ Credits £{total_credit:,.2f}"
         )
 
     return "\n".join(findings) if findings else "No discrepancies found. Books look clean."
@@ -273,6 +310,11 @@ def get_xero_contacts(query: str = "") -> str:
 
     summary = f"Found {len(contacts)} contacts:\n"
     for c in contacts[:20]:
-        role = "Supplier" if c.get("isSupplier") else "Customer"
-        summary += f"- {c['name']} ({role}) | {c.get('emailAddress', 'no email')}\n"
+        roles = []
+        if c.get("isSupplier"):
+            roles.append("Supplier")
+        if c.get("isCustomer"):
+            roles.append("Customer")
+        role = " | ".join(roles) if roles else "Contact"
+        summary += f"- {c['name']} ({role})\n"
     return summary
