@@ -9,8 +9,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (legacy-peer-deps for gear-js compatibility)
+RUN npm install --legacy-peer-deps
 
 # Copy source
 COPY . .

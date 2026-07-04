@@ -15,7 +15,7 @@ services:
       - XERO_KEY_STORAGE=file
       - PAYMENT_DB_PATH=/app/data/payments.db
     volumes:
-      - /home/linuxuser/.config/xero-command-line:/root/.config/xero-command-line:ro
+      - /home/linuxuser/.config/xero-command-line:/root/.config/xero-command-line
       - sikizana-data:/app/data
     networks:
       - coolify
