@@ -609,6 +609,84 @@ async def xero_status():
     return {"live": svc.is_live(), "mode": "live" if svc.is_live() else "demo"}
 
 
+# ---- Xero OAuth endpoints (Connect Your Xero flow) ----
+
+@app.get("/api/xero/auth")
+async def xero_auth(session: str = "default"):
+    """
+    Initiate the Xero OAuth flow.
+
+    Returns a JSON response with the authorization URL.
+    The frontend should redirect the user to this URL.
+    """
+    from src.services.xero_oauth import is_configured, get_authorization_url
+
+    if not is_configured():
+        # OAuth not configured — fall back to demo mode
+        return {
+            "configured": False,
+            "auth_url": None,
+            "message": "Xero OAuth not configured. Using demo data.",
+        }
+
+    auth_url = get_authorization_url(session)
+    return {"configured": True, "auth_url": auth_url}
+
+
+@app.get("/api/xero/callback")
+async def xero_callback(code: str, state: str, session: str = "default"):
+    """
+    Handle the Xero OAuth callback.
+
+    Xero redirects here after the user authorizes the app.
+    We exchange the code for tokens and redirect back to /books.
+    """
+    from src.services.xero_oauth import exchange_code, _validate_state
+    from fastapi.responses import RedirectResponse
+
+    if not _validate_state(session, state):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state. Please try again.")
+
+    try:
+        result = exchange_code(code, session)
+        # Redirect back to the books page with a success indicator
+        return RedirectResponse(
+            url=f"/books?connected=true&org={result.get('tenant_name', '')}",
+            status_code=302,
+        )
+    except Exception as exc:
+        log.error("xero_oauth_callback_failed", extra={"error": str(exc)})
+        return RedirectResponse(
+            url=f"/books?connected=false&error=oauth_failed",
+            status_code=302,
+        )
+
+
+@app.get("/api/xero/connection")
+async def xero_connection(session: str = "default"):
+    """
+    Check if the current session has a connected Xero org.
+
+    Returns connection status + tenant info.
+    """
+    from src.services.xero_oauth import get_connection_status, is_configured
+
+    status = get_connection_status(session)
+    return {
+        **status,
+        "oauth_configured": is_configured(),
+    }
+
+
+@app.post("/api/xero/disconnect")
+async def xero_disconnect(session: str = "default"):
+    """Disconnect the user's Xero org and revoke tokens."""
+    from src.services.xero_oauth import disconnect
+
+    success = disconnect(session)
+    return {"disconnected": success}
+
+
 @app.get("/api/xero/accounts")
 async def xero_accounts():
     """Chart of accounts from Xero."""

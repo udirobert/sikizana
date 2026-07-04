@@ -387,5 +387,24 @@ export const endpoints = {
         }>;
         total: number;
       }>(`/api/xero/webhook/events?since=${since}`),
+    // OAuth: Connect Your Xero flow
+    auth: (session?: string) =>
+      api.get<{
+        configured: boolean;
+        auth_url: string | null;
+        message?: string;
+      }>(`/api/xero/auth${session ? `?session=${session}` : ""}`),
+    connection: (session?: string) =>
+      api.get<{
+        connected: boolean;
+        oauth_configured: boolean;
+        tenant_id?: string;
+        tenant_name?: string;
+      }>(`/api/xero/connection${session ? `?session=${session}` : ""}`),
+    disconnect: (session?: string) =>
+      api.post<{ disconnected: boolean }>(
+        `/api/xero/disconnect${session ? `?session=${session}` : ""}`,
+        {},
+      ),
   },
 };

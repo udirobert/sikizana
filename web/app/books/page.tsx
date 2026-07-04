@@ -74,6 +74,9 @@ function BooksView() {
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(false);
   const [dismissedWelcome, setDismissedWelcome] = useState(false);
+  const [oauthConfigured, setOauthConfigured] = useState(false);
+  const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +146,60 @@ function BooksView() {
         setPnLoading(false);
       })
       .catch(() => setPnLoading(false));
+
+    // Check if Xero OAuth is configured + if user has connected their own org
+    void endpoints.xero
+      .connection()
+      .then((c) => {
+        setOauthConfigured(c.oauth_configured);
+        setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
+      })
+      .catch(() => {});
   }, []);
+
+  // Handle OAuth callback redirect (?connected=true&org=...)
+  useEffect(() => {
+    const connected = searchParams.get("connected");
+    if (connected === "true") {
+      const org = searchParams.get("org");
+      // Refresh connection status
+      void endpoints.xero.connection().then((c) => {
+        setOauthConfigured(c.oauth_configured);
+        setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
+      }).catch(() => {});
+      // Show success message
+      if (org) {
+        setErrorBanner(null);
+      }
+    } else if (connected === "false") {
+      setErrorBanner("Failed to connect your Xero account. Please try again.");
+    }
+  }, [searchParams]);
+
+  const handleConnectXero = async () => {
+    setConnecting(true);
+    try {
+      const result = await endpoints.xero.auth();
+      if (result.configured && result.auth_url) {
+        window.location.href = result.auth_url;
+      } else {
+        setErrorBanner("Xero OAuth is not configured yet. Using demo data for now.");
+      }
+    } catch {
+      setErrorBanner("Failed to start Xero connection flow.");
+    }
+    setConnecting(false);
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await endpoints.xero.disconnect();
+      setUserConnection({ connected: false });
+      setXeroMode("demo");
+    } catch {
+      setErrorBanner("Failed to disconnect.");
+    }
+  };
 
   // Seed sample query from URL param.
   const sampleId = searchParams.get("sample");
@@ -279,17 +335,47 @@ function BooksView() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span
-              className={`text-[10px] font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
-                xeroMode === "live"
-                  ? "bg-emerald-50 text-emerald-700"
-                  : xeroMode === "demo"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-stone-100 text-stone-500"
-              }`}
+            {/* Connection status / Connect button */}
+            {userConnection?.connected ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-medium px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">
+                  ● {userConnection.tenant_name || "Your Xero"}
+                </span>
+                <button
+                  onClick={handleDisconnect}
+                  className="text-[10px] text-stone-400 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 btn-press"
+                  title="Disconnect your Xero"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ) : oauthConfigured ? (
+              <button
+                onClick={handleConnectXero}
+                disabled={connecting}
+                className="text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+              >
+                {connecting ? "Connecting…" : "Connect Your Xero →"}
+              </button>
+            ) : (
+              <span
+                className={`text-[10px] font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
+                  xeroMode === "live"
+                    ? "bg-emerald-50 text-emerald-700"
+                    : xeroMode === "demo"
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-stone-100 text-stone-500"
+                }`}
+              >
+                {xeroMode === "live" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
+              </span>
+            )}
+            <Link
+              href="/pricing"
+              className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              {xeroMode === "live" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
-            </span>
+              Pricing
+            </Link>
             <Link
               href="/"
               className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
@@ -621,6 +707,24 @@ function BooksView() {
                     >
                       Got it, dismiss
                     </button>
+                  </div>
+                )}
+
+                {/* Connect Your Xero CTA — shown when in demo mode and OAuth is available */}
+                {oauthConfigured && !userConnection?.connected && (
+                  <div className="mt-4 w-full max-w-sm fade-in-up">
+                    <div className="bg-gradient-to-r from-sky-50 to-emerald-50 border border-sky-200 rounded-xl p-3 text-left">
+                      <p className="text-[11px] text-stone-600 mb-2">
+                        You're exploring with <span className="font-semibold">demo data</span>. Ready to see your real numbers?
+                      </p>
+                      <button
+                        onClick={handleConnectXero}
+                        disabled={connecting}
+                        className="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+                      >
+                        {connecting ? "Connecting…" : "Connect Your Xero →"}
+                      </button>
+                    </div>
                   </div>
                 )}
 
