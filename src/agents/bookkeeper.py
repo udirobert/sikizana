@@ -61,6 +61,47 @@ def _load_prompt() -> str:
         return f.read()
 
 
+# ---- Contextual status messages ----
+# Lightweight keyword matching to give the user immediate feedback
+# that their question was understood, before the LLM responds.
+
+_STATUS_PATTERNS: list[tuple[list[str], str]] = [
+    (["profit", "loss", "p&l", "pnl", "income statement", "net profit", "revenue"],
+     "Pulling your P&L report to answer that…"),
+    (["balance sheet", "assets", "liabilities", "equity"],
+     "Fetching your balance sheet…"),
+    (["invoice", "overdue", "unpaid", "outstanding", "owed"],
+     "Checking your invoices for overdue items…"),
+    (["reconcil", "unreconciled", "bank transaction", "matching", "match"],
+     "Scanning your bank transactions for unreconciled items…"),
+    (["discrepanc", "audit", "health check", "wrong", "error", "mistake"],
+     "Auditing your books for discrepancies…"),
+    (["journal", "entry", "adjust", "correct", "fix"],
+     "Preparing a journal entry to fix that…"),
+    (["contact", "customer", "supplier", "vendor"],
+     "Looking up your contacts in Xero…"),
+    (["account", "chart of accounts", "ledger", "code"],
+     "Loading your chart of accounts…"),
+    (["organisation", "company", "business", "org"],
+     "Reading your organisation details…"),
+    (["receipt", "photo", "upload", "scan"],
+     "Getting ready to read that receipt…"),
+    (["hello", "hi ", "hey", "help", "what can you"],
+     "Hi! Let me look at your books…"),
+    (["thank", "cheers", "appreciate"],
+     "You're welcome! Anything else I can check?"),
+]
+
+
+def _generate_status_message(user_input: str) -> str:
+    """Generate a contextual status message based on keyword matching."""
+    lower = user_input.lower()
+    for keywords, message in _STATUS_PATTERNS:
+        if any(kw in lower for kw in keywords):
+            return message
+    return "Looking into your books…"
+
+
 # ---- Tool definitions in OpenAI function-calling format ----
 
 _TOOL_DEFS = [
@@ -249,6 +290,7 @@ async def run_bookkeeper_streaming(
     Streaming version of run_bookkeeper.
 
     Yields events as they happen:
+      {"type": "status", "message": "Understanding your question..."}
       {"type": "tool_call", "tool": "find_discrepancies", "args": {...}}
       {"type": "tool_result", "tool": "find_discrepancies", "result": "...", "summary": "..."}
       {"type": "text", "text": "chunk of response"}
@@ -258,6 +300,9 @@ async def run_bookkeeper_streaming(
         yield {"type": "text", "text": "I'm not connected to an AI model yet. Set NVIDIA_API_KEY in .env to enable the bookkeeper agent."}
         yield {"type": "done"}
         return
+
+    # Emit an immediate status event so the UI never appears frozen
+    yield {"type": "status", "message": _generate_status_message(user_input)}
 
     tid = thread_id or "default"
     client = _get_client()
@@ -288,13 +333,31 @@ async def run_bookkeeper_streaming(
     # Agent loop: call the model, execute tools, feed results back
     max_iterations = 5
     for iteration in range(max_iterations):
-        response = await client.chat.completions.create(
-            model=_NVIDIA_MODEL,
-            messages=messages,
-            tools=_TOOL_DEFS,
-            temperature=0.3,
-            max_tokens=2000,
-        )
+        try:
+            response = await asyncio.wait_for(
+                client.chat.completions.create(
+                    model=_NVIDIA_MODEL,
+                    messages=messages,
+                    tools=_TOOL_DEFS,
+                    temperature=0.3,
+                    max_tokens=2000,
+                ),
+                timeout=45.0,
+            )
+        except asyncio.TimeoutError:
+            log.error("nvidia_api_timeout", extra={"iteration": iteration})
+            yield {"type": "text", "text": "I'm taking longer than expected to reach the AI model. Please try again in a moment."}
+            yield {"type": "done"}
+            return
+        except Exception as exc:
+            log.error("nvidia_api_error", extra={"error": str(exc), "iteration": iteration})
+            error_msg = str(exc)
+            if "401" in error_msg or "Unauthorized" in error_msg:
+                yield {"type": "text", "text": "I'm having trouble connecting to the AI model (authentication error). The team has been notified. Please try again later."}
+            else:
+                yield {"type": "text", "text": f"I encountered an issue while processing your request: {error_msg[:100]}. Please try again."}
+            yield {"type": "done"}
+            return
 
         choice = response.choices[0]
         msg = choice.message

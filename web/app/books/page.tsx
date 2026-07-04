@@ -36,6 +36,24 @@ interface DiscrepancyData {
   }>;
 }
 
+interface OrgData {
+  name: string;
+  baseCurrency: string;
+  countryCode: string;
+  isDemoCompany: boolean;
+  registrationNumber?: string;
+  taxNumber?: string;
+  financialYearEndDay?: number;
+  financialYearEndMonth?: number;
+}
+
+interface ProfitAndLossData {
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  reportDate: string;
+}
+
 function BooksView() {
   const searchParams = useSearchParams();
   const { threadId, messages, addMessage, updateLastAgentMessage, ensureThread, newSession } = useXeroThread();
@@ -46,10 +64,13 @@ function BooksView() {
   const [discrepancies, setDiscrepancies] = useState<DiscrepancyData | null>(null);
   const [auditLoading, setAuditLoading] = useState(true);
   const [xeroMode, setXeroMode] = useState<"live" | "demo" | "unknown">("unknown");
-  const [orgName, setOrgName] = useState<string>("");
+  const [orgData, setOrgData] = useState<OrgData | null>(null);
+  const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
+  const [pnLoading, setPnLoading] = useState(true);
   const [staggerShown, setStaggerShown] = useState(false);
   const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
+  const [thinkingMessage, setThinkingMessage] = useState<string>("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -63,12 +84,16 @@ function BooksView() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Fetch quick-audit data + Xero status on mount.
+  // Fetch quick-audit data + Xero status + P&L on mount.
   useEffect(() => {
     void endpoints.xero.status().then((s) => setXeroMode(s.mode)).catch(() => {});
     void endpoints.xero
       .organisation()
-      .then((o) => setOrgName((o as { name?: string }).name ?? ""))
+      .then((o) => {
+        const data = o as unknown as OrgData;
+        setOrgData(data);
+        setXeroMode(data.isDemoCompany ? "demo" : "live");
+      })
       .catch(() => {});
     void endpoints.xero
       .discrepancies()
@@ -77,7 +102,6 @@ function BooksView() {
         setDiscrepancies(data);
         setAuditLoading(false);
         // Proactive audit — the "Active Arbitrator" pattern.
-        // Generate a plain-English summary of what was found.
         const unrec = data.unreconciled.length;
         const overdue = data.overdue.length;
         if (unrec > 0 || overdue > 0) {
@@ -95,6 +119,15 @@ function BooksView() {
         }
       })
       .catch(() => setAuditLoading(false));
+    // Fetch P&L for the dashboard sidebar
+    void endpoints.xero
+      .profitAndLoss()
+      .then((p) => {
+        const data = p as unknown as ProfitAndLossData;
+        setProfitAndLoss(data);
+        setPnLoading(false);
+      })
+      .catch(() => setPnLoading(false));
   }, []);
 
   // Seed sample query from URL param.
@@ -108,6 +141,7 @@ function BooksView() {
   const sendToAgent = async (message: string) => {
     setIsLoading(true);
     setErrorBanner(null);
+    setThinkingMessage("Looking into your books…");
     const tid = ensureThread();
 
     // Track tool calls and response text for this message
@@ -115,14 +149,15 @@ function BooksView() {
     let responseText = "";
 
     // Add a placeholder agent message that we'll update as events stream in
-    const agentMsgIndex = -1; // will be set after addMessage
     addMessage({ role: "agent", content: "", toolCalls: [] });
 
     try {
       for await (const event of endpoints.xero.chatStream(message, tid)) {
-        if (event.type === "tool_call") {
+        if (event.type === "status") {
+          setThinkingMessage(event.message);
+        } else if (event.type === "tool_call") {
           toolCalls.push({ tool: event.tool, label: event.label, status: "calling" });
-          // Update the agent message with the current tool calls
+          setThinkingMessage(event.label + "…");
           updateLastAgentMessage({ toolCalls: [...toolCalls] });
         } else if (event.type === "tool_result") {
           // Mark the matching tool call as done
@@ -130,15 +165,22 @@ function BooksView() {
           if (idx >= 0) {
             toolCalls[idx] = { ...toolCalls[idx], status: "done", summary: event.summary };
           }
+          // Update thinking message based on what we found
+          if (toolCalls.some((tc) => tc.status === "calling")) {
+            const next = toolCalls.find((tc) => tc.status === "calling");
+            setThinkingMessage(next ? next.label + "…" : "Analyzing results…");
+          } else {
+            setThinkingMessage("Composing your answer…");
+          }
           updateLastAgentMessage({ toolCalls: [...toolCalls] });
         } else if (event.type === "text") {
           responseText += event.text;
+          setThinkingMessage(""); // Clear thinking once text starts arriving
           updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
         } else if (event.type === "done") {
           // Check for journal entry in the response
           const journal = parseJournalEntry(responseText);
           if (journal) {
-            // Store the journal entry for display
             updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
           }
           // Detect approval language
@@ -168,6 +210,7 @@ function BooksView() {
       setErrorBanner(detail);
     } finally {
       setIsLoading(false);
+      setThinkingMessage("");
     }
   };
 
@@ -243,30 +286,100 @@ function BooksView() {
       </nav>
 
       <div className="flex-1 flex items-stretch justify-center p-4 gap-4">
-        {/* Quick Audit Sidebar */}
-        <aside className="hidden lg:flex flex-col w-64 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-4">
-          <div>
-            <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide mb-1">
-              Quick Audit
-            </h2>
-            {orgName && (
-              <p className="text-[11px] text-stone-500 mb-3">{orgName}</p>
+        {/* Dashboard Sidebar */}
+        <aside className="hidden lg:flex flex-col w-72 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
+          {/* Org header */}
+          <div className="pb-3 border-b border-stone-100">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
+                Dashboard
+              </h2>
+              {xeroMode !== "unknown" && (
+                <span
+                  className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
+                    xeroMode === "live"
+                      ? "bg-emerald-50 text-emerald-600"
+                      : "bg-amber-50 text-amber-600"
+                  }`}
+                >
+                  {xeroMode === "live" ? "LIVE" : "DEMO"}
+                </span>
+              )}
+            </div>
+            {orgData ? (
+              <div>
+                <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
+                <p className="text-[10px] text-stone-400 mt-0.5">
+                  {orgData.baseCurrency} · {orgData.countryCode}
+                  {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <div className="h-3 w-32 bg-stone-100 rounded animate-pulse" />
+                <div className="h-2 w-24 bg-stone-100 rounded animate-pulse" />
+              </div>
             )}
           </div>
 
-          <div className="space-y-3">
-            {/* Unreconciled — skeleton while loading, animated number when loaded */}
+          {/* P&L Summary */}
+          <SkeletonReveal
+            isLoading={pnLoading}
+            className="h-[120px]"
+            skeletonClassName="rounded-xl"
+          >
+            {profitAndLoss && (
+              <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+                    P&amp;L This Month
+                  </span>
+                  <span className="text-[9px] text-stone-400">
+                    {new Date(profitAndLoss.reportDate).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-[9px] text-stone-400">Revenue</div>
+                    <div className="text-sm font-bold text-emerald-700">
+                      £{profitAndLoss.revenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-stone-400">Expenses</div>
+                    <div className="text-sm font-bold text-red-600">
+                      £{profitAndLoss.expenses.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-stone-200">
+                  <div className="text-[9px] text-stone-400">Net Profit</div>
+                  <div className="text-lg font-bold text-stone-900">
+                    £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </SkeletonReveal>
+
+          {/* Health Check */}
+          <div className="space-y-2">
+            <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
+              Health Check
+            </h3>
             <SkeletonReveal
               isLoading={auditLoading}
-              className="h-[72px]"
+              className="h-[64px]"
               skeletonClassName="rounded-xl"
             >
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
-                  Unreconciled
-                </div>
-                <div className="text-2xl font-bold text-amber-900 mt-1">
-                  <AnimatedNumber value={unreconciledCount} />
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] uppercase tracking-wide text-amber-600 font-semibold">
+                    Unreconciled
+                  </div>
+                  <div className="text-xl font-bold text-amber-900">
+                    <AnimatedNumber value={unreconciledCount} />
+                  </div>
                 </div>
                 <div className="text-[10px] text-amber-700 mt-0.5">
                   bank transactions need matching
@@ -274,18 +387,19 @@ function BooksView() {
               </div>
             </SkeletonReveal>
 
-            {/* Overdue — skeleton while loading, animated number when loaded */}
             <SkeletonReveal
               isLoading={auditLoading}
-              className="h-[72px]"
+              className="h-[64px]"
               skeletonClassName="rounded-xl"
             >
               <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-                <div className="text-[10px] uppercase tracking-wide text-red-600 font-semibold">
-                  Overdue Invoices
-                </div>
-                <div className="text-2xl font-bold text-red-900 mt-1">
-                  <AnimatedNumber value={overdueCount} />
+                <div className="flex items-center justify-between">
+                  <div className="text-[10px] uppercase tracking-wide text-red-600 font-semibold">
+                    Overdue Invoices
+                  </div>
+                  <div className="text-xl font-bold text-red-900">
+                    <AnimatedNumber value={overdueCount} />
+                  </div>
                 </div>
                 <div className="text-[10px] text-red-700 mt-0.5">
                   £{totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding
@@ -308,30 +422,35 @@ function BooksView() {
             )}
           </div>
 
+          {/* Unreconciled transaction list */}
           {discrepancies && discrepancies.unreconciled.length > 0 && (
-            <div className="flex-1 overflow-y-auto scroll-thin">
+            <div className="pt-2 border-t border-stone-100">
               <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-2">
-                Unreconciled Transactions
+                Needs Attention
               </h3>
-              <div className="space-y-2">
-                {discrepancies.unreconciled.slice(0, 6).map((t, i) => (
+              <div className="space-y-1.5">
+                {discrepancies.unreconciled.slice(0, 5).map((t, i) => (
                   <div
                     key={t.id}
-                    className="text-[10px] border border-stone-100 rounded-lg p-2 fade-in-up"
+                    className="text-[10px] border border-stone-100 rounded-lg p-2 fade-in-up hover:border-amber-200 hover:bg-amber-50/30 transition-colors cursor-default"
                     style={{ animationDelay: `${i * 40}ms` }}
                   >
-                    <div className="font-medium text-stone-700">
-                      £{t.total.toFixed(2)}
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-stone-700">
+                        £{t.total.toFixed(2)}
+                      </span>
+                      <span className="text-[9px] text-stone-400">
+                        {new Date(t.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                      </span>
                     </div>
-                    <div className="text-stone-400 truncate">{t.reference}</div>
-                    <div className="text-stone-400">{t.date}</div>
+                    <div className="text-stone-400 truncate mt-0.5">{t.reference}</div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="border-t border-stone-100 pt-3">
+          <div className="border-t border-stone-100 pt-3 mt-auto">
             <p className="text-[9px] text-stone-400 leading-relaxed">
               Live Xero data via CLI + Webhooks. AI-powered bookkeeping.
             </p>
@@ -350,7 +469,7 @@ function BooksView() {
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
                 {isLoading ? (
-                  <span className="t-shimmer">Investigating your books...</span>
+                  <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
                 ) : (
                   <span>Online · Xero Connected</span>
                 )}
@@ -505,10 +624,13 @@ function BooksView() {
                 <div className="shrink-0">
                   <SikiMascot size={32} mood="look" />
                 </div>
-                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
-                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
-                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
-                  <span className="typing-dot w-2 h-2 bg-stone-400 rounded-full" />
+                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="thinking-pulse" />
+                    <span className="text-sm text-stone-600 t-shimmer">
+                      {thinkingMessage || "Thinking…"}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}

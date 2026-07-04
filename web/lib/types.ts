@@ -28,6 +28,7 @@ export interface ToolCallEvent {
 
 /** Events streamed from the agent during a chat */
 export type AgentEvent =
+  | { type: "status"; message: string }
   | { type: "tool_call"; tool: string; label: string; args: Record<string, unknown> }
   | { type: "tool_result"; tool: string; label: string; summary: string }
   | { type: "text"; text: string }

@@ -115,6 +115,22 @@ body {
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
+/* ── Thinking pulse (contextual agent status) ─────────────────── */
+/* A small pulsing dot that replaces the 3-dot typing indicator */
+@keyframes thinking-pulse-anim {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 1; }
+}
+.thinking-pulse {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0EA5E9;
+  animation: thinking-pulse-anim 1.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
 /* ── Message entrance ─────────────────────────────────────────── */
 /* Emil: never animate from scale(0). Start from translateY + opacity. */
 @keyframes fade-in-up {
