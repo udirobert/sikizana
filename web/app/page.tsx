@@ -127,7 +127,7 @@ export default function LandingPage() {
             {
               step: "2",
               title: "AI inachambua",
-              body: "Gemini 1.5/3.1 Pro inalinganisha ushuhuda wako na bylaws za chama na rekodi za M-Pesa.",
+              body: "AI inalinganisha ushuhuda wako na bylaws za chama na rekodi za M-Pesa.",
             },
             {
               step: "3",

@@ -11,7 +11,10 @@ import { SkeletonReveal } from "@/components/SkeletonReveal";
 import { SuccessCheck } from "@/components/SuccessCheck";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
+import { ToolCallTrace } from "@/components/ToolCallTrace";
+import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
+import type { ToolCallEvent } from "@/lib/types";
 
 interface DiscrepancyData {
   unreconciled: Array<{
@@ -33,7 +36,7 @@ interface DiscrepancyData {
 
 function BooksView() {
   const searchParams = useSearchParams();
-  const { threadId, messages, addMessage, ensureThread, newSession } = useXeroThread();
+  const { threadId, messages, addMessage, updateLastAgentMessage, ensureThread, newSession } = useXeroThread();
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -104,19 +107,50 @@ function BooksView() {
     setIsLoading(true);
     setErrorBanner(null);
     const tid = ensureThread();
+
+    // Track tool calls and response text for this message
+    const toolCalls: ToolCallEvent[] = [];
+    let responseText = "";
+
+    // Add a placeholder agent message that we'll update as events stream in
+    const agentMsgIndex = -1; // will be set after addMessage
+    addMessage({ role: "agent", content: "", toolCalls: [] });
+
     try {
-      const data = await endpoints.xero.chat(message, tid);
-      addMessage({ role: "agent", content: data.response });
-      // Detect journal entry approval in the response → trigger success check
-      const lower = data.response.toLowerCase();
-      if (
-        lower.includes("posted") ||
-        lower.includes("approved") ||
-        lower.includes("journal entry has been") ||
-        lower.includes("entry is now in xero")
-      ) {
-        setShowSuccessCheck(true);
-        setTimeout(() => setShowSuccessCheck(false), 3000);
+      for await (const event of endpoints.xero.chatStream(message, tid)) {
+        if (event.type === "tool_call") {
+          toolCalls.push({ tool: event.tool, label: event.label, status: "calling" });
+          // Update the agent message with the current tool calls
+          updateLastAgentMessage({ toolCalls: [...toolCalls] });
+        } else if (event.type === "tool_result") {
+          // Mark the matching tool call as done
+          const idx = toolCalls.findIndex((tc) => tc.tool === event.tool && tc.status === "calling");
+          if (idx >= 0) {
+            toolCalls[idx] = { ...toolCalls[idx], status: "done", summary: event.summary };
+          }
+          updateLastAgentMessage({ toolCalls: [...toolCalls] });
+        } else if (event.type === "text") {
+          responseText += event.text;
+          updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
+        } else if (event.type === "done") {
+          // Check for journal entry in the response
+          const journal = parseJournalEntry(responseText);
+          if (journal) {
+            // Store the journal entry for display
+            updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
+          }
+          // Detect approval language
+          const lower = responseText.toLowerCase();
+          if (
+            lower.includes("posted") ||
+            lower.includes("approved") ||
+            lower.includes("journal entry has been") ||
+            lower.includes("entry is now in xero")
+          ) {
+            setShowSuccessCheck(true);
+            setTimeout(() => setShowSuccessCheck(false), 3000);
+          }
+        }
       }
     } catch (e) {
       const detail =
@@ -125,9 +159,9 @@ function BooksView() {
           : e instanceof Error
             ? e.message
             : "Unknown error.";
-      addMessage({
-        role: "agent",
-        content: `Sorry, ${detail} Please try again.`,
+      updateLastAgentMessage({
+        content: responseText || `Sorry, ${detail} Please try again.`,
+        toolCalls: [...toolCalls],
       });
       setErrorBanner(detail);
     } finally {
@@ -296,7 +330,7 @@ function BooksView() {
 
           <div className="border-t border-stone-100 pt-3">
             <p className="text-[9px] text-stone-400 leading-relaxed">
-              Powered by Gemini + Xero MCP. Demo data shown when Xero CLI is not connected.
+              Live Xero data via CLI + Webhooks. AI-powered bookkeeping.
             </p>
           </div>
         </aside>
@@ -319,7 +353,7 @@ function BooksView() {
                 {isLoading ? (
                   <span className="t-shimmer">Thinking...</span>
                 ) : (
-                  <span>Online · Powered by Gemini · Xero Connected</span>
+                  <span>Online · Xero Connected</span>
                 )}
               </p>
             </div>
@@ -410,7 +444,15 @@ function BooksView() {
               </div>
             )}
 
-            {messages.map((msg, i) => (
+            {messages.map((msg, i) => {
+              // Parse for journal entry card if agent message
+              const journal = msg.role === "agent" && msg.content ? parseJournalEntry(msg.content) : null;
+              // The text to display (remove the journal entry block if we're showing it as a card)
+              const displayContent = journal
+                ? msg.content.split(/PROPOSED JOURNAL ENTRY/i)[0].trim()
+                : msg.content;
+
+              return (
               <div
                 key={i}
                 className={`flex gap-2.5 fade-in-up ${
@@ -424,21 +466,45 @@ function BooksView() {
                     </svg>
                   </div>
                 )}
-                <div
-                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-sky-600 text-white rounded-tr-sm"
-                      : "bg-stone-100 text-stone-800 rounded-tl-sm"
-                  }`}
-                >
-                  {msg.role === "agent" ? (
-                    <MarkdownMessage source={msg.content} />
-                  ) : (
-                    msg.content
+                <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
+                  {msg.role === "agent" && msg.toolCalls && msg.toolCalls.length > 0 && (
+                    <ToolCallTrace calls={msg.toolCalls} />
+                  )}
+                  <div
+                    className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-sky-600 text-white rounded-tr-sm"
+                        : "bg-stone-100 text-stone-800 rounded-tl-sm"
+                    }`}
+                  >
+                    {msg.role === "agent" ? (
+                      displayContent ? (
+                        <MarkdownMessage source={displayContent} />
+                      ) : msg.toolCalls && msg.toolCalls.length > 0 ? (
+                        <span className="text-stone-400 text-xs italic">Analyzing your Xero data...</span>
+                      ) : null
+                    ) : (
+                      msg.content
+                    )}
+                  </div>
+                  {journal && (
+                    <JournalEntryCard
+                      description={journal.description}
+                      debitAccount={journal.debitAccount}
+                      debitAccountName={journal.debitAccountName}
+                      creditAccount={journal.creditAccount}
+                      creditAccountName={journal.creditAccountName}
+                      amount={journal.amount}
+                      onApprove={() => {
+                        setShowSuccessCheck(true);
+                        setTimeout(() => setShowSuccessCheck(false), 3000);
+                      }}
+                    />
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {isLoading && (
               <div className="flex gap-2.5 fade-in-up">
@@ -486,7 +552,7 @@ function BooksView() {
             </div>
             <div className="flex items-center justify-center mt-2">
               <span className="text-[10px] text-stone-500">
-                Sikizana Books · AI Bookkeeper for Xero · Powered by Gemini
+                Sikizana Books · AI Bookkeeper for Xero · Human-in-the-loop by design
               </span>
             </div>
           </div>

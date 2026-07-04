@@ -14,7 +14,24 @@ export interface Message {
   receiptId?: string;
   /** Backend-assigned message index, used for feedback correlation. */
   index?: number;
+  /** Tool calls made by the agent (for transparency display) */
+  toolCalls?: ToolCallEvent[];
 }
+
+/** A single tool call made by the agent during reasoning */
+export interface ToolCallEvent {
+  tool: string;
+  label: string;
+  summary?: string;
+  status: "calling" | "done";
+}
+
+/** Events streamed from the agent during a chat */
+export type AgentEvent =
+  | { type: "tool_call"; tool: string; label: string; args: Record<string, unknown> }
+  | { type: "tool_result"; tool: string; label: string; summary: string }
+  | { type: "text"; text: string }
+  | { type: "done" };
 
 export type Language = "en" | "sw" | "sheng";
 

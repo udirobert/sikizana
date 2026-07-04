@@ -193,7 +193,7 @@ function ChatView() {
               <p className="text-sm font-semibold text-stone-800">Sikizana Arbitrator</p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
-                Online · Powered by Gemini ·{" "}
+                Online · AI-Powered ·{" "}
                 {prefs.language === "sw"
                   ? "Kiswahili"
                   : prefs.language === "sheng"
@@ -397,7 +397,7 @@ function ChatView() {
 
       <footer className="text-center py-3">
         <p className="text-[10px] text-stone-400">
-          AI-Native Financial Inclusion · Powered by Gemini · Secured on Vara Network
+          AI-Native Financial Inclusion · Secured on Vara Network
         </p>
       </footer>
 

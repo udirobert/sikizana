@@ -4,7 +4,7 @@
  * Minimal Markdown renderer for agent responses.
  *
  * Avoids pulling in `react-markdown` (~50kb) by handling just the subset
- * Gemini actually emits in our prompt: headings, bold, italic, lists,
+ * the LLM actually emits in our prompt: headings, bold, italic, lists,
  * inline code, fenced code blocks, blockquotes, paragraphs, line breaks.
  *
  * Keeps the bundle lean and removes a third-party dependency surface.

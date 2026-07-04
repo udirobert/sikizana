@@ -11,6 +11,8 @@
  * directly. That keeps the backend contract in one place.
  */
 
+import type { AgentEvent } from "@/lib/types";
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -289,6 +291,44 @@ export const endpoints = {
   xero: {
     chat: (message: string, thread_id?: string) =>
       api.post<ChatResponse>("/api/xero/chat", { message, thread_id }),
+
+    /**
+     * Streaming chat — returns an async generator of events.
+     * Events: tool_call, tool_result, text, done
+     * This lets the frontend show the agent's tool calls in real-time.
+     */
+    chatStream: async function* (
+      message: string,
+      thread_id?: string,
+    ): AsyncGenerator<AgentEvent> {
+      const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, thread_id }),
+      });
+      if (!res.ok || !res.body) {
+        throw new ApiError(res.status, await res.text().catch(() => res.statusText));
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              yield JSON.parse(line.slice(6)) as AgentEvent;
+            } catch {
+              // skip malformed lines
+            }
+          }
+        }
+      }
+    },
     status: () => api.get<{ live: boolean; mode: "live" | "demo" }>("/api/xero/status"),
     organisation: () => api.get<Record<string, unknown>>("/api/xero/organisation"),
     discrepancies: () =>

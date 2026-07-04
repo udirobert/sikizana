@@ -233,11 +233,31 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
     Uses NVIDIA NIM with function calling. The agent can call multiple
     tools in sequence to gather evidence before responding.
     """
+    events: list[dict[str, Any]] = []
+    async for event in run_bookkeeper_streaming(user_input, thread_id):
+        events.append(event)
+    # Extract the final text from the events
+    text_parts = [e["text"] for e in events if e["type"] == "text"]
+    return "".join(text_parts) or "I couldn't process that request."
+
+
+async def run_bookkeeper_streaming(
+    user_input: str,
+    thread_id: str | None = None,
+) -> Any:
+    """
+    Streaming version of run_bookkeeper.
+
+    Yields events as they happen:
+      {"type": "tool_call", "tool": "find_discrepancies", "args": {...}}
+      {"type": "tool_result", "tool": "find_discrepancies", "result": "...", "summary": "..."}
+      {"type": "text", "text": "chunk of response"}
+      {"type": "done"}
+    """
     if not _NVIDIA_API_KEY:
-        return (
-            "I'm not connected to an AI model yet. Set NVIDIA_API_KEY in .env "
-            "to enable the bookkeeper agent."
-        )
+        yield {"type": "text", "text": "I'm not connected to an AI model yet. Set NVIDIA_API_KEY in .env to enable the bookkeeper agent."}
+        yield {"type": "done"}
+        return
 
     tid = thread_id or "default"
     client = _get_client()
@@ -251,9 +271,23 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
 
     messages = [{"role": "system", "content": _load_prompt()}] + history
 
+    # Human-readable tool name mapping
+    tool_labels = {
+        "find_discrepancies": "Auditing books for discrepancies",
+        "get_xero_organisation": "Reading organisation details",
+        "get_xero_transactions": "Fetching bank transactions",
+        "get_xero_invoices": "Fetching invoices",
+        "get_xero_chart_of_accounts": "Loading chart of accounts",
+        "get_xero_profit_and_loss": "Pulling P&L report",
+        "get_xero_balance_sheet": "Pulling balance sheet",
+        "get_xero_contacts": "Searching contacts",
+        "match_receipt_to_transaction": "Reading receipt with vision AI",
+        "propose_journal_entry": "Preparing journal entry",
+    }
+
     # Agent loop: call the model, execute tools, feed results back
     max_iterations = 5
-    for _ in range(max_iterations):
+    for iteration in range(max_iterations):
         response = await client.chat.completions.create(
             model=_NVIDIA_MODEL,
             messages=messages,
@@ -293,9 +327,28 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
                 except json.JSONDecodeError:
                     tool_args = {}
 
+                # Stream the tool call event
+                yield {
+                    "type": "tool_call",
+                    "tool": tool_name,
+                    "label": tool_labels.get(tool_name, tool_name),
+                    "args": tool_args,
+                }
+
                 log.info("tool_called", extra={"tool": tool_name, "tool_args": tool_args})
                 result = _execute_tool(tool_name, tool_args)
                 log.info("tool_result", extra={"tool": tool_name, "result_len": len(result)})
+
+                # Create a short summary of the result for the UI
+                summary = _summarize_tool_result(tool_name, result)
+
+                # Stream the tool result event
+                yield {
+                    "type": "tool_result",
+                    "tool": tool_name,
+                    "label": tool_labels.get(tool_name, tool_name),
+                    "summary": summary,
+                }
 
                 messages.append({
                     "role": "tool",
@@ -316,12 +369,74 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
         if len(history) > 20:
             history[:] = history[-20:]
 
-        return final_text
+        # Stream the response text (simulate token-by-token for UX)
+        # Split into word-sized chunks for a streaming feel
+        words = final_text.split(" ")
+        for i, word in enumerate(words):
+            chunk = word + (" " if i < len(words) - 1 else "")
+            yield {"type": "text", "text": chunk}
+            # Small delay for streaming effect (non-blocking)
+            await asyncio.sleep(0.015)
+
+        yield {"type": "done"}
+        return
 
     # If we hit max iterations, return what we have
     fallback = "I've gathered the information from your books but need more context. Could you rephrase your question?"
     history.append({"role": "assistant", "content": fallback})
-    return fallback
+    yield {"type": "text", "text": fallback}
+    yield {"type": "done"}
+
+
+def _summarize_tool_result(tool_name: str, result: str) -> str:
+    """Create a short human-readable summary of a tool result for the UI."""
+    if len(result) < 80:
+        return result
+    # Tool-specific summaries
+    if tool_name == "find_discrepancies":
+        if "UNRECONCILED" in result:
+            lines = result.split("\n")
+            unrec_line = next((l for l in lines if "UNRECONCILED" in l), "")
+            overdue_line = next((l for l in lines if "OVERDUE" in l), "")
+            parts = []
+            if unrec_line:
+                parts.append(unrec_line.strip())
+            if overdue_line:
+                parts.append(overdue_line.strip())
+            return " · ".join(parts) if parts else result[:80]
+        return result[:80]
+    elif tool_name == "get_xero_profit_and_loss":
+        # Extract key numbers
+        for line in result.split("\n"):
+            if "Net Profit" in line or "Revenue" in line or "Total Income" in line:
+                return line.strip()
+        return result[:80]
+    elif tool_name == "get_xero_balance_sheet":
+        for line in result.split("\n"):
+            if "Total" in line:
+                return line.strip()
+        return result[:80]
+    elif tool_name == "get_xero_transactions":
+        if "Found" in result:
+            return result.split("\n")[0].strip()
+        return result[:80]
+    elif tool_name == "get_xero_invoices":
+        if "Found" in result:
+            return result.split("\n")[0].strip()
+        return result[:80]
+    elif tool_name == "get_xero_chart_of_accounts":
+        if "Chart of Accounts" in result:
+            return result.split("\n")[0].strip()
+        return result[:80]
+    elif tool_name == "get_xero_contacts":
+        if "Found" in result:
+            return result.split("\n")[0].strip()
+        return result[:80]
+    elif tool_name == "propose_journal_entry":
+        return "Journal entry prepared — awaiting approval"
+    elif tool_name == "match_receipt_to_transaction":
+        return "Receipt analyzed and matched"
+    return result[:80]
 
 
 if __name__ == "__main__":

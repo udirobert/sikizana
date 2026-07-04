@@ -15,6 +15,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from src.services.logging import get_logger
@@ -517,6 +518,46 @@ async def xero_chat(req: XeroChatRequest):
         "thread_id": req.thread_id or "xero-new-thread",
         "agent_available": agent_available,
     }
+
+
+@app.post("/api/xero/chat/stream")
+async def xero_chat_stream(req: XeroChatRequest):
+    """
+    Streaming version of the bookkeeper chat endpoint.
+
+    Returns Server-Sent Events (SSE) with events as they happen:
+      data: {"type": "tool_call", "tool": "find_discrepancies", "label": "...", "args": {}}
+      data: {"type": "tool_result", "tool": "find_discrepancies", "label": "...", "summary": "..."}
+      data: {"type": "text", "text": "chunk"}
+      data: {"type": "done"}
+
+    This lets the frontend show the agent's tool calls in real-time,
+    making the agentic reasoning visible to the user.
+    """
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="message must not be empty")
+
+    import json
+    from src.agents.bookkeeper import run_bookkeeper_streaming
+
+    async def event_generator():
+        try:
+            async for event in run_bookkeeper_streaming(req.message, req.thread_id):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            log.error("bookkeeper_stream_error", extra={"error": str(exc)}, exc_info=True)
+            yield f"data: {json.dumps({'type': 'text', 'text': 'Sorry, there was a temporary issue. Please try again.'})}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/api/xero/organisation")

@@ -7,7 +7,7 @@ import { ApiError, endpoints } from "@/lib/api";
  * ReceiptUpload — multimodal receipt matching UI.
  *
  * Lets the user drag-and-drop or click to upload a receipt photo.
- * Sends it to the backend where Gemini Vision reads the supplier,
+ * Sends it to the backend where vision AI reads the supplier,
  * amount, and date, then matches it to a Xero bank transaction.
  *
  * The result is added to the chat thread as an agent message.

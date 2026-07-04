@@ -48,6 +48,20 @@ export function useXeroThread() {
     notifyInTab();
   }, []);
 
+  const updateLastAgentMessage = useCallback((updates: Partial<Message>) => {
+    const current = localStore.get<Message[]>(XERO_MESSAGES_KEY, []);
+    if (current.length === 0) return;
+    // Find the last agent message
+    for (let i = current.length - 1; i >= 0; i--) {
+      if (current[i].role === "agent") {
+        current[i] = { ...current[i], ...updates };
+        break;
+      }
+    }
+    localStore.set(XERO_MESSAGES_KEY, current);
+    notifyInTab();
+  }, []);
+
   const ensureThread = useCallback((): string => {
     const existing = localStore.get<string>(XERO_THREAD_KEY, "");
     if (existing) return existing;
@@ -68,6 +82,7 @@ export function useXeroThread() {
     threadId: snap.threadId,
     messages: snap.messages,
     addMessage,
+    updateLastAgentMessage,
     ensureThread,
     newSession,
   };
