@@ -39,7 +39,9 @@ log = get_logger("sikizana.bookkeeper")
 
 # NVIDIA NIM API (OpenAI-compatible)
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+# Primary model for tool-calling; fallback if it times out
+_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
+_NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "meta/llama-3.1-8b-instruct")
 _NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 _client: AsyncOpenAI | None = None
@@ -332,20 +334,26 @@ async def run_bookkeeper_streaming(
 
     # Agent loop: call the model, execute tools, feed results back
     max_iterations = 5
+    current_model = _NVIDIA_MODEL
     for iteration in range(max_iterations):
         try:
             response = await asyncio.wait_for(
                 client.chat.completions.create(
-                    model=_NVIDIA_MODEL,
+                    model=current_model,
                     messages=messages,
                     tools=_TOOL_DEFS,
                     temperature=0.3,
                     max_tokens=2000,
                 ),
-                timeout=45.0,
+                timeout=30.0,
             )
         except asyncio.TimeoutError:
-            log.error("nvidia_api_timeout", extra={"iteration": iteration})
+            log.error("nvidia_api_timeout", extra={"iteration": iteration, "model": current_model})
+            # Try fallback model once before giving up
+            if current_model != _NVIDIA_FALLBACK_MODEL:
+                current_model = _NVIDIA_FALLBACK_MODEL
+                yield {"type": "status", "message": "Switching to a faster model…"}
+                continue
             yield {"type": "text", "text": "I'm taking longer than expected to reach the AI model. Please try again in a moment."}
             yield {"type": "done"}
             return
