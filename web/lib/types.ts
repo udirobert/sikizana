@@ -17,3 +17,12 @@ export interface Message {
 }
 
 export type Language = "en" | "sw" | "sheng";
+
+export interface WebhookEvent {
+  eventType: string;
+  entity: string;
+  entityId: string;
+  tenantId: string;
+  message: string;
+  timestamp: string;
+}

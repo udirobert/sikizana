@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -566,6 +566,144 @@ async def xero_status():
     from src.services.xero_service import XeroService
     svc = XeroService()
     return {"live": svc.is_live(), "mode": "live" if svc.is_live() else "demo"}
+
+
+@app.post("/api/xero/upload-receipt")
+async def xero_upload_receipt(file: UploadFile = File(...)):
+    """
+    Upload a receipt/invoice photo for multimodal matching.
+    Saves the file to a temp path, then calls the bookkeeper agent's
+    match_receipt_to_transaction tool (Gemini Vision + Xero matching).
+    Returns the agent's analysis as a chat-style response.
+    """
+    import tempfile
+    import shutil
+
+    allowed = {"image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"}
+    if file.content_type not in allowed:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type {file.content_type}. Use PNG, JPEG, WebP, or PDF.",
+        )
+
+    # Save to temp file
+    suffix = ".png"
+    if file.content_type == "image/jpeg" or file.content_type == "image/jpg":
+        suffix = ".jpg"
+    elif file.content_type == "image/webp":
+        suffix = ".webp"
+    elif file.content_type == "application/pdf":
+        suffix = ".pdf"
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            shutil.copyfileobj(file.file, tmp)
+            tmp_path = tmp.name
+
+        # Try the real vision tool first
+        try:
+            from src.tools.xero_tools import match_receipt_to_transaction
+            result = match_receipt_to_transaction(tmp_path)
+            agent_available = True
+        except Exception as exc:  # noqa: BLE001
+            log.error("receipt_vision_error", extra={"error": str(exc)}, exc_info=True)
+            result = (
+                "I received your receipt but couldn't analyse it right now. "
+                "In the live demo, Gemini Vision reads the supplier name, amount, "
+                "and date from the photo, then matches it to a Xero bank transaction."
+            )
+            agent_available = False
+
+        return {
+            "response": result,
+            "agent_available": agent_available,
+            "filename": file.filename,
+        }
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+# ---- Xero Webhooks ----
+
+_webhook_events: list[dict] = []
+
+
+@app.post("/api/xero/webhook")
+async def xero_webhook(request: Request):
+    """
+    Receive Xero webhook notifications (new invoice, bank transaction,
+    payment, etc.). Stores events for the frontend to poll and display
+    as proactive alerts — the "Active Arbitrator" pattern.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    events = body.get("events", [])
+    if not isinstance(events, list):
+        events = [body] if body else []
+
+    processed = []
+    for evt in events:
+        event_type = evt.get("eventType", "unknown")
+        entity = evt.get("eventCategory", evt.get("category", "unknown"))
+        entity_id = evt.get("resourceId", evt.get("id", ""))
+        tenant = evt.get("tenantId", evt.get("tenant", ""))
+
+        record = {
+            "eventType": event_type,
+            "entity": entity,
+            "entityId": str(entity_id),
+            "tenantId": tenant,
+            "message": _webhook_message(event_type, entity),
+            "timestamp": _now_iso(),
+        }
+        _webhook_events.append(record)
+        processed.append(record)
+
+    # Keep only last 50 events
+    if len(_webhook_events) > 50:
+        _webhook_events[:] = _webhook_events[-50:]
+
+    log.info(
+        "xero_webhook_received",
+        extra={"event_count": len(processed), "types": [e["eventType"] for e in processed]},
+    )
+
+    return {"status": "ok", "processed": len(processed)}
+
+
+@app.get("/api/xero/webhook/events")
+async def xero_webhook_events(since: int = 0):
+    """Poll webhook events for proactive alerts. Returns events after index `since`."""
+    return {
+        "events": _webhook_events[since:],
+        "total": len(_webhook_events),
+    }
+
+
+def _webhook_message(event_type: str, entity: str) -> str:
+    """Human-readable message for a webhook event."""
+    messages = {
+        ("CREATE", "INVOICE"): "A new invoice was created in Xero.",
+        ("UPDATE", "INVOICE"): "An invoice was updated in Xero.",
+        ("CREATE", "BANK TRANSACTION"): "A new bank transaction appeared in Xero.",
+        ("UPDATE", "BANK TRANSACTION"): "A bank transaction was updated.",
+        ("CREATE", "PAYMENT"): "A payment was recorded in Xero.",
+        ("CREATE", "CONTACT"): "A new contact was added to Xero.",
+    }
+    return messages.get((event_type.upper(), entity.upper()), f"{event_type} on {entity}")
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ---- Entrypoint ----

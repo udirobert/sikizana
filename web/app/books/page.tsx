@@ -8,6 +8,9 @@ import { ApiError, endpoints } from "@/lib/api";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
+import { SuccessCheck } from "@/components/SuccessCheck";
+import { ReceiptUpload } from "@/components/ReceiptUpload";
+import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
 
 interface DiscrepancyData {
@@ -40,6 +43,8 @@ function BooksView() {
   const [xeroMode, setXeroMode] = useState<"live" | "demo" | "unknown">("unknown");
   const [orgName, setOrgName] = useState<string>("");
   const [staggerShown, setStaggerShown] = useState(false);
+  const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
+  const [showSuccessCheck, setShowSuccessCheck] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -63,8 +68,26 @@ function BooksView() {
     void endpoints.xero
       .discrepancies()
       .then((d) => {
-        setDiscrepancies(d as DiscrepancyData);
+        const data = d as DiscrepancyData;
+        setDiscrepancies(data);
         setAuditLoading(false);
+        // Proactive audit — the "Active Arbitrator" pattern.
+        // Generate a plain-English summary of what was found.
+        const unrec = data.unreconciled.length;
+        const overdue = data.overdue.length;
+        if (unrec > 0 || overdue > 0) {
+          const parts: string[] = [];
+          if (unrec > 0) parts.push(`${unrec} unreconciled bank transaction${unrec > 1 ? "s" : ""}`);
+          if (overdue > 0) {
+            const total = data.overdue.reduce((s, i) => s + i.amountDue, 0);
+            parts.push(`${overdue} overdue invoice${overdue > 1 ? "s" : ""} (£${total.toLocaleString(undefined, { minimumFractionDigits: 0 })} outstanding)`);
+          }
+          setProactiveAudit(
+            `I've audited your books and found ${parts.join(" and ")}. ` +
+            `An accountant would charge £200+ and take 3 days for this. ` +
+            `I did it in 4 seconds. Ask me "what did you find?" to see the details.`,
+          );
+        }
       })
       .catch(() => setAuditLoading(false));
   }, []);
@@ -84,6 +107,17 @@ function BooksView() {
     try {
       const data = await endpoints.xero.chat(message, tid);
       addMessage({ role: "agent", content: data.response });
+      // Detect journal entry approval in the response → trigger success check
+      const lower = data.response.toLowerCase();
+      if (
+        lower.includes("posted") ||
+        lower.includes("approved") ||
+        lower.includes("journal entry has been") ||
+        lower.includes("entry is now in xero")
+      ) {
+        setShowSuccessCheck(true);
+        setTimeout(() => setShowSuccessCheck(false), 3000);
+      }
     } catch (e) {
       const detail =
         e instanceof ApiError
@@ -99,6 +133,24 @@ function BooksView() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleReceiptUpload = async (response: string, filename: string) => {
+    addMessage({
+      role: "user",
+      content: `📎 Uploaded receipt: ${filename}`,
+    });
+    addMessage({ role: "agent", content: response });
+  };
+
+  const handleReceiptError = (message: string) => {
+    setErrorBanner(message);
+  };
+
+  const handleProactiveAuditClick = () => {
+    if (!proactiveAudit) return;
+    addMessage({ role: "agent", content: proactiveAudit });
+    setProactiveAudit(null);
   };
 
   const handleSend = () => {
@@ -295,6 +347,29 @@ function BooksView() {
             </div>
           )}
 
+          {/* Proactive audit notification — the "Active Arbitrator" */}
+          {proactiveAudit && messages.length === 0 && (
+            <div className="bg-sky-50 border-b border-sky-200 px-4 py-3 flex items-start gap-3 fade-in-up">
+              <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center shrink-0">
+                <svg className="w-4 h-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-sky-900">Audit Complete</p>
+                <p className="text-[11px] text-sky-700 mt-0.5 leading-relaxed">
+                  {proactiveAudit}
+                </p>
+              </div>
+              <button
+                onClick={handleProactiveAuditClick}
+                className="text-[10px] font-medium text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded btn-press shrink-0"
+              >
+                Show me
+              </button>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
@@ -384,6 +459,10 @@ function BooksView() {
 
           <div className="border-t border-stone-100 p-3 bg-stone-50/50">
             <div className="flex gap-2 items-end">
+              <ReceiptUpload
+                onResult={handleReceiptUpload}
+                onError={handleReceiptError}
+              />
               <input
                 type="text"
                 value={input}
@@ -419,6 +498,20 @@ function BooksView() {
           Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
         </p>
       </footer>
+
+      {/* Success check overlay — plays when a journal entry is approved */}
+      {showSuccessCheck && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4">
+            <SuccessCheck show={showSuccessCheck} size={64} className="text-emerald-600" />
+            <p className="text-sm font-semibold text-stone-800">Journal entry posted to Xero</p>
+            <p className="text-xs text-stone-500">Your books are now reconciled.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Proactive webhook alerts */}
+      <ProactiveAlert />
     </main>
   );
 }

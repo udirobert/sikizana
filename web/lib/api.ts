@@ -315,5 +315,35 @@ export const endpoints = {
       const q = as_of ? `?as_of=${as_of}` : "";
       return api.get<Record<string, unknown>>(`/api/xero/balance-sheet${q}`);
     },
+    uploadReceipt: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return fetch(`${API_BASE}/api/xero/upload-receipt`, {
+        method: "POST",
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const detail = await res.text().catch(() => res.statusText);
+          throw new ApiError(res.status, detail);
+        }
+        return res.json() as Promise<{
+          response: string;
+          agent_available: boolean;
+          filename: string;
+        }>;
+      });
+    },
+    webhookEvents: (since = 0) =>
+      api.get<{
+        events: Array<{
+          eventType: string;
+          entity: string;
+          entityId: string;
+          tenantId: string;
+          message: string;
+          timestamp: string;
+        }>;
+        total: number;
+      }>(`/api/xero/webhook/events?since=${since}`),
   },
 };
