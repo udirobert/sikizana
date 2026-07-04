@@ -1,11 +1,11 @@
 """
-Bookkeeper Agent — the Xero-mode variant of the Sikizana arbitrator.
+Bookkeeper Agent — Sikizana's AI finance assistant for Xero.
 
 Uses NVIDIA NIM (OpenAI-compatible API) with function calling to reason
-over live Xero data. The reasoning loop is identical to the chama
-arbitrator: gather evidence → analyse → propose a fix → await approval.
+over live Xero data. The reasoning loop: gather evidence → analyse →
+propose a fix → await approval.
 
-The agent calls Xero tools (reconciliation, P&L, invoices, etc.) via
+The agent calls Xero tools (reconciliation, P&L, invoices, tax, etc.) via
 OpenAI-style function calling. The NVIDIA API handles the tool-call
 orchestration; we execute the actual Python functions and feed results
 back.
@@ -35,6 +35,7 @@ from src.tools.xero_tools import (
     match_receipt_to_transaction,
     propose_journal_entry,
 )
+from src.tools.rag_engine import lookup_tax_rule
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.bookkeeper")
@@ -284,6 +285,23 @@ _TOOL_DEFS = [
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "lookup_tax_rule",
+            "description": "Look up an HMRC tax rule by keyword. Returns the relevant UK tax rule text with source citation (e.g. HMRC BIM45010). Use this to cite official guidance when answering tax questions about deductibility, Corporation Tax rates, VAT, mileage, capital allowances, etc.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The tax question or topic to look up (e.g. 'client entertainment deductibility', 'corporation tax rate', 'mileage allowance')",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
 ]
 
 # Map tool names to actual Python functions
@@ -300,6 +318,7 @@ _TOOL_FUNCS = {
     "propose_journal_entry": propose_journal_entry,
     "create_xero_journal_entry": create_xero_journal_entry,
     "get_tax_insights": get_tax_insights,
+    "lookup_tax_rule": lookup_tax_rule,
 }
 
 

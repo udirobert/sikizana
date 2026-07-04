@@ -1,15 +1,22 @@
 """
 Xero agent tools — the tool surface the Bookkeeper Agent calls.
 
-These wrap XeroService into the function-calling format that Google ADK
-expects. Each tool returns a string (LLM-friendly summary) or structured
-data that the agent reasons over.
+These wrap XeroService into the function-calling format that the
+NVIDIA NIM API expects. Each tool returns a string (LLM-friendly
+summary) or structured data that the agent reasons over.
 
-The design mirrors the original chama tools:
-  - analyze_mpesa_records  →  get_xero_transactions
-  - bylaw_retriever        →  get_xero_chart_of_accounts (tax/policy RAG)
-  - analyze_ledger_image   →  match_receipt_to_transaction (vision)
-  - submit_verdict         →  propose_journal_entry (the fix)
+Tools:
+  - get_xero_transactions   →  list bank transactions
+  - get_xero_invoices       →  list invoices (filter by status)
+  - get_xero_chart_of_accounts →  account codes for journal entries
+  - get_xero_profit_and_loss →  P&L report
+  - get_xero_balance_sheet  →  balance sheet report
+  - get_xero_contacts       →  customers/suppliers
+  - find_discrepancies      →  unreconciled transactions + overdue invoices
+  - get_tax_insights        →  Corporation Tax estimate, deductions, HMRC flags
+  - match_receipt_to_transaction →  Gemini Vision receipt matching
+  - propose_journal_entry   →  propose a fix (await user approval)
+  - create_xero_journal_entry →  post journal to Xero (write-back)
 """
 
 from __future__ import annotations
@@ -264,16 +271,15 @@ def match_receipt_to_transaction(
     """
     Use Gemini Vision to read a receipt/invoice photo, extract the amount
     and supplier, then match it against a Xero bank transaction by reference.
-    This is the multimodal reconciliation tool — same engine as the chama
-    ledger audit, now pointed at Xero transactions.
+    This is the multimodal reconciliation tool.
     """
     import os
     if not os.path.exists(receipt_image_path):
         return f"Error: Receipt image not found at {receipt_image_path}"
 
-    # Step 1: Vision extraction (reuse the existing Gemini vision tool)
-    from src.tools.vision_audit import analyze_ledger_image
-    extracted = analyze_ledger_image(
+    # Step 1: Vision extraction (Gemini Vision)
+    from src.tools.vision_audit import analyze_receipt
+    extracted = analyze_receipt(
         receipt_image_path,
         query="Extract the supplier name, total amount, date, and any reference/invoice number from this receipt.",
     )

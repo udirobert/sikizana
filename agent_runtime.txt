@@ -1,9 +1,0 @@
-# Optional Google ADK agent runtime.
-# google-labs-adk is not on PyPI - install from source or skip for payment-only
-# deployments. The /chat endpoint lazy-imports this so the API runs without it.
-#
-# To enable the full Gemini agent in production:
-#   pip install git+https://github.com/google/adk-python.git
-#
-# Plus the multimodal support:
-#   pip install google-generativeai pillow

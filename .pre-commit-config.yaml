@@ -31,7 +31,7 @@ repos:
       - id: ruff
         args: ["--fix", "--exit-non-zero-on-fix"]
       - id: ruff-format
-        files: ^src/(services/daraja_service\.py|services/payment_store\.py|tools/payments\.py)$
+        files: ^src/
 
   - repo: local
     hooks:

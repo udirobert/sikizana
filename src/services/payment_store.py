@@ -1,20 +1,23 @@
 """
-SQLite-backed stores with schema migration.
+SQLite-backed store for Sikizana — Xero AI Finance Assistant.
 
-Adds:
-  - schema_version table for migration tracking
-  - feedback table for thumbs up/down on agent messages
+Tables:
+  - feedback: thumbs up/down on agent messages
+  - audit_history: journal entries posted, discrepancies fixed
+  - impact_events: money found, tax estimated, issues caught
+
+Schema migrations are tracked in schema_version.
 """
 
 import os
 import sqlite3
 from datetime import datetime, timezone
 
-DB_PATH = os.getenv("PAYMENT_DB_PATH", "data/payments.db")
+DB_PATH = os.getenv("PAYMENT_DB_PATH", "data/sikizana.db")
 
 
 def _get_db() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(DB_PATH) or ".", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
@@ -28,24 +31,6 @@ MIGRATIONS: list[tuple[int, str]] = [
     (
         1,
         """
-        CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            checkout_request_id TEXT UNIQUE NOT NULL,
-            phone TEXT NOT NULL,
-            amount INTEGER NOT NULL,
-            account_reference TEXT,
-            status TEXT DEFAULT 'PENDING',
-            mpesa_receipt TEXT,
-            result_desc TEXT,
-            dispute_context TEXT,
-            created_at TEXT NOT NULL,
-            confirmed_at TEXT
-        );
-    """,
-    ),
-    (
-        2,
-        """
         CREATE TABLE IF NOT EXISTS feedback (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             thread_id TEXT NOT NULL,
@@ -58,48 +43,30 @@ MIGRATIONS: list[tuple[int, str]] = [
     """,
     ),
     (
-        3,
+        2,
         """
-        CREATE TABLE IF NOT EXISTS leads (
+        CREATE TABLE IF NOT EXISTS audit_history (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chama_name TEXT NOT NULL,
-            contact_name TEXT,
-            contact_phone TEXT,
-            contact_handle TEXT,
-            language TEXT DEFAULT 'sw',
-            county TEXT,
-            source TEXT,
-            status TEXT DEFAULT 'contacted',
-            notes TEXT,
-            owner TEXT,
-            claimed_at TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_leads_phone ON leads(contact_phone);
-        CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
-        CREATE INDEX IF NOT EXISTS idx_leads_owner ON leads(owner);
-
-        CREATE TABLE IF NOT EXISTS activity_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
-            actor TEXT,
-            event TEXT NOT NULL,
-            notes TEXT,
+            action TEXT NOT NULL,
+            description TEXT,
+            amount REAL,
+            xero_tenant_id TEXT,
+            journal_id TEXT,
             created_at TEXT NOT NULL
         );
-        CREATE INDEX IF NOT EXISTS idx_activity_lead ON activity_log(lead_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_history(action);
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_history(created_at);
 
-        CREATE TABLE IF NOT EXISTS testimonials (
+        CREATE TABLE IF NOT EXISTS impact_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            lead_id INTEGER REFERENCES leads(id),
-            chama_name TEXT,
-            contact_name TEXT,
-            quote TEXT NOT NULL,
-            language TEXT DEFAULT 'sw',
-            approved_public INTEGER DEFAULT 0,
+            event_type TEXT NOT NULL,
+            amount REAL,
+            description TEXT,
+            thread_id TEXT,
             created_at TEXT NOT NULL
         );
+        CREATE INDEX IF NOT EXISTS idx_impact_type ON impact_events(event_type);
+        CREATE INDEX IF NOT EXISTS idx_impact_created ON impact_events(created_at);
     """,
     ),
 ]
@@ -140,93 +107,6 @@ def get_db_version() -> int:
     return row["v"]
 
 
-# ---- Payments ----
-
-
-def create_payment(
-    checkout_request_id: str,
-    phone: str,
-    amount: int,
-    account_reference: str,
-    dispute_context: str = "",
-) -> dict:
-    init_db()
-    conn = _get_db()
-    now = datetime.now(timezone.utc).isoformat()
-    conn.execute(
-        """
-        INSERT INTO payments
-            (checkout_request_id, phone, amount, account_reference,
-             dispute_context, status, created_at)
-        VALUES (?, ?, ?, ?, ?, 'PENDING', ?)
-        """,
-        (checkout_request_id, phone, amount, account_reference, dispute_context, now),
-    )
-    conn.commit()
-    row = conn.execute(
-        "SELECT * FROM payments WHERE checkout_request_id = ?",
-        (checkout_request_id,),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else {}
-
-
-def get_payment(checkout_request_id: str) -> dict | None:
-    init_db()
-    conn = _get_db()
-    row = conn.execute(
-        "SELECT * FROM payments WHERE checkout_request_id = ?",
-        (checkout_request_id,),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def confirm_payment(
-    checkout_request_id: str,
-    success: bool,
-    mpesa_receipt: str = "",
-    result_desc: str = "",
-) -> dict | None:
-    init_db()
-    conn = _get_db()
-    now = datetime.now(timezone.utc).isoformat()
-    status = "CONFIRMED" if success else "FAILED"
-    conn.execute(
-        """
-        UPDATE payments
-        SET status = ?, mpesa_receipt = ?, result_desc = ?, confirmed_at = ?
-        WHERE checkout_request_id = ?
-        """,
-        (status, mpesa_receipt, result_desc, now, checkout_request_id),
-    )
-    conn.commit()
-    row = conn.execute(
-        "SELECT * FROM payments WHERE checkout_request_id = ?",
-        (checkout_request_id,),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
-def get_revenue_summary() -> dict:
-    init_db()
-    conn = _get_db()
-    row = conn.execute(
-        """
-        SELECT
-            COUNT(*) as total_payments,
-            SUM(CASE WHEN status = 'CONFIRMED' THEN 1 ELSE 0 END) as confirmed_count,
-            SUM(CASE WHEN status = 'CONFIRMED' THEN amount ELSE 0 END) as total_revenue_kes,
-            SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending_count,
-            SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) as failed_count
-        FROM payments
-        """
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else {}
-
-
 # ---- Feedback ----
 
 
@@ -254,16 +134,14 @@ def record_feedback(
     row = conn.execute(
         """
         SELECT
-            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as upvotes,
-            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as downvotes,
+            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as up,
+            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as down,
             COUNT(*) as total
         FROM feedback
-        WHERE thread_id = ?
         """,
-        (thread_id,),
     ).fetchone()
     conn.close()
-    return dict(row) if row else {"upvotes": 0, "downvotes": 0, "total": 0}
+    return dict(row) if row else {"up": 0, "down": 0, "total": 0}
 
 
 def get_feedback_summary() -> dict:
@@ -272,11 +150,99 @@ def get_feedback_summary() -> dict:
     row = conn.execute(
         """
         SELECT
-            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as upvotes,
-            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as downvotes,
+            SUM(CASE WHEN rating = 'up' THEN 1 ELSE 0 END) as up,
+            SUM(CASE WHEN rating = 'down' THEN 1 ELSE 0 END) as down,
             COUNT(*) as total
         FROM feedback
         """
     ).fetchone()
     conn.close()
-    return dict(row) if row else {"upvotes": 0, "downvotes": 0, "total": 0}
+    return dict(row) if row else {"up": 0, "down": 0, "total": 0}
+
+
+# ---- Audit history ----
+
+
+def record_audit(
+    action: str,
+    description: str = "",
+    amount: float | None = None,
+    xero_tenant_id: str = "",
+    journal_id: str = "",
+) -> int:
+    """Record an action taken by the agent (journal entry posted, discrepancy fixed, etc.)."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    cursor = conn.execute(
+        """
+        INSERT INTO audit_history (action, description, amount, xero_tenant_id, journal_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (action, description, amount, xero_tenant_id, journal_id, now),
+    )
+    conn.commit()
+    audit_id = cursor.lastrowid
+    conn.close()
+    return audit_id or 0
+
+
+def get_audit_history(limit: int = 50) -> list[dict]:
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT * FROM audit_history ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+# ---- Impact events ----
+
+
+def record_impact_event(
+    event_type: str,
+    amount: float = 0.0,
+    description: str = "",
+    thread_id: str = "",
+) -> int:
+    """Record an impact event (money found, tax estimated, issue caught)."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    cursor = conn.execute(
+        """
+        INSERT INTO impact_events (event_type, amount, description, thread_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (event_type, amount, description, thread_id, now),
+    )
+    conn.commit()
+    event_id = cursor.lastrowid
+    conn.close()
+    return event_id or 0
+
+
+def get_impact_summary() -> dict:
+    """Aggregate impact metrics from recorded events."""
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        """
+        SELECT
+            event_type,
+            COUNT(*) as count,
+            COALESCE(SUM(amount), 0) as total_amount
+        FROM impact_events
+        GROUP BY event_type
+        """
+    ).fetchall()
+    conn.close()
+    summary: dict[str, dict] = {}
+    for row in rows:
+        summary[row["event_type"]] = {
+            "count": row["count"],
+            "total_amount": row["total_amount"],
+        }
+    return summary

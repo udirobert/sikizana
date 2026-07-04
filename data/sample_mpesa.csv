@@ -1,6 +1,0 @@
-Receipt No.,Completion Time,Details,Transaction Status,Paid In,Withdrawn,Balance,Balance Confirmed
-RFF1ABC123,2026-05-01 10:00:00,Pay Bill to Sikizana Chama - Contribution May John Doe,Completed,2000.00,,52000.00,Yes
-RFF2DEF456,2026-05-02 11:30:00,Pay Bill to Sikizana Chama - Contribution May Jane Smith,Completed,2000.00,,48000.00,Yes
-RFF3GHI789,2026-05-10 09:15:00,Pay Bill to Sikizana Chama - Fine Late April John Doe,Completed,200.00,,52200.00,Yes
-RFF4JKL012,2026-04-05 14:20:00,Pay Bill to Sikizana Chama - Contribution April John Doe,Completed,2000.00,,50000.00,Yes
-RFF5MNO345,2026-05-12 16:45:00,Customer Transfer to Mary Wambui - Loan Disbursement,Completed,,15000.00,37200.00,Yes

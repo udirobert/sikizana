@@ -1,7 +1,7 @@
 {
   "name": "sikizana",
   "version": "1.0.0",
-  "description": "AI-powered dispute resolution for chamas.",
+  "description": "AI finance assistant for Xero — reconciliation, tax insights, and journal write-back.",
   "main": "index.js",
   "directories": {
     "doc": "docs",

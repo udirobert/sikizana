@@ -1,36 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { endpoints, type RevenueSummary, type Testimonial } from "@/lib/api";
-
-interface RevenueWithExtras extends RevenueSummary {
-  feedback?: { up: number; down: number; total: number };
-  testimonials?: { total: number; approved_public: number };
-  funnel?: Record<string, number>;
-}
-
-const FUNNEL_FALLBACK = {
-  contacted: 0,
-  interested: 0,
-  demoed: 0,
-  paid: 0,
-  testimonial: 0,
-  inactive: 0,
-};
+import Link from "next/link";
+import { endpoints, type ImpactMetrics } from "@/lib/api";
 
 export default function ImpactPage() {
-  const [data, setData] = useState<RevenueWithExtras | null>(null);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [data, setData] = useState<ImpactMetrics | null>(null);
   const [error, setError] = useState("");
 
   const load = async () => {
     try {
-      const [rev, tList] = await Promise.all([
-        endpoints.revenue(),
-        endpoints.testimonials.list(true),
-      ]);
-      setData(rev);
-      setTestimonials(tList);
+      const metrics = await endpoints.impact();
+      setData(metrics);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load data");
     }
@@ -43,21 +24,21 @@ export default function ImpactPage() {
     return () => clearInterval(id);
   }, []);
 
-  const totalKes = data?.total_revenue_kes ?? 0;
-  const paidCount = data?.confirmed_count ?? 0;
-  const approvedTestiCount = data?.testimonials?.approved_public ?? 0;
+  const moneyFound = data?.money_found ?? 0;
+  const overdueCount = data?.overdue_count ?? 0;
+  const discrepanciesFound = data?.discrepancies_found ?? 0;
+  const taxSavings = data?.estimated_tax_savings ?? 0;
   const feedbackTotal = data?.feedback?.total ?? 0;
   const feedbackUp = data?.feedback?.up ?? 0;
   const feedbackRatio =
     feedbackTotal > 0 ? Math.round((feedbackUp / feedbackTotal) * 100) : null;
-  const funnel: Record<string, number> = (data?.funnel ?? FUNNEL_FALLBACK) as Record<string, number>;
 
   return (
     <div style={{ padding: "32px 20px 80px", maxWidth: 900, margin: "0 auto" }}>
       <header style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Real impact from real groups</h1>
+        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Siki&apos;s Impact</h1>
         <p style={{ fontSize: 15, color: "var(--muted)", marginTop: 6 }}>
-          Live numbers from Sikizana&apos;s Daraja M-Pesa settlement ledger.
+          Live numbers from Sikizana&apos;s Xero reconciliation engine.
           Updated every 30 seconds.
         </p>
       </header>
@@ -85,104 +66,91 @@ export default function ImpactPage() {
           marginBottom: 32,
         }}
       >
-        <StatCard label="Total revenue" value={`KES ${totalKes.toLocaleString()}`} />
-        <StatCard label="Paid mediations" value={paidCount.toString()} />
-        <StatCard label="Approved testimonials" value={approvedTestiCount.toString()} />
         <StatCard
-          label="Thumbs-up rate"
+          label="Money Found"
+          value={`£${moneyFound.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          sub={`${overdueCount} overdue invoice${overdueCount === 1 ? "" : "s"} identified`}
+        />
+        <StatCard
+          label="Issues Caught"
+          value={discrepanciesFound.toString()}
+          sub="Discrepancies flagged before accountant"
+        />
+        <StatCard
+          label="Est. Tax Savings"
+          value={`£${taxSavings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+          sub="From deductible expenses identified"
+        />
+        <StatCard
+          label="Thumbs-up Rate"
           value={feedbackRatio !== null ? `${feedbackRatio}%` : "—"}
-          sub={`${feedbackUp} of ${feedbackTotal}`}
+          sub={`${feedbackUp} of ${feedbackTotal} responses`}
         />
       </section>
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
-          Lead funnel
+          How it works
         </h2>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-            gap: 8,
+            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gap: 12,
           }}
         >
-          {Object.entries(FUNNEL_FALLBACK).map(([key]) => (
+          {[
+            {
+              step: "1",
+              title: "Connect Xero",
+              desc: "One-click OAuth. Siki reads your invoices, bank transactions, and P&L.",
+            },
+            {
+              step: "2",
+              title: "Ask in plain English",
+              desc: "“What’s overdue?” “How much tax will I owe?” “What can I deduct?”",
+            },
+            {
+              step: "3",
+              title: "Siki acts",
+              desc: "Flags discrepancies, estimates tax, posts journal entries — with your approval.",
+            },
+          ].map((item) => (
             <div
-              key={key}
+              key={item.step}
               style={{
                 background: "var(--surface)",
                 border: "1px solid var(--border)",
-                borderRadius: 10,
-                padding: 14,
-                textAlign: "center",
+                borderRadius: 12,
+                padding: 18,
               }}
             >
-              <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 4, textTransform: "capitalize" }}>
-                {key}
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  background: "var(--primary)",
+                  color: "white",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 10,
+                }}
+              >
+                {item.step}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>
-                {funnel[key] ?? 0}
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                {item.title}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
+                {item.desc}
               </div>
             </div>
           ))}
         </div>
-      </section>
-
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
-          What groups are saying
-        </h2>
-        {testimonials.length === 0 ? (
-          <p
-            style={{
-              background: "var(--surface)",
-              border: "1px dashed var(--border)",
-              padding: 18,
-              borderRadius: 12,
-              color: "var(--muted)",
-              fontSize: 14,
-            }}
-          >
-            No testimonials published yet. The first batch will appear here as
-            soon as a paid dispute is resolved and the customer gives
-            permission.
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {testimonials.map((t) => (
-              <figure
-                key={t.id}
-                style={{
-                  background: "var(--surface)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: 18,
-                  margin: 0,
-                }}
-              >
-                <blockquote
-                  style={{
-                    fontSize: 15,
-                    lineHeight: 1.6,
-                    margin: 0,
-                    color: "var(--foreground)",
-                  }}
-                >
-                  &ldquo;{t.quote}&rdquo;
-                </blockquote>
-                <figcaption
-                  style={{
-                    fontSize: 12,
-                    color: "var(--muted)",
-                    marginTop: 10,
-                  }}
-                >
-                  — {t.contact_name || "Anonymous"} · {t.chama_name}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        )}
       </section>
 
       <section
@@ -194,14 +162,13 @@ export default function ImpactPage() {
         }}
       >
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-          Bring Sikizana to your group
+          See it in action
         </h2>
         <p style={{ fontSize: 14, color: "var(--foreground)", marginBottom: 12 }}>
-          Resolve disputes in minutes, with a written verdict you can pin to the
-          group record.
+          Connect your Xero org and ask Siki anything about your books.
         </p>
-        <a
-          href="/arbitrate"
+        <Link
+          href="/books"
           style={{
             display: "inline-block",
             background: "var(--primary)",
@@ -213,8 +180,8 @@ export default function ImpactPage() {
             textDecoration: "none",
           }}
         >
-          Try a free sample
-        </a>
+          Open Bookkeeper
+        </Link>
       </section>
     </div>
   );

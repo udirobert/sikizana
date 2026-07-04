@@ -7,7 +7,7 @@
 - `/` — Landing page with Siki the Owl mascot
 - `/books` — AI Finance Assistant chat (live Xero data)
 - `/pricing` — Freemium pricing tiers (Stripe-ready)
-- `/arbitrate` — Savings group arbitration (legacy feature)
+- `/impact` — Live impact metrics (money found, issues caught, tax savings)
 
 ## The Pitch (30 seconds)
 

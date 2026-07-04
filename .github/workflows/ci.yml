@@ -20,12 +20,8 @@ jobs:
         run: pip install ruff==0.6.9
       - name: Ruff check
         run: ruff check src/
-      - name: Ruff format check (new files only)
-        run: |
-          ruff format --check \
-            src/services/daraja_service.py \
-            src/services/payment_store.py \
-            src/tools/payments.py
+      - name: Ruff format check
+        run: ruff format --check src/
 
   secrets-scan:
     name: Secrets scan

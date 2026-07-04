@@ -1,3 +1,11 @@
+"""
+Gemini Vision tool for receipt/invoice photo analysis.
+
+Used by the bookkeeper agent's match_receipt_to_transaction tool to
+extract supplier name, amount, date, and reference from a receipt photo,
+then match it to a Xero bank transaction.
+"""
+
 import os
 import google.generativeai as genai
 from PIL import Image
@@ -7,49 +15,58 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure Gemini for Vision tasks
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
-vision_model = genai.GenerativeModel('gemini-1.5-flash') # Flash is optimized for fast vision tasks
+_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+if _api_key:
+    genai.configure(api_key=_api_key)
 
-def analyze_ledger_image(image_path: str, query: str = "Extract all transactions") -> str:
+_vision_model = None
+
+
+def _get_model():
+    global _vision_model
+    if _vision_model is None:
+        _vision_model = genai.GenerativeModel("gemini-1.5-flash")
+    return _vision_model
+
+
+def analyze_receipt(image_path: str, query: str = "Extract supplier, amount, date, and reference") -> str:
     """
-    Uses Gemini Multimodal (Vision) to parse an image of a handwritten ledger or receipt.
-    This is a core 'moat' feature for XPRIZE, enabling digital auditing of informal records.
+    Uses Gemini Vision to parse a receipt or invoice photo.
+    Extracts supplier name, total amount, date, and any reference code.
     """
     if not os.path.exists(image_path):
         return f"Error: Image not found at {image_path}"
 
     try:
-        # Load the image
         img = Image.open(image_path)
 
-        # System Prompt for Vision-to-Data
         prompt = f"""
-        You are a professional forensic auditor for informal savings groups (ROSCAs/Chamas).
-        Analyze the provided image (ledger, receipt, or bank statement).
+        You are a professional bookkeeping assistant. Analyze the provided
+        receipt or invoice image.
 
         Task: {query}
 
-        Guidelines:
-        1. Extract Date, Member Name, Amount, and Transaction Type (Contribution, Loan, Fine, Payout).
-        2. If handwriting is unclear, provide your best guess but mark it with [?].
-        3. Format the output as a clean table or bulleted list.
-        4. If it's a receipt, verify the total and the M-Pesa/Bank reference code.
+        Extract the following fields:
+        1. Supplier name (the business that issued the receipt)
+        2. Total amount (including currency symbol if visible)
+        3. Date of the transaction
+        4. Reference or receipt number (if visible)
+        5. Payment method (if visible — card, cash, etc.)
+
+        Format the output as a clean, structured list.
+        If any field is unclear or not present, mark it as [not found].
         """
 
-        response = vision_model.generate_content([prompt, img])
+        response = _get_model().generate_content([prompt, img])
         return response.text
 
     except Exception as e:
         return f"Error analyzing image: {str(e)}"
 
+
 def verify_receipt_against_claim(receipt_image_path: str, claimed_amount: float) -> str:
     """
-    Specific tool to verify a single receipt against a user's claim.
+    Verify a receipt photo against a claimed amount.
     """
     query = f"Verify if this receipt shows a payment of {claimed_amount}. Check the date and reference code."
-    return analyze_ledger_image(receipt_image_path, query)
-
-if __name__ == "__main__":
-    # Placeholder for local testing
-    # print(analyze_ledger_image("data/sample_ledger.jpg"))
-    pass
+    return analyze_receipt(receipt_image_path, query)

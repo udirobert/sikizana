@@ -21,6 +21,9 @@ BACKEND_FILES=(
   src/services/xero_service.py
   src/services/xero_oauth.py
   src/services/logging.py
+  src/services/payment_store.py
+  src/services/rate_limit.py
+  src/services/validation.py
   src/api/main.py
   requirements.txt
   Dockerfile
@@ -32,6 +35,7 @@ WEB_FILES=(
   web/app/page.tsx
   web/app/books/page.tsx
   web/app/pricing/page.tsx
+  web/app/impact/page.tsx
   web/app/layout.tsx
   web/app/globals.css
   web/lib/api.ts

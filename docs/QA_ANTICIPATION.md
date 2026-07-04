@@ -80,16 +80,15 @@ services (£50-100/month) by 60-70%.
 
 ---
 
-### Q: "You said you repurposed this from a Kenyan chama platform. What's the connection?"
+### Q: "How did you come up with this idea?"
 
-**A:** Sikizana was originally an AI arbitrator for Kenyan savings
-groups (chamas) — informal ROSCAs where members contribute money and
-take turns receiving payouts. The core problem was identical: nobody
-reconciles, discrepancies pile up, and nobody can afford to fix them.
-The agent architecture — gather evidence, analyse, propose a fix, await
-approval — was built and tested for that harder, multilingual, informal
-domain. We pointed it at Xero because the reasoning loop transfers
-perfectly. Same problem, bigger market.
+**A:** We looked at productideas.xero.com and found the #1 requested
+feature was "AI that actually reconciles for you." Then we looked at
+the data: 4.4 million Xero subscribers, most without an accountant,
+losing money to uncollected invoices and missing tax deductions. The
+agent architecture — gather evidence, analyse, propose a fix, await
+approval — is the natural fit. Same reasoning loop an accountant uses,
+but in seconds instead of days, and at a fraction of the cost.
 
 ---
 
@@ -131,11 +130,11 @@ single word. That's the difference between a chatbot and an agent.
 ### Q: "Why should this be certified for the Xero App Store?"
 
 **A:** We solve a real problem for the 4.4 million subscribers who
-can't afford a bookkeeper. We use the Xero CLI, webhooks, and 8 API
+can't afford a bookkeeper. We use the Xero CLI, webhooks, and 12 API
 endpoints — deep platform integration, not a surface-level wrapper.
-The agent architecture is proven (battle-tested in Kenya). And the
-human-in-the-loop design means we're safe by default — we propose, the
-human approves. We're ready to start the certification process today.
+And the human-in-the-loop design means we're safe by default — we
+propose, the human approves. We're ready to start the certification
+process today.
 
 ---
 

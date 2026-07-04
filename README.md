@@ -1,173 +1,154 @@
-# Sikizana: The Global Protocol for Informal Trust
+# Sikizana Books — AI Finance Assistant for Xero
 
-**Autonomous AI Arbitration for the World's Unbanked Communities.**
+**Find money you're owed. Estimate your tax bill. Fix discrepancies. All in plain English.**
 
-Sikizana is an AI-native Decentralized Agent Service (DAS) designed to resolve disputes in informal savings groups—known globally as **ROSCAs** (*Chamas* in Kenya, *Sou-sou* in West Africa, *Tandas* in Latin America, and *Stokvels* in South Africa).
+Sikizana Books is an AI finance assistant that connects to Xero and acts
+as a 24/7 bookkeeper for small businesses. It finds overdue invoices,
+flags unreconciled transactions, estimates UK Corporation Tax, cites
+HMRC rules, and posts journal entries — with human-in-the-loop approval.
 
-By blending AI reasoning (Gemini 1.5/3.1) with financial evidence and decentralized trust (Vara Network), Sikizana turns informal social capital into verifiable financial data.
-
----
-
-### 🏆 Hackathon Participation
-This project is currently competing in:
-1.  **Vara Agents Arena Season 1**: Focusing on the **Social & Coordination** track with decentralized arbitration.
-2.  **XPRIZE Build with Gemini**: Leveraging AI to solve the "Grand Challenge" of global financial inclusion.
+Built for the Xero Hackathon.
 
 ---
 
-## The "Grand Challenge"
-Over **2.4 billion people** globally manage their savings through informal groups. However, these groups frequently collapse due to **unresolved internal disputes**, trust deficits, and poor record-keeping.
+## Live URL
 
-Sikizana moves beyond "Passive Bookkeeping" into **Active Arbitration**, providing an impartial, evidence-based mediator that is available 24/7 in local languages (English, Kiswahili, Sheng, and more).
+**https://sikizana.persidian.com**
+
+- `/` — Landing page with Siki the Owl mascot
+- `/books` — AI Finance Assistant chat (live Xero data)
+- `/pricing` — Freemium pricing tiers
+- `/impact` — Live impact metrics (money found, issues caught, tax savings)
+
+---
+
+## The Problem
+
+4.4 million small businesses use Xero. Most don't have an accountant.
+They log transactions but never reconcile, ignore overdue invoices, and
+don't understand their P&L. When discrepancies pile up, they pay
+£200+ for a human bookkeeper — or they let it slide and lose money.
+
+## The Solution
+
+Siki the Owl is an AI agent that:
+1. **Audits automatically** — runs on page load, before the user types anything
+2. **Finds money** — identifies overdue invoices and unreconciled transactions
+3. **Estimates tax** — calculates UK Corporation Tax, flags non-deductible expenses
+4. **Cites HMRC rules** — references official guidance (BIM45010, EIM31240, etc.)
+5. **Fixes things** — proposes journal entries, posts them to Xero after approval
+6. **Explains everything** — translates accounting jargon into plain English
+
+---
+
+## Architecture
+
+```
+User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.1)
+                                           → Xero API (OAuth2 + CLI)
+                                           → Gemini Vision (receipt matching)
+                                           → SQLite (feedback, audit, impact)
+```
+
+### Backend (Python / FastAPI)
+- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM
+- **Tools**: `src/tools/xero_tools.py` — 12 tools (discrepancies, invoices, P&L, tax, journals)
+- **Tax rules**: `src/tools/rag_engine.py` — embedded HMRC rules with citations
+- **Xero service**: `src/services/xero_service.py` — Xero API client
+- **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow
+- **Vision**: `src/tools/vision_audit.py` — Gemini Vision receipt matching
+- **Storage**: `src/services/payment_store.py` — feedback, audit history, impact events
+
+### Frontend (Next.js / React / Tailwind)
+- **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization
+- **Impact**: `web/app/impact/page.tsx` — live metrics dashboard
+- **Components**: SikiMascot, JournalEntryCard, ReceiptUpload, ProactiveAlert, etc.
+
+### Deployment
+- Docker Compose on VPS (Traefik reverse proxy)
+- `./deploy.sh` — one-command deploy script
+
+---
+
+## Key Features
+
+### 1. Proactive Audit
+The agent runs `find_discrepancies` automatically when the user opens
+the books page — they see value before typing a single word.
+
+### 2. Tax Insights (Cleo Pattern)
+`get_tax_insights` estimates Corporation Tax, flags non-deductible
+expenses (client entertainment), identifies missed deductions
+(software subscriptions), and shows cash flow impact of overdue invoices.
+
+### 3. HMRC Rule Citations
+`lookup_tax_rule` returns the relevant UK tax rule with its HMRC source
+citation. When the agent says "client entertainment isn't deductible,"
+it cites BIM45010.
+
+### 4. Journal Entry Write-Back
+`create_xero_journal_entry` posts manual journals directly to Xero —
+but only after the user approves a proposed entry. Human-in-the-loop
+by design.
+
+### 5. Receipt Matching
+Upload a receipt photo → Gemini Vision extracts supplier, amount, date
+→ agent matches it to a Xero bank transaction.
+
+### 6. Streaming Tool Calls
+The chat streams tool calls in real-time (SSE), so the user sees the
+agent's reasoning as it happens — not a black box.
+
+---
+
+## Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- Xero OAuth credentials (https://developer.xero.com/myapps)
+- NVIDIA NIM API key (or OpenAI-compatible endpoint)
+- Google Gemini API key (for vision)
+
+### Backend
+```bash
+cp .env.example .env
+# Fill in XERO_CLIENT_ID, XERO_CLIENT_SECRET, NVIDIA_API_KEY, GEMINI_API_KEY
+pip install -r requirements.txt
+python -m src.api.main
+```
+
+### Frontend
+```bash
+cd web
+npm install
+npm run dev
+```
+
+### Deploy
+```bash
+./deploy.sh          # full deploy
+./deploy.sh backend  # backend only
+./deploy.sh web      # frontend only
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| LLM | NVIDIA NIM (Llama 3.1) |
+| Vision | Google Gemini |
+| Backend | FastAPI, Python 3.11 |
+| Frontend | Next.js 16, React 19, Tailwind 4 |
+| Database | SQLite (WAL mode) |
+| Auth | Xero OAuth2 |
+| Deploy | Docker Compose, Traefik |
+| Hosting | Vultr VPS |
 
 ---
 
 ## Solo Build
-Sikizana is currently being developed and maintained by a **solo developer** (@udirobert), focusing on the intersection of LLM reasoning, local linguistic nuances, and blockchain-based transparency.
 
----
-
-## Our Solution
-
-Sikizana acts as an **Active Arbitrator**. It doesn't just record what happened; it resolves what went wrong.
-
-The system ingests:
-- **Governance Documents**: Bylaws, rules, and penalties.
-- **Financial Evidence**: M-Pesa statements, bank PDFs, and CSV records.
-- **Natural Language Context**: Member testimonies and dispute details.
-
-It then:
-- **Analyzes Evidence**: Using Gemini 1.5/3.1 to reason across financial records and legal bylaws.
-- **Multilingual Mediation**: Handles English, Kiswahili, and Sheng naturally to ensure accessibility.
-- **Commits Resolutions to Blockchain**: Once a verdict is reached, the agent signs and submits the resolution hash to the **Vara Network**, creating an immutable audit trail for banks and members.
-
-## Features
-
-- **On-chain Dispute Management**: Decentralized tracking of group conflicts.
-- **AI-powered mediation** (Gemini 1.5/3.1 & Google ADK).
-- **Multilingual support** (English, Kiswahili, Sheng).
-- **Deep Multimodal Audit**: AI-driven analysis of M-Pesa and financial PDFs.
-- **Premium Resolution**: Professional-grade auditing with M-Pesa payment integration.
-- **Transparent Audit Trail**: Every mediation step is verifiable on the Vara blockchain.
-
-## Technical Architecture
-
-### 1. On-chain (Vara Network)
-- **Sails Program**: Located in `contracts/sikizana`. Manages the registration and resolution of disputes.
-- **Language**: Rust.
-- **Framework**: Sails.
-
-### 2. Off-chain (Python Agent)
-- **Brain**: Gemini 1.5/3.1 Pro.
-- **Orchestration**: Google Agent Development Kit (ADK).
-- **Business Logic**: Native "Premium Resolution" workflow with payment simulation.
-
-### 3. Frontend (Next.js)
-- **Web3 Layer**: `@gear-js/api` and `@gear-js/react-hooks` for blockchain interaction.
-- **Wallet**: Support for Polkadot/Vara extensions (SubWallet, Enkrypt).
-
-## Getting Started
-
-### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- Google Cloud Project with Gemini API access
-- **Rust & Cargo** (for building Vara contracts)
-
-### Installation & Local Run
-1. **Contracts**:
-   ```bash
-   cd contracts/sikizana
-   cargo build --release
-   ```
-2. **Backend**:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   pip install gear-py
-   python src/api/main.py
-   ```
-3. **Frontend**:
-   ```bash
-   cd web
-   pnpm install
-   pnpm dev
-   ```
-
-## Documentation Deep Dives
-- [**Business Model & Impact**](docs/BUSINESS_MODEL.md): Global vision, revenue streams, and the ROSCA "Grand Challenge."
-- [**Competitive Landscape**](docs/COMPETITIVE_LANDSCAPE.md): The "Active Arbitrator" moat vs. "Passive Ledgers."
-- [**Vara Integration Guide**](docs/VARA.md): Details on the on-chain logic and Sails implementation.
-- [**Architecture**](docs/ARCHITECTURE.md): Agent logic, tools, and reasoning loops.
-
-## Deployment
-Sikizana is deployed on **Google Cloud Run**.
-- **Live Demo**: [URL Placeholder]
-- **Deployment Guide**: See `infra/deploy.sh`.
-
-## Real M-Pesa Payments (Daraja API)
-Sikizana collects real revenue via Safaricom Daraja STK Push. To enable:
-
-1. Register a Safaricom Daraja account at [developer.safaricom.co.ke](https://developer.safaricom.co.ke).
-2. Create an app to get `Consumer Key` and `Consumer Secret`.
-3. Onboard a Paybill or Till number shortcode and request STK Push passkey.
-4. Set environment variables (see `.env.example`):
-   ```
-   DARAJA_ENV=sandbox                # or production
-   DARAJA_CONSUMER_KEY=...
-   DARAJA_CONSUMER_SECRET=...
-   DARAJA_SHORTCODE=174379           # sandbox test shortcode
-   DARAJA_PASSKEY=...
-   DARAJA_CALLBACK_URL=https://your-domain.com/api/payments/callback
-   PREMIUM_RESOLUTION_KES=100
-   ```
-5. The callback URL must be publicly reachable.
-
-### Local development with ngrok
-
-```bash
-# Terminal 1: backend
-python3.11 -m uvicorn src.api.main:app --host 127.0.0.1 --port 8080
-
-# Terminal 2: tunnel
-ngrok http 8080
-# Copy the https://*.ngrok-free.app URL into DARAJA_CALLBACK_URL + /api/payments/callback
-```
-
-### Testing the sandbox flow
-
-```bash
-# Fire a sandbox STK Push to the Safaricom test number (PIN: 174379)
-curl -X POST http://127.0.0.1:8080/api/payments/stk-push \
-  -H "Content-Type: application/json" \
-  -d '{"phone":"254708374149","amount":1,"dispute_context":"test"}'
-
-# Poll for status (CONFIRMED once user enters PIN)
-curl http://127.0.0.1:8080/api/payments/status/ws_CO_...
-
-# Aggregated revenue
-curl http://127.0.0.1:8080/api/revenue
-```
-
-### Production: Cloud Run + Secret Manager
-
-```bash
-# One-time: store credentials in Secret Manager
-echo -n "$KEY" | gcloud secrets create daraja-consumer-key --data-file=-
-# ...repeat for daraja-consumer-secret, daraja-passkey, gemini-api-key
-
-# Deploy (uses Secret Manager references automatically)
-./infra/deploy.sh
-```
-
-After deploy, update `DARAJA_CALLBACK_URL` in the Safaricom Daraja portal to the Cloud Run service URL + `/api/payments/callback`.
-
-## Agent runtime (optional)
-
-The Google ADK agent stack (`google-labs-adk`) is not on PyPI. The FastAPI
-backend runs without it; the `/chat` endpoint returns a graceful fallback
-when the agent is unavailable, so payment testing works without it. To
-enable the full Gemini mediator in production, see `agent_runtime.txt`.
-
-Revenue is persisted in `data/payments.db` (SQLite) and exposed at `GET /api/revenue` for hackathon evidence.
+Developed by @udirobert for the Xero Hackathon.

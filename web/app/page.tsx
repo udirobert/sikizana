@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SikiMascot, type MascotMood } from "@/components/SikiMascot";
-import { useRevenue } from "@/hooks/useRevenue";
+import { useImpactMetrics } from "@/hooks/useRevenue";
 
 /**
  * Public landing page — mascot-driven, English-only, polished.
@@ -11,8 +11,9 @@ import { useRevenue } from "@/hooks/useRevenue";
  * and the whole page feels alive without being cluttered.
  */
 export default function LandingPage() {
-  const revenue = useRevenue(60_000);
-  const paidCount = revenue?.confirmed_count ?? 0;
+  const metrics = useImpactMetrics(60_000);
+  const moneyFound = metrics?.money_found ?? 0;
+  const discrepanciesFound = metrics?.discrepancies_found ?? 0;
 
   // Cycle the mascot mood for a living feel
   const [mood, setMood] = useState<MascotMood>("wave");
@@ -45,10 +46,10 @@ export default function LandingPage() {
               Open Bookkeeper
             </Link>
             <Link
-              href="/arbitrate"
+              href="/pricing"
               className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
-              Arbitrate
+              Pricing
             </Link>
           </div>
         </div>
@@ -98,10 +99,10 @@ export default function LandingPage() {
             Try the Bookkeeper
           </Link>
           <Link
-            href="/arbitrate?sample=unpaid-contributions"
+            href="/impact"
             className="bg-white hover:bg-stone-50 text-stone-700 font-medium px-7 py-3.5 rounded-xl transition border border-stone-200 btn-press text-base"
           >
-            See a sample dispute
+            See Siki's Impact
           </Link>
         </div>
       </section>
@@ -111,19 +112,19 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
             {
-              label: "Audits Run",
-              value: paidCount > 0 ? String(paidCount) : "0",
-              sub: "Real reconciliations completed",
+              label: "Money Found",
+              value: moneyFound > 0 ? `£${moneyFound.toFixed(0)}` : "£0",
+              sub: "Overdue invoices identified",
+            },
+            {
+              label: "Issues Caught",
+              value: String(discrepanciesFound || 0),
+              sub: "Discrepancies flagged before accountant",
             },
             {
               label: "Response Time",
               value: "< 30s",
               sub: "From question to answer",
-            },
-            {
-              label: "Accuracy",
-              value: "100%",
-              sub: "Human-in-the-loop by design",
             },
           ].map((stat, i) => (
             <div
