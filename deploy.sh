@@ -40,6 +40,7 @@ WEB_FILES=(
   web/app/globals.css
   web/lib/api.ts
   web/lib/xero-samples.ts
+  web/components/ClientProviders.tsx
   web/components/SikiMascot.tsx
   web/components/SkeletonReveal.tsx
   web/components/JournalEntryCard.tsx
