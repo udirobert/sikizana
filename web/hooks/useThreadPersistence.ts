@@ -33,11 +33,34 @@ function notifyInTab() {
   window.dispatchEvent(new Event("sikizana:storage"));
 }
 
+// ── Snapshot caching ─────────────────────────────────────────────
+// useSyncExternalStore requires getSnapshot to return the SAME object
+// reference when nothing has changed.  JSON.parse creates a new object
+// every call, so we cache the raw strings and only re-parse when they
+// actually change.
+
+let cachedMessagesRaw: string | null = null;
+let cachedThreadIdRaw: string | null = null;
+let cachedSnapshot: { messages: Message[]; threadId: string } = {
+  messages: [],
+  threadId: "",
+};
+
 function getSnapshot() {
-  return {
-    messages: localStore.get<Message[]>(StorageKeys.MESSAGES, []),
-    threadId: localStore.get<string>(StorageKeys.THREAD_ID, ""),
-  };
+  const s = typeof window !== "undefined" ? window.localStorage : null;
+  const messagesRaw = s ? s.getItem(StorageKeys.MESSAGES) : null;
+  const threadIdRaw = s ? s.getItem(StorageKeys.THREAD_ID) : null;
+
+  if (messagesRaw !== cachedMessagesRaw || threadIdRaw !== cachedThreadIdRaw) {
+    cachedMessagesRaw = messagesRaw;
+    cachedThreadIdRaw = threadIdRaw;
+    cachedSnapshot = {
+      messages: messagesRaw ? (JSON.parse(messagesRaw) as Message[]) : [],
+      threadId: threadIdRaw ? (JSON.parse(threadIdRaw) as string) : "",
+    };
+  }
+
+  return cachedSnapshot;
 }
 
 export function useThreadPersistence() {

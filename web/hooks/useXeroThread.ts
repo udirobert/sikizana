@@ -18,6 +18,37 @@ function genThreadId(): string {
 
 const SERVER_SNAPSHOT = { messages: [], threadId: "" };
 
+// ── Snapshot caching ─────────────────────────────────────────────
+// useSyncExternalStore requires getSnapshot to return the SAME object
+// reference when nothing has changed.  JSON.parse creates a new object
+// every call, so we cache the raw strings and only re-parse when they
+// actually change.
+
+let cachedMessagesRaw: string | null = null;
+let cachedThreadIdRaw: string | null = null;
+let cachedSnapshot: { messages: Message[]; threadId: string } = {
+  messages: [],
+  threadId: "",
+};
+
+function getSnapshot() {
+  const s = typeof window !== "undefined" ? window.localStorage : null;
+  const messagesRaw = s ? s.getItem(XERO_MESSAGES_KEY) : null;
+  const threadIdRaw = s ? s.getItem(XERO_THREAD_KEY) : null;
+
+  // Only re-parse if the raw strings changed
+  if (messagesRaw !== cachedMessagesRaw || threadIdRaw !== cachedThreadIdRaw) {
+    cachedMessagesRaw = messagesRaw;
+    cachedThreadIdRaw = threadIdRaw;
+    cachedSnapshot = {
+      messages: messagesRaw ? (JSON.parse(messagesRaw) as Message[]) : [],
+      threadId: threadIdRaw ? (JSON.parse(threadIdRaw) as string) : "",
+    };
+  }
+
+  return cachedSnapshot;
+}
+
 function subscribeToStorage(callback: () => void) {
   window.addEventListener("storage", callback);
   window.addEventListener("sikizana:storage", callback);
@@ -29,13 +60,6 @@ function subscribeToStorage(callback: () => void) {
 
 function notifyInTab() {
   window.dispatchEvent(new Event("sikizana:storage"));
-}
-
-function getSnapshot() {
-  return {
-    messages: localStore.get<Message[]>(XERO_MESSAGES_KEY, []),
-    threadId: localStore.get<string>(XERO_THREAD_KEY, ""),
-  };
 }
 
 export function useXeroThread() {

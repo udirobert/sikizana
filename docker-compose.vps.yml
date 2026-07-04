@@ -1,7 +1,9 @@
 # Sikizana Books — full-stack VPS deployment
-# Backend: FastAPI on port 8081
-# Frontend: Next.js standalone on port 3000
+# Backend: FastAPI on exotic port 18081 (internal)
+# Frontend: Next.js standalone on exotic port 13001 (internal)
 # Both served via Coolify's Traefik proxy on sikizana.persidian.com
+# Traefik routes via Docker network names, so host ports are only
+# for direct debugging — kept exotic to avoid conflicts with other projects.
 
 services:
   sikizana-api:
@@ -9,7 +11,7 @@ services:
     container_name: sikizana-api
     restart: unless-stopped
     ports:
-      - "8081:8081"
+      - "18081:8081"
     environment:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - XERO_KEY_STORAGE=file
@@ -28,9 +30,11 @@ services:
     container_name: sikizana-web
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "13001:3000"
     environment:
-      - NEXT_PUBLIC_API_BASE=http://sikizana-api:8081
+      # Empty = same-origin /api calls via Traefik. Do NOT set to Docker
+      # internal URL — the browser can't resolve container names.
+      - NEXT_PUBLIC_API_BASE=
       - PORT=3000
     depends_on:
       - sikizana-api

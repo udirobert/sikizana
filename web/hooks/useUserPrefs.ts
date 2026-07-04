@@ -18,11 +18,28 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("sikizana:storage", handler);
 }
 
+// ── Snapshot caching ─────────────────────────────────────────────
+// useSyncExternalStore requires getSnapshot to return the SAME object
+// reference when nothing has changed.
+let cachedOnboardedRaw: string | null = null;
+let cachedLangRaw: string | null = null;
+let cachedPrefs: UserPrefs = { onboarded: false, language: "en" };
+
 function getSnapshot(): UserPrefs {
-  return {
-    onboarded: localStore.get<boolean>(StorageKeys.ONBOARDED, false),
-    language: localStore.get<Language>(StorageKeys.PREFERRED_LANGUAGE, "en"),
-  };
+  const s = typeof window !== "undefined" ? window.localStorage : null;
+  const onboardedRaw = s ? s.getItem(StorageKeys.ONBOARDED) : null;
+  const langRaw = s ? s.getItem(StorageKeys.PREFERRED_LANGUAGE) : null;
+
+  if (onboardedRaw !== cachedOnboardedRaw || langRaw !== cachedLangRaw) {
+    cachedOnboardedRaw = onboardedRaw;
+    cachedLangRaw = langRaw;
+    cachedPrefs = {
+      onboarded: localStore.get<boolean>(StorageKeys.ONBOARDED, false),
+      language: localStore.get<Language>(StorageKeys.PREFERRED_LANGUAGE, "en"),
+    };
+  }
+
+  return cachedPrefs;
 }
 
 export function useUserPrefs(): UserPrefs {
