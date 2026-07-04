@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+.git
+web/node_modules
+web/.next
+web/.env*
+.env
+.env.local
+data/
+*.db
+docs/
+agent_runtime.txt

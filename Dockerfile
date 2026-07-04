@@ -1,29 +1,26 @@
-# Use a slim Python 3.11 image
-FROM python:3.11-slim
+# Sikizana Books — production Dockerfile
+# Python 3.12, FastAPI backend with NVIDIA NIM agent + Xero CLI
+FROM python:3.12-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies + Node.js (for Xero CLI)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
+    gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Xero CLI globally
+RUN npm install -g @xeroapi/xero-command-line
 
 # Copy requirements first for better layer caching
 COPY requirements.txt .
 
-# google-labs-adk is unavailable on PyPI; install the parts of the runtime
-# that we can. The /chat endpoint lazy-imports the agent stack so the API
-# runs without ADK. To enable the full Gemini agent in production, see
-# agent_runtime.txt in the repo root.
-RUN pip install --no-cache-dir \
-    fastapi==0.110.0 \
-    'uvicorn[standard]==0.27.1' \
-    pydantic==2.6.3 \
-    python-dotenv==1.0.1 \
-    python-multipart==0.0.9 \
-    httpx==0.27.0 \
-    google-generativeai==0.4.1
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
@@ -32,9 +29,14 @@ COPY . .
 RUN mkdir -p /app/data && chmod 777 /app/data
 
 # Set environment variables
-ENV PORT=8080
+ENV PORT=8081
 ENV PYTHONUNBUFFERED=1
 ENV PAYMENT_DB_PATH=/app/data/payments.db
+# Xero CLI: use file-based token storage (no keychain in Docker)
+ENV XERO_KEY_STORAGE=file
+
+# Expose port 8081 (avoids conflicts with Coolify on 8080)
+EXPOSE 8081
 
 # Run the application
-CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8081"]

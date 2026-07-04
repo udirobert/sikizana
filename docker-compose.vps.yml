@@ -1,0 +1,28 @@
+# Sikizana Books — VPS deployment via Docker Compose
+# Runs on port 8081 to avoid conflicts with Coolify (8080) and other services.
+# Xero CLI tokens are mounted from the host so we don't need to re-authenticate.
+services:
+  sikizana-api:
+    build: .
+    container_name: sikizana-api
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - XERO_KEY_STORAGE=file
+      - PAYMENT_DB_PATH=/app/data/payments.db
+    volumes:
+      # Mount Xero CLI config (tokens + encryption key) from host
+      - /home/linuxuser/.config/xero-command-line:/root/.config/xero-command-line:ro
+      # Persist SQLite database
+      - sikizana-data:/app/data
+    networks:
+      - sikizana
+
+volumes:
+  sikizana-data:
+
+networks:
+  sikizana:
+    driver: bridge
