@@ -95,34 +95,28 @@ export function WhileSikiWorks({
           </div>
         )}
 
-        {/* Layer 3: Live HMRC content from Exa + Firecrawl */}
+        {/* Layer 3: Live HMRC content from Exa + Firecrawl
+            Compact one-liner with a small footnote link.
+            The summary is the value — the link is the escape hatch. */}
         {showContext && contextResults.length > 0 && (
           <div className="text-[11px] leading-relaxed bg-violet-50 rounded-lg px-3 py-2 fade-in-up">
-            <p className="text-violet-600 font-medium mb-1">
-              <span className="mr-1">🔗</span>
-              Relevant HMRC guidance
+            <p className="text-violet-600 font-medium mb-0.5">
+              <span className="mr-1">📖</span>
+              Did you know?
             </p>
-            {contextResults.slice(0, 2).map((r) => (
-              <div key={r.url} className="mb-1.5 last:mb-0">
-                {/* Deep content from Firecrawl — the actual guidance text */}
-                {r.deep_content && (
-                  <p className="text-violet-800 text-[10px] leading-relaxed mb-1 italic">
-                    &ldquo;{r.deep_content}&rdquo;
-                  </p>
-                )}
+            {contextResults.slice(0, 1).map((r) => (
+              <div key={r.url}>
+                <p className="text-violet-800 text-[10px] leading-relaxed">
+                  {r.summary || r.snippet}
+                </p>
                 <a
                   href={r.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-violet-700 hover:text-violet-900 transition-colors font-medium underline"
+                  className="text-violet-400 hover:text-violet-600 transition-colors text-[9px] mt-0.5 inline-block"
                 >
-                  {r.title}
+                  Source: {r.title.length > 40 ? r.title.slice(0, 40) + "…" : r.title} ↗
                 </a>
-                {!r.deep_content && r.snippet && (
-                  <span className="text-violet-500 block text-[10px] mt-0.5 line-clamp-2">
-                    {r.snippet}
-                  </span>
-                )}
               </div>
             ))}
           </div>

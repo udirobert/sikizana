@@ -125,28 +125,80 @@ _exa_cache: dict[str, tuple[float, list]] = {}
 _EXA_CACHE_TTL = 300  # 5 minutes
 
 # Curated fallback content when no Exa key is available.
+# Each entry has a short, human-written summary (not a raw snippet).
 _CURATED_CONTEXT = [
     {
         "title": "Late Payment of Commercial Debts Act 1998",
         "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery",
-        "snippet": "UK businesses can charge statutory interest (8% + Bank Rate) on overdue B2B invoices, plus compensation of £40-100 per invoice.",
+        "summary": "You can charge statutory interest (8% + Bank Rate) on overdue B2B invoices, plus compensation of £40-100 per invoice.",
     },
     {
         "title": "Corporation Tax: filing and payment deadlines",
         "url": "https://www.gov.uk/corporation-tax-deadlines",
-        "snippet": "Corporation Tax is due 9 months and 1 day after your accounting period ends. File your return within 12 months of the period end.",
+        "summary": "Corporation Tax is due 9 months and 1 day after your accounting period ends. File your return within 12 months.",
     },
     {
         "title": "VAT: when to register and submit returns",
         "url": "https://www.gov.uk/vat-registration",
-        "snippet": "You must register for VAT if your turnover exceeds £90,000. Returns are due quarterly on the standard scheme.",
+        "summary": "You must register for VAT if your turnover exceeds £90,000. Returns are due quarterly on the standard scheme.",
     },
     {
         "title": "Allowable business expenses",
         "url": "https://www.gov.uk/business-expenses",
-        "snippet": "You can deduct legitimate business costs from your income before tax. Entertainment, fines, and political donations are NOT deductible.",
+        "summary": "You can deduct legitimate business costs from income before tax. Entertainment, fines, and political donations are NOT deductible.",
     },
 ]
+
+# Map user intent to better Exa queries — avoids matching obscure
+# HMRC internal manuals when the user's question is practical.
+_QUERY_INTENT_MAP = {
+    "overdue": "late payment interest commercial debts UK business invoices",
+    "invoice": "late payment interest commercial debts UK business invoices",
+    "chase": "late payment interest commercial debts UK business invoices",
+    "tax": "corporation tax deadlines penalties UK small business",
+    "corporation": "corporation tax deadlines penalties UK small business",
+    "vat": "VAT registration thresholds returns UK business",
+    "expense": "allowable business expenses deductions UK HMRC",
+    "deduct": "allowable business expenses deductions UK HMRC",
+    "profit": "profit and loss accounting UK small business",
+    "reconcil": "bank reconciliation Xero UK bookkeeping",
+    "receipt": "business receipts record keeping UK HMRC",
+    "saving": "reduce business costs expenses UK small business",
+}
+
+
+def _map_query_to_exa(q: str) -> str:
+    """Map a user query to a better Exa search query."""
+    q_lower = q.lower()
+    for keyword, mapped in _QUERY_INTENT_MAP.items():
+        if keyword in q_lower:
+            return mapped
+    return f"UK HMRC guidance: {q}"
+
+
+import re as _re
+
+
+def _clean_markdown(text: str, max_len: int = 160) -> str:
+    """Strip markdown formatting and links, trim to a clean sentence."""
+    # Remove markdown links: [text](url) → text
+    text = _re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    # Remove remaining URLs
+    text = _re.sub(r"https?://\S+", "", text)
+    # Remove markdown headers, bold, italic markers
+    text = _re.sub(r"^#+\s*", "", text)
+    text = text.replace("**", "").replace("*", "").replace("`", "")
+    # Collapse whitespace
+    text = " ".join(text.split())
+    # Trim to max_len at a sentence boundary
+    if len(text) <= max_len:
+        return text.strip()
+    # Find the first sentence end within max_len
+    truncated = text[:max_len]
+    last_period = truncated.rfind(". ")
+    if last_period > 60:
+        return truncated[: last_period + 1].strip()
+    return truncated.rsplit(" ", 1)[0].strip() + "…"
 
 
 @app.get("/api/context/search")
@@ -177,17 +229,18 @@ async def context_search(q: str = ""):
 
     results = []
 
-    # Step 1: Exa search
+    # Step 1: Exa search — use intent-mapped query for better relevance
     if exa_key:
         try:
             import httpx
 
+            exa_query = _map_query_to_exa(q)
             async with httpx.AsyncClient(timeout=5.0) as cx:
                 resp = await cx.post(
                     "https://api.exa.ai/search",
                     headers={"x-api-key": exa_key, "Content-Type": "application/json"},
                     json={
-                        "query": f"UK HMRC tax guidance: {q}",
+                        "query": exa_query,
                         "type": "instant",
                         "numResults": 3,
                         "includeDomains": ["gov.uk"],
@@ -210,7 +263,7 @@ async def context_search(q: str = ""):
         except Exception:
             pass
 
-    # Step 2: Firecrawl deep scrape the top result
+    # Step 2: Firecrawl deep scrape the top result → clean summary
     if results and firecrawl_key:
         try:
             import httpx
@@ -233,16 +286,15 @@ async def context_search(q: str = ""):
                 data = resp.json()
                 markdown = data.get("data", {}).get("markdown", "")
 
-                # Extract the most relevant paragraph — find the section
-                # that contains query keywords and is 50-400 chars.
+                # Extract the most relevant paragraph and clean it
                 if markdown:
                     query_words = [w.lower() for w in q.split() if len(w) > 3]
                     paragraphs = markdown.split("\n\n")
                     best_para = ""
                     best_score = 0
                     for para in paragraphs:
-                        para_clean = para.strip().replace("#", "").replace("*", "").strip()
-                        if len(para_clean) < 50 or len(para_clean) > 400:
+                        para_clean = _clean_markdown(para, max_len=400)
+                        if len(para_clean) < 40:
                             continue
                         para_lower = para_clean.lower()
                         score = sum(1 for w in query_words if w in para_lower)
@@ -251,12 +303,13 @@ async def context_search(q: str = ""):
                             best_para = para_clean
 
                     if best_para:
-                        results[0]["deep_content"] = best_para
+                        # Final clean to a short summary
+                        results[0]["summary"] = _clean_markdown(best_para, max_len=160)
         except Exception:
             pass  # snippet from Exa is still useful
 
     if results:
-        source = "exa+firecrawl" if any(r.get("deep_content") for r in results) else "exa"
+        source = "exa+firecrawl" if any(r.get("summary") for r in results) else "exa"
         _exa_cache[cache_key] = (time.time(), results)
         return {"results": results, "source": source}
 

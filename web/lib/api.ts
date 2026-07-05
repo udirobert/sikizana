@@ -113,8 +113,8 @@ export interface ContextResult {
   title: string;
   url: string;
   snippet: string;
-  /** Deep content extracted by Firecrawl from the top result (if available). */
-  deep_content?: string;
+  /** Clean summary extracted by Firecrawl from the top result (if available). */
+  summary?: string;
 }
 
 /** How the backend is talking to Xero. "demo" means no real Xero write happens. */
