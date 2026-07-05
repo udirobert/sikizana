@@ -125,6 +125,26 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE users ADD COLUMN digest_opt_in INTEGER NOT NULL DEFAULT 1;
     """,
     ),
+    (
+        6,
+        """
+        CREATE TABLE IF NOT EXISTS metric_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            captured_at TEXT NOT NULL,
+            total_overdue REAL DEFAULT 0,
+            overdue_count INTEGER DEFAULT 0,
+            avg_receivables_days REAL DEFAULT 0,
+            overdue_rate REAL DEFAULT 0,
+            total_revenue REAL DEFAULT 0,
+            net_margin REAL DEFAULT 0,
+            red_customers INTEGER DEFAULT 0,
+            firing_candidates INTEGER DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_metrics_session ON metric_snapshots(session_id);
+        CREATE INDEX IF NOT EXISTS idx_metrics_date ON metric_snapshots(captured_at);
+    """,
+    ),
 ]
 
 
@@ -600,3 +620,55 @@ def get_impact_summary() -> dict:
             "total_amount": row["total_amount"],
         }
     return summary
+
+
+# ---------------------------------------------------------------------------
+# Metric snapshots — periodic captures for trend analysis
+# ---------------------------------------------------------------------------
+
+def save_metric_snapshot(
+    session_id: str,
+    total_overdue: float = 0,
+    overdue_count: int = 0,
+    avg_receivables_days: float = 0,
+    overdue_rate: float = 0,
+    total_revenue: float = 0,
+    net_margin: float = 0,
+    red_customers: int = 0,
+    firing_candidates: int = 0,
+) -> None:
+    """Save a periodic snapshot of key financial metrics for trend analysis."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO metric_snapshots
+            (session_id, captured_at, total_overdue, overdue_count,
+             avg_receivables_days, overdue_rate, total_revenue,
+             net_margin, red_customers, firing_candidates)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (session_id, now, total_overdue, overdue_count, avg_receivables_days,
+         overdue_rate, total_revenue, net_margin, red_customers, firing_candidates),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_metric_snapshots(session_id: str, limit: int = 12) -> list[dict]:
+    """Retrieve metric snapshots for trend analysis, oldest first."""
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        """
+        SELECT * FROM metric_snapshots
+        WHERE session_id = ?
+        ORDER BY captured_at DESC
+        LIMIT ?
+        """,
+        (session_id, limit),
+    ).fetchall()
+    conn.close()
+    # Return oldest first for trend display
+    return [dict(r) for r in reversed(rows)]

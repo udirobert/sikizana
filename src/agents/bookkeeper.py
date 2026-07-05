@@ -29,6 +29,7 @@ from src.tools.xero_tools import (
     get_savings_opportunities,
     get_sector_benchmarks,
     get_tax_insights,
+    get_trend_analysis,
     get_xero_balance_sheet,
     get_xero_chart_of_accounts,
     get_xero_contacts,
@@ -463,6 +464,14 @@ _TOOL_DEFS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_trend_analysis",
+            "description": "Analyze financial metric trends over time using stored snapshots. Shows whether receivables, overdue rate, and margin are improving or worsening. Captures a new snapshot automatically (one per day per session). Use when the user asks about trends, progress, whether things are getting better/worse, or 'how am I doing over time'.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
 ]
 
 # Map tool names to actual Python functions
@@ -485,6 +494,7 @@ _TOOL_FUNCS = {
     "get_sector_benchmarks": get_sector_benchmarks,
     "score_customers": score_customers,
     "get_chasing_strategy": get_chasing_strategy,
+    "get_trend_analysis": get_trend_analysis,
 }
 
 
@@ -625,6 +635,7 @@ async def run_bookkeeper_streaming(
         "get_sector_benchmarks": "Comparing against sector benchmarks",
         "score_customers": "Scoring customer payment reliability",
         "get_chasing_strategy": "Building chasing strategy",
+        "get_trend_analysis": "Analyzing metric trends",
     }
 
     # Agent loop: stream the model, execute tools, feed results back.

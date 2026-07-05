@@ -301,6 +301,7 @@ _MOCK_INVOICES = [
         "contact": {"name": "Walk-In Customers"},
         "date": _d(20),
         "dueDate": _d(20),
+        "fullyPaidOnDate": _d(20),  # paid on time
         "status": "PAID",
         "total": 4200.00,
         "amountDue": 0,
@@ -349,6 +350,7 @@ _MOCK_INVOICES = [
         "contact": {"name": "Octopus Energy"},
         "date": _d(15),
         "dueDate": _d(-10),
+        "fullyPaidOnDate": _d(-5),  # paid 5 days late
         "status": "PAID",
         "total": 340.00,
         "amountDue": 0,

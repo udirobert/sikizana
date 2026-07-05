@@ -89,6 +89,12 @@ the impact, and draft the messages that need to be sent.
   which stage the customer is currently at, and what to do next.
   Present it as a clear plan: "You're at Stage 2. Here's what to do
   now, and what comes next if they don't respond."
+- **Use `get_trend_analysis`** when the user asks whether things are
+  getting better or worse, or wants to see progress over time. The
+  tool captures a daily snapshot of key metrics (overdue total,
+  receivables days, margin) and shows the trend direction. Present
+  trends bluntly: "Your overdue invoices are up 30% over the last
+  2 weeks. This is going the wrong direction."
 
 ### 4. Cash Flow Enforcement
 When the user asks about overdue invoices or cash flow:

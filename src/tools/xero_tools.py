@@ -1052,6 +1052,115 @@ def _detect_sector(org_name: str = "", industry: str = "") -> str:
     return "default"
 
 
+def _fetch_ons_benchmarks(sector: str) -> dict[str, float] | None:
+    """
+    Attempt to fetch live ONS sector data via Firecrawl.
+    Returns None if Firecrawl is unavailable or scraping fails,
+    in which case we fall back to hardcoded benchmarks.
+    """
+    firecrawl_key = os.environ.get("FIRECRAWL_API_KEY", "")
+    if not firecrawl_key:
+        return None
+
+    # ONS publishes sector-level business data. The most relevant page
+    # for receivables / payment performance is the DBT Small Business
+    # Finance Survey, which reports average payment days by sector.
+    sector_search = {
+        "retail": "retail",
+        "construction": "construction",
+        "professional_services": "professional services",
+        "hospitality": "accommodation food service",
+        "manufacturing": "manufacturing",
+        "wholesale": "wholesale",
+    }
+    sector_term = sector_search.get(sector, sector)
+
+    try:
+        import httpx
+
+        # Use Exa to find the relevant ONS/DBT page
+        exa_key = os.environ.get("EXA_API_KEY", "")
+        if not exa_key:
+            return None
+
+        with httpx.Client(timeout=10.0) as cx:
+            # Step 1: Exa search for ONS sector data
+            search_resp = cx.post(
+                "https://api.exa.ai/search",
+                headers={
+                    "x-api-key": exa_key,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "query": f"UK {sector_term} average payment days receivables ONS DBT survey",
+                    "type": "instant",
+                    "numResults": 3,
+                    "includeDomains": ["gov.uk", "ons.gov.uk"],
+                },
+            )
+            search_resp.raise_for_status()
+            results = search_resp.json().get("results", [])
+            if not results:
+                return None
+
+            # Step 2: Firecrawl scrape the top result
+            top_url = results[0].get("url", "")
+            if not top_url:
+                return None
+
+            scrape_resp = cx.post(
+                "https://api.firecrawl.dev/v2/scrape",
+                headers={
+                    "Authorization": f"Bearer {firecrawl_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "url": top_url,
+                    "formats": ["markdown"],
+                    "onlyMainContent": True,
+                },
+            )
+            scrape_resp.raise_for_status()
+            markdown = scrape_resp.json().get("data", {}).get("markdown", "")
+
+            if not markdown or len(markdown) < 200:
+                return None
+
+            # Step 3: Extract benchmark numbers from the markdown.
+            # Look for patterns like "average payment days: 52" or
+            # "receivables days ... 48". This is intentionally fuzzy —
+            # ONS pages vary in format. If we can't extract clean numbers,
+            # fall back to hardcoded.
+            import re
+
+            text = markdown.lower()
+            # Look for "X days" near "payment" or "receivables" or "average"
+            days_patterns = [
+                r"(?:average\s+)?(?:payment|receivable[s]?)\s*(?:days?|period)\s*[:\-]?\s*(\d{1,3})\s*days?",
+                r"(\d{1,3})\s*days?\s*(?:average\s+)?(?:payment|receivable|collection)",
+                r"average\s+(?:of\s+)?(\d{1,3})\s*days?\s*(?:to\s+)?(?:pay|payment|collect)",
+            ]
+            found_days = None
+            for pattern in days_patterns:
+                match = re.search(pattern, text)
+                if match:
+                    found_days = int(match.group(1))
+                    break
+
+            if found_days and 5 <= found_days <= 120:
+                # Successfully extracted — merge with hardcoded data,
+                # overriding only the receivables days
+                bench = dict(_SECTOR_BENCHMARKS.get(sector, _SECTOR_BENCHMARKS["default"]))
+                bench["avg_receivables_days"] = float(found_days)
+                bench["_source"] = "live_ons"
+                return bench
+
+    except Exception:  # noqa: BLE001
+        pass
+
+    return None
+
+
 def get_sector_benchmarks(sector: str = "") -> str:
     """
     Compare the user's receivables, overdue rate, and margins against
@@ -1059,6 +1168,8 @@ def get_sector_benchmarks(sector: str = "") -> str:
     numbers are normal for their industry or need attention.
 
     If sector is not specified, attempts to detect it from the org name.
+    Attempts to fetch live ONS data via Firecrawl; falls back to
+    curated hardcoded benchmarks if Firecrawl is unavailable.
     """
     svc = _svc()
 
@@ -1073,7 +1184,16 @@ def get_sector_benchmarks(sector: str = "") -> str:
         if sector not in _SECTOR_BENCHMARKS:
             sector = "default"
 
-    bench = _SECTOR_BENCHMARKS[sector]
+    # Try live ONS data first, fall back to hardcoded
+    bench = _fetch_ons_benchmarks(sector)
+    if bench is None:
+        bench = _SECTOR_BENCHMARKS[sector]
+    else:
+        # Merge any missing keys from hardcoded
+        hardcoded = _SECTOR_BENCHMARKS.get(sector, _SECTOR_BENCHMARKS["default"])
+        for key, val in hardcoded.items():
+            if key not in bench:
+                bench[key] = val
 
     # Calculate the user's actual numbers
     try:
@@ -1113,8 +1233,9 @@ def get_sector_benchmarks(sector: str = "") -> str:
 
     # Compare against benchmarks
     sector_label = sector.replace("_", " ").title()
+    source_label = "live ONS data" if bench.get("_source") == "live_ons" else "ONS sector averages"
     summary = f"SECTOR BENCHMARK: {sector_label}\n\n"
-    summary += f"Based on ONS sector data for {sector_label.lower()} businesses.\n\n"
+    summary += f"Based on {source_label} for {sector_label.lower()} businesses.\n\n"
 
     # Receivables days comparison
     user_recv = round(avg_receivables_days) if avg_receivables_days > 0 else "N/A"
@@ -1223,8 +1344,9 @@ def score_customers() -> str:
         total_revenue = sum(float(i.get("total", 0)) for i in invs)
         total_outstanding = sum(float(i.get("amountDue", 0)) for i in invs)
 
-        # Calculate days late per invoice (for paid invoices, we approximate
-        # using the payment date if available; for overdue, we use today)
+        # Calculate days late per invoice using fullyPaidOnDate when
+        # available (accurate), falling back to approximation for invoices
+        # without a payment date.
         days_late_list = []
         on_time_count = 0
         overdue_count = 0
@@ -1237,10 +1359,21 @@ def score_customers() -> str:
 
             status = inv.get("status", "")
             amount_due = float(inv.get("amountDue", 0))
+            paid_date_str = inv.get("fullyPaidOnDate", "")
 
-            if status == "PAID":
-                # For paid invoices, we don't have the actual payment date
-                # in the normalized data. Assume on-time if no amountDue.
+            if status == "PAID" and paid_date_str:
+                # Accurate: compare actual payment date to due date
+                try:
+                    paid_date = _date.fromisoformat(paid_date_str[:10])
+                    days_late = (paid_date - due_date).days
+                    if days_late <= 0:
+                        on_time_count += 1
+                    else:
+                        days_late_list.append(days_late)
+                except (ValueError, TypeError):
+                    on_time_count += 1
+            elif status == "PAID":
+                # Paid but no payment date — assume on-time
                 on_time_count += 1
             elif status == "AUTHORISED" and amount_due > 0:
                 days = (today - due_date).days
@@ -1472,5 +1605,196 @@ def get_chasing_strategy(contact_name: str = "") -> str:
         "- Escalate tone, not emotion. Each stage is firmer, not angrier.\n"
         "- Track which tactics work per customer. Some respond to warmth, others to firmness.\n"
     )
+
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Trend analysis — track financial metrics over time
+# ---------------------------------------------------------------------------
+
+def _capture_snapshot() -> None:
+    """
+    Capture a snapshot of the current financial metrics and save to DB.
+    Called automatically when the user opens the books page or asks
+    about trends. Throttled to one snapshot per session per day.
+    """
+    from src.services.payment_store import save_metric_snapshot, get_metric_snapshots
+
+    session_id = _current_session.get()
+
+    # Throttle: skip if we already have a snapshot from today
+    existing = get_metric_snapshots(session_id, limit=1)
+    if existing:
+        try:
+            from datetime import datetime as _dt
+            last = _dt.fromisoformat(existing[-1]["captured_at"]).date()
+            today_date = _dt.now().astimezone().date()
+            if last == today_date:
+                return  # Already captured today
+        except Exception:  # noqa: BLE001
+            pass
+
+    svc = _svc()
+    try:
+        invoices = svc.list_invoices(invoice_type="ACCREC")
+        overdue = svc.find_overdue_invoices()
+        all_accrec = [i for i in invoices if i.get("type") == "ACCREC"]
+        overdue_accrec = [i for i in overdue if i.get("type") != "ACCPAY"]
+    except Exception:  # noqa: BLE001
+        return
+
+    from datetime import date as _date
+    today = _date.today()
+
+    total_overdue = sum(float(i.get("amountDue", 0)) for i in overdue_accrec)
+    overdue_count = len(overdue_accrec)
+    total_revenue = sum(float(i.get("total", 0)) for i in all_accrec)
+    overdue_rate = overdue_count / len(all_accrec) if all_accrec else 0
+
+    # Average receivables days
+    recv_days = []
+    for inv in overdue_accrec:
+        try:
+            due = _date.fromisoformat(inv.get("dueDate", "")[:10])
+            days = (today - due).days
+            if days > 0:
+                recv_days.append(days)
+        except (ValueError, TypeError):
+            pass
+    avg_recv = sum(recv_days) / len(recv_days) if recv_days else 0
+
+    # Net margin from P&L (best effort)
+    net_margin = 0.0
+    try:
+        pnl = svc.get_profit_and_loss()
+        # Try to extract net profit and revenue
+        if isinstance(pnl, dict):
+            totals = pnl.get("totals", {})
+            revenue = float(totals.get("Revenue", 0) or 0)
+            net = float(totals.get("NetProfit", totals.get("Net Profit", 0)) or 0)
+            if revenue > 0:
+                net_margin = net / revenue
+    except Exception:  # noqa: BLE001
+        pass
+
+    save_metric_snapshot(
+        session_id=session_id,
+        total_overdue=total_overdue,
+        overdue_count=overdue_count,
+        avg_receivables_days=avg_recv,
+        overdue_rate=overdue_rate,
+        total_revenue=total_revenue,
+        net_margin=net_margin,
+    )
+
+
+def get_trend_analysis() -> str:
+    """
+    Analyze financial metric trends over time using stored snapshots.
+    Shows whether receivables, overdue rate, and margin are improving
+    or worsening. Captures a new snapshot automatically if needed.
+    """
+    from src.services.payment_store import get_metric_snapshots
+
+    # Capture current state first
+    _capture_snapshot()
+
+    session_id = _current_session.get()
+    snapshots = get_metric_snapshots(session_id, limit=12)
+
+    if len(snapshots) < 2:
+        return (
+            "TREND ANALYSIS:\n\n"
+            "Not enough historical data to show trends yet. "
+            "I've captured a snapshot of your current metrics. "
+            "Check back after a few days of using Sikizana to see "
+            "how your receivables and overdue rate are trending over time."
+        )
+
+    summary = "TREND ANALYSIS (last {} snapshots):\n\n".format(len(snapshots))
+
+    # Show trend for each key metric
+    metrics = [
+        ("total_overdue", "Total overdue", "£{:.2f}"),
+        ("overdue_count", "Overdue invoices", "{:.0f}"),
+        ("avg_receivables_days", "Avg receivables days", "{:.0f} days"),
+        ("overdue_rate", "Overdue rate", "{:.1%}"),
+        ("net_margin", "Net margin", "{:.1%}"),
+    ]
+
+    for key, label, fmt in metrics:
+        values = [s.get(key, 0) for s in snapshots]
+        first = values[0] if values else 0
+        latest = values[-1] if values else 0
+
+        if first == 0 and latest == 0:
+            continue  # Skip metrics with no data
+
+        # Calculate trend direction
+        if isinstance(first, (int, float)) and isinstance(latest, (int, float)):
+            if key in ("total_overdue", "overdue_count", "avg_receivables_days", "overdue_rate"):
+                # For these metrics, decreasing is good
+                if latest < first * 0.9:
+                    trend = "↓ IMPROVING"
+                elif latest > first * 1.1:
+                    trend = "↑ WORSENING"
+                else:
+                    trend = "→ STABLE"
+            elif key == "net_margin":
+                # For margin, increasing is good
+                if latest > first * 1.1:
+                    trend = "↑ IMPROVING"
+                elif latest < first * 0.9:
+                    trend = "↓ WORSENING"
+                else:
+                    trend = "→ STABLE"
+            else:
+                trend = "→ STABLE"
+
+            first_str = fmt.format(first) if "{" in fmt else str(first)
+            latest_str = fmt.format(latest) if "{" in fmt else str(latest)
+            summary += f"{label}: {first_str} → {latest_str} {trend}\n"
+
+    summary += "\n"
+
+    # Trajectory projection for overdue
+    if len(snapshots) >= 3:
+        overdue_values = [s.get("total_overdue", 0) for s in snapshots]
+        # Simple linear trend: compare first half avg to second half avg
+        mid = len(overdue_values) // 2
+        first_half_avg = sum(overdue_values[:mid]) / mid if mid > 0 else 0
+        second_half_avg = sum(overdue_values[mid:]) / (len(overdue_values) - mid) if (len(overdue_values) - mid) > 0 else 0
+
+        if first_half_avg > 0:
+            change_pct = ((second_half_avg - first_half_avg) / first_half_avg) * 100
+            if change_pct > 10:
+                summary += (
+                    f"⚠️  TRAJECTORY: Your overdue invoices are trending UP ({change_pct:+.0f}% "
+                    f"comparing recent vs older snapshots). If this continues, "
+                    f"prioritize chasing your worst offenders. Ask Zana to score "
+                    f"your customers and build a chasing strategy.\n\n"
+                )
+            elif change_pct < -10:
+                summary += (
+                    f"✓ TRAJECTORY: Your overdue invoices are trending DOWN ({change_pct:+.0f}%). "
+                    f"Your chasing is working. Keep it up.\n\n"
+                )
+
+    # Recommendation
+    latest = snapshots[-1]
+    if latest.get("avg_receivables_days", 0) > 50:
+        summary += (
+            "RECOMMENDATION: Your average receivables are high. "
+            "Consider: (1) shorter payment terms on new invoices, "
+            "(2) automated reminders, (3) asking Zana for a chasing strategy."
+        )
+    elif latest.get("overdue_rate", 0) > 0.15:
+        summary += (
+            "RECOMMENDATION: Your overdue rate is elevated. "
+            "Review your credit terms and chasing process."
+        )
+    else:
+        summary += "RECOMMENDATION: Your metrics look healthy. Stay vigilant."
 
     return summary

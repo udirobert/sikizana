@@ -186,6 +186,7 @@ def _norm_invoice(inv: dict[str, Any]) -> dict[str, Any]:
         "contact": {"name": (inv.get("Contact") or {}).get("Name", "Unknown")},
         "date": _iso_date(inv.get("DateString") or inv.get("Date")),
         "dueDate": _iso_date(inv.get("DueDateString") or inv.get("DueDate")),
+        "fullyPaidOnDate": _iso_date(inv.get("FullyPaidOnDate") or ""),
         "status": inv.get("Status", ""),
         "total": float(inv.get("Total", 0) or 0),
         "amountDue": float(inv.get("AmountDue", 0) or 0),
