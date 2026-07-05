@@ -19,6 +19,7 @@ services:
       - VENICE_API_KEY=${VENICE_API_KEY}
       - VENICE_MODEL=${VENICE_MODEL:-llama-3.3-70b}
       - EXA_API_KEY=${EXA_API_KEY:-}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
       - XERO_KEY_STORAGE=file
       - PAYMENT_DB_PATH=/app/data/payments.db
       # Production security settings
