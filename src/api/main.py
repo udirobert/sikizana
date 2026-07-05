@@ -646,11 +646,16 @@ async def xero_findings(session_id: str = Depends(get_session_id)):
 
 @app.get("/api/activity")
 async def activity(session_id: str = Depends(get_session_id)):
-    """This session's audit trail — every journal posted or reversed."""
-    from src.services.payment_store import get_audit_history
+    """This session's audit trail + aggregate activity stats (social proof)."""
+    from src.services.payment_store import get_audit_history, get_aggregate_activity_stats
 
-    events = await asyncio.to_thread(get_audit_history, session_id)
-    return {"events": events}
+    def _fetch():
+        return {
+            "events": get_audit_history(session_id),
+            "aggregate": get_aggregate_activity_stats(),
+        }
+
+    return await asyncio.to_thread(_fetch)
 
 
 @app.get("/api/xero/invoices")

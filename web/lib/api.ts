@@ -184,6 +184,14 @@ export interface ActivityEvent {
   created_at: string;
 }
 
+/** Aggregate activity across all sessions (last 7 days) — social proof. */
+export interface AggregateActivity {
+  queries: number;
+  tool_calls: number;
+  journals_posted: number;
+  active_sessions: number;
+}
+
 // ---- Weekly digest ----
 
 export interface DigestPreview {
@@ -246,7 +254,7 @@ export const endpoints = {
   impact: () => api.get<ImpactMetrics>("/api/impact"),
 
   /** This session's audit trail — journals posted/reversed, newest first. */
-  activity: () => api.get<{ events: ActivityEvent[] }>("/api/activity"),
+  activity: () => api.get<{ events: ActivityEvent[]; aggregate: AggregateActivity }>("/api/activity"),
 
   digest: {
     /** Preview this week's digest email for the current session's books. */

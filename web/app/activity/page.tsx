@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { endpoints, type ActivityEvent } from "@/lib/api";
+import { endpoints, type ActivityEvent, type AggregateActivity } from "@/lib/api";
 import { SikiMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 
 /**
  * Activity page — the audit trail for this session.
  * Shows everything Siki has done: queries asked, tools called,
- * journals posted or reversed. This is the trust surface that
- * makes AI write-back accountable.
+ * journals posted or reversed. Plus an aggregate banner showing
+ * platform-wide activity (social proof for anonymous users).
  */
 
 const EVENT_STYLES: Record<
@@ -25,13 +25,17 @@ const EVENT_STYLES: Record<
 
 export default function ActivityPage() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [aggregate, setAggregate] = useState<AggregateActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void endpoints
       .activity()
-      .then((data: { events: ActivityEvent[] }) => setEvents(data.events))
+      .then((data) => {
+        setEvents(data.events);
+        setAggregate(data.aggregate);
+      })
       .catch(() => setError("Couldn't load activity. Please try again."))
       .finally(() => setLoading(false));
   }, []);
@@ -61,6 +65,41 @@ export default function ActivityPage() {
         <p className="text-sm text-stone-500 mb-6">
           Everything Siki has done in this session — queries, tool calls, and journal entries.
         </p>
+
+        {/* Aggregate activity banner — social proof for anonymous users.
+            Shows platform-wide activity in the last 7 days. */}
+        {aggregate && (aggregate.queries > 0 || aggregate.journals_posted > 0) && (
+          <div className="bg-gradient-to-br from-sky-50 to-violet-50 border border-sky-100 rounded-xl p-4 mb-6 fade-in-up">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-500 mb-1.5">
+              This week on Sikizana
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+              {aggregate.queries > 0 && (
+                <span className="text-sm text-stone-700">
+                  <span className="font-bold text-sky-700">{aggregate.queries}</span> queries asked
+                </span>
+              )}
+              {aggregate.tool_calls > 0 && (
+                <span className="text-sm text-stone-700">
+                  <span className="font-bold text-violet-700">{aggregate.tool_calls}</span> tools run
+                </span>
+              )}
+              {aggregate.journals_posted > 0 && (
+                <span className="text-sm text-stone-700">
+                  <span className="font-bold text-sky-700">{aggregate.journals_posted}</span> journals posted
+                </span>
+              )}
+              {aggregate.active_sessions > 1 && (
+                <span className="text-sm text-stone-700">
+                  <span className="font-bold text-stone-900">{aggregate.active_sessions}</span> active users
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] text-stone-400 mt-2">
+              Sign in to keep your activity private to your account.
+            </p>
+          </div>
+        )}
 
         {loading && (
           <div className="space-y-3">

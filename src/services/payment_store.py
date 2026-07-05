@@ -262,6 +262,41 @@ def get_audit_history(session_id: str | None = None, limit: int = 50) -> list[di
     return [dict(r) for r in rows]
 
 
+def get_aggregate_activity_stats() -> dict:
+    """Aggregate activity across ALL sessions (last 7 days).
+
+    Used on the /activity page to show social proof to anonymous users:
+    'This week on Sikizana: 47 queries · 8 journals posted · £12,340 found'
+
+    Returns counts and sums — never individual session data.
+    """
+    init_db()
+    conn = _get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
+    # Count queries and tool calls in the last 7 days
+    row = conn.execute(
+        """
+        SELECT
+            COUNT(CASE WHEN action = 'query_asked' THEN 1 END) AS queries,
+            COUNT(CASE WHEN action = 'tool_called' THEN 1 END) AS tool_calls,
+            COUNT(CASE WHEN action = 'journal_posted' THEN 1 END) AS journals_posted,
+            COUNT(DISTINCT session_id) AS active_sessions
+        FROM audit_history
+        WHERE created_at >= ?
+        """,
+        (cutoff,),
+    ).fetchone()
+    conn.close()
+
+    return {
+        "queries": row["queries"] if row else 0,
+        "tool_calls": row["tool_calls"] if row else 0,
+        "journals_posted": row["journals_posted"] if row else 0,
+        "active_sessions": row["active_sessions"] if row else 0,
+    }
+
+
 def set_digest_opt_in(user_id: int, enabled: bool) -> None:
     init_db()
     conn = _get_db()
