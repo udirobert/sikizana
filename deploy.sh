@@ -23,10 +23,10 @@ BACKEND_FILES=(
   src/tools/vision_audit.py
   src/services/xero_service.py
   src/services/xero_oauth.py
+  src/services/xero_api.py
   src/services/logging.py
   src/services/payment_store.py
   src/services/rate_limit.py
-  src/services/validation.py
   src/api/main.py
   requirements.txt
   Dockerfile
@@ -39,10 +39,14 @@ WEB_FILES=(
   web/app/books/page.tsx
   web/app/pricing/page.tsx
   web/app/impact/page.tsx
+  web/app/privacy/page.tsx
+  web/app/terms/page.tsx
   web/app/layout.tsx
   web/app/globals.css
   web/lib/api.ts
   web/lib/xero-samples.ts
+  web/lib/types.ts
+  web/lib/storage.ts
   web/components/ClientProviders.tsx
   web/components/SikiMascot.tsx
   web/components/SkeletonReveal.tsx
@@ -53,7 +57,11 @@ WEB_FILES=(
   web/components/RotatedReveal.tsx
   web/components/SuccessCheck.tsx
   web/components/AnimatedNumber.tsx
+  web/components/ApiHealthDot.tsx
+  web/components/FeedbackButtons.tsx
   web/hooks/useRevenue.ts
+  web/hooks/useXeroThread.ts
+  web/hooks/useBackendHealth.ts
   web/Dockerfile
   web/.env.production
   web/.dockerignore
