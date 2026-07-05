@@ -138,7 +138,7 @@ const STREAM_TIMEOUT_MS = 120_000;
 // ---- Endpoint functions (typed) ----
 
 export const endpoints = {
-  health: () => api.get<{ status: string }>("/health"),
+  health: () => api.get<{ status: string }>("/api/health"),
 
   feedback: (payload: FeedbackPayload) =>
     api.post<{ received: boolean }>("/api/feedback", payload),
