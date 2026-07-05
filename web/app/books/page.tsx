@@ -658,9 +658,9 @@ function BooksView() {
           </div>
 
           <div className="border-t border-stone-100 pt-3 mt-auto">
-            <p className="text-[10px] text-stone-500 leading-relaxed">
-              Live Xero data via CLI + Webhooks. AI-powered bookkeeping.
-            </p>
+            <Link href="/activity" className="text-[10px] text-stone-500 hover:text-stone-700 transition-colors">
+              View audit trail →
+            </Link>
           </div>
         </aside>
 

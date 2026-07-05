@@ -559,7 +559,7 @@ async def run_bookkeeper_streaming(
                     max_tokens=2000,
                     stream=True,
                 ),
-                timeout=30.0,
+                timeout=60.0,
             )
         except asyncio.TimeoutError:
             log.error("inference_timeout", extra={"iteration": iteration, "model": active_model, "provider": "venice" if using_venice else "nvidia"})
