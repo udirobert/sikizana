@@ -1,4 +1,4 @@
-# Sikizana Books — Judge Q&A Anticipation Sheet
+# Sikizana — Judge Q&A Anticipation Sheet
 
 ## Questions we expect and calm answers
 
@@ -6,7 +6,7 @@
 
 **A:** Xero's reconciliation tool is manual — you have to know what you're
 doing, match transactions one by one, and understand which account to
-code things to. Sikizana Books does the analysis for you. The agent
+code things to. Sikizana does the analysis for you. The agent
 reads your books, identifies what's unreconciled, explains WHY it's a
 problem, and proposes the correct journal entry with the right account
 codes. It's the difference between giving someone a spreadsheet and

@@ -1,4 +1,4 @@
-# Sikizana Books — full-stack VPS deployment
+# Sikizana — full-stack VPS deployment
 # Backend: FastAPI on exotic port 18081 (internal)
 # Frontend: Next.js standalone on exotic port 13001 (internal)
 # Both served via Coolify's Traefik proxy on sikizana.persidian.com

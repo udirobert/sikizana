@@ -38,7 +38,7 @@ export default function LandingPage() {
           <Link href="/" className="flex items-center gap-2.5 group">
             <SikiMascot size={32} mood="idle" />
             <span className="text-base font-bold text-stone-900 tracking-tight group-hover:text-sky-600 transition-colors">
-              SIKIZANA BOOKS
+              SIKIZANA
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -273,7 +273,7 @@ export default function LandingPage() {
             href="/books"
             className="inline-block bg-white text-sky-700 font-semibold px-8 py-3.5 rounded-xl transition hover:bg-stone-50 btn-press text-base relative shadow-lg"
           >
-            Open Sikizana Books
+            Open Sikizana
           </Link>
         </div>
       </section>
@@ -283,7 +283,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 py-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <SikiMascot size={28} mood="idle" />
-            <span className="text-sm font-bold text-stone-900">SIKIZANA BOOKS</span>
+            <span className="text-sm font-bold text-stone-900">SIKIZANA</span>
           </div>
           <div className="flex items-center justify-center gap-4 mb-3">
             <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">

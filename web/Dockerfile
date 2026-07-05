@@ -1,4 +1,4 @@
-# Sikizana Books — Frontend Dockerfile
+# Sikizana — Frontend Dockerfile
 # Multi-stage build: build Next.js standalone, then serve from minimal image
 
 # Stage 1: Build

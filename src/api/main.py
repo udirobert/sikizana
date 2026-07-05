@@ -517,7 +517,7 @@ async def xero_chat(
     except ImportError as exc:
         log.warning("bookkeeper_runtime_missing", extra={"error": str(exc)})
         response = (
-            "Sikizana Books is warming up. The Xero connection is being established; "
+            "Sikizana is warming up. The Xero connection is being established; "
             "the bookkeeper agent will be back shortly."
         )
         agent_available = False

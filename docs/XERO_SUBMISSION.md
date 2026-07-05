@@ -1,4 +1,4 @@
-# Sikizana Books — Xero App & Agent Hackathon Submission
+# Sikizana — Xero App & Agent Hackathon Submission
 
 ## Live URL
 
@@ -11,7 +11,7 @@
 
 ## The Pitch (30 seconds)
 
-Sikizana Books is an AI finance assistant with two personalities: **Siki**
+Sikizana is an AI finance assistant with two personalities: **Siki**
 finds you money (savings, deductions, margin improvements), and **Zana**
 makes sure you get paid (chases overdue invoices, drafts reminder emails,
 flags cash flow cliffs). Both run on live Xero data with 15 tools,
@@ -33,7 +33,7 @@ time to dig through Xero's reports.
 
 ## The Solution
 
-Sikizana Books is an AI agent that does what a bookkeeper does — and
+Sikizana is an AI agent that does what a bookkeeper does — and
 more:
 
 1. **Finds money you're owed** — identifies overdue invoices, shows
@@ -65,7 +65,7 @@ more:
 
 ## Siki & Zana — Dual Persona Mascots
 
-**Siki the Owl** is the friendly face of Sikizana Books — warm orange
+**Siki the Owl** is the friendly face of Sikizana — warm orange
 plumage, sky-blue eyes, gentle animations. Siki finds savings, explains
 finances in plain English, and celebrates when you fix things.
 
@@ -93,7 +93,7 @@ all adapt to the selected persona.
 
 ## How It Uses Xero
 
-Sikizana Books integrates with Xero via:
+Sikizana integrates with Xero via:
 
 - **Xero CLI** — OAuth2 PKCE authentication and full API access. The
   agent shells out to `xero` commands with `--json` output for

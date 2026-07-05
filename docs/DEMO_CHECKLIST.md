@@ -1,4 +1,4 @@
-# Sikizana Books — Demo Checklist (Day of Hackathon)
+# Sikizana — Demo Checklist (Day of Hackathon)
 
 ## LIVE URL
 

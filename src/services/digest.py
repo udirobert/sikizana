@@ -76,7 +76,7 @@ def build_digest(session_id: str) -> dict[str, Any]:
 
     html = f"""\
 <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#1c1917">
-  <h2 style="color:#0284c7">🦉 Sikizana Books — your weekly check-in</h2>
+  <h2 style="color:#0284c7">🦉 Sikizana — your weekly check-in</h2>
   <p>{headline}</p>
   <ul style="list-style:none;padding:0">{"".join(html_items)}</ul>
   <p><a href="{books_url}" style="display:inline-block;background:#0284c7;color:#fff;

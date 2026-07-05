@@ -1,4 +1,4 @@
-# Sikizana Books — production Dockerfile
+# Sikizana — production Dockerfile
 # Python 3.12, FastAPI backend with NVIDIA NIM agent + Xero CLI
 FROM python:3.12-slim
 

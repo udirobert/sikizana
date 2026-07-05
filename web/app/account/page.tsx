@@ -411,7 +411,7 @@ function AccountView() {
           <div className="flex items-center gap-3">
             <SikiMascot size={36} mood="idle" />
             <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA BOOKS</h1>
+              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
                 AI Bookkeeper for Xero
               </p>

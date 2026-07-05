@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sikizana Books — AI Bookkeeper for Xero",
+  title: "Sikizana — AI Bookkeeper for Xero",
   description: "AI-powered bookkeeping for Xero. Reconcile transactions, find discrepancies, and get plain-English P&L explanations.",
-  applicationName: "Sikizana Books",
+  applicationName: "Sikizana",
   authors: [{ name: "Sikizana" }],
   keywords: ["Xero", "bookkeeping", "AI", "reconciliation", "P&L", "journal entries", "accounting"],
   icons: {
@@ -28,14 +28,14 @@ export const metadata: Metadata = {
     ],
   },
   openGraph: {
-    title: "Sikizana Books — AI Bookkeeper for Xero",
+    title: "Sikizana — AI Bookkeeper for Xero",
     description: "Reconcile transactions, find discrepancies, and get plain-English P&L explanations. Powered by AI, human-in-the-loop by design.",
     type: "website",
-    siteName: "Sikizana Books",
+    siteName: "Sikizana",
   },
   twitter: {
     card: "summary",
-    title: "Sikizana Books — AI Bookkeeper for Xero",
+    title: "Sikizana — AI Bookkeeper for Xero",
     description: "AI-powered bookkeeping for Xero. Reconcile, audit, and explain your books in plain English.",
   },
 };

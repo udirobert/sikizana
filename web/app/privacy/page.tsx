@@ -3,9 +3,9 @@ import Link from "next/link";
 import { SikiMascot } from "@/components/SikiMascot";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Sikizana Books",
+  title: "Privacy Policy — Sikizana",
   description:
-    "How Sikizana Books handles your Xero data, receipts, and conversations.",
+    "How Sikizana handles your Xero data, receipts, and conversations.",
 };
 
 /**
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
           <Link href="/" className="flex items-center gap-3">
             <SikiMascot size={36} mood="idle" />
             <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA BOOKS</h1>
+              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
                 AI Bookkeeper for Xero
               </p>
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
           <section>
             <h3 className="text-base font-semibold text-stone-900 mb-2">What we access</h3>
             <p className="mb-2">
-              Sikizana Books is an AI bookkeeping assistant for Xero. When you use it, we access:
+              Sikizana is an AI bookkeeping assistant for Xero. When you use it, we access:
             </p>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>

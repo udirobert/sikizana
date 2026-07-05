@@ -1,8 +1,8 @@
-# Sikizana Books — AI Finance Assistant for Xero
+# Sikizana — AI Finance Assistant for Xero
 
 **Find money you're owed. Estimate your tax bill. Fix discrepancies. All in plain English.**
 
-Sikizana Books is an AI finance assistant that connects to Xero and acts
+Sikizana is an AI finance assistant that connects to Xero and acts
 as a 24/7 bookkeeper for small businesses. It finds overdue invoices,
 flags unreconciled transactions, estimates UK Corporation Tax, cites
 HMRC rules, and posts journal entries — with human-in-the-loop approval.

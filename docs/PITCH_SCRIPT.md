@@ -1,11 +1,11 @@
-# Sikizana Books — 3-Minute Pitch Script
+# Sikizana — 3-Minute Pitch Script
 # Xero App & Agent Hackathon, London, 5 July 2026
 
 **Live URL: https://sikizana.persidian.com**
 
 ## TIMING: 0:00–0:30 — THE HOOK (Problem + Opportunity)
 
-[Slide 1: Title card — "Sikizana Books — Your AI Finance Assistant" with Siki the Owl]
+[Slide 1: Title card — "Sikizana — Your AI Finance Assistant" with Siki the Owl]
 
 "Meet Rishi. He runs a growing retail business in London. He's
 expanding — new products, new customers — but he's got a problem.
@@ -33,7 +33,7 @@ So we built one they can. Meet Siki — your AI finance assistant."
 
 [Slide 2: Screenshot of /books page with Siki mascot and proactive audit]
 
-"This is Sikizana Books. The moment Rishi opens the app, Siki runs
+"This is Sikizana. The moment Rishi opens the app, Siki runs
 an audit — no prompting needed."
 
 [LIVE DEMO: Open https://sikizana.persidian.com/books]
@@ -124,12 +124,12 @@ images, no GIFs. Pure code, five animated moods, about 5 kilobytes."
 3. Receipt inbox — WhatsApp a photo, it reconciles automatically
 4. VAT returns — filed directly to HMRC from clean data"
 
-[Slide 7: Closing — "Sikizana Books — AI finance for the 4.4 million who can't afford an accountant"]
+[Slide 7: Closing — "Sikizana — AI finance for the 4.4 million who can't afford an accountant"]
 
 "The whole thing is live right now at sikizana.persidian.com —
 frontend, backend, and real Xero data, all on a single VPS.
 
-Sikizana Books finds money you're owed, explains your numbers, and
+Sikizana finds money you're owed, explains your numbers, and
 fixes your books. Thank you."
 
 ---

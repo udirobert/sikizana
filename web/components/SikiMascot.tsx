@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Siki the Owl — Sikizana Books mascot.
+ * Siki the Owl — Sikizana mascot.
  *
  * Built entirely from SVG <rect> elements (pixel art style), inspired by
  * Claude AI's mascot approach. No images, no GIFs — just code.
