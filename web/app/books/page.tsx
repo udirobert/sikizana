@@ -630,6 +630,7 @@ function BooksView() {
                 inputRef.current?.focus();
               }}
               suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+              compact
             />
           </div>
 

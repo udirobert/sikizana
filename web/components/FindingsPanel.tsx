@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { SikiMascot } from "@/components/SikiMascot";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
@@ -73,6 +74,9 @@ interface FindingsPanelProps {
   onSuggest: (prompt: string) => void;
   /** Suggested prompts for the clean/celebration state. */
   suggestions: Array<{ id: string; title: string; description: string }>;
+  /** Compact mode for sidebars: collapsed rows, no inline action buttons,
+   *  max 3 visible with a "show more" toggle. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -84,8 +88,17 @@ export function FindingsPanel({
   onAct,
   onSuggest,
   suggestions,
+  compact = false,
   className = "",
 }: FindingsPanelProps) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleFindings = compact
+    ? expanded
+      ? data?.findings ?? []
+      : (data?.findings ?? []).slice(0, 3)
+    : data?.findings ?? [];
+  const hiddenCount = compact ? (data?.findings.length ?? 0) - 3 : 0;
+
   return (
     <section className={className} aria-label="Audit findings">
       <div className="flex items-center gap-1 mb-2">
@@ -149,9 +162,43 @@ export function FindingsPanel({
 
       {/* One card per finding */}
       {data && !data.clean && (
-        <ul className="mt-2 space-y-2" role="list">
-          {data.findings.map((finding, i) => {
+        <ul className="mt-2 space-y-1.5" role="list">
+          {visibleFindings.map((finding, i) => {
             const asked = askedIds.has(finding.id);
+            if (compact) {
+              return (
+                <li key={finding.id}>
+                  <button
+                    onClick={() => onAct(finding)}
+                    disabled={asked || disabled}
+                    className={`w-full text-left rounded-lg border p-2 fade-in-up transition-colors btn-press disabled:cursor-not-allowed ${severityClasses(finding.severity)} ${
+                      asked ? "opacity-60" : "hover:border-stone-300"
+                    }`}
+                    style={{ animationDelay: `${Math.min(i, 8) * 40}ms`}}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs leading-none" aria-hidden="true">
+                        {KIND_ICONS[finding.kind]}
+                      </span>
+                      <span className="text-[11px] font-semibold text-stone-800 truncate flex-1">
+                        {finding.title}
+                      </span>
+                      {finding.amount > 0 && (
+                        <span className="text-[11px] font-bold text-stone-900 shrink-0">
+                          £{formatMoney(finding.amount)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-stone-500 mt-0.5 truncate">
+                      {KIND_LABELS[finding.kind]} · {finding.detail}
+                    </p>
+                    {asked && (
+                      <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
+                    )}
+                  </button>
+                </li>
+              );
+            }
             return (
               <li
                 key={finding.id}
@@ -200,6 +247,16 @@ export function FindingsPanel({
               </li>
             );
           })}
+          {compact && hiddenCount > 0 && !expanded && (
+            <li>
+              <button
+                onClick={() => setExpanded(true)}
+                className="w-full text-center text-[10px] font-medium text-sky-600 hover:text-sky-700 py-1 transition-colors"
+              >
+                + {hiddenCount} more finding{hiddenCount > 1 ? "s" : ""}
+              </button>
+            </li>
+          )}
         </ul>
       )}
 
