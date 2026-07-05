@@ -21,12 +21,25 @@ Tools:
 
 from __future__ import annotations
 
+import os
 from contextvars import ContextVar
 
 from src.services.xero_service import XeroService
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.xero_tools")
+
+# UK Corporation Tax rates — set by HMRC, not Xero. Configurable via env
+# so they can be updated without a code change. Xero's TaxRates API returns
+# VAT/sales tax, not Corporation Tax.
+_CORP_TAX_SMALL_RATE = float(os.environ.get("CORP_TAX_SMALL_RATE", "0.19"))
+_CORP_TAX_MAIN_RATE = float(os.environ.get("CORP_TAX_MAIN_RATE", "0.25"))
+_CORP_TAX_SMALL_LIMIT = float(os.environ.get("CORP_TAX_SMALL_LIMIT", "50000"))
+_CORP_TAX_MAIN_LIMIT = float(os.environ.get("CORP_TAX_MAIN_LIMIT", "250000"))
+_CORP_TAX_MARGINAL_RELIEF = float(os.environ.get("CORP_TAX_MARGINAL_RELIEF", "0.015"))
+# Bank of England base rate for late payment interest (LPCD Act 1998).
+# 8% + Bank Rate = statutory annual rate. Configurable via env.
+_BANK_RATE = float(os.environ.get("BANK_RATE", "5.25"))
 
 # Which user session the current tool call is acting for. The agent loop
 # sets this before executing tools, so every tool reads/writes the books
@@ -451,23 +464,25 @@ def get_tax_insights() -> str:
         expenses = 0.0
         net_profit = 0.0
 
-    # UK Corporation Tax estimate
+    # UK Corporation Tax estimate — rates are configurable via env vars
+    # (set by HMRC, not Xero). The agent cites the current rates and notes
+    # this is an estimate.
     if net_profit <= 0:
         corp_tax = 0
         tax_rate = "N/A (business is at a loss)"
         tax_note = "You're running at a loss — no Corporation Tax due. Losses can be carried forward to offset future profits."
-    elif net_profit < 50000:
-        corp_tax = net_profit * 0.19
-        tax_rate = "19%"
-        tax_note = f"You qualify for the small profits rate (19%). Estimated Corporation Tax: £{corp_tax:,.2f}"
-    elif net_profit > 250000:
-        corp_tax = net_profit * 0.25
-        tax_rate = "25%"
-        tax_note = f"You're at the main rate (25%). Estimated Corporation Tax: £{corp_tax:,.2f}"
+    elif net_profit < _CORP_TAX_SMALL_LIMIT:
+        corp_tax = net_profit * _CORP_TAX_SMALL_RATE
+        tax_rate = f"{_CORP_TAX_SMALL_RATE * 100:.0f}%"
+        tax_note = f"You qualify for the small profits rate ({tax_rate}). Estimated Corporation Tax: £{corp_tax:,.2f}"
+    elif net_profit > _CORP_TAX_MAIN_LIMIT:
+        corp_tax = net_profit * _CORP_TAX_MAIN_RATE
+        tax_rate = f"{_CORP_TAX_MAIN_RATE * 100:.0f}%"
+        tax_note = f"You're at the main rate ({tax_rate}). Estimated Corporation Tax: £{corp_tax:,.2f}"
     else:
-        # Marginal relief between £50k and £250k
-        corp_tax = net_profit * 0.25 - (250000 - net_profit) * 0.015
-        tax_rate = "19-25% (marginal relief)"
+        # Marginal relief between small and main limits
+        corp_tax = net_profit * _CORP_TAX_MAIN_RATE - (_CORP_TAX_MAIN_LIMIT - net_profit) * _CORP_TAX_MARGINAL_RELIEF
+        tax_rate = f"{_CORP_TAX_SMALL_RATE * 100:.0f}-{_CORP_TAX_MAIN_RATE * 100:.0f}% (marginal relief)"
         tax_note = (
             f"You're in the marginal relief zone. Estimated Corporation Tax: £{corp_tax:,.2f}"
         )
@@ -578,9 +593,9 @@ def draft_invoice_reminder(
             tone = "collection"
 
     # Late payment interest under UK Late Payment of Commercial Debts Act 1998
-    # = 8% + Bank Rate (currently 5.25%), so ~13.25% annual
-    bank_rate = 5.25
-    interest_rate = 8.0 + bank_rate
+    # = 8% + Bank of England base rate (configurable via env). The rate is
+    # cited in the reminder so the debtor can verify it.
+    interest_rate = 8.0 + _BANK_RATE
     daily_interest = (amount * interest_rate / 100) / 365 * days_overdue
     total_with_interest = amount + daily_interest
 

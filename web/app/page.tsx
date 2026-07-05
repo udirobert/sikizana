@@ -89,7 +89,7 @@ export default function LandingPage() {
         </div>
 
         <div className="inline-block bg-sky-50 text-sky-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up" style={{ animationDelay: "100ms" }}>
-          AI Finance Assistant · Powered by Xero
+          AI Finance Assistant · Works with Xero
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up" style={{ animationDelay: "200ms" }}>

@@ -16,6 +16,8 @@ Xero OAuth 2.0 docs: https://developer.xero.com/documentation/oauth2/authflow
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 import secrets
 import sqlite3
@@ -39,14 +41,22 @@ _XERO_REDIRECT_URI = os.environ.get(
     "https://sikizana.persidian.com/api/xero/callback",
 )
 
-# Scopes: accounting data + offline_access for refresh tokens.
-# accounting.transactions covers invoices, bank transactions, and manual
-# journals (write-back); accounting.settings.read covers org details and
-# the chart of accounts.
+# Scopes: granular per Xero's certification requirements (apps created
+# after March 2026 must use granular scopes). We request the minimum
+# needed for each function:
+#   - accounting.transactions.read  → list invoices, bank txns, journals
+#   - accounting.transactions.write → post manual journals (write-back)
+#   - accounting.reports.read       → P&L, Balance Sheet, Trial Balance
+#   - accounting.contacts.read      → list customers/suppliers
+#   - accounting.settings.read      → org details, chart of accounts
+#   - accounting.settings.taxrates  → fetch tax rates (replaces hardcoding)
 _XERO_SCOPES = (
     "openid profile email "
-    "accounting.transactions accounting.reports.read "
-    "accounting.contacts accounting.settings.read offline_access"
+    "accounting.transactions.read accounting.transactions.write "
+    "accounting.reports.read "
+    "accounting.contacts.read "
+    "accounting.settings.read accounting.settings.taxrates "
+    "offline_access"
 )
 
 # Xero OAuth endpoints
@@ -84,6 +94,7 @@ def _get_db() -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS oauth_states (
             state TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
+            code_verifier TEXT,
             created_at REAL NOT NULL
         )
     """)
@@ -125,8 +136,9 @@ def get_authorization_url(session_id: str) -> str:
         raise ValueError("Xero OAuth not configured. Set XERO_CLIENT_ID and XERO_CLIENT_SECRET.")
 
     state = secrets.token_urlsafe(32)
-    # Store state for CSRF validation
-    _save_state(session_id, state)
+    code_verifier, code_challenge = _generate_pkce_pair()
+    # Store state + PKCE verifier for CSRF validation and token exchange
+    _save_state(session_id, state, code_verifier)
 
     params = {
         "response_type": "code",
@@ -134,13 +146,18 @@ def get_authorization_url(session_id: str) -> str:
         "redirect_uri": _XERO_REDIRECT_URI,
         "scope": _XERO_SCOPES,
         "state": state,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
     return f"{_AUTH_URL}?{urlencode(params)}"
 
 
-def exchange_code(code: str, session_id: str) -> dict[str, Any]:
+def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[str, Any]:
     """
     Exchange an authorization code for access + refresh tokens.
+
+    The code_verifier from the PKCE flow is sent to prove the same client
+    that started the authorization is completing it.
 
     Returns the token response from Xero, which includes:
       - access_token (JWT, expires in ~30 min)
@@ -151,15 +168,19 @@ def exchange_code(code: str, session_id: str) -> dict[str, Any]:
     if not is_configured():
         raise ValueError("Xero OAuth not configured.")
 
+    token_data: dict[str, str] = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": _XERO_REDIRECT_URI,
+        "client_id": _XERO_CLIENT_ID,
+        "client_secret": _XERO_CLIENT_SECRET,
+    }
+    if code_verifier:
+        token_data["code_verifier"] = code_verifier
+
     resp = httpx.post(
         _TOKEN_URL,
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": _XERO_REDIRECT_URI,
-            "client_id": _XERO_CLIENT_ID,
-            "client_secret": _XERO_CLIENT_SECRET,
-        },
+        data=token_data,
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         timeout=15,
     )
@@ -364,12 +385,24 @@ def get_session_credentials(session_id: str) -> tuple[str, str] | None:
 _STATE_TTL_SECONDS = 600  # OAuth states expire after 10 minutes
 
 
-def _save_state(session_id: str, state: str) -> None:
-    """Store OAuth state for CSRF validation, keyed by the state value.
+def _generate_pkce_pair() -> tuple[str, str]:
+    """Generate a PKCE code_verifier and code_challenge (S256).
+
+    Returns (code_verifier, code_challenge) — the verifier is sent in the
+    token exchange, the challenge is sent in the authorization URL.
+    """
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii").rstrip("=")
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+    return verifier, challenge
+
+
+def _save_state(session_id: str, state: str, code_verifier: str) -> None:
+    """Store OAuth state + PKCE verifier for CSRF validation, keyed by state.
 
     Xero's redirect URI is fixed and carries no session parameter, so the
     state value itself is how the callback recovers which session started
-    the flow.
+    the flow. The code_verifier is needed to complete the PKCE exchange.
     """
     db = _get_db()
     # Opportunistically clear expired states
@@ -378,22 +411,22 @@ def _save_state(session_id: str, state: str) -> None:
         (time.time() - _STATE_TTL_SECONDS,),
     )
     db.execute(
-        "INSERT OR REPLACE INTO oauth_states (state, session_id, created_at) VALUES (?, ?, ?)",
-        (state, session_id, time.time()),
+        "INSERT OR REPLACE INTO oauth_states (state, session_id, code_verifier, created_at) VALUES (?, ?, ?, ?)",
+        (state, session_id, code_verifier, time.time()),
     )
     db.commit()
     db.close()
 
 
-def consume_state(state: str) -> str | None:
+def consume_state(state: str) -> tuple[str, str] | None:
     """
     Validate an OAuth state from the callback and return the session id
-    that initiated the flow. Single-use: the state is deleted on read.
-    Returns None if unknown or expired.
+    and PKCE code_verifier that initiated the flow. Single-use: the state
+    is deleted on read. Returns None if unknown or expired.
     """
     db = _get_db()
     row = db.execute(
-        "SELECT session_id, created_at FROM oauth_states WHERE state = ?",
+        "SELECT session_id, code_verifier, created_at FROM oauth_states WHERE state = ?",
         (state,),
     ).fetchone()
     if row:
@@ -404,7 +437,7 @@ def consume_state(state: str) -> str | None:
         return None
     if time.time() - row["created_at"] > _STATE_TTL_SECONDS:
         return None
-    return row["session_id"]
+    return row["session_id"], row["code_verifier"] or ""
 
 
 def _fetch_tenant_info(access_token: str) -> tuple[str, str]:

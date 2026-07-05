@@ -16,6 +16,18 @@ services:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - XERO_KEY_STORAGE=file
       - PAYMENT_DB_PATH=/app/data/payments.db
+      # Production security settings
+      - ALLOWED_ORIGINS=https://sikizana.persidian.com
+      - COOKIE_SECURE=true
+      - XERO_WEBHOOK_KEY=${XERO_WEBHOOK_KEY}
+      - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
+      # UK tax rates (configurable, set by HMRC)
+      - CORP_TAX_SMALL_RATE=0.19
+      - CORP_TAX_MAIN_RATE=0.25
+      - CORP_TAX_SMALL_LIMIT=50000
+      - CORP_TAX_MAIN_LIMIT=250000
+      - CORP_TAX_MARGINAL_RELIEF=0.015
+      - BANK_RATE=5.25
     volumes:
       # Container runs as non-root `app` (uid 1001) — CLI profile mounts
       # into its home, not /root
@@ -40,6 +52,11 @@ services:
       - PORT=3000
     depends_on:
       - sikizana-api
+    labels:
+      # HSTS: enforce HTTPS for 1 year, include subdomains
+      - traefik.http.middlewares.sikizana-hsts.headers.stsSeconds=31536000
+      - traefik.http.middlewares.sikizana-hsts.headers.stsIncludeSubdomains=true
+      - traefik.http.routers.sikizana-web.middlewares=sikizana-hsts
     networks:
       - coolify
       - sikizana

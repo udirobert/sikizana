@@ -569,6 +569,25 @@ class XeroService:
             return live  # type: ignore[return-value]
         return _MOCK_ACCOUNTS
 
+    # ---- Tax Rates ----
+
+    def list_tax_rates(self) -> list[dict[str, Any]]:
+        """Fetch tax rates from Xero (OAuth) or return UK defaults (demo).
+
+        In live mode, rates come from the org's Xero settings — no
+        hardcoding. In demo mode, we return UK standard rates so the
+        agent's tax estimate still works for the demo company.
+        """
+        via_oauth = self._oauth(lambda: xero_api.list_tax_rates(self.session_id), "tax_rates")
+        if via_oauth is not None:
+            return via_oauth
+        # CLI doesn't expose tax rates; fall back to UK defaults for demo
+        return [
+            {"name": "Tax on Sales 20%", "rate": 20.0, "taxType": "OUTPUT", "status": "ACTIVE"},
+            {"name": "Tax on Purchases 20%", "rate": 20.0, "taxType": "INPUT", "status": "ACTIVE"},
+            {"name": "No VAT", "rate": 0.0, "taxType": "NONE", "status": "ACTIVE"},
+        ]
+
     # ---- Contacts ----
 
     def list_contacts(self) -> list[dict[str, Any]]:

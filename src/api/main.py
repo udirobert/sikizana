@@ -506,14 +506,15 @@ async def xero_callback(code: str, state: str):
     from src.services.xero_oauth import exchange_code, consume_state
     from fastapi.responses import RedirectResponse
 
-    session_id = await asyncio.to_thread(consume_state, state)
-    if session_id is None:
+    state_result = await asyncio.to_thread(consume_state, state)
+    if state_result is None:
         raise HTTPException(
             status_code=400, detail="Invalid or expired OAuth state. Please try again."
         )
+    session_id, code_verifier = state_result
 
     try:
-        result = await asyncio.to_thread(exchange_code, code, session_id)
+        result = await asyncio.to_thread(exchange_code, code, session_id, code_verifier)
         # Redirect back to the books page with a success indicator
         return RedirectResponse(
             url=f"/books?connected=true&org={result.get('tenant_name', '')}",

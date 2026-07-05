@@ -323,3 +323,30 @@ def create_manual_journal(
         "status": journal.get("Status", ""),
         "narration": journal.get("Narration", narration),
     }
+
+
+def list_tax_rates(session_id: str) -> list[dict[str, Any]]:
+    """Fetch the organisation's tax rates from Xero.
+
+    Returns a list of normalised tax rate dicts with:
+      - name: the tax rate name (e.g. "Tax on Sales 20%")
+      - rate: the effective rate as a float (e.g. 20.0)
+      - taxType: the tax type (e.g. "OUTPUT", "INPUT", "NONE")
+    Used to replace hardcoded UK tax rates — the agent cites the rate
+    actually configured in the user's Xero org, not an assumption.
+    """
+    data = _request("GET", "TaxRates", session_id)
+    rates = data.get("TaxRates", [])
+    result = []
+    for r in rates:
+        components = r.get("TaxComponents", [])
+        total_rate = 0.0
+        for comp in components:
+            total_rate += float(comp.get("Rate", 0) or 0)
+        result.append({
+            "name": r.get("Name", ""),
+            "rate": total_rate,
+            "taxType": r.get("TaxType", ""),
+            "status": r.get("Status", ""),
+        })
+    return result
