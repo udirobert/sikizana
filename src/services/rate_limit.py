@@ -1,12 +1,16 @@
 """
 In-memory token-bucket rate limiter. Single-process, no external deps.
 
-Used to cap STK Push requests per IP so a buggy frontend or hostile actor
-can't drain the Safaricom quota (and our sandbox app's reputation).
+Used to cap chat/agent requests per IP so a buggy frontend or hostile
+actor can't drain the NVIDIA NIM quota or hammer the Xero API.
 """
+
 import threading
 import time
 from dataclasses import dataclass, field
+
+# Buckets idle longer than this are pruned so the dict can't grow unboundedly
+_BUCKET_TTL_SECONDS = 3600
 
 
 @dataclass
@@ -25,6 +29,7 @@ class RateLimiter:
     def take(self, key: str, cost: float = 1.0) -> bool:
         with self._lock:
             now = time.time()
+            self._prune(now)
             bucket = self._buckets.get(key)
             if bucket is None:
                 bucket = _Bucket(tokens=self.capacity)
@@ -39,6 +44,13 @@ class RateLimiter:
                 return True
             return False
 
+    def _prune(self, now: float) -> None:
+        if len(self._buckets) < 1000:
+            return
+        stale = [k for k, b in self._buckets.items() if now - b.last_refill > _BUCKET_TTL_SECONDS]
+        for k in stale:
+            del self._buckets[k]
 
-# 5 STK Pushes per minute per IP.
-stk_push_limiter = RateLimiter(capacity=5, refill_per_second=5 / 60)
+
+# 10 agent requests per minute per IP — generous for a human, tight for a bot.
+chat_limiter = RateLimiter(capacity=10, refill_per_second=10 / 60)

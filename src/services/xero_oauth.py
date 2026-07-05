@@ -107,6 +107,7 @@ def _refresh_lock(session_id: str) -> threading.Lock:
 
 # ---- OAuth flow ----
 
+
 def is_configured() -> bool:
     """Check if Xero OAuth credentials are configured."""
     return bool(_XERO_CLIENT_ID and _XERO_CLIENT_SECRET)
@@ -179,11 +180,14 @@ def exchange_code(code: str, session_id: str) -> dict[str, Any]:
         tenant_name=tenant_name,
     )
 
-    log.info("xero_oauth_connected", extra={
-        "session_id": session_id,
-        "tenant_id": tenant_id,
-        "tenant_name": tenant_name,
-    })
+    log.info(
+        "xero_oauth_connected",
+        extra={
+            "session_id": session_id,
+            "tenant_id": tenant_id,
+            "tenant_name": tenant_name,
+        },
+    )
 
     return {
         "connected": True,
@@ -231,19 +235,25 @@ def refresh_if_needed(session_id: str) -> str | None:
             )
         except Exception as exc:
             # Network error — keep tokens, the next request can retry
-            log.error("xero_token_refresh_error", extra={
-                "session_id": session_id,
-                "error": str(exc),
-            })
+            log.error(
+                "xero_token_refresh_error",
+                extra={
+                    "session_id": session_id,
+                    "error": str(exc),
+                },
+            )
             return None
 
         if resp.status_code == 400:
             # Refresh token rejected (rotated/revoked/expired) — the user
             # genuinely needs to reconnect
-            log.error("xero_token_refresh_rejected", extra={
-                "session_id": session_id,
-                "body": resp.text[:200],
-            })
+            log.error(
+                "xero_token_refresh_rejected",
+                extra={
+                    "session_id": session_id,
+                    "body": resp.text[:200],
+                },
+            )
             _delete_tokens(session_id)
             return None
 
@@ -251,11 +261,14 @@ def refresh_if_needed(session_id: str) -> str | None:
             resp.raise_for_status()
             tokens = resp.json()
         except Exception as exc:
-            log.error("xero_token_refresh_failed", extra={
-                "session_id": session_id,
-                "status": resp.status_code,
-                "error": str(exc),
-            })
+            log.error(
+                "xero_token_refresh_failed",
+                extra={
+                    "session_id": session_id,
+                    "status": resp.status_code,
+                    "error": str(exc),
+                },
+            )
             return None
 
         expires_at = time.time() + tokens.get("expires_in", 1800)
@@ -430,7 +443,8 @@ def _store_tokens(
     """Store or update tokens for a session."""
     db = _get_db()
     now = time.time()
-    db.execute("""
+    db.execute(
+        """
         INSERT INTO xero_tokens (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
@@ -440,7 +454,9 @@ def _store_tokens(
             tenant_id = excluded.tenant_id,
             tenant_name = excluded.tenant_name,
             updated_at = excluded.updated_at
-    """, (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, now, now))
+    """,
+        (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, now, now),
+    )
     db.commit()
     db.close()
 

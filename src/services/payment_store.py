@@ -69,6 +69,21 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_impact_created ON impact_events(created_at);
     """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE IF NOT EXISTS webhook_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type TEXT NOT NULL,
+            entity TEXT,
+            entity_id TEXT,
+            tenant_id TEXT,
+            message TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_webhook_created ON webhook_events(created_at);
+    """,
+    ),
 ]
 
 
@@ -222,6 +237,52 @@ def record_impact_event(
     event_id = cursor.lastrowid
     conn.close()
     return event_id or 0
+
+
+def record_webhook_events(events: list[dict]) -> None:
+    """Persist webhook events so proactive alerts survive restarts."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.executemany(
+        """
+        INSERT INTO webhook_events (event_type, entity, entity_id, tenant_id, message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                e.get("eventType", "unknown"),
+                e.get("entity", ""),
+                e.get("entityId", ""),
+                e.get("tenantId", ""),
+                e.get("message", ""),
+                e.get("timestamp", now),
+            )
+            for e in events
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_webhook_events(since_id: int = 0, limit: int = 50) -> tuple[list[dict], int]:
+    """
+    Webhook events with id > since_id, plus the latest event id.
+    Ids are a stable cursor — pollers never see duplicates or gaps.
+    """
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        """
+        SELECT id, event_type AS eventType, entity, entity_id AS entityId,
+               tenant_id AS tenantId, message, created_at AS timestamp
+        FROM webhook_events WHERE id > ? ORDER BY id ASC LIMIT ?
+        """,
+        (since_id, limit),
+    ).fetchall()
+    last = conn.execute("SELECT COALESCE(MAX(id), 0) AS m FROM webhook_events").fetchone()
+    conn.close()
+    return [dict(r) for r in rows], last["m"]
 
 
 def get_impact_summary() -> dict:

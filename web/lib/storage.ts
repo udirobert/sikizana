@@ -45,11 +45,5 @@ export const localStore = {
 
 /** Storage keys used across the app. Centralised to prevent typos. */
 export const StorageKeys = {
-  THREAD_ID: "sikizana.thread_id",
-  MESSAGES: "sikizana.messages",
-  PREFERRED_LANGUAGE: "sikizana.lang",
-  LAST_PHONE: "sikizana.phone",
-  ONBOARDED: "sikizana.onboarded",
-  SAMPLE_DISPUTE: "sikizana.sample_dispute",
   BOOKS_VISITED: "sikizana.books_visited",
 } as const;

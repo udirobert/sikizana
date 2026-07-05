@@ -57,6 +57,8 @@ async function request<T>(
       headers,
       body: body ? JSON.stringify(body) : undefined,
       signal: controller.signal,
+      // Send the HttpOnly session cookie the backend sets.
+      credentials: "include",
     });
 
     const contentType = res.headers.get("content-type") || "";
@@ -65,7 +67,10 @@ async function request<T>(
 
     if (!res.ok) {
       const message =
-        (isJson && typeof payload === "object" && (payload as { error?: string }).error) ||
+        (isJson &&
+          typeof payload === "object" &&
+          ((payload as { detail?: string }).detail ||
+            (payload as { error?: string }).error)) ||
         (typeof payload === "string" && payload) ||
         res.statusText ||
         `HTTP ${res.status}`;
@@ -88,12 +93,6 @@ export const api = {
 
 // ---- Typed endpoint contracts ----
 
-export interface ChatResponse {
-  response: string;
-  thread_id: string;
-  agent_available?: boolean;
-}
-
 export interface FeedbackPayload {
   thread_id: string;
   message_index: number;
@@ -109,6 +108,33 @@ export interface ImpactMetrics {
   feedback: { up: number; down: number; total: number };
 }
 
+/** How the backend is talking to Xero. "demo" means no real Xero write happens. */
+export type XeroMode = "live-oauth" | "live-cli" | "demo";
+
+export interface XeroStatus {
+  live: boolean;
+  mode: XeroMode;
+  tenant_name: string | null;
+}
+
+export interface JournalPostPayload {
+  description: string;
+  debit_account_code: string;
+  credit_account_code: string;
+  amount: number;
+  thread_id?: string;
+}
+
+export interface JournalPostResponse {
+  posted: boolean;
+  mode: XeroMode;
+  journal_id: string | null;
+  message: string;
+}
+
+/** Overall wall-clock budget for a single streamed chat response. */
+const STREAM_TIMEOUT_MS = 120_000;
+
 // ---- Endpoint functions (typed) ----
 
 export const endpoints = {
@@ -117,70 +143,75 @@ export const endpoints = {
   feedback: (payload: FeedbackPayload) =>
     api.post<{ received: boolean }>("/api/feedback", payload),
 
-  feedbackSummary: () =>
-    api.get<{ up: number; down: number; total: number }>("/api/feedback/summary"),
-
   impact: () => api.get<ImpactMetrics>("/api/impact"),
 
   // ---- Xero (Bookkeeper mode) ----
 
   xero: {
-    chat: (message: string, thread_id?: string, persona?: string) =>
-      api.post<ChatResponse>("/api/xero/chat", { message, thread_id, persona }),
-
     /**
      * Streaming chat — returns an async generator of events.
      * Events: tool_call, tool_result, text, done
      * This lets the frontend show the agent's tool calls in real-time.
+     *
+     * Pass an AbortSignal to cancel mid-stream (e.g. a Stop button).
+     * The whole stream is also capped at STREAM_TIMEOUT_MS.
      */
     chatStream: async function* (
       message: string,
       thread_id?: string,
       persona?: string,
+      signal?: AbortSignal,
     ): AsyncGenerator<AgentEvent> {
-      const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, thread_id, persona }),
-      });
-      if (!res.ok || !res.body) {
-        throw new ApiError(res.status, await res.text().catch(() => res.statusText));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
+      const onAbort = () => controller.abort();
+      if (signal) {
+        if (signal.aborted) controller.abort();
+        else signal.addEventListener("abort", onAbort);
       }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              yield JSON.parse(line.slice(6)) as AgentEvent;
-            } catch {
-              // skip malformed lines
+
+      let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+      try {
+        const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message, thread_id, persona }),
+          signal: controller.signal,
+          credentials: "include",
+        });
+        if (!res.ok || !res.body) {
+          throw new ApiError(res.status, await res.text().catch(() => res.statusText));
+        }
+        reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                yield JSON.parse(line.slice(6)) as AgentEvent;
+              } catch {
+                // skip malformed lines
+              }
             }
           }
         }
+      } finally {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
+        // Make sure the reader is released even when the consumer bails early.
+        await reader?.cancel().catch(() => {});
       }
     },
-    status: () => api.get<{ live: boolean; mode: "live" | "demo" }>("/api/xero/status"),
+    status: () => api.get<XeroStatus>("/api/xero/status"),
     organisation: () => api.get<Record<string, unknown>>("/api/xero/organisation"),
     discrepancies: () =>
       api.get<{ unreconciled: unknown[]; overdue: unknown[] }>("/api/xero/discrepancies"),
-    invoices: (params?: { status?: string; invoice_type?: string }) => {
-      const search = new URLSearchParams();
-      if (params?.status) search.set("status", params.status);
-      if (params?.invoice_type) search.set("invoice_type", params.invoice_type);
-      const q = search.toString();
-      return api.get<unknown[]>(`/api/xero/invoices${q ? "?" + q : ""}`);
-    },
-    bankTransactions: (txn_type?: string) => {
-      const q = txn_type ? `?txn_type=${txn_type}` : "";
-      return api.get<unknown[]>(`/api/xero/bank-transactions${q}`);
-    },
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();
       if (from_date) search.set("from_date", from_date);
@@ -188,16 +219,16 @@ export const endpoints = {
       const q = search.toString();
       return api.get<Record<string, unknown>>(`/api/xero/profit-and-loss${q ? "?" + q : ""}`);
     },
-    balanceSheet: (as_of?: string) => {
-      const q = as_of ? `?as_of=${as_of}` : "";
-      return api.get<Record<string, unknown>>(`/api/xero/balance-sheet${q}`);
-    },
+    /** Post an approved journal entry. In "demo" mode the write is simulated. */
+    journal: (payload: JournalPostPayload) =>
+      api.post<JournalPostResponse>("/api/xero/journal", payload),
     uploadReceipt: (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
       return fetch(`${API_BASE}/api/xero/upload-receipt`, {
         method: "POST",
         body: formData,
+        credentials: "include",
       }).then(async (res) => {
         if (!res.ok) {
           const detail = await res.text().catch(() => res.statusText);

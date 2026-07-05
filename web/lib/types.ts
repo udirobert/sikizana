@@ -7,7 +7,6 @@ export type Role = "user" | "agent";
 export interface Message {
   role: Role;
   content: string;
-  isPremium?: boolean;
   /** Set when the agent response was feedback-rated. */
   feedback?: "up" | "down" | null;
   /** Optional structured verdict metadata. */
@@ -33,8 +32,6 @@ export type AgentEvent =
   | { type: "tool_result"; tool: string; label: string; summary: string }
   | { type: "text"; text: string }
   | { type: "done" };
-
-export type Language = "en" | "sw" | "sheng";
 
 export interface WebhookEvent {
   eventType: string;

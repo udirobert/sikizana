@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 /**
  * RotatedReveal — a Codrops-inspired page reveal transition.
@@ -13,12 +13,27 @@ import { useEffect, useState } from "react";
  *   .reveal-overlay          — rotated container, oversized to prevent gaps
  *     .reveal-overlay-content  — moves opposite to parent, stays "steady"
  *
- * The overlay auto-removes after the animation completes.
+ * The overlay auto-removes after the animation completes, and only plays
+ * on the first visit per browser session — repeat client-side navigations
+ * skip it (sessionStorage flag).
  */
+const REVEAL_PLAYED_KEY = "sikizana.reveal_played";
+
 export function RotatedReveal({ color = "#0a0a0a" }: { color?: string }) {
   const [show, setShow] = useState(true);
 
-  useEffect(() => {
+  // useLayoutEffect so a repeat navigation hides the overlay before paint.
+  useLayoutEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(REVEAL_PLAYED_KEY)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShow(false);
+        return;
+      }
+      window.sessionStorage.setItem(REVEAL_PLAYED_KEY, "1");
+    } catch {
+      // sessionStorage unavailable (private mode) — just play the reveal
+    }
     // Remove from DOM after animation completes
     const timer = setTimeout(() => setShow(false), 900);
     return () => clearTimeout(timer);
@@ -27,7 +42,7 @@ export function RotatedReveal({ color = "#0a0a0a" }: { color?: string }) {
   if (!show) return null;
 
   return (
-    <div className="reveal-overlay" style={{ background: color }}>
+    <div className="reveal-overlay" style={{ background: color }} aria-hidden="true">
       <div className="reveal-overlay-content">
         {/* Mascot peeking during the reveal */}
         <div className="flex flex-col items-center gap-3">

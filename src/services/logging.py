@@ -7,6 +7,7 @@ Usage:
     log = get_logger(__name__)
     log.info("payment_initiated", checkout_id=cid, amount_kes=100)
 """
+
 import json
 import logging
 import os
@@ -26,10 +27,27 @@ class _JsonFormatter(logging.Formatter):
         # Pull structured fields attached via `extra=`.
         for key, value in record.__dict__.items():
             if key in {
-                "name", "msg", "args", "levelname", "levelno", "pathname",
-                "filename", "module", "exc_info", "exc_text", "stack_info",
-                "lineno", "funcName", "created", "msecs", "relativeCreated",
-                "thread", "threadName", "processName", "process", "message",
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
                 "taskName",
             }:
                 continue

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useXeroThread } from "@/hooks/useXeroThread";
-import { ApiError, endpoints } from "@/lib/api";
+import { ApiError, endpoints, type XeroMode } from "@/lib/api";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
@@ -13,6 +13,8 @@ import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
+import { ApiHealthDot } from "@/components/ApiHealthDot";
+import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
@@ -57,14 +59,14 @@ interface ProfitAndLossData {
 
 function BooksView() {
   const searchParams = useSearchParams();
-  const { threadId, messages, addMessage, updateLastAgentMessage, ensureThread, newSession } = useXeroThread();
+  const { threadId, messages, addMessage, updateLastAgentMessage, flush, ensureThread, newSession } = useXeroThread();
 
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [discrepancies, setDiscrepancies] = useState<DiscrepancyData | null>(null);
   const [auditLoading, setAuditLoading] = useState(true);
-  const [xeroMode, setXeroMode] = useState<"live" | "demo" | "unknown">("unknown");
+  const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
   const [pnLoading, setPnLoading] = useState(true);
@@ -73,17 +75,35 @@ function BooksView() {
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(false);
-  const [dismissedWelcome, setDismissedWelcome] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [persona, setPersona] = useState<"siki" | "zana">("siki");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const successDialogRef = useRef<HTMLDivElement>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Abort any in-flight stream when leaving the page.
+  useEffect(() => {
+    return () => streamAbortRef.current?.abort();
+  }, []);
+
+  // Success overlay: focus it, close on Escape.
+  useEffect(() => {
+    if (!showSuccessCheck) return;
+    successDialogRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowSuccessCheck(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showSuccessCheck]);
 
   // Trigger staggered text reveal on mount.
   useEffect(() => {
@@ -94,24 +114,27 @@ function BooksView() {
   // Detect first-time visit to show welcome onboarding.
   useEffect(() => {
     const visited = localStore.get<boolean>(StorageKeys.BOOKS_VISITED, false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!visited) setShowWelcome(true);
   }, []);
 
   const dismissWelcome = () => {
     localStore.set(StorageKeys.BOOKS_VISITED, true);
     setShowWelcome(false);
-    setDismissedWelcome(true);
   };
 
   // Fetch quick-audit data + Xero status + P&L on mount.
   useEffect(() => {
-    void endpoints.xero.status().then((s) => setXeroMode(s.mode)).catch(() => {});
+    void endpoints.xero
+      .status()
+      .then((s) => setXeroMode(s.mode))
+      .catch(() => {});
     void endpoints.xero
       .organisation()
       .then((o) => {
         const data = o as unknown as OrgData;
         setOrgData(data);
-        setXeroMode(data.isDemoCompany ? "demo" : "live");
+        setXeroMode(data.isDemoCompany ? "demo" : "live-cli");
       })
       .catch(() => {});
     void endpoints.xero
@@ -170,6 +193,7 @@ function BooksView() {
       }).catch(() => {});
       // Show success message
       if (org) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setErrorBanner(null);
       }
     } else if (connected === "false") {
@@ -202,19 +226,27 @@ function BooksView() {
     }
   };
 
-  // Seed sample query from URL param.
-  const sampleId = searchParams.get("sample");
-  const sample = sampleId ? findQuery(sampleId) : undefined;
-  const shouldSeed = Boolean(sample && messages.length === 0 && !input);
-  if (shouldSeed) {
-    setInput(sample!.description);
-  }
+  // Seed sample query from URL param — once, after mount (never during render).
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    const sampleId = searchParams.get("sample");
+    const sample = sampleId ? findQuery(sampleId) : undefined;
+    if (sample && messages.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInput(sample.description);
+    }
+  }, [searchParams, messages.length]);
 
   const sendToAgent = async (message: string) => {
     setIsLoading(true);
     setErrorBanner(null);
     setThinkingMessage("Looking into your books…");
     const tid = ensureThread();
+
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
 
     // Track tool calls and response text for this message
     const toolCalls: ToolCallEvent[] = [];
@@ -224,7 +256,7 @@ function BooksView() {
     addMessage({ role: "agent", content: "", toolCalls: [] });
 
     try {
-      for await (const event of endpoints.xero.chatStream(message, tid, persona)) {
+      for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
         } else if (event.type === "tool_call") {
@@ -249,41 +281,45 @@ function BooksView() {
           responseText += event.text;
           setThinkingMessage(""); // Clear thinking once text starts arriving
           updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
-        } else if (event.type === "done") {
-          // Check for journal entry in the response
-          const journal = parseJournalEntry(responseText);
-          if (journal) {
-            updateLastAgentMessage({ content: responseText, toolCalls: [...toolCalls] });
-          }
-          // Detect approval language
-          const lower = responseText.toLowerCase();
-          if (
-            lower.includes("posted") ||
-            lower.includes("approved") ||
-            lower.includes("journal entry has been") ||
-            lower.includes("entry is now in xero")
-          ) {
-            setShowSuccessCheck(true);
-            setTimeout(() => setShowSuccessCheck(false), 3000);
-          }
         }
+        // "done": nothing extra to do — the success overlay only fires from a
+        // real journal POST (see JournalEntryCard onPosted), never from
+        // string-matching the response text.
       }
     } catch (e) {
-      const detail =
-        e instanceof ApiError
-          ? `Bookkeeper error (${e.status}).`
-          : e instanceof Error
-            ? e.message
-            : "Unknown error.";
-      updateLastAgentMessage({
-        content: responseText || `Sorry, ${detail} Please try again.`,
-        toolCalls: [...toolCalls],
-      });
-      setErrorBanner(detail);
+      if (controller.signal.aborted) {
+        // User pressed Stop — keep the partial text, mark it as stopped.
+        updateLastAgentMessage({
+          content: responseText ? `${responseText}\n\n(stopped)` : "(stopped)",
+          toolCalls: [...toolCalls],
+        });
+      } else {
+        const rateLimited = e instanceof ApiError && e.status === 429;
+        const detail = rateLimited
+          ? "You're sending messages quickly — give it a moment and try again."
+          : e instanceof ApiError
+            ? `Bookkeeper error (${e.status}).`
+            : e instanceof DOMException && e.name === "AbortError"
+              ? "The response took too long. Please try again."
+              : e instanceof Error
+                ? e.message
+                : "Unknown error.";
+        updateLastAgentMessage({
+          content: responseText || (rateLimited ? detail : `Sorry, ${detail} Please try again.`),
+          toolCalls: [...toolCalls],
+        });
+        setErrorBanner(detail);
+      }
     } finally {
+      streamAbortRef.current = null;
       setIsLoading(false);
       setThinkingMessage("");
+      flush(); // make sure the finished thread hits localStorage
     }
+  };
+
+  const handleStop = () => {
+    streamAbortRef.current?.abort();
   };
 
   const handleReceiptUpload = async (response: string, filename: string) => {
@@ -339,12 +375,12 @@ function BooksView() {
             {/* Connection status / Connect button */}
             {userConnection?.connected ? (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">
+                <span className="text-xs font-medium px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">
                   ● {userConnection.tenant_name || "Your Xero"}
                 </span>
                 <button
                   onClick={handleDisconnect}
-                  className="text-[10px] text-stone-400 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 btn-press"
+                  className="text-xs text-stone-500 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 btn-press"
                   title="Disconnect your Xero"
                 >
                   Disconnect
@@ -354,32 +390,32 @@ function BooksView() {
               <button
                 onClick={handleConnectXero}
                 disabled={connecting}
-                className="text-[10px] font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
               >
                 {connecting ? "Connecting…" : "Connect Your Xero →"}
               </button>
             ) : (
               <span
-                className={`text-[10px] font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
-                  xeroMode === "live"
+                className={`text-xs font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
+                  xeroMode === "live-oauth" || xeroMode === "live-cli"
                     ? "bg-emerald-50 text-emerald-700"
                     : xeroMode === "demo"
                       ? "bg-amber-50 text-amber-700"
                       : "bg-stone-100 text-stone-500"
                 }`}
               >
-                {xeroMode === "live" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
+                {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
               </span>
             )}
             <Link
               href="/pricing"
-              className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
               Pricing
             </Link>
             <Link
               href="/"
-              className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
               Home
             </Link>
@@ -399,12 +435,12 @@ function BooksView() {
               {xeroMode !== "unknown" && (
                 <span
                   className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                    xeroMode === "live"
+                    xeroMode === "live-oauth" || xeroMode === "live-cli"
                       ? "bg-emerald-50 text-emerald-600"
                       : "bg-amber-50 text-amber-600"
                   }`}
                 >
-                  {xeroMode === "live" ? "LIVE" : "DEMO"}
+                  {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "LIVE" : "DEMO"}
                 </span>
               )}
             </div>
@@ -412,7 +448,7 @@ function BooksView() {
               {orgData && (
                 <div>
                   <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
-                  <p className="text-[10px] text-stone-400 mt-0.5">
+                  <p className="text-[10px] text-stone-500 mt-0.5">
                     {orgData.baseCurrency} · {orgData.countryCode}
                     {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
                   </p>
@@ -439,27 +475,27 @@ function BooksView() {
               {profitAndLoss && (
                 <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] text-stone-400">This month</span>
-                    <span className="text-[9px] text-stone-400">
+                    <span className="text-[10px] text-stone-500">This month</span>
+                    <span className="text-[10px] text-stone-500">
                       as of {new Date(profitAndLoss.reportDate).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <div className="text-[9px] text-stone-400">Revenue</div>
+                      <div className="text-[10px] text-stone-500">Revenue</div>
                       <div className="text-sm font-bold text-emerald-700">
                         £{profitAndLoss.revenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[9px] text-stone-400">Expenses</div>
+                      <div className="text-[10px] text-stone-500">Expenses</div>
                       <div className="text-sm font-bold text-red-600">
                         £{profitAndLoss.expenses.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                   </div>
                   <div className="pt-2 border-t border-stone-200">
-                    <div className="text-[9px] text-stone-400">Net Profit</div>
+                    <div className="text-[10px] text-stone-500">Net Profit</div>
                     <div className="text-lg font-bold text-stone-900">
                       £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                     </div>
@@ -582,11 +618,11 @@ function BooksView() {
                       <span className="font-medium text-stone-700">
                         £{t.total.toFixed(2)}
                       </span>
-                      <span className="text-[9px] text-stone-400">
+                      <span className="text-[10px] text-stone-500">
                         {new Date(t.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
                       </span>
                     </div>
-                    <div className="text-stone-400 truncate mt-0.5">{t.reference}</div>
+                    <div className="text-stone-500 truncate mt-0.5">{t.reference}</div>
                   </div>
                 ))}
               </div>
@@ -607,7 +643,7 @@ function BooksView() {
                         ? "Draft a firm reminder email for my most overdue invoice. Include late payment interest."
                         : "Show me all overdue invoices. Who hasn't paid and how much is outstanding?"
                     )}
-                    className="w-full text-left text-[10px] border border-red-200 bg-red-50/50 rounded-lg p-2.5 fade-in-up hover:bg-red-50 hover:border-red-300 transition-colors btn-press group"
+                    className="w-full text-left text-xs border border-red-200 bg-red-50/50 rounded-lg p-2.5 fade-in-up hover:bg-red-50 hover:border-red-300 transition-colors btn-press group"
                     style={{ animationDelay: "0ms" }}
                   >
                     <div className="flex items-center gap-2">
@@ -628,7 +664,7 @@ function BooksView() {
                         ? "Fix my unreconciled transactions. Show me each one and propose journal entries to fix them."
                         : "Can you check my unreconciled transactions and help me match them to the right accounts?"
                     )}
-                    className="w-full text-left text-[10px] border border-amber-200 bg-amber-50/50 rounded-lg p-2.5 fade-in-up hover:bg-amber-50 hover:border-amber-300 transition-colors btn-press group"
+                    className="w-full text-left text-xs border border-amber-200 bg-amber-50/50 rounded-lg p-2.5 fade-in-up hover:bg-amber-50 hover:border-amber-300 transition-colors btn-press group"
                     style={{ animationDelay: "60ms" }}
                   >
                     <div className="flex items-center gap-2">
@@ -648,7 +684,7 @@ function BooksView() {
                       ? "What am I overpaying in tax? Check for non-deductible expenses and missed deductions."
                       : "Can you estimate my Corporation Tax and check if I'm missing any deductible expenses?"
                   )}
-                  className="w-full text-left text-[10px] border border-sky-200 bg-sky-50/50 rounded-lg p-2.5 fade-in-up hover:bg-sky-50 hover:border-sky-300 transition-colors btn-press group"
+                  className="w-full text-left text-xs border border-sky-200 bg-sky-50/50 rounded-lg p-2.5 fade-in-up hover:bg-sky-50 hover:border-sky-300 transition-colors btn-press group"
                   style={{ animationDelay: "120ms" }}
                 >
                   <div className="flex items-center gap-2">
@@ -666,7 +702,7 @@ function BooksView() {
                     onClick={() => handleStartSample(
                       "Analyze my expenses and find savings opportunities. What am I wasting money on?"
                     )}
-                    className="w-full text-left text-[10px] border border-stone-200 bg-stone-50/50 rounded-lg p-2.5 fade-in-up hover:bg-stone-50 hover:border-stone-300 transition-colors btn-press group"
+                    className="w-full text-left text-xs border border-stone-200 bg-stone-50/50 rounded-lg p-2.5 fade-in-up hover:bg-stone-50 hover:border-stone-300 transition-colors btn-press group"
                     style={{ animationDelay: "180ms" }}
                   >
                     <div className="flex items-center gap-2">
@@ -685,7 +721,7 @@ function BooksView() {
           )}
 
           <div className="border-t border-stone-100 pt-3 mt-auto">
-            <p className="text-[9px] text-stone-400 leading-relaxed">
+            <p className="text-[10px] text-stone-500 leading-relaxed">
               Live Xero data via CLI + Webhooks. AI-powered bookkeeping.
             </p>
           </div>
@@ -707,11 +743,14 @@ function BooksView() {
                 {persona === "siki" ? "Siki the Bookkeeper" : "Zana the Enforcer"}
               </p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${persona === "siki" ? "bg-sky-500" : "bg-rose-500"}`} />
                 {isLoading ? (
-                  <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
+                  <>
+                    <span className={`w-1.5 h-1.5 rounded-full ${persona === "siki" ? "bg-sky-500" : "bg-rose-500"}`} />
+                    <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
+                  </>
                 ) : (
-                  <span>Online · Xero Connected</span>
+                  /* Real backend + Xero status — no hardcoded "Connected" claims */
+                  <ApiHealthDot />
                 )}
               </p>
             </div>
@@ -720,7 +759,7 @@ function BooksView() {
             <div className="flex items-center gap-1 bg-stone-100 rounded-full p-0.5">
               <button
                 onClick={() => setPersona("siki")}
-                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
                   persona === "siki"
                     ? "bg-orange-400 text-white shadow-sm"
                     : "text-stone-500 hover:text-stone-700"
@@ -731,7 +770,7 @@ function BooksView() {
               </button>
               <button
                 onClick={() => setPersona("zana")}
-                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
                   persona === "zana"
                     ? "bg-stone-800 text-white shadow-sm"
                     : "text-stone-500 hover:text-stone-700"
@@ -745,7 +784,7 @@ function BooksView() {
             {messages.length > 0 && (
               <button
                 onClick={newSession}
-                className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
                 title="Start a new conversation"
               >
                 New
@@ -780,14 +819,15 @@ function BooksView() {
               </div>
               <button
                 onClick={handleProactiveAuditClick}
-                className="text-[10px] font-medium text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded btn-press shrink-0"
+                className="text-xs font-medium text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded btn-press shrink-0"
               >
                 Show me
               </button>
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
+          {/* aria-live so streamed answers reach screen readers */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin" aria-live="polite">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
                 {/* Mascot in the empty state — animated, cycling moods */}
@@ -822,21 +862,21 @@ function BooksView() {
                         <span className="text-lg">✨</span>
                       </div>
                       <div className="flex-1">
-                        <p className="text-xs font-semibold text-sky-900">Here's what I can do for you</p>
+                        <p className="text-xs font-semibold text-sky-900">Here&apos;s what I can do for you</p>
                         <ul className="text-[11px] text-sky-700 mt-1.5 space-y-1">
-                          <li>💰 <span className="font-medium">Find money you're owed</span> — overdue invoices, who hasn't paid</li>
+                          <li>💰 <span className="font-medium">Find money you&apos;re owed</span> — overdue invoices, who hasn&apos;t paid</li>
                           <li>📊 <span className="font-medium">Estimate your tax bill</span> — Corporation Tax + deductible expenses</li>
                           <li>📈 <span className="font-medium">Explain your P&L</span> — plain English, no jargon</li>
                           <li>✍️ <span className="font-medium">Fix discrepancies</span> — propose & post journal entries to Xero</li>
                         </ul>
-                        <p className="text-[10px] text-sky-600 mt-2.5">
+                        <p className="text-xs text-sky-600 mt-2.5">
                           The sidebar shows a live snapshot of your books. Try a question below to see me in action →
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={dismissWelcome}
-                      className="text-[10px] text-sky-600 hover:text-sky-800 mt-2 font-medium"
+                      className="text-xs text-sky-600 hover:text-sky-800 mt-2 font-medium"
                     >
                       Got it, dismiss
                     </button>
@@ -848,7 +888,7 @@ function BooksView() {
                   <div className="mt-4 w-full max-w-sm fade-in-up">
                     <div className="bg-gradient-to-r from-sky-50 to-emerald-50 border border-sky-200 rounded-xl p-3 text-left">
                       <p className="text-[11px] text-stone-600 mb-2">
-                        You're exploring with <span className="font-semibold">demo data</span>. Ready to see your real numbers?
+                        You&apos;re exploring with <span className="font-semibold">demo data</span>. Ready to see your real numbers?
                       </p>
                       <button
                         onClick={handleConnectXero}
@@ -862,7 +902,7 @@ function BooksView() {
                 )}
 
                 <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
-                  <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-400 font-semibold text-left">
+                  <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-500 font-semibold text-left">
                     {showWelcome ? "Try one of these to get started" : "Try a sample query"}
                   </p>
                   {(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).map((sample, i) => (
@@ -888,7 +928,7 @@ function BooksView() {
                           </span>
                         )}
                       </div>
-                      <div className="text-stone-400 mt-0.5 line-clamp-2">
+                      <div className="text-stone-500 mt-0.5 line-clamp-2">
                         {sample.description}
                       </div>
                     </button>
@@ -946,11 +986,27 @@ function BooksView() {
                       creditAccount={journal.creditAccount}
                       creditAccountName={journal.creditAccountName}
                       amount={journal.amount}
-                      onApprove={() => {
-                        setShowSuccessCheck(true);
-                        setTimeout(() => setShowSuccessCheck(false), 3000);
+                      incomplete={journal.incomplete}
+                      threadId={threadId}
+                      onPosted={(result) => {
+                        // Full celebration only for a real Xero write —
+                        // demo mode shows its own "Simulated" note on the card.
+                        if (result.posted && result.mode !== "demo") {
+                          setShowSuccessCheck(true);
+                          setTimeout(() => setShowSuccessCheck(false), 3000);
+                        }
+                      }}
+                      onReject={() => {
+                        // Pre-fill the chat so the user tells the agent what to change.
+                        setInput("Don't post that entry — ");
+                        inputRef.current?.focus();
                       }}
                     />
+                  )}
+                  {/* Feedback on completed agent answers (not while streaming) */}
+                  {msg.role === "agent" && msg.content && threadId &&
+                    !(isLoading && i === messages.length - 1) && (
+                    <FeedbackButtons threadId={threadId} messageIndex={i} initial={msg.feedback} />
                   )}
                 </div>
               </div>
@@ -982,25 +1038,43 @@ function BooksView() {
                 onError={handleReceiptError}
               />
               <input
+                ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
+                onKeyDown={(e) => {
+                  // Guard against IME composition — Enter confirms the
+                  // composition, it shouldn't send the message.
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSend();
+                }}
                 placeholder="Ask about your books, invoices, or P&L..."
                 disabled={isLoading}
                 className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white disabled:opacity-50"
               />
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !input.trim()}
-                className="p-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed btn-press"
-                title="Send"
-                aria-label="Send"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              </button>
+              {isLoading ? (
+                <button
+                  onClick={handleStop}
+                  className="p-2.5 bg-stone-700 hover:bg-stone-800 text-white rounded-xl transition-colors btn-press"
+                  title="Stop response"
+                  aria-label="Stop response"
+                >
+                  <svg aria-hidden="true" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="7" y="7" width="10" height="10" rx="1.5" />
+                  </svg>
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim()}
+                  className="p-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed btn-press"
+                  title="Send"
+                  aria-label="Send"
+                >
+                  <svg aria-hidden="true" className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="flex items-center justify-center mt-2">
               <span className="text-[10px] text-stone-500">
@@ -1017,10 +1091,21 @@ function BooksView() {
         </p>
       </footer>
 
-      {/* Success check overlay — plays when a journal entry is approved */}
+      {/* Success check overlay — plays when a journal entry actually posts to Xero.
+          Escape or a click anywhere dismisses it. */}
       {showSuccessCheck && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up"
+          onClick={() => setShowSuccessCheck(false)}
+        >
+          <div
+            ref={successDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Journal entry posted to Xero"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 focus:outline-none"
+          >
             <SikiMascot size={80} mood="celebrate" />
             <SuccessCheck show={showSuccessCheck} size={48} className="text-emerald-600" />
             <p className="text-sm font-semibold text-stone-800">Journal entry posted to Xero</p>

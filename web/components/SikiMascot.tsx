@@ -31,6 +31,7 @@ export function SikiMascot({ size = 120, mood = "idle", className = "" }: SikiMa
     <div
       className={`siki-mascot siki-${mood} ${className}`}
       style={{ width: size, height: size }}
+      aria-hidden="true"
     >
       <svg
         viewBox="0 0 120 120"
@@ -152,10 +153,10 @@ export function SikiMascot({ size = 120, mood = "idle", className = "" }: SikiMa
  */
 export function SikiMascotAnimated({ size = 120, className = "" }: { size?: number; className?: string }) {
   const [mood, setMood] = useState<MascotMood>("idle");
-  const moodCycle: MascotMood[] = ["idle", "look", "idle", "wave", "idle", "look", "celebrate", "idle"];
   const idx = useRef(0);
 
   useEffect(() => {
+    const moodCycle: MascotMood[] = ["idle", "look", "idle", "wave", "idle", "look", "celebrate", "idle"];
     const interval = setInterval(() => {
       idx.current = (idx.current + 1) % moodCycle.length;
       setMood(moodCycle[idx.current]);
@@ -178,6 +179,7 @@ export function ZanaMascot({ size = 120, mood = "idle", className = "" }: { size
     <div
       className={`siki-mascot siki-${mood} ${className}`}
       style={{ width: size, height: size }}
+      aria-hidden="true"
     >
       <svg
         viewBox="0 0 120 120"

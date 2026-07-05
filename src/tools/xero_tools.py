@@ -21,19 +21,30 @@ Tools:
 
 from __future__ import annotations
 
-from typing import Any
+from contextvars import ContextVar
 
 from src.services.xero_service import XeroService
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.xero_tools")
 
-_xero = XeroService()
+# Which user session the current tool call is acting for. The agent loop
+# sets this before executing tools, so every tool reads/writes the books
+# belonging to the caller — not a shared global org.
+_current_session: ContextVar[str] = ContextVar("xero_session", default="default")
+
+
+def set_current_session(session_id: str) -> None:
+    _current_session.set(session_id)
+
+
+def _svc() -> XeroService:
+    return XeroService(_current_session.get())
 
 
 def get_xero_organisation() -> str:
     """Get the connected Xero organisation's details (name, currency, tax number)."""
-    org = _xero.get_organisation()
+    org = _svc().get_organisation()
     return (
         f"Organisation: {org.get('name', 'Unknown')} "
         f"({org.get('baseCurrency', '?')}) "
@@ -50,12 +61,13 @@ def get_xero_transactions(
     Retrieve bank transactions from Xero. Optionally filter by type (RECEIVE/SPEND)
     or search the reference field. Returns a summary the agent can reason over.
     """
-    txns = _xero.list_bank_transactions(txn_type=txn_type or None)
+    txns = _svc().list_bank_transactions(txn_type=txn_type or None)
 
     if query:
         q_lower = query.lower()
         txns = [
-            t for t in txns
+            t
+            for t in txns
             if q_lower in t.get("reference", "").lower()
             or q_lower in t.get("contact", {}).get("name", "").lower()
         ]
@@ -85,14 +97,15 @@ def get_xero_invoices(
     OVERDUE is a special status that filters for AUTHORISED invoices past their due date.
     """
     from datetime import date
+
     today = date.today().isoformat()
 
     # Handle OVERDUE as a special filter
     if status and status.upper() == "OVERDUE":
-        all_invoices = _xero.list_invoices(status="AUTHORISED", invoice_type=invoice_type or None)
+        all_invoices = _svc().list_invoices(status="AUTHORISED", invoice_type=invoice_type or None)
         invoices = [i for i in all_invoices if i.get("dueDate", "") < today]
     else:
-        invoices = _xero.list_invoices(status=status or None, invoice_type=invoice_type or None)
+        invoices = _svc().list_invoices(status=status or None, invoice_type=invoice_type or None)
 
     if not invoices:
         return "No invoices found for the given filters."
@@ -116,7 +129,7 @@ def get_xero_chart_of_accounts() -> str:
     Retrieve the chart of accounts from Xero. The agent uses this to
     propose correct journal entry accounts when fixing discrepancies.
     """
-    accounts = _xero.list_accounts()
+    accounts = _svc().list_accounts()
     summary = f"Chart of Accounts ({len(accounts)} accounts):\n"
     for a in accounts:
         summary += f"- {a['code']} | {a['name']} | {a['type']}\n"
@@ -128,7 +141,7 @@ def get_xero_profit_and_loss(
     to_date: str = "",
 ) -> str:
     """Retrieve the Profit & Loss report for a date range. Empty dates = last 90 days."""
-    pl = _xero.get_profit_and_loss(from_date=from_date or None, to_date=to_date or None)
+    pl = _svc().get_profit_and_loss(from_date=from_date or None, to_date=to_date or None)
     # Handle both live (parsed report) and mock formats
     if "totals" in pl:
         # Live CLI format (from _parse_report)
@@ -154,7 +167,7 @@ def get_xero_profit_and_loss(
 
 def get_xero_balance_sheet(as_of: str = "") -> str:
     """Retrieve the Balance Sheet as of a date. Empty = today."""
-    bs = _xero.get_balance_sheet(as_of=as_of or None)
+    bs = _svc().get_balance_sheet(as_of=as_of or None)
     # Handle both live (parsed report) and mock formats
     if "totals" in bs:
         # Live CLI format (from _parse_report)
@@ -183,8 +196,8 @@ def find_discrepancies() -> str:
     Finds unreconciled bank transactions, overdue invoices, and
     potential matching issues. This is the agent's "audit" step.
     """
-    unreconciled = _xero.find_unreconciled_transactions()
-    overdue = _xero.find_overdue_invoices()
+    unreconciled = _svc().find_unreconciled_transactions()
+    overdue = _svc().find_overdue_invoices()
 
     findings = []
 
@@ -209,7 +222,7 @@ def find_discrepancies() -> str:
         findings.append("✓ No overdue invoices.")
 
     # Check for trial balance imbalance
-    tb = _xero.get_trial_balance()
+    tb = _svc().get_trial_balance()
     # Handle both live (parsed report) and mock formats
     total_debit = tb.get("totalDebit", 0)
     total_credit = tb.get("totalCredit", 0)
@@ -239,7 +252,7 @@ def propose_journal_entry(
     the correct accounts from the chart of accounts.
     Returns a human-readable journal entry for the user to approve.
     """
-    accounts = _xero.list_accounts()
+    accounts = _svc().list_accounts()
     debit_acct = next((a for a in accounts if a["code"] == debit_account_code), None)
     credit_acct = next((a for a in accounts if a["code"] == credit_account_code), None)
 
@@ -274,23 +287,24 @@ def match_receipt_to_transaction(
     This is the multimodal reconciliation tool.
     """
     import os
+
     if not os.path.exists(receipt_image_path):
         return f"Error: Receipt image not found at {receipt_image_path}"
 
     # Step 1: Vision extraction (Gemini Vision)
     from src.tools.vision_audit import analyze_receipt
+
     extracted = analyze_receipt(
         receipt_image_path,
         query="Extract the supplier name, total amount, date, and any reference/invoice number from this receipt.",
     )
 
     # Step 2: Try to match against Xero bank transactions
-    txns = _xero.list_bank_transactions()
+    txns = _svc().list_bank_transactions()
     candidates = []
     if transaction_reference:
         candidates = [
-            t for t in txns
-            if transaction_reference.lower() in t.get("reference", "").lower()
+            t for t in txns if transaction_reference.lower() in t.get("reference", "").lower()
         ]
     if not candidates:
         # Try matching by reference text from the extracted receipt
@@ -312,7 +326,7 @@ def match_receipt_to_transaction(
 
 def get_xero_contacts(query: str = "") -> str:
     """List contacts (customers/suppliers) from Xero. Optionally filter by name."""
-    contacts = _xero.list_contacts()
+    contacts = _svc().list_contacts()
     if query:
         q = query.lower()
         contacts = [c for c in contacts if q in c.get("name", "").lower()]
@@ -342,67 +356,62 @@ def create_xero_journal_entry(
     Create a manual journal entry in Xero. This is the WRITE-BACK action —
     the agent proposes, the user approves, and this tool executes.
 
-    Uses the Xero CLI to post the journal entry. Returns confirmation
-    with the journal ID or an error message.
+    Posts via the user's OAuth connection (with an idempotency key) or the
+    CLI. A failed live write is reported as a FAILURE — never as success.
+    In demo mode nothing is written and the message says so.
     """
-    from src.services.xero_service import _run_cli, _cli_available
-
-    accounts = _xero.list_accounts()
+    svc = _svc()
+    accounts = svc.list_accounts()
     debit_acct = next((a for a in accounts if a["code"] == debit_account_code), None)
     credit_acct = next((a for a in accounts if a["code"] == credit_account_code), None)
 
     if not debit_acct or not credit_acct:
         return f"Error: Account code not found. Debit: {debit_account_code}, Credit: {credit_account_code}"
 
-    if not _cli_available():
-        # Demo mode — simulate success
-        return (
-            f"✓ Journal entry created (DEMO MODE):\n"
-            f"  Reference: DEMO-JE-{description[:20].replace(' ', '-').upper()}\n"
-            f"  Dr: {debit_account_code} - {debit_acct['name']}    £{amount:,.2f}\n"
-            f"  Cr: {credit_account_code} - {credit_acct['name']}    £{amount:,.2f}\n"
-            f"  Status: Posted (simulated — connect your Xero to post real entries)"
-        )
+    lines = (
+        f"  Dr: {debit_account_code} - {debit_acct['name']}    £{amount:,.2f}\n"
+        f"  Cr: {credit_account_code} - {credit_acct['name']}    £{amount:,.2f}"
+    )
 
-    # Check if CLI is actually authenticated (not just installed)
-    probe = _run_cli(["org", "details"], timeout=15)
-    if probe is None:
-        # CLI installed but not authenticated — demo mode
-        return (
-            f"✓ Journal entry created (DEMO MODE):\n"
-            f"  Reference: DEMO-JE-{description[:20].replace(' ', '-').upper()}\n"
-            f"  Dr: {debit_account_code} - {debit_acct['name']}    £{amount:,.2f}\n"
-            f"  Cr: {credit_account_code} - {credit_acct['name']}    £{amount:,.2f}\n"
-            f"  Status: Posted (simulated — connect your Xero to post real entries)"
-        )
-
-    # Live mode — use Xero CLI to create the journal
     try:
-        result = _run_cli([
-            "manual-journals", "create",
-            "--description", description,
-            "--debit", f"{debit_account_code}:{amount}",
-            "--credit", f"{credit_account_code}:{amount}",
-        ], timeout=30)
-        if result is not None:
-            journal_id = result.get("manualJournalID", "unknown") if isinstance(result, dict) else "unknown"
-            return (
-                f"✓ Journal entry posted to Xero:\n"
-                f"  ID: {journal_id}\n"
-                f"  Dr: {debit_account_code} - {debit_acct['name']}    £{amount:,.2f}\n"
-                f"  Cr: {credit_account_code} - {credit_acct['name']}    £{amount:,.2f}\n"
-                f"  Status: Posted"
-            )
-        # CLI command failed — fall back to demo mode success
-        return (
-            f"✓ Journal entry created (DEMO MODE):\n"
-            f"  Reference: DEMO-JE-{description[:20].replace(' ', '-').upper()}\n"
-            f"  Dr: {debit_account_code} - {debit_acct['name']}    £{amount:,.2f}\n"
-            f"  Cr: {credit_account_code} - {credit_acct['name']}    £{amount:,.2f}\n"
-            f"  Status: Posted (simulated — connect your Xero to post real entries)"
+        result = svc.create_manual_journal(
+            description=description,
+            debit_account_code=debit_account_code,
+            credit_account_code=credit_account_code,
+            amount=amount,
         )
-    except Exception as exc:
-        return f"Error creating journal entry: {exc}"
+    except Exception as exc:  # noqa: BLE001 — XeroApiError / RuntimeError
+        log.error("journal_write_failed", extra={"error": str(exc)})
+        return (
+            f"✗ FAILED to post the journal entry — nothing was written to Xero.\n"
+            f"{lines}\n"
+            f"  Tell the user the entry was NOT posted and suggest trying again."
+        )
+
+    if not result["posted"]:
+        # Demo mode — be explicit that nothing was written
+        return (
+            f"Journal entry SIMULATED (demo mode — nothing was written to Xero):\n"
+            f"{lines}\n"
+            f"  Status: Simulated. Tell the user to connect their Xero to post real entries."
+        )
+
+    from src.services.payment_store import record_audit, record_impact_event
+
+    record_audit(
+        action="journal_posted",
+        description=description,
+        amount=amount,
+        journal_id=result.get("journal_id") or "",
+    )
+    record_impact_event(event_type="journal_posted", amount=amount, description=description)
+
+    return (
+        f"✓ Journal entry posted to Xero:\n"
+        f"  ID: {result.get('journal_id') or 'unknown'}\n"
+        f"{lines}\n"
+        f"  Status: Posted"
+    )
 
 
 def get_tax_insights() -> str:
@@ -418,8 +427,7 @@ def get_tax_insights() -> str:
     This is the "tax insights" tool inspired by the Cleo case study —
     deterministic financial logic + plain-English explanation.
     """
-    pl = _xero.get_profit_and_loss()
-    accounts = _xero.list_accounts()
+    pl = _svc().get_profit_and_loss()
 
     # Extract revenue and expenses
     revenue = pl.get("revenue", pl.get("totals", {}).get("Total Income", 0))
@@ -460,7 +468,9 @@ def get_tax_insights() -> str:
         # Marginal relief between £50k and £250k
         corp_tax = net_profit * 0.25 - (250000 - net_profit) * 0.015
         tax_rate = "19-25% (marginal relief)"
-        tax_note = f"You're in the marginal relief zone. Estimated Corporation Tax: £{corp_tax:,.2f}"
+        tax_note = (
+            f"You're in the marginal relief zone. Estimated Corporation Tax: £{corp_tax:,.2f}"
+        )
 
     # Analyze expense categories for tax insights
     insights = []
@@ -506,12 +516,9 @@ def get_tax_insights() -> str:
             )
 
     # Cash flow insight from overdue invoices
-    overdue = _xero.find_overdue_invoices()
+    overdue = _svc().find_overdue_invoices()
     if overdue:
-        total_overdue = sum(
-            float(i.get("amountDue", i.get("total", 0)) or 0)
-            for i in overdue
-        )
+        total_overdue = sum(float(i.get("amountDue", i.get("total", 0)) or 0) for i in overdue)
         insights.append(
             f"💰 CASH FLOW: You have {len(overdue)} overdue invoices totalling £{total_overdue:,.2f}. "
             f"Chasing these could save you £{total_overdue * 0.19:,.2f} in tax (if you can't pay your tax bill "
@@ -661,55 +668,66 @@ def get_savings_opportunities() -> str:
     Returns a structured summary of savings opportunities ranked by impact.
     """
     try:
-        pl = _xero.get_profit_and_loss()
-        txns = _xero.list_bank_transactions()
-        contacts = _xero.list_contacts()
+        pl = _svc().get_profit_and_loss()
+        txns = _svc().list_bank_transactions()
     except Exception as exc:
         return f"Error fetching data for savings analysis: {exc}"
 
     opportunities: list[str] = []
 
-    # Parse P&L for expense breakdown
+    # Parse P&L for expense breakdown. XeroService returns either the
+    # parsed report shape (totals/lineItems, live) or the mock shape (rows).
     expenses_by_category: dict[str, float] = {}
     total_expenses = 0.0
     total_revenue = 0.0
 
-    for section in pl.get("Reports", [{}])[0].get("Rows", []):
-        row_type = section.get("RowType", "")
-        if row_type == "Header":
-            for cell in section.get("Cells", []):
-                if "Revenue" in str(cell.get("Value", "")):
-                    pass  # Will be captured in Section rows
-        elif row_type == "Section":
-            section_title = section.get("Title", "")
-            for row in section.get("Rows", []):
-                if row.get("RowType") == "Row":
-                    cells = row.get("Cells", [])
-                    if len(cells) >= 2:
-                        label = cells[0].get("Value", "Unknown")
-                        value_str = cells[-1].get("Value", "0")
-                        try:
-                            value = float(value_str) if value_str and value_str != "null" else 0.0
-                        except (ValueError, TypeError):
-                            value = 0.0
-
-                        if "expense" in section_title.lower() or "cost" in section_title.lower():
-                            expenses_by_category[label] = expenses_by_category.get(label, 0) + value
-                            total_expenses += value
-                        elif "revenue" in section_title.lower() or "income" in section_title.lower():
-                            total_revenue += value
+    if "totals" in pl:
+        # Parsed live report
+        total_revenue = float(pl.get("revenue", 0) or 0)
+        total_expenses = abs(float(pl.get("expenses", 0) or 0))
+        for item in pl.get("lineItems", []):
+            label = item.get("label", "Unknown")
+            try:
+                value = float(str(item.get("value", "0")).replace(",", ""))
+            except (ValueError, TypeError):
+                value = 0.0
+            if label and value:
+                expenses_by_category[label] = expenses_by_category.get(label, 0) + abs(value)
+    else:
+        # Mock shape: rows with positive revenue and negative expenses
+        for row in pl.get("rows", []):
+            label = row.get("account", "Unknown")
+            value = float(row.get("value", 0) or 0)
+            if value >= 0:
+                total_revenue += value
+            else:
+                expenses_by_category[label] = expenses_by_category.get(label, 0) + abs(value)
+                total_expenses += abs(value)
 
     # 1. Identify recurring payments (potential unused subscriptions)
     recurring: dict[str, list[float]] = {}
     for t in txns:
         ref = str(t.get("reference", t.get("Reference", "")))
-        amount = abs(float(t.get("amount", t.get("Amount", 0)) or 0))
+        amount = abs(float(t.get("total", t.get("amount", 0)) or 0))
         if amount > 0:
             # Look for subscription-like patterns
             ref_lower = ref.lower()
-            for keyword in ["subscription", "monthly", "saas", "adobe", "microsoft",
-                            "google", "slack", "notion", "figma", "github",
-                            "aws", "cloud", "domain", "hosting"]:
+            for keyword in [
+                "subscription",
+                "monthly",
+                "saas",
+                "adobe",
+                "microsoft",
+                "google",
+                "slack",
+                "notion",
+                "figma",
+                "github",
+                "aws",
+                "cloud",
+                "domain",
+                "hosting",
+            ]:
                 if keyword in ref_lower:
                     recurring[keyword] = recurring.get(keyword, [])
                     recurring[keyword].append(amount)
@@ -720,7 +738,9 @@ def get_savings_opportunities() -> str:
         monthly_total = sum(amounts) / max(len(amounts), 1)
         annual_cost = monthly_total * 12
         if annual_cost > 100:  # Only flag if > £100/year
-            unused_subs.append(f"  - {keyword.title()}: ~£{monthly_total:.2f}/mo (£{annual_cost:.0f}/yr)")
+            unused_subs.append(
+                f"  - {keyword.title()}: ~£{monthly_total:.2f}/mo (£{annual_cost:.0f}/yr)"
+            )
 
     if unused_subs:
         opportunities.append(
@@ -744,7 +764,8 @@ def get_savings_opportunities() -> str:
         top_3 = sorted_expenses[:3]
         expense_lines = [f"  - {cat}: £{val:,.0f}" for cat, val in top_3]
         opportunities.append(
-            f"📋 TOP EXPENSES:\n" + "\n".join(expense_lines)
+            "📋 TOP EXPENSES:\n"
+            + "\n".join(expense_lines)
             + "\n  These are your biggest costs. Even a 10% reduction here would save significant money."
         )
 
@@ -770,7 +791,7 @@ def get_savings_opportunities() -> str:
 
     # 5. Overdue invoices as missed opportunity
     try:
-        overdue = _xero.find_overdue_invoices()
+        overdue = _svc().find_overdue_invoices()
         if overdue:
             total_overdue = sum(float(i.get("amountDue", 0) or 0) for i in overdue)
             opportunities.append(
@@ -791,4 +812,3 @@ def get_savings_opportunities() -> str:
     summary += "Next steps: Review each opportunity and decide which to act on. Even small savings compound over the year."
 
     return summary
-

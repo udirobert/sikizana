@@ -78,7 +78,7 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up" style={{ animationDelay: "200ms" }}>
-          Find money you're owed.
+          Find money you&apos;re owed.
           <br />
           <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
             Understand your numbers.
@@ -102,49 +102,53 @@ export default function LandingPage() {
             href="/impact"
             className="bg-white hover:bg-stone-50 text-stone-700 font-medium px-7 py-3.5 rounded-xl transition border border-stone-200 btn-press text-base"
           >
-            See Siki's Impact
+            See Siki&apos;s Impact
           </Link>
         </div>
       </section>
 
       {/* ── Trust signals ───────────────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            {
-              label: "Money Found",
-              value: moneyFound > 0 ? `£${moneyFound.toFixed(0)}` : "£0",
-              sub: "Overdue invoices identified",
-            },
-            {
-              label: "Issues Caught",
-              value: String(discrepanciesFound || 0),
-              sub: "Discrepancies flagged before accountant",
-            },
-            {
-              label: "Response Time",
-              value: "< 30s",
-              sub: "From question to answer",
-            },
-          ].map((stat, i) => (
-            <div
-              key={stat.label}
-              className="bg-white border border-stone-200 rounded-2xl p-5 fade-in-up hover:shadow-md transition-shadow"
-              style={{ animationDelay: `${500 + i * 80}ms` }}
-            >
-              <div className="text-[10px] uppercase tracking-wide text-stone-400 font-semibold">
-                {stat.label}
+      {/* Only shown when the impact fetch returns real numbers — a failed
+          fetch or all-zero metrics would just read as "£0 Money Found". */}
+      {(moneyFound > 0 || discrepanciesFound > 0) && (
+        <section className="max-w-4xl mx-auto px-6 pb-16">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              {
+                label: "Money Found",
+                value: `£${moneyFound.toFixed(0)}`,
+                sub: "Overdue invoices identified",
+              },
+              {
+                label: "Issues Caught",
+                value: String(discrepanciesFound || 0),
+                sub: "Discrepancies flagged before accountant",
+              },
+              {
+                label: "Response Time",
+                value: "< 30s",
+                sub: "From question to answer",
+              },
+            ].map((stat, i) => (
+              <div
+                key={stat.label}
+                className="bg-white border border-stone-200 rounded-2xl p-5 fade-in-up hover:shadow-md transition-shadow"
+                style={{ animationDelay: `${500 + i * 80}ms` }}
+              >
+                <div className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+                  {stat.label}
+                </div>
+                <div className="text-2xl font-bold text-stone-900 mt-1">
+                  {stat.value}
+                </div>
+                <div className="text-xs text-stone-500 mt-1">
+                  {stat.sub}
+                </div>
               </div>
-              <div className="text-2xl font-bold text-stone-900 mt-1">
-                {stat.value}
-              </div>
-              <div className="text-xs text-stone-500 mt-1">
-                {stat.sub}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── How it works ────────────────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
@@ -244,7 +248,7 @@ export default function LandingPage() {
             <SikiMascot size={120} mood="celebrate" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 relative">
-            Ready to find money you're owed?
+            Ready to find money you&apos;re owed?
           </h2>
           <p className="text-sky-100 mb-8 relative">
             Connect your Xero account and get your first audit — overdue invoices, tax estimate,
@@ -265,6 +269,17 @@ export default function LandingPage() {
           <div className="flex items-center justify-center gap-2 mb-4">
             <SikiMascot size={28} mood="idle" />
             <span className="text-sm font-bold text-stone-900">SIKIZANA BOOKS</span>
+          </div>
+          <div className="flex items-center justify-center gap-4 mb-3">
+            <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Terms of Service
+            </Link>
+            <Link href="/pricing" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Pricing
+            </Link>
           </div>
           <p className="text-[11px] text-stone-400 text-center">
             Built for the Xero App &amp; Agent Hackathon · Encode Club · 2026

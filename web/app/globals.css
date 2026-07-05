@@ -329,12 +329,30 @@ body {
   .siki-mascot *,
   .siki-mascot,
   .reveal-overlay,
-  .reveal-content {
+  .reveal-overlay-content {
     animation: none !important;
     transition: none !important;
   }
   .t-success-check { opacity: 1; }
   .t-success-check svg path { stroke-dashoffset: 0 !important; }
+}
+
+/* ── Accessibility: enforce minimum text size & contrast ──────── */
+/* WCAG AA requires body text ≥ 12px and contrast ≥ 4.5:1. The UI   */
+/* uses 9-10px text in several places (sidebar labels, hints). This  */
+/* media query bumps the floor for users who need it, either via the */
+/* OS high-contrast setting or the browser's minimum-text-size pref. */
+@media (prefers-contrast: more) {
+  /* Bump all 9-10px text to at least 12px for legibility */
+  .text-\[9px\] { font-size: 12px !important; }
+  .text-\[10px\] { font-size: 12px !important; }
+  .text-\[11px\] { font-size: 13px !important; }
+  /* Strengthen muted text colors toward WCAG AA */
+  .text-stone-400 { color: #52525b !important; }   /* stone-600 */
+  .text-stone-500 { color: #52525b !important; }   /* stone-600 */
+  /* Borders: make them more visible */
+  .border-stone-100 { border-color: #d6d3d1 !important; }  /* stone-300 */
+  .border-stone-200 { border-color: #a8a29e !important; }  /* stone-400 */
 }
 
 /* ═══════════════════════════════════════════════════════════════ */

@@ -7,29 +7,34 @@ then match it to a Xero bank transaction.
 """
 
 import os
-import google.generativeai as genai
-from PIL import Image
-import io
+
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure Gemini for Vision tasks
 _api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-if _api_key:
-    genai.configure(api_key=_api_key)
 
 _vision_model = None
 
 
 def _get_model():
+    """Lazily import and configure Gemini so a missing dependency or key
+    degrades to a per-call error instead of crashing module import (and
+    with it, every tool that transitively imports this module)."""
     global _vision_model
     if _vision_model is None:
+        import google.generativeai as genai
+
+        if not _api_key:
+            raise RuntimeError("GEMINI_API_KEY is not configured")
+        genai.configure(api_key=_api_key)
         _vision_model = genai.GenerativeModel("gemini-1.5-flash")
     return _vision_model
 
 
-def analyze_receipt(image_path: str, query: str = "Extract supplier, amount, date, and reference") -> str:
+def analyze_receipt(
+    image_path: str, query: str = "Extract supplier, amount, date, and reference"
+) -> str:
     """
     Uses Gemini Vision to parse a receipt or invoice photo.
     Extracts supplier name, total amount, date, and any reference code.
@@ -38,6 +43,8 @@ def analyze_receipt(image_path: str, query: str = "Extract supplier, amount, dat
         return f"Error: Image not found at {image_path}"
 
     try:
+        from PIL import Image
+
         img = Image.open(image_path)
 
         prompt = f"""

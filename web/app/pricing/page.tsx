@@ -141,6 +141,14 @@ export default function PricingPage() {
             All plans include the AI bookkeeper agent, plain-English explanations, and
             human-in-the-loop journal entries. No long-term contracts. Cancel anytime.
           </p>
+          <div className="flex items-center justify-center gap-3 mt-3">
+            <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Privacy Policy
+            </Link>
+            <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Terms of Service
+            </Link>
+          </div>
           <p className="text-[10px] text-stone-300 mt-2">
             Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
           </p>
