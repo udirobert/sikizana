@@ -111,6 +111,7 @@ function BooksView() {
   const [modeHintShown, setModeHintShown] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -154,12 +155,21 @@ function BooksView() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Detect first-time visit to show welcome onboarding.
+  // Detect first-time visit to show welcome onboarding + demo modal.
   useEffect(() => {
     const visited = localStore.get<boolean>(StorageKeys.BOOKS_VISITED, false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!visited) setShowWelcome(true);
+    // Show demo explainer modal on first visit if not yet dismissed
+    const demoModalDismissed = localStore.get<boolean>(StorageKeys.DEMO_MODAL_DISMISSED, false);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!demoModalDismissed) setShowDemoModal(true);
   }, []);
+
+  const dismissDemoModal = () => {
+    localStore.set(StorageKeys.DEMO_MODAL_DISMISSED, true);
+    setShowDemoModal(false);
+  };
 
   const dismissWelcome = () => {
     localStore.set(StorageKeys.BOOKS_VISITED, true);
@@ -214,9 +224,22 @@ function BooksView() {
       .then((c) => {
         setOauthConfigured(c.oauth_configured);
         setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
+        // If the user came from the landing page "Connect My Xero" button
+        // (?connect=1), auto-trigger the OAuth flow — but only if OAuth
+        // is configured and they're not already connected.
+        if (c.oauth_configured && !c.connected && searchParams.get("connect") === "1") {
+          void endpoints.xero
+            .auth()
+            .then((result) => {
+              if (result.configured && result.auth_url) {
+                window.location.href = result.auth_url;
+              }
+            })
+            .catch(() => {});
+        }
       })
       .catch(() => {});
-  }, [loadFindings]);
+  }, [loadFindings, searchParams]);
 
   // Handle OAuth callback redirect (?connected=true&org=...) — once. The
   // param is stripped from the URL immediately so a refresh doesn't
@@ -568,6 +591,103 @@ function BooksView() {
         </div>
       </nav>
 
+      {/* First-visit modal — explains demo vs. connect clearly.
+          Shows once per browser (dismissed state persisted in localStorage). */}
+      {showDemoModal && (
+        <div
+          className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 fade-in"
+          onClick={dismissDemoModal}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="shrink-0 w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center text-xl">
+                🦉
+              </div>
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-stone-900">Welcome to Sikizana</h2>
+                <p className="text-xs text-stone-600 mt-1">
+                  Your AI bookkeeper that finds money you&apos;re owed, estimates your tax bill, and fixes discrepancies — in plain English.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div className="flex gap-3 items-start">
+                <span className="shrink-0 text-base">👀</span>
+                <div>
+                  <p className="text-xs font-semibold text-stone-900">Explore with sample data</p>
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    Try asking questions, see how it works. The numbers you see are from a demo business — not your real books.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-3 items-start">
+                <span className="shrink-0 text-base">🔗</span>
+                <div>
+                  <p className="text-xs font-semibold text-stone-900">Connect your Xero for real data</p>
+                  <p className="text-[11px] text-stone-600 mt-0.5">
+                    When you&apos;re ready, click <span className="font-medium text-sky-700">&quot;Connect My Xero&quot;</span> anywhere on the page. It&apos;s free — you&apos;ll see your real overdue invoices, tax estimates, and P&amp;L.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              {oauthConfigured && (
+                <button
+                  onClick={() => {
+                    dismissDemoModal();
+                    handleConnectXero();
+                  }}
+                  className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors"
+                >
+                  Connect My Xero →
+                </button>
+              )}
+              <button
+                onClick={dismissDemoModal}
+                className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 btn-press transition-colors"
+              >
+                {oauthConfigured ? "Explore demo first" : "Got it, let me explore"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Persistent demo mode banner — always visible when in demo mode.
+          Small business owners were confused about demo vs. real data.
+          This banner makes it unmissable and offers a one-click connect. */}
+      {xeroMode === "demo" && !userConnection?.connected && (
+        <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-2.5">
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base">👀</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-900">
+                  You&apos;re looking at sample data
+                </p>
+                <p className="text-[11px] text-amber-700">
+                  This is a demo business so you can explore. Connect your Xero to see your real numbers.
+                </p>
+              </div>
+            </div>
+            {oauthConfigured && (
+              <button
+                onClick={handleConnectXero}
+                disabled={connecting}
+                className="text-xs font-semibold px-4 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50 whitespace-nowrap"
+              >
+                {connecting ? "Connecting…" : "Connect My Xero →"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col items-center lg:flex-row lg:items-stretch lg:justify-center p-4 gap-4">
         {/* Mobile: the findings panel stacks ABOVE the chat — small screens
             get the audit's value instead of losing the sidebar entirely. */}
@@ -912,7 +1032,9 @@ function BooksView() {
                           <li>✍️ <span className="font-medium">Fix discrepancies</span> — propose & post journal entries to Xero</li>
                         </ul>
                         <p className="text-xs text-sky-600 mt-2.5">
-                          The sidebar shows a live snapshot of your books. Try a question below to see me in action →
+                          {xeroMode === "demo"
+                            ? "The sidebar shows a demo business so you can explore. Try a question below, then connect your Xero to see your real numbers →"
+                            : "The sidebar shows a live snapshot of your books. Try a question below to see me in action →"}
                         </p>
                       </div>
                     </div>
@@ -925,23 +1047,10 @@ function BooksView() {
                   </div>
                 )}
 
-                {/* Connect Your Xero CTA — shown when in demo mode and OAuth is available */}
-                {oauthConfigured && !userConnection?.connected && (
-                  <div className="mt-4 w-full max-w-sm fade-in-up">
-                    <div className="bg-gradient-to-r from-sky-50 to-emerald-50 border border-sky-200 rounded-xl p-3 text-left">
-                      <p className="text-[11px] text-stone-600 mb-2">
-                        You&apos;re exploring with <span className="font-semibold">demo data</span>. Ready to see your real numbers?
-                      </p>
-                      <button
-                        onClick={handleConnectXero}
-                        disabled={connecting}
-                        className="w-full text-xs font-semibold px-3 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
-                      >
-                        {connecting ? "Connecting…" : "Connect Your Xero →"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Connect Your Xero CTA — now handled by the persistent
+                    demo banner at the top of the page. This was previously
+                    only shown in the empty state, which meant users who
+                    started chatting lost the connect prompt. */}
 
                 <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
                   <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-500 font-semibold text-left">

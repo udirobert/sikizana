@@ -46,7 +46,7 @@ export default function LandingPage() {
               href="/books"
               className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
             >
-              Open Bookkeeper
+              Try Demo
             </Link>
             <Link
               href="/pricing"
@@ -111,15 +111,18 @@ export default function LandingPage() {
             href="/books"
             className="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-7 py-3.5 rounded-xl transition shadow-lg shadow-sky-600/20 btn-press text-base"
           >
-            Try the Bookkeeper
+            Try with Sample Data
           </Link>
           <Link
-            href="/impact"
+            href="/books?connect=1"
             className="bg-white hover:bg-stone-50 text-stone-700 font-medium px-7 py-3.5 rounded-xl transition border border-stone-200 btn-press text-base"
           >
-            See Siki&apos;s Impact
+            Connect My Xero
           </Link>
         </div>
+        <p className="mt-3 text-xs text-stone-500 fade-in-up" style={{ animationDelay: "500ms" }}>
+          Try the demo instantly — no signup needed. Or connect your Xero to see your real numbers.
+        </p>
       </section>
 
       {/* ── Trust signals ───────────────────────────────────────────── */}
@@ -270,10 +273,10 @@ export default function LandingPage() {
             and plain-English P&L — in under 30 seconds.
           </p>
           <Link
-            href="/books"
+            href="/books?connect=1"
             className="inline-block bg-white text-sky-700 font-semibold px-8 py-3.5 rounded-xl transition hover:bg-stone-50 btn-press text-base relative shadow-lg"
           >
-            Open Sikizana
+            Connect Your Xero
           </Link>
         </div>
       </section>

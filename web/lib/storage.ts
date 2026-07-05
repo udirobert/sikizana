@@ -46,4 +46,5 @@ export const localStore = {
 /** Storage keys used across the app. Centralised to prevent typos. */
 export const StorageKeys = {
   BOOKS_VISITED: "sikizana.books_visited",
+  DEMO_MODAL_DISMISSED: "sikizana.demo_modal_dismissed",
 } as const;
