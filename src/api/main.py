@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import time
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File
@@ -115,6 +116,108 @@ async def health():
         "db_version": get_db_version(),
         "agent_available": True,
     }
+
+
+# ---- Contextual content (while Siki is working) ----
+
+# Simple in-memory cache for Exa search results (5 min TTL).
+_exa_cache: dict[str, tuple[float, list]] = {}
+_EXA_CACHE_TTL = 300  # 5 minutes
+
+# Curated fallback content when no Exa key is available.
+_CURATED_CONTEXT = [
+    {
+        "title": "Late Payment of Commercial Debts Act 1998",
+        "url": "https://www.gov.uk/late-commercial-payments-interest-debt-recovery",
+        "snippet": "UK businesses can charge statutory interest (8% + Bank Rate) on overdue B2B invoices, plus compensation of £40-100 per invoice.",
+    },
+    {
+        "title": "Corporation Tax: filing and payment deadlines",
+        "url": "https://www.gov.uk/corporation-tax-deadlines",
+        "snippet": "Corporation Tax is due 9 months and 1 day after your accounting period ends. File your return within 12 months of the period end.",
+    },
+    {
+        "title": "VAT: when to register and submit returns",
+        "url": "https://www.gov.uk/vat-registration",
+        "snippet": "You must register for VAT if your turnover exceeds £90,000. Returns are due quarterly on the standard scheme.",
+    },
+    {
+        "title": "Allowable business expenses",
+        "url": "https://www.gov.uk/business-expenses",
+        "snippet": "You can deduct legitimate business costs from your income before tax. Entertainment, fines, and political donations are NOT deductible.",
+    },
+]
+
+
+@app.get("/api/context/search")
+async def context_search(q: str = ""):
+    """
+    Fetch relevant HMRC/tax content for the user's query.
+    Uses Exa's instant search if an API key is configured;
+    falls back to curated content otherwise.
+    """
+    if not q.strip():
+        return {"results": _CURATED_CONTEXT[:2], "source": "curated"}
+
+    exa_key = os.environ.get("EXA_API_KEY", "")
+    cache_key = q.lower().strip()
+
+    # Check cache
+    if cache_key in _exa_cache:
+        cached_at, cached_results = _exa_cache[cache_key]
+        if time.time() - cached_at < _EXA_CACHE_TTL:
+            return {"results": cached_results, "source": "exa_cached"}
+
+    if exa_key:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=5.0) as cx:
+                resp = await cx.post(
+                    "https://api.exa.ai/search",
+                    headers={"x-api-key": exa_key, "Content-Type": "application/json"},
+                    json={
+                        "query": f"UK HMRC tax guidance: {q}",
+                        "type": "instant",
+                        "numResults": 3,
+                        "includeDomains": ["gov.uk"],
+                        "contents": {
+                            "highlights": True,
+                            "maxCharacters": 200,
+                        },
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                results = [
+                    {
+                        "title": r.get("title", ""),
+                        "url": r.get("url", ""),
+                        "snippet": (r.get("highlights") or [""])[0][:200] if r.get("highlights") else "",
+                    }
+                    for r in data.get("results", [])
+                ]
+                if results:
+                    _exa_cache[cache_key] = (time.time(), results)
+                    return {"results": results, "source": "exa"}
+        except Exception:
+            pass  # fall through to curated
+
+    # Curated fallback — pick based on query keywords
+    q_lower = q.lower()
+    relevant = []
+    if any(w in q_lower for w in ["overdue", "invoice", "chase", "late payment"]):
+        relevant = [_CURATED_CONTEXT[0]]
+    elif any(w in q_lower for w in ["tax", "corporation", "ct"]):
+        relevant = [_CURATED_CONTEXT[1]]
+    elif any(w in q_lower for w in ["vat", "register"]):
+        relevant = [_CURATED_CONTEXT[2]]
+    elif any(w in q_lower for w in ["expense", "deduct", "deduction"]):
+        relevant = [_CURATED_CONTEXT[3]]
+    else:
+        relevant = _CURATED_CONTEXT[:2]
+
+    return {"results": relevant, "source": "curated"}
 
 
 # ---- Feedback ----

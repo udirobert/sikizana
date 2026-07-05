@@ -18,6 +18,7 @@ import { SuccessCheck } from "@/components/SuccessCheck";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
+import { WhileSikiWorks } from "@/components/WhileSikiWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -65,6 +66,8 @@ function BooksView() {
   // distinct from errorBanner: it's an upgrade prompt, not an error.
   const [upgradeBanner, setUpgradeBanner] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [lastQuery, setLastQuery] = useState("");
   // Sign-in nudge — shown once per browser session after the first real answer.
   // sessionStorage persists across page reloads but clears when the tab closes.
   const [signInNudge, setSignInNudge] = useState<string | null>(null);
@@ -300,12 +303,14 @@ function BooksView() {
     addMessage({ role: "agent", content: "", toolCalls: [] });
 
     try {
+      setLastQuery(message);
       for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
         } else if (event.type === "tool_call") {
           toolCalls.push({ tool: event.tool, label: event.label, status: "calling" });
           setThinkingMessage(event.label + "…");
+          setCurrentTool(event.tool);
           updateLastAgentMessage({ toolCalls: [...toolCalls] });
         } else if (event.type === "tool_result") {
           // Mark the matching tool call as done
@@ -1047,13 +1052,13 @@ function BooksView() {
                 <div className="shrink-0">
                   {persona === "siki" ? <SikiMascot size={32} mood="look" /> : <ZanaMascot size={32} mood="look" />}
                 </div>
-                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="thinking-pulse" />
-                    <span className="text-sm text-stone-600 t-shimmer">
-                      {thinkingMessage || "Thinking…"}
-                    </span>
-                  </div>
+                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex-1">
+                  <WhileSikiWorks
+                    userQuery={lastQuery}
+                    currentTool={currentTool}
+                    thinkingMessage={thinkingMessage}
+                    findings={findings}
+                  />
                 </div>
               </div>
             )}

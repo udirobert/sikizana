@@ -108,6 +108,13 @@ export interface ImpactMetrics {
   feedback: { up: number; down: number; total: number };
 }
 
+/** Contextual HMRC/tax content from /api/context/search (Exa-powered). */
+export interface ContextResult {
+  title: string;
+  url: string;
+  snippet: string;
+}
+
 /** How the backend is talking to Xero. "demo" means no real Xero write happens. */
 export type XeroMode = "live-oauth" | "live-cli" | "demo";
 
@@ -227,6 +234,10 @@ export const endpoints = {
 
   feedback: (payload: FeedbackPayload) =>
     api.post<{ received: boolean }>("/api/feedback", payload),
+
+  /** Contextual HMRC/tax content while Siki is working (Exa-powered). */
+  contextSearch: (q: string) =>
+    api.get<{ results: ContextResult[]; source: string }>(`/api/context/search?q=${encodeURIComponent(q)}`),
 
   impact: () => api.get<ImpactMetrics>("/api/impact"),
 
