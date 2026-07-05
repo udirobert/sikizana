@@ -51,13 +51,6 @@ interface ProfitAndLossData {
   rows?: { account: string; code: string; value: number }[];
 }
 
-/** Legacy shape — the sidebar health-check cards still consume this.
- *  Derived from the new structured FindingsResponse so both surfaces agree. */
-interface DiscrepancyData {
-  unreconciled: { id: string; total: number; reference?: string; date?: string }[];
-  overdue: { id: string; amountDue: number; invoiceNumber?: string; contactName?: string }[];
-}
-
 function BooksView() {
   const searchParams = useSearchParams();
   const { threadId, messages, addMessage, updateLastAgentMessage, flush, ensureThread, newSession } = useXeroThread();
@@ -77,8 +70,6 @@ function BooksView() {
   const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
   // Post-connect moment: full-attention staging after the OAuth return.
   const [connectStage, setConnectStage] = useState<"analyzing" | "reveal" | null>(null);
-  // Proactive audit banner text (legacy — kept for the sidebar alert)
-  const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
   const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
@@ -432,34 +423,6 @@ function BooksView() {
     setInput(description);
   };
 
-  const handleProactiveAuditClick = () => {
-    if (!proactiveAudit) return;
-    addMessage({ role: "agent", content: proactiveAudit });
-    setProactiveAudit(null);
-  };
-
-  // Derive legacy discrepancy shape from the new structured findings so
-  // the sidebar health-check cards and counts stay in sync with the panel.
-  const discrepancies: DiscrepancyData | null = findings
-    ? {
-        unreconciled: findings.findings
-          .filter((f) => f.kind === "unreconciled")
-          .map((f) => ({ id: f.id, total: f.amount, reference: f.title, date: f.detail })),
-        overdue: findings.findings
-          .filter((f) => f.kind === "overdue_invoice" || f.kind === "overdue_bill")
-          .map((f) => ({
-            id: f.id,
-            amountDue: f.amount,
-            invoiceNumber: f.title,
-            contactName: f.detail,
-          })),
-      }
-    : null;
-  const auditLoading = findingsLoading;
-  const unreconciledCount = discrepancies?.unreconciled.length ?? 0;
-  const overdueCount = discrepancies?.overdue.length ?? 0;
-  const totalOverdue = discrepancies?.overdue.reduce((sum, i) => sum + i.amountDue, 0) ?? 0;
-
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
       {/* Rotated reveal transition — slides away on page load */}
@@ -644,220 +607,31 @@ function BooksView() {
             </SkeletonReveal>
           </div>
 
-          {/* Health Check — with contextual hint for first-time users */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-1">
-              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
-                Health Check
-              </h3>
+          {/* Findings — the structured audit replaces the old Health Check +
+              Needs Attention + Action Center trio. One source of truth,
+              shared with the mobile panel. Compact enough for the sidebar. */}
+          <div className="flex-1">
+            <div className="flex items-center gap-1 mb-1.5">
+              <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+                Findings
+              </span>
               {showWelcome && (
                 <span className="text-[9px] text-sky-500 font-medium">← things to fix</span>
               )}
             </div>
-
-            {/* Unreconciled — skeleton shows until data arrives, then real number */}
-            <SkeletonReveal
-              isLoading={auditLoading}
-              className="h-[64px]"
-              skeletonClassName="rounded-xl"
-            >
-              {discrepancies && (
-                <div className={`rounded-xl p-3 border ${
-                  unreconciledCount > 0
-                    ? "bg-amber-50 border-amber-200"
-                    : "bg-emerald-50 border-emerald-200"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className={`text-[10px] uppercase tracking-wide font-semibold ${
-                      unreconciledCount > 0 ? "text-amber-600" : "text-emerald-600"
-                    }`}>
-                      Unreconciled
-                    </div>
-                    <div className={`text-xl font-bold ${
-                      unreconciledCount > 0 ? "text-amber-900" : "text-emerald-900"
-                    }`}>
-                      <AnimatedNumber value={unreconciledCount} />
-                    </div>
-                  </div>
-                  <div className={`text-[10px] mt-0.5 ${
-                    unreconciledCount > 0 ? "text-amber-700" : "text-emerald-700"
-                  }`}>
-                    {unreconciledCount > 0
-                      ? "bank transactions need matching"
-                      : "all transactions matched"}
-                  </div>
-                </div>
-              )}
-            </SkeletonReveal>
-
-            {/* Overdue — same pattern */}
-            <SkeletonReveal
-              isLoading={auditLoading}
-              className="h-[64px]"
-              skeletonClassName="rounded-xl"
-            >
-              {discrepancies && (
-                <div className={`rounded-xl p-3 border ${
-                  overdueCount > 0
-                    ? "bg-red-50 border-red-200"
-                    : "bg-emerald-50 border-emerald-200"
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className={`text-[10px] uppercase tracking-wide font-semibold ${
-                      overdueCount > 0 ? "text-red-600" : "text-emerald-600"
-                    }`}>
-                      Overdue Invoices
-                    </div>
-                    <div className={`text-xl font-bold ${
-                      overdueCount > 0 ? "text-red-900" : "text-emerald-900"
-                    }`}>
-                      <AnimatedNumber value={overdueCount} />
-                    </div>
-                  </div>
-                  <div className={`text-[10px] mt-0.5 ${
-                    overdueCount > 0 ? "text-red-700" : "text-emerald-700"
-                  }`}>
-                    {overdueCount > 0
-                      ? `£${totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding`
-                      : "all invoices paid on time"}
-                  </div>
-                </div>
-              )}
-            </SkeletonReveal>
-
-            {discrepancies && unreconciledCount === 0 && overdueCount === 0 && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 fade-in-up flex items-center gap-3">
-                <SikiMascot size={36} mood="celebrate" />
-                <div>
-                  <div className="text-xs font-semibold text-emerald-800">
-                    Books look clean!
-                  </div>
-                  <div className="text-[10px] text-emerald-700 mt-0.5">
-                    No discrepancies detected
-                  </div>
-                </div>
-              </div>
-            )}
+            <FindingsPanel
+              data={findings}
+              loading={findingsLoading}
+              askedIds={askedFindingIds}
+              disabled={isLoading}
+              onAct={handleFindingAct}
+              onSuggest={(prompt) => {
+                setInput(prompt);
+                inputRef.current?.focus();
+              }}
+              suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+            />
           </div>
-
-          {/* Unreconciled transaction list */}
-          {discrepancies && discrepancies.unreconciled.length > 0 && (
-            <div className="pt-2 border-t border-stone-100">
-              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-2">
-                Needs Attention
-              </h3>
-              <div className="space-y-1.5">
-                {discrepancies.unreconciled.slice(0, 5).map((t, i) => (
-                  <div
-                    key={t.id}
-                    className="text-[10px] border border-stone-100 rounded-lg p-2 fade-in-up hover:border-amber-200 hover:bg-amber-50/30 transition-colors cursor-default"
-                    style={{ animationDelay: `${i * 40}ms` }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-stone-700">
-                        £{t.total.toFixed(2)}
-                      </span>
-                      <span className="text-[10px] text-stone-500">
-                        {t.date ? new Date(t.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" }) : ""}
-                      </span>
-                    </div>
-                    <div className="text-stone-500 truncate mt-0.5">{t.reference}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Action Center — prioritized list of things to do */}
-          {discrepancies && !auditLoading && (unreconciledCount > 0 || overdueCount > 0) && (
-            <div className="pt-2 border-t border-stone-100">
-              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-2">
-                Action Center
-              </h3>
-              <div className="space-y-1.5">
-                {overdueCount > 0 && (
-                  <button
-                    onClick={() => handleStartSample(
-                      persona === "zana"
-                        ? "Draft a firm reminder email for my most overdue invoice. Include late payment interest."
-                        : "Show me all overdue invoices. Who hasn't paid and how much is outstanding?"
-                    )}
-                    className="w-full text-left text-xs border border-red-200 bg-red-50/50 rounded-lg p-2.5 fade-in-up hover:bg-red-50 hover:border-red-300 transition-colors btn-press group"
-                    style={{ animationDelay: "0ms" }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-red-500 font-bold">1.</span>
-                      <span className="font-semibold text-red-900">
-                        {persona === "zana" ? "Chase overdue invoices" : "Review overdue invoices"}
-                      </span>
-                    </div>
-                    <div className="text-red-700 mt-0.5 pl-5">
-                      {overdueCount} invoice{overdueCount > 1 ? "s" : ""} · £{totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding
-                    </div>
-                  </button>
-                )}
-                {unreconciledCount > 0 && (
-                  <button
-                    onClick={() => handleStartSample(
-                      persona === "zana"
-                        ? "Fix my unreconciled transactions. Show me each one and propose journal entries to fix them."
-                        : "Can you check my unreconciled transactions and help me match them to the right accounts?"
-                    )}
-                    className="w-full text-left text-xs border border-amber-200 bg-amber-50/50 rounded-lg p-2.5 fade-in-up hover:bg-amber-50 hover:border-amber-300 transition-colors btn-press group"
-                    style={{ animationDelay: "60ms" }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-amber-600 font-bold">2.</span>
-                      <span className="font-semibold text-amber-900">
-                        Reconcile {unreconciledCount} transaction{unreconciledCount > 1 ? "s" : ""}
-                      </span>
-                    </div>
-                    <div className="text-amber-700 mt-0.5 pl-5">
-                      Bank transactions need matching
-                    </div>
-                  </button>
-                )}
-                <button
-                  onClick={() => handleStartSample(
-                    persona === "zana"
-                      ? "What am I overpaying in tax? Check for non-deductible expenses and missed deductions."
-                      : "Can you estimate my Corporation Tax and check if I'm missing any deductible expenses?"
-                  )}
-                  className="w-full text-left text-xs border border-sky-200 bg-sky-50/50 rounded-lg p-2.5 fade-in-up hover:bg-sky-50 hover:border-sky-300 transition-colors btn-press group"
-                  style={{ animationDelay: "120ms" }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sky-500 font-bold">3.</span>
-                    <span className="font-semibold text-sky-900">
-                      Check tax & deductions
-                    </span>
-                  </div>
-                  <div className="text-sky-700 mt-0.5 pl-5">
-                    Estimate CT + flag non-deductible expenses
-                  </div>
-                </button>
-                {persona === "zana" && (
-                  <button
-                    onClick={() => handleStartSample(
-                      "Analyze my expenses and find savings opportunities. What am I wasting money on?"
-                    )}
-                    className="w-full text-left text-xs border border-stone-200 bg-stone-50/50 rounded-lg p-2.5 fade-in-up hover:bg-stone-50 hover:border-stone-300 transition-colors btn-press group"
-                    style={{ animationDelay: "180ms" }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-stone-600 font-bold">4.</span>
-                      <span className="font-semibold text-stone-800">
-                        Find savings
-                      </span>
-                    </div>
-                    <div className="text-stone-600 mt-0.5 pl-5">
-                      Unused subscriptions, margin improvements
-                    </div>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           <div className="border-t border-stone-100 pt-3 mt-auto">
             <p className="text-[10px] text-stone-500 leading-relaxed">
@@ -978,26 +752,9 @@ function BooksView() {
             </div>
           )}
 
-          {/* Proactive audit notification — the "Active Arbitrator" */}
-          {proactiveAudit && messages.length === 0 && (
-            <div className="bg-sky-50 border-b border-sky-200 px-4 py-3 flex items-start gap-3 fade-in-up">
-              <div className="shrink-0">
-                <SikiMascot size={36} mood="look" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-sky-900">Audit Complete</p>
-                <p className="text-[11px] text-sky-700 mt-0.5 leading-relaxed">
-                  {proactiveAudit}
-                </p>
-              </div>
-              <button
-                onClick={handleProactiveAuditClick}
-                className="text-xs font-medium text-sky-700 hover:text-sky-900 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded btn-press shrink-0"
-              >
-                Show me
-              </button>
-            </div>
-          )}
+          {/* The old client-fabricated "Audit Complete" banner is gone —
+              the findings panel is the proactive audit now, with real
+              server-built findings instead of injected agent speech. */}
 
           {/* aria-live so streamed answers reach screen readers */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin" aria-live="polite">
