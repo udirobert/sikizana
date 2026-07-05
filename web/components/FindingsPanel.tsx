@@ -50,7 +50,7 @@ function formatMoney(amount: number): string {
 export function findingsSummary(data: FindingsResponse): string {
   const parts: string[] = [];
   if (data.money_found > 0) {
-    parts.push(`£${formatMoney(Math.round(data.money_found))} you're owed`);
+    parts.push(`£${formatMoney(Math.round(data.money_found))} slipping away`);
   } else if (data.counts.overdue > 0) {
     parts.push(`${data.counts.overdue} overdue`);
   }
@@ -66,10 +66,14 @@ interface FindingsPanelProps {
   loading: boolean;
   /** Findings the user already acted on ("asked" state). */
   askedIds: ReadonlySet<string>;
+  /** Findings the user saved (commitment ladder — creates sunk cost). */
+  savedIds?: ReadonlySet<string>;
   /** True while the chat is streaming — actions queue-jump nothing. */
   disabled?: boolean;
   /** Send the finding's action prompt into the chat (same path as typed messages). */
   onAct: (finding: Finding) => void;
+  /** Save a finding for later (commitment ladder — persists across sessions). */
+  onSave?: (finding: Finding) => void;
   /** Pre-fill the chat input with a suggested prompt (clean state). */
   onSuggest: (prompt: string) => void;
   /** Suggested prompts for the clean/celebration state. */
@@ -84,8 +88,10 @@ export function FindingsPanel({
   data,
   loading,
   askedIds,
+  savedIds,
   disabled = false,
   onAct,
+  onSave,
   onSuggest,
   suggestions,
   compact = false,
@@ -128,7 +134,7 @@ export function FindingsPanel({
                   <span className="text-2xl font-bold text-stone-900 leading-none">
                     <AnimatedNumber prefix="£" value={Math.round(data.money_found)} />
                   </span>
-                  <span className="text-xs text-stone-600 font-medium">you&apos;re owed</span>
+                  <span className="text-xs text-stone-600 font-medium">slipping away</span>
                 </div>
               ) : (
                 <div className="text-sm font-bold text-stone-900">
@@ -242,6 +248,19 @@ export function FindingsPanel({
                   </button>
                   {asked && (
                     <span className="text-[10px] text-stone-500">In progress — see chat</span>
+                  )}
+                  {/* Commitment ladder: Save button creates sunk cost.
+                      A saved finding persists across sessions, giving the
+                      user a reason to return and a sense of ownership. */}
+                  {onSave && !asked && (
+                    <button
+                      onClick={() => onSave(finding)}
+                      disabled={disabled || savedIds?.has(finding.id)}
+                      aria-label={`Save finding — ${finding.title}`}
+                      className="text-[10px] font-medium px-2 py-1.5 rounded-lg transition-colors disabled:cursor-not-allowed text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                    >
+                      {savedIds?.has(finding.id) ? "✓ Saved" : "Save"}
+                    </button>
                   )}
                 </div>
               </li>

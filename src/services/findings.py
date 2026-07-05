@@ -28,6 +28,8 @@ def build_findings(session_id: str) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
 
     # --- Overdue invoices: money the business is owed ---
+    # Loss aversion framing: "£X is slipping away" instead of "£X you're owed"
+    # Cost-of-inaction: statutory interest accrues at 8% + Bank Rate (~13.5% APR)
     overdue = svc.find_overdue_invoices()
     money_found = 0.0
     for inv in overdue:
@@ -41,22 +43,27 @@ def build_findings(session_id: str) -> dict[str, Any]:
         days = _days_overdue(inv.get("dueDate", ""), today)
         number = inv.get("invoiceNumber", "?")
         contact = (inv.get("contact") or {}).get("name", "Unknown")
+        # Statutory interest: 8% + Bank Rate (4.75% as of 2025) = ~13.5% APR
+        # Daily rate = 13.5% / 365 ≈ 0.037%
+        daily_interest = round(amount * 0.135 / 365, 2)
         finding = {
             "id": f"inv-{inv.get('id', number)}",
             "kind": kind,
             "severity": "high" if (days > 30 or amount >= 1000) else "medium",
             "title": f"{number} — {contact}",
             "amount": amount,
-            "detail": f"Due {days} day{'s' if days != 1 else ''} ago",
+            "detail": f"{days} day{'s' if days != 1 else ''} late · losing £{daily_interest}/day in interest",
             "days_overdue": days,
+            "daily_interest": daily_interest,
         }
         if kind == "overdue_invoice":
             finding["action"] = {
                 "type": "chase",
-                "label": "Draft chaser",
+                "label": "Chase now",
                 "prompt": (
                     f"Draft a payment reminder email for invoice {number} to {contact} "
-                    f"for £{amount:,.2f}, which is {days} days overdue."
+                    f"for £{amount:,.2f}, which is {days} days overdue. "
+                    f"I'm losing £{daily_interest}/day in statutory interest."
                 ),
             }
         else:
@@ -71,6 +78,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         findings.append(finding)
 
     # --- Unreconciled bank transactions ---
+    # Loss aversion: "unreconciled = risk of duplicate payment or missed VAT claim"
     unreconciled = svc.find_unreconciled_transactions()
     for txn in unreconciled:
         amount = float(txn.get("total", 0) or 0)
@@ -83,10 +91,10 @@ def build_findings(session_id: str) -> dict[str, Any]:
                 "severity": "high" if amount >= 500 else "medium",
                 "title": ref,
                 "amount": amount,
-                "detail": f"{txn.get('type', '?')} on {txn_date} — not reconciled",
+                "detail": f"{txn.get('type', '?')} on {txn_date} · risk of double-counting",
                 "action": {
                     "type": "fix",
-                    "label": "Propose fix",
+                    "label": "Fix now",
                     "prompt": (
                         f"Help me reconcile the bank transaction '{ref}' from {txn_date} "
                         f"for £{amount:,.2f} — work out what it is and propose the "
@@ -134,6 +142,8 @@ def _tax_flags(svc: XeroService) -> list[dict[str, Any]]:
             continue
         lower = label.lower()
         if "entertainment" in lower and value > 0:
+            # Loss aversion: "you're paying tax on £X you can't deduct"
+            tax_cost = round(value * 0.19, 2)  # 19% Corp Tax
             flags.append(
                 {
                     "id": f"tax-{lower.replace(' ', '-')}",
@@ -141,7 +151,7 @@ def _tax_flags(svc: XeroService) -> list[dict[str, Any]]:
                     "severity": "medium",
                     "title": f"{label}: not deductible",
                     "amount": value,
-                    "detail": "Client entertainment must be added back for Corporation Tax",
+                    "detail": f"Costing you £{tax_cost} in extra Corporation Tax",
                     "action": {
                         "type": "explain",
                         "label": "Explain",
@@ -160,7 +170,7 @@ def _tax_flags(svc: XeroService) -> list[dict[str, Any]]:
                     "severity": "low",
                     "title": f"{label}: keep receipts",
                     "amount": value,
-                    "detail": "High travel costs are a common HMRC query — evidence needed",
+                    "detail": "HMRC may disallow without evidence · 19% tax at risk",
                     "action": {
                         "type": "explain",
                         "label": "Explain",

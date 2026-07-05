@@ -93,7 +93,7 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up" style={{ animationDelay: "200ms" }}>
-          Find money you&apos;re owed.
+          Stop money slipping away.
           <br />
           <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
             Understand your numbers.
@@ -232,7 +232,7 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {[
-              { title: "Find money you're owed", desc: "Shows exactly who hasn't paid, how much is outstanding, and how long it's overdue — before it hurts your cash flow.", emoji: "💰" },
+              { title: "Stop money slipping away", desc: "Shows exactly who hasn't paid, how much is outstanding, and how long it's overdue — before it hurts your cash flow.", emoji: "💰" },
               { title: "Estimate your tax bill", desc: "Calculates your UK Corporation Tax, flags non-deductible expenses, and finds deductions you might be missing.", emoji: "📊" },
               { title: "Explain your P&L", desc: "Translates your profit & loss into plain English. No more guessing what the numbers mean.", emoji: "📈" },
               { title: "Fix discrepancies", desc: "Suggests journal entries to fix errors. You approve, Siki posts directly to Xero — human-in-the-loop by design.", emoji: "✍️" },
@@ -263,7 +263,7 @@ export default function LandingPage() {
             <SikiMascot size={120} mood="celebrate" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 relative">
-            Ready to find money you&apos;re owed?
+            Ready to stop money slipping away?
           </h2>
           <p className="text-sky-100 mb-8 relative">
             Connect your Xero account and get your first audit — overdue invoices, tax estimate,

@@ -22,6 +22,7 @@ import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
+import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
@@ -80,6 +81,23 @@ function BooksView() {
   const [findingsLoading, setFindingsLoading] = useState(true);
   // Findings the user already acted on — "asked" state on the cards.
   const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  // Saved findings (commitment ladder) — persists in localStorage so
+  // returning users see their saved issues and have a reason to come back.
+  const [savedFindingIds, setSavedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("siki_saved_findings");
+      if (saved) setSavedFindingIds(new Set(JSON.parse(saved)));
+    } catch { /* ignore */ }
+  }, []);
+  const handleFindingSave = useCallback((finding: Finding) => {
+    setSavedFindingIds((prev) => {
+      const next = new Set(prev);
+      next.add(finding.id);
+      try { localStorage.setItem("siki_saved_findings", JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }, []);
   // Post-connect moment: full-attention staging after the OAuth return.
   const [connectStage, setConnectStage] = useState<"analyzing" | "reveal" | null>(null);
   const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
@@ -549,8 +567,10 @@ function BooksView() {
             data={findings}
             loading={findingsLoading}
             askedIds={askedFindingIds}
+            savedIds={savedFindingIds}
             disabled={isLoading}
             onAct={handleFindingAct}
+            onSave={handleFindingSave}
             onSuggest={(prompt) => {
               setInput(prompt);
               inputRef.current?.focus();
@@ -656,8 +676,10 @@ function BooksView() {
               data={findings}
               loading={findingsLoading}
               askedIds={askedFindingIds}
+              savedIds={savedFindingIds}
               disabled={isLoading}
               onAct={handleFindingAct}
+              onSave={handleFindingSave}
               onSuggest={(prompt) => {
                 setInput(prompt);
                 inputRef.current?.focus();
@@ -1073,6 +1095,13 @@ function BooksView() {
                         </div>
                       ))}
                     </div>
+                  )}
+                  {/* Peak-end summary card — a clean, satisfying close
+                      after the agent responds. Shows issues found, money
+                      at stake, and urgent count. Only on the last message. */}
+                  {msg.role === "agent" && msg.content &&
+                    !isLoading && i === messages.length - 1 && (
+                    <ResponseSummary findings={findings} isStreaming={isLoading} />
                   )}
                 </div>
               </div>
