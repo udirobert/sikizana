@@ -20,6 +20,8 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
+import { useMe } from "@/hooks/useMe";
+import { PlanBadge } from "@/components/PlanBadge";
 
 interface DiscrepancyData {
   unreconciled: Array<{
@@ -61,9 +63,15 @@ function BooksView() {
   const searchParams = useSearchParams();
   const { threadId, messages, addMessage, updateLastAgentMessage, flush, ensureThread, newSession } = useXeroThread();
 
+  // Session/plan info — fetched once on mount (cached in useMe), no polling.
+  const { me } = useMe();
+
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  // Plan/quota banner (HTTP 402 quota exhausted, 403 plan-gated Xero connect) —
+  // distinct from errorBanner: it's an upgrade prompt, not an error.
+  const [upgradeBanner, setUpgradeBanner] = useState<string | null>(null);
   const [discrepancies, setDiscrepancies] = useState<DiscrepancyData | null>(null);
   const [auditLoading, setAuditLoading] = useState(true);
   const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
@@ -210,8 +218,15 @@ function BooksView() {
       } else {
         setErrorBanner("Xero OAuth is not configured yet. Using demo data for now.");
       }
-    } catch {
-      setErrorBanner("Failed to start Xero connection flow.");
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 403) {
+        // Plan-gated: connecting your own Xero needs a paid plan — not an error.
+        setUpgradeBanner(
+          "Connecting your own Xero org is a Pro feature — upgrade to link your real books.",
+        );
+      } else {
+        setErrorBanner("Failed to start Xero connection flow.");
+      }
     }
     setConnecting(false);
   };
@@ -293,6 +308,15 @@ function BooksView() {
           content: responseText ? `${responseText}\n\n(stopped)` : "(stopped)",
           toolCalls: [...toolCalls],
         });
+      } else if (e instanceof ApiError && e.status === 402) {
+        // Free monthly quota exhausted — upgrade prompt, not a generic error.
+        const quotaMessage =
+          "You've used all 5 free queries this month — upgrade to Pro for unlimited queries.";
+        updateLastAgentMessage({
+          content: responseText || quotaMessage,
+          toolCalls: [...toolCalls],
+        });
+        setUpgradeBanner(quotaMessage);
       } else {
         const rateLimited = e instanceof ApiError && e.status === 429;
         const detail = rateLimited
@@ -330,8 +354,14 @@ function BooksView() {
     addMessage({ role: "agent", content: response });
   };
 
-  const handleReceiptError = (message: string) => {
-    setErrorBanner(message);
+  const handleReceiptError = (message: string, status?: number) => {
+    if (status === 402) {
+      setUpgradeBanner(
+        "You've used all 5 free queries this month — upgrade to Pro for unlimited queries.",
+      );
+    } else {
+      setErrorBanner(message);
+    }
   };
 
   const handleProactiveAuditClick = () => {
@@ -407,6 +437,18 @@ function BooksView() {
                 {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
               </span>
             )}
+            <Link
+              href="/account"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press flex items-center gap-1.5"
+            >
+              {me?.authenticated ? (
+                <>
+                  Account <PlanBadge plan={me.plan} />
+                </>
+              ) : (
+                "Sign in"
+              )}
+            </Link>
             <Link
               href="/pricing"
               className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
@@ -791,6 +833,28 @@ function BooksView() {
               </button>
             )}
           </div>
+
+          {/* Quota / plan-gate banner — an upgrade prompt, deliberately not styled as an error */}
+          {upgradeBanner && (
+            <div className="bg-sky-50 border-b border-sky-200 px-4 py-2.5 text-xs text-sky-900 flex items-center justify-between gap-3 fade-in-up">
+              <span>{upgradeBanner}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href="/account?intent=pro"
+                  className="font-semibold text-white bg-sky-600 hover:bg-sky-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
+                >
+                  Upgrade
+                </Link>
+                <button
+                  onClick={() => setUpgradeBanner(null)}
+                  className="text-sky-500 hover:text-sky-700 btn-press"
+                  aria-label="Dismiss upgrade prompt"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          )}
 
           {errorBanner && (
             <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 flex items-center justify-between fade-in-up">

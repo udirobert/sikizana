@@ -11,7 +11,7 @@ Schema migrations are tracked in schema_version.
 
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 DB_PATH = os.getenv("PAYMENT_DB_PATH", "data/sikizana.db")
 
@@ -82,6 +82,39 @@ MIGRATIONS: list[tuple[int, str]] = [
             created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_webhook_created ON webhook_events(created_at);
+    """,
+    ),
+    (
+        4,
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            plan TEXT NOT NULL DEFAULT 'free',
+            stripe_customer_id TEXT,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_users_stripe ON users(stripe_customer_id);
+
+        CREATE TABLE IF NOT EXISTS auth_sessions (
+            session_id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS usage_counters (
+            scope_key TEXT NOT NULL,
+            month TEXT NOT NULL,
+            queries INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (scope_key, month)
+        );
+
+        CREATE TABLE IF NOT EXISTS conversations (
+            key TEXT PRIMARY KEY,
+            messages TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
     """,
     ),
 ]
@@ -283,6 +316,185 @@ def get_webhook_events(since_id: int = 0, limit: int = 50) -> tuple[list[dict], 
     last = conn.execute("SELECT COALESCE(MAX(id), 0) AS m FROM webhook_events").fetchone()
     conn.close()
     return [dict(r) for r in rows], last["m"]
+
+
+# ---- Users & auth sessions ----
+
+
+def create_user(email: str, password_hash: str) -> dict | None:
+    """Create a user. Returns the user dict, or None if the email is taken."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    try:
+        cursor = conn.execute(
+            "INSERT INTO users (email, password_hash, plan, created_at) VALUES (?, ?, 'free', ?)",
+            (email, password_hash, now),
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        conn.close()
+        return None
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_email(email: str) -> dict | None:
+    init_db()
+    conn = _get_db()
+    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    init_db()
+    conn = _get_db()
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_stripe_customer(customer_id: str) -> dict | None:
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM users WHERE stripe_customer_id = ?", (customer_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def set_user_plan(user_id: int, plan: str) -> None:
+    init_db()
+    conn = _get_db()
+    conn.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
+    conn.commit()
+    conn.close()
+
+
+def set_stripe_customer(user_id: int, customer_id: str) -> None:
+    init_db()
+    conn = _get_db()
+    conn.execute("UPDATE users SET stripe_customer_id = ? WHERE id = ?", (customer_id, user_id))
+    conn.commit()
+    conn.close()
+
+
+def link_session_to_user(session_id: str, user_id: int) -> None:
+    """Bind the anonymous browser session to a logged-in user."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO auth_sessions (session_id, user_id, created_at) VALUES (?, ?, ?)
+        ON CONFLICT(session_id) DO UPDATE SET user_id = excluded.user_id, created_at = excluded.created_at
+        """,
+        (session_id, user_id, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def unlink_session(session_id: str) -> None:
+    init_db()
+    conn = _get_db()
+    conn.execute("DELETE FROM auth_sessions WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+
+
+def get_user_for_session(session_id: str) -> dict | None:
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        """
+        SELECT u.* FROM users u
+        JOIN auth_sessions s ON s.user_id = u.id
+        WHERE s.session_id = ?
+        """,
+        (session_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# ---- Usage metering ----
+
+
+def increment_usage(scope_key: str, month: str) -> int:
+    """Increment this month's query counter and return the new count."""
+    init_db()
+    conn = _get_db()
+    conn.execute(
+        """
+        INSERT INTO usage_counters (scope_key, month, queries) VALUES (?, ?, 1)
+        ON CONFLICT(scope_key, month) DO UPDATE SET queries = queries + 1
+        """,
+        (scope_key, month),
+    )
+    conn.commit()
+    row = conn.execute(
+        "SELECT queries FROM usage_counters WHERE scope_key = ? AND month = ?",
+        (scope_key, month),
+    ).fetchone()
+    conn.close()
+    return row["queries"] if row else 0
+
+
+def get_usage(scope_key: str, month: str) -> int:
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT queries FROM usage_counters WHERE scope_key = ? AND month = ?",
+        (scope_key, month),
+    ).fetchone()
+    conn.close()
+    return row["queries"] if row else 0
+
+
+# ---- Conversations (shared across workers, survive restarts) ----
+
+_CONVERSATION_TTL_DAYS = 30
+
+
+def load_conversation(key: str) -> list[dict]:
+    init_db()
+    conn = _get_db()
+    row = conn.execute("SELECT messages FROM conversations WHERE key = ?", (key,)).fetchone()
+    conn.close()
+    if not row:
+        return []
+    try:
+        import json
+
+        messages = json.loads(row["messages"])
+        return messages if isinstance(messages, list) else []
+    except ValueError:
+        return []
+
+
+def save_conversation(key: str, messages: list[dict]) -> None:
+    import json
+
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc)
+    conn.execute(
+        """
+        INSERT INTO conversations (key, messages, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET messages = excluded.messages, updated_at = excluded.updated_at
+        """,
+        (key, json.dumps(messages), now.isoformat()),
+    )
+    # Opportunistic prune of stale threads
+    cutoff = (now - timedelta(days=_CONVERSATION_TTL_DAYS)).isoformat()
+    conn.execute("DELETE FROM conversations WHERE updated_at < ?", (cutoff,))
+    conn.commit()
+    conn.close()
 
 
 def get_impact_summary() -> dict:

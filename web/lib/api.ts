@@ -132,6 +132,36 @@ export interface JournalPostResponse {
   message: string;
 }
 
+// ---- Accounts & billing ----
+
+export type Plan = "free" | "pro" | "business";
+
+export interface AuthUser {
+  email: string;
+  plan: Plan;
+}
+
+export interface AuthResponse {
+  ok: boolean;
+  user: AuthUser;
+}
+
+export interface MeResponse {
+  authenticated: boolean;
+  email: string | null;
+  plan: Plan;
+  usage: {
+    used: number;
+    /** null = unlimited */
+    limit: number | null;
+    month: string;
+  };
+  billing_enforced: boolean;
+  stripe_configured: boolean;
+}
+
+export type PaidPlan = "pro" | "business";
+
 /** Overall wall-clock budget for a single streamed chat response. */
 const STREAM_TIMEOUT_MS = 120_000;
 
@@ -144,6 +174,28 @@ export const endpoints = {
     api.post<{ received: boolean }>("/api/feedback", payload),
 
   impact: () => api.get<ImpactMetrics>("/api/impact"),
+
+  // ---- Accounts & billing ----
+
+  auth: {
+    /** Create an account bound to the current anonymous session. 409 if email taken. */
+    register: (email: string, password: string) =>
+      api.post<AuthResponse>("/api/auth/register", { email, password }),
+    /** Sign in. 401 on bad credentials. */
+    login: (email: string, password: string) =>
+      api.post<AuthResponse>("/api/auth/login", { email, password }),
+    logout: () => api.post<{ ok: boolean }>("/api/auth/logout", {}),
+  },
+
+  /** Current session — works for anonymous sessions too (authenticated: false). */
+  me: () => api.get<MeResponse>("/api/me"),
+
+  billing: {
+    /** Start a Stripe Checkout session. 401 if not logged in, 503 if Stripe not configured. */
+    checkout: (plan: PaidPlan) => api.post<{ url: string }>("/api/billing/checkout", { plan }),
+    /** Open the Stripe customer portal. 401/503 as above. */
+    portal: () => api.post<{ url: string }>("/api/billing/portal", {}),
+  },
 
   // ---- Xero (Bookkeeper mode) ----
 

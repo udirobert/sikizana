@@ -25,8 +25,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
-# Create data directory for SQLite persistence
-RUN mkdir -p /app/data && chmod 777 /app/data
+# Run as a non-root user; only the data dir is writable
+RUN useradd --create-home --uid 1001 app \
+    && mkdir -p /app/data \
+    && chown -R app:app /app/data
 
 # Set environment variables
 ENV PORT=8081
@@ -34,6 +36,9 @@ ENV PYTHONUNBUFFERED=1
 ENV PAYMENT_DB_PATH=/app/data/payments.db
 # Xero CLI: use file-based token storage (no keychain in Docker)
 ENV XERO_KEY_STORAGE=file
+ENV HOME=/home/app
+
+USER app
 
 # Expose port 8081 (avoids conflicts with Coolify on 8080)
 EXPOSE 8081

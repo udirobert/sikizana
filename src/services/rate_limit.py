@@ -32,7 +32,9 @@ class RateLimiter:
             self._prune(now)
             bucket = self._buckets.get(key)
             if bucket is None:
-                bucket = _Bucket(tokens=self.capacity)
+                # Stamp with `now`, not a fresh time.time(): a later stamp
+                # makes elapsed negative and silently shaves the first token
+                bucket = _Bucket(tokens=self.capacity, last_refill=now)
                 self._buckets[key] = bucket
 
             elapsed = now - bucket.last_refill

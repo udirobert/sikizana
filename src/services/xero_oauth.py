@@ -440,7 +440,9 @@ def _store_tokens(
     tenant_id: str,
     tenant_name: str,
 ) -> None:
-    """Store or update tokens for a session."""
+    """Store or update tokens for a session. Tokens are encrypted at rest."""
+    from src.services.crypto import encrypt
+
     db = _get_db()
     now = time.time()
     db.execute(
@@ -455,21 +457,42 @@ def _store_tokens(
             tenant_name = excluded.tenant_name,
             updated_at = excluded.updated_at
     """,
-        (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, now, now),
+        (
+            session_id,
+            encrypt(access_token),
+            encrypt(refresh_token),
+            expires_at,
+            tenant_id,
+            tenant_name,
+            now,
+            now,
+        ),
     )
     db.commit()
     db.close()
 
 
-def _get_tokens(session_id: str) -> sqlite3.Row | None:
-    """Get stored tokens for a session."""
+def _get_tokens(session_id: str) -> dict | None:
+    """Get stored tokens for a session, decrypted. Legacy plaintext rows
+    pass through and re-encrypt on the next refresh/store."""
+    from src.services.crypto import decrypt
+
     db = _get_db()
     row = db.execute(
         "SELECT * FROM xero_tokens WHERE session_id = ?",
         (session_id,),
     ).fetchone()
     db.close()
-    return row
+    if row is None:
+        return None
+    tokens = dict(row)
+    try:
+        tokens["access_token"] = decrypt(tokens["access_token"])
+        tokens["refresh_token"] = decrypt(tokens["refresh_token"])
+    except Exception as exc:  # wrong/rotated key — treat as disconnected
+        log.error("token_decrypt_failed", extra={"session_id": session_id, "error": str(exc)})
+        return None
+    return tokens
 
 
 def _delete_tokens(session_id: str) -> None:

@@ -14,7 +14,6 @@ back.
 import asyncio
 import json
 import os
-from collections import OrderedDict
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -53,20 +52,14 @@ _NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 _client: AsyncOpenAI | None = None
 
-# Conversations keyed by "{session_id}:{thread_id}" so one visitor's chat
-# can never bleed into another's. LRU-evicted so memory stays bounded.
-_MAX_CONVERSATIONS = 200
-_conversations: OrderedDict[str, list[dict[str, Any]]] = OrderedDict()
+# Conversations are keyed by "{session_id}:{thread_id}" so one visitor's
+# chat can never bleed into another's, and stored in SQLite so they
+# survive restarts and are shared across uvicorn workers.
+_HISTORY_LIMIT = 20  # messages kept per thread (token-overflow guard)
 
 
-def _get_conversation(session_id: str, thread_id: str | None) -> list[dict[str, Any]]:
-    key = f"{session_id}:{thread_id or 'default'}"
-    if key not in _conversations:
-        _conversations[key] = []
-    _conversations.move_to_end(key)
-    while len(_conversations) > _MAX_CONVERSATIONS:
-        _conversations.popitem(last=False)
-    return _conversations[key]
+def _conversation_key(session_id: str, thread_id: str | None) -> str:
+    return f"{session_id}:{thread_id or 'default'}"
 
 
 def _get_client() -> AsyncOpenAI:
@@ -486,8 +479,16 @@ async def run_bookkeeper_streaming(
 
     client = _get_client()
 
-    history = _get_conversation(session_id, thread_id)
+    from src.services.payment_store import load_conversation, save_conversation
+
+    conv_key = _conversation_key(session_id, thread_id)
+    history = await asyncio.to_thread(load_conversation, conv_key)
     history.append({"role": "user", "content": user_input})
+
+    async def _persist_history() -> None:
+        if len(history) > _HISTORY_LIMIT:
+            history[:] = history[-_HISTORY_LIMIT:]
+        await asyncio.to_thread(save_conversation, conv_key, history)
 
     messages = [{"role": "system", "content": _load_prompt(persona)}] + history
 
@@ -593,6 +594,7 @@ async def run_bookkeeper_streaming(
                 # Partial answer already reached the user — close it honestly
                 partial = "".join(streamed_text)
                 history.append({"role": "assistant", "content": partial})
+                await _persist_history()
                 yield {
                     "type": "text",
                     "text": "\n\n(The connection dropped mid-answer — ask me to continue if I was cut off.)",
@@ -705,10 +707,7 @@ async def run_bookkeeper_streaming(
 
         # Save to conversation history
         history.append({"role": "assistant", "content": final_text})
-
-        # Trim history to last 20 messages to avoid token overflow
-        if len(history) > 20:
-            history[:] = history[-20:]
+        await _persist_history()
 
         yield {"type": "done"}
         return
@@ -716,6 +715,7 @@ async def run_bookkeeper_streaming(
     # If we hit max iterations, return what we have
     fallback = "I've gathered the information from your books but need more context. Could you rephrase your question?"
     history.append({"role": "assistant", "content": fallback})
+    await _persist_history()
     yield {"type": "text", "text": fallback}
     yield {"type": "done"}
 

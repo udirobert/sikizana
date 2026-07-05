@@ -17,7 +17,8 @@ export function ReceiptUpload({
   onError,
 }: {
   onResult: (response: string, filename: string) => void;
-  onError: (message: string) => void;
+  /** `status` is the HTTP status when the failure came from the API (e.g. 402 = quota exhausted). */
+  onError: (message: string, status?: number) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -34,13 +35,11 @@ export function ReceiptUpload({
       const data = await endpoints.xero.uploadReceipt(file);
       onResult(data.response, data.filename);
     } catch (e) {
-      const detail =
-        e instanceof ApiError
-          ? `Upload failed (${e.status}).`
-          : e instanceof Error
-            ? e.message
-            : "Unknown error.";
-      onError(detail);
+      if (e instanceof ApiError) {
+        onError(`Upload failed (${e.status}).`, e.status);
+      } else {
+        onError(e instanceof Error ? e.message : "Unknown error.");
+      }
     } finally {
       setIsUploading(false);
     }

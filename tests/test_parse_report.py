@@ -10,7 +10,10 @@ _CAMEL_REPORT = {
             "rowType": "Section",
             "rows": [
                 {"rowType": "Row", "cells": [{"value": "Sales"}, {"value": "18,450.00"}]},
-                {"rowType": "SummaryRow", "cells": [{"value": "Total Income"}, {"value": "18450.00"}]},
+                {
+                    "rowType": "SummaryRow",
+                    "cells": [{"value": "Total Income"}, {"value": "18450.00"}],
+                },
             ],
         },
         {
@@ -35,7 +38,10 @@ _PASCAL_REPORT = {
             "RowType": "Section",
             "Rows": [
                 {"RowType": "Row", "Cells": [{"Value": "Sales"}, {"Value": "18,450.00"}]},
-                {"RowType": "SummaryRow", "Cells": [{"Value": "Total Income"}, {"Value": "18450.00"}]},
+                {
+                    "RowType": "SummaryRow",
+                    "Cells": [{"Value": "Total Income"}, {"Value": "18450.00"}],
+                },
             ],
         },
         {

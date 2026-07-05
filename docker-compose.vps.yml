@@ -17,7 +17,9 @@ services:
       - XERO_KEY_STORAGE=file
       - PAYMENT_DB_PATH=/app/data/payments.db
     volumes:
-      - /home/linuxuser/.config/xero-command-line:/root/.config/xero-command-line
+      # Container runs as non-root `app` (uid 1001) — CLI profile mounts
+      # into its home, not /root
+      - /home/linuxuser/.config/xero-command-line:/home/app/.config/xero-command-line
       - sikizana-data:/app/data
     networks:
       - coolify

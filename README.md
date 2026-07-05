@@ -44,20 +44,29 @@ Siki the Owl is an AI agent that:
 ## Architecture
 
 ```
-User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.1)
-                                           → Xero API (OAuth2 + CLI)
+User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.1, streamed)
+                                           → Xero API (per-session OAuth2 → CLI → mock)
                                            → Gemini Vision (receipt matching)
-                                           → SQLite (feedback, audit, impact)
+                                           → SQLite (tokens, feedback, audit, impact, webhooks)
 ```
 
+Every browser session gets an anonymous HttpOnly cookie; Xero tokens,
+conversations, and journal write-backs are scoped to it. Data resolves
+per session: the user's own org via OAuth (direct Xero API with
+`Xero-Tenant-Id`, `Idempotency-Key` on writes, 429 backoff, pagination),
+falling back to the operator's CLI org, falling back to seeded demo data
+— with the active mode reported honestly in the UI.
+
 ### Backend (Python / FastAPI)
-- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM
-- **Tools**: `src/tools/xero_tools.py` — 12 tools (discrepancies, invoices, P&L, tax, journals)
+- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM, real token streaming
+- **Tools**: `src/tools/xero_tools.py` — 14 tools (discrepancies, invoices, P&L, tax, journals, reminders, savings)
 - **Tax rules**: `src/tools/rag_engine.py` — embedded HMRC rules with citations
-- **Xero service**: `src/services/xero_service.py` — Xero API client
-- **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow
+- **Xero service**: `src/services/xero_service.py` — session-scoped OAuth → CLI → mock resolution
+- **Xero API client**: `src/services/xero_api.py` — direct Accounting API (tenant header, idempotency, rate-limit retry)
+- **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow (SQLite state store, locked token refresh)
 - **Vision**: `src/tools/vision_audit.py` — Gemini Vision receipt matching
-- **Storage**: `src/services/payment_store.py` — feedback, audit history, impact events
+- **Storage**: `src/services/payment_store.py` — feedback, audit history, impact + webhook events
+- **Tests**: `tests/` — report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization

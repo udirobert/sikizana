@@ -152,6 +152,126 @@ async def feedback_summary():
     return get_feedback_summary()
 
 
+# ---- Accounts ----
+
+
+class AuthRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+@app.post("/api/auth/register")
+async def auth_register(req: AuthRequest, session_id: str = Depends(get_session_id)):
+    from src.services import accounts
+
+    user, error = await asyncio.to_thread(accounts.register, req.email, req.password, session_id)
+    if error:
+        status = 409 if "already exists" in error else 422
+        raise HTTPException(status_code=status, detail=error)
+    return {"ok": True, "user": {"email": user["email"], "plan": user["plan"]}}
+
+
+@app.post("/api/auth/login")
+async def auth_login(req: AuthRequest, session_id: str = Depends(get_session_id)):
+    from src.services import accounts
+
+    user, error = await asyncio.to_thread(accounts.login, req.email, req.password, session_id)
+    if error:
+        raise HTTPException(status_code=401, detail=error)
+    return {"ok": True, "user": {"email": user["email"], "plan": user["plan"]}}
+
+
+@app.post("/api/auth/logout")
+async def auth_logout(session_id: str = Depends(get_session_id)):
+    from src.services import accounts
+
+    await asyncio.to_thread(accounts.logout, session_id)
+    return {"ok": True}
+
+
+@app.get("/api/me")
+async def me(session_id: str = Depends(get_session_id)):
+    """Identity, plan, and this month's AI-query usage for the session."""
+    from src.services import accounts
+
+    return await asyncio.to_thread(accounts.get_account, session_id)
+
+
+# ---- Billing (Stripe) ----
+
+
+class CheckoutRequest(BaseModel):
+    plan: str = Field(..., pattern="^(pro|business)$")
+
+
+def _require_user(session_id: str) -> dict:
+    from src.services.payment_store import get_user_for_session
+
+    user = get_user_for_session(session_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to manage billing.")
+    return user
+
+
+@app.post("/api/billing/checkout")
+async def billing_checkout(req: CheckoutRequest, session_id: str = Depends(get_session_id)):
+    from src.services import billing
+
+    def _create():
+        user = _require_user(session_id)
+        return billing.create_checkout(user, req.plan)
+
+    try:
+        url = await asyncio.to_thread(_create)
+    except billing.BillingError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
+    return {"url": url}
+
+
+@app.post("/api/billing/portal")
+async def billing_portal(session_id: str = Depends(get_session_id)):
+    from src.services import billing
+
+    def _create():
+        user = _require_user(session_id)
+        return billing.create_portal(user)
+
+    try:
+        url = await asyncio.to_thread(_create)
+    except billing.BillingError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
+    return {"url": url}
+
+
+@app.post("/api/billing/webhook")
+async def billing_webhook(request: Request):
+    """Stripe webhook — signature-verified; the only place plans change."""
+    from src.services import billing
+
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature", "")
+    try:
+        return await asyncio.to_thread(billing.handle_webhook, payload, signature)
+    except billing.BillingError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc))
+
+
+def _check_query_quota(session_id: str) -> None:
+    """Meter one AI query; 402 when the free monthly quota is exhausted
+    (only bites when billing is enforced)."""
+    from src.services import accounts
+
+    allowed, _used, limit = accounts.count_query(session_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=402,
+            detail=(
+                f"You've used all {limit} free AI queries this month — "
+                "upgrade to Pro for unlimited queries."
+            ),
+        )
+
+
 # ---- Xero (Bookkeeper mode) ----
 
 
@@ -171,6 +291,7 @@ async def xero_chat(
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message must not be empty")
     _check_rate_limit(request)
+    _check_query_quota(session_id)
 
     try:
         from src.agents.bookkeeper import run_bookkeeper
@@ -229,6 +350,7 @@ async def xero_chat_stream(
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="message must not be empty")
     _check_rate_limit(request)
+    _check_query_quota(session_id)
 
     import json
 
@@ -350,6 +472,7 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
     The frontend should redirect the user to this URL.
     """
     from src.services.xero_oauth import is_configured, get_authorization_url
+    from src.services.accounts import require_paid_plan
 
     if not is_configured():
         # OAuth not configured — fall back to demo mode
@@ -358,6 +481,13 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
             "auth_url": None,
             "message": "Xero OAuth not configured. Using demo data.",
         }
+
+    allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Connecting your own Xero org requires the Pro plan.",
+        )
 
     auth_url = await asyncio.to_thread(get_authorization_url, session_id)
     return {"configured": True, "auth_url": auth_url}
@@ -463,8 +593,15 @@ async def xero_post_journal(
     """
     from src.services.xero_service import XeroService
     from src.services.xero_api import XeroApiError
+    from src.services.accounts import require_paid_plan
 
     _check_rate_limit(request)
+    allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Posting journal entries to Xero requires the Pro plan.",
+        )
 
     def _post():
         svc = XeroService(session_id)
@@ -526,7 +663,11 @@ _MAX_RECEIPT_BYTES = 8 * 1024 * 1024  # 8 MB
 
 
 @app.post("/api/xero/upload-receipt")
-async def xero_upload_receipt(request: Request, file: UploadFile = File(...)):
+async def xero_upload_receipt(
+    request: Request,
+    file: UploadFile = File(...),
+    session_id: str = Depends(get_session_id),
+):
     """
     Upload a receipt/invoice photo for multimodal matching.
     Saves the file to a temp path, then calls the bookkeeper agent's
@@ -536,6 +677,7 @@ async def xero_upload_receipt(request: Request, file: UploadFile = File(...)):
     import tempfile
 
     _check_rate_limit(request)
+    _check_query_quota(session_id)
 
     allowed = {"image/png", "image/jpeg", "image/jpg", "image/webp", "application/pdf"}
     if file.content_type not in allowed:

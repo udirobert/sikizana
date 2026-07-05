@@ -1,10 +1,11 @@
 from src.agents.bookkeeper import (
     _TOOL_DEFS,
     _TOOL_FUNCS,
+    _conversation_key,
     _generate_status_message,
-    _get_conversation,
     _summarize_tool_result,
 )
+from src.services.payment_store import load_conversation, save_conversation
 
 
 def test_every_advertised_tool_is_executable():
@@ -21,21 +22,21 @@ def test_status_message_matches_topic():
 
 
 def test_conversations_are_session_scoped():
-    a = _get_conversation("session-a", "t1")
-    b = _get_conversation("session-b", "t1")
-    a.append({"role": "user", "content": "private"})
-    assert b == []
-    assert _get_conversation("session-a", "t1") == a
+    """Same thread id, different sessions → different stored histories."""
+    key_a = _conversation_key("session-a", "t1")
+    key_b = _conversation_key("session-b", "t1")
+    assert key_a != key_b
+    save_conversation(key_a, [{"role": "user", "content": "private"}])
+    assert load_conversation(key_b) == []
+    assert load_conversation(key_a) == [{"role": "user", "content": "private"}]
 
 
-def test_conversation_lru_eviction():
-    import src.agents.bookkeeper as bk
-
-    bk._conversations.clear()
-    for i in range(bk._MAX_CONVERSATIONS + 5):
-        _get_conversation(f"s{i}", None)
-    assert len(bk._conversations) <= bk._MAX_CONVERSATIONS
-    assert "s0:default" not in bk._conversations
+def test_conversation_survives_reload():
+    """Histories live in SQLite — restarts and multiple workers share them."""
+    key = _conversation_key("s1", "thread-9")
+    messages = [{"role": "user", "content": "hi"}, {"role": "assistant", "content": "hello"}]
+    save_conversation(key, messages)
+    assert load_conversation(key) == messages
 
 
 def test_summarize_truncates_long_results():

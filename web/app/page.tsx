@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SikiMascot, type MascotMood } from "@/components/SikiMascot";
 import { useImpactMetrics } from "@/hooks/useRevenue";
+import { useMe } from "@/hooks/useMe";
+import { PlanBadge } from "@/components/PlanBadge";
 
 /**
  * Public landing page — mascot-driven, English-only, polished.
@@ -12,6 +14,7 @@ import { useImpactMetrics } from "@/hooks/useRevenue";
  */
 export default function LandingPage() {
   const metrics = useImpactMetrics(60_000);
+  const { me } = useMe();
   const moneyFound = metrics?.money_found ?? 0;
   const discrepanciesFound = metrics?.discrepancies_found ?? 0;
 
@@ -50,6 +53,18 @@ export default function LandingPage() {
               className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
               Pricing
+            </Link>
+            <Link
+              href="/account"
+              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press flex items-center gap-1.5"
+            >
+              {me?.authenticated ? (
+                <>
+                  Account <PlanBadge plan={me.plan} />
+                </>
+              ) : (
+                "Sign in"
+              )}
             </Link>
           </div>
         </div>
