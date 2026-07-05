@@ -55,3 +55,20 @@ def test_service_demo_journal_flags_not_posted():
     assert result["posted"] is False
     assert result["mode"] == "demo"
     assert "Simulated" in result["message"]
+
+
+def test_tools_coerce_string_amounts():
+    """LLMs pass numeric args as strings — tools must coerce, not crash."""
+    from src.tools.xero_tools import draft_invoice_reminder
+
+    proposed = propose_journal_entry("Fix rent", "600", "090", "1200")
+    assert "PROPOSED JOURNAL ENTRY" in proposed
+    assert "1,200.00" in proposed
+
+    simulated = create_xero_journal_entry("Fix rent", "600", "090", "50.5")
+    assert "SIMULATED" in simulated
+
+    email = draft_invoice_reminder(
+        contact_name="Catering Co", amount="1250", invoice_number="INV-0001", days_overdue="15"
+    )
+    assert "1,250.00" in email

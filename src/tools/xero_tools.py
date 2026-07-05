@@ -265,6 +265,12 @@ def propose_journal_entry(
     the correct accounts from the chart of accounts.
     Returns a human-readable journal entry for the user to approve.
     """
+    # LLMs frequently pass numeric args as strings ("1200") — coerce
+    # defensively instead of crashing the tool call.
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return f"Error: '{amount}' is not a valid amount."
     accounts = _svc().list_accounts()
     debit_acct = next((a for a in accounts if a["code"] == debit_account_code), None)
     credit_acct = next((a for a in accounts if a["code"] == credit_account_code), None)
@@ -373,6 +379,12 @@ def create_xero_journal_entry(
     CLI. A failed live write is reported as a FAILURE — never as success.
     In demo mode nothing is written and the message says so.
     """
+    # LLMs frequently pass numeric args as strings ("1200") — coerce
+    # defensively instead of crashing the tool call.
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return f"Error: '{amount}' is not a valid amount."
     svc = _svc()
     accounts = svc.list_accounts()
     debit_acct = next((a for a in accounts if a["code"] == debit_account_code), None)
@@ -589,6 +601,12 @@ def draft_invoice_reminder(
 
     Returns the drafted email text for the user to review and send.
     """
+    try:
+        amount = float(amount or 0)
+        days_overdue = int(days_overdue or 0)
+    except (TypeError, ValueError):
+        amount, days_overdue = 0.0, 0
+
     # Determine tone from days overdue if not specified
     if not tone:
         if days_overdue <= 14:

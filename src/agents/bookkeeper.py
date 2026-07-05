@@ -45,8 +45,8 @@ log = get_logger("sikizana.bookkeeper")
 
 # NVIDIA NIM API (OpenAI-compatible) — primary inference provider
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
-_NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "meta/llama-3.1-8b-instruct")
+_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
+_NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "meta/llama-3.1-70b-instruct")
 _NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 # Venice AI — cross-provider fallback when NVIDIA is down entirely.
@@ -541,7 +541,9 @@ async def run_bookkeeper_streaming(
 
     # Agent loop: stream the model, execute tools, feed results back.
     # Provider fallback chain: NVIDIA (primary + fallback model) → Venice.
-    max_iterations = 5
+    # Enough headroom for gather→chart-of-accounts→propose chains (retries
+    # also consume iterations)
+    max_iterations = 8
     current_model = _NVIDIA_MODEL
     retried = False
     for iteration in range(max_iterations):
