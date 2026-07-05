@@ -64,6 +64,11 @@ function BooksView() {
   // Plan/quota banner (HTTP 402 quota exhausted, 403 plan-gated Xero connect) —
   // distinct from errorBanner: it's an upgrade prompt, not an error.
   const [upgradeBanner, setUpgradeBanner] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+  // Sign-in nudge — shown once per browser session after the first real answer.
+  // sessionStorage persists across page reloads but clears when the tab closes.
+  const [signInNudge, setSignInNudge] = useState<string | null>(null);
+  const signInNudgeDismissed = typeof window !== "undefined" && sessionStorage.getItem("siki_signin_nudged") === "1";
   const [findings, setFindings] = useState<FindingsResponse | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(true);
   // Findings the user already acted on — "asked" state on the cards.
@@ -324,6 +329,23 @@ function BooksView() {
         // "done": nothing extra to do — the success overlay only fires from a
         // real journal POST (see JournalEntryCard onPosted), never from
         // string-matching the response text.
+      }
+
+      // Sign-in nudge: after the first real agent answer, if the user
+      // is anonymous and hasn't been nudged this session, suggest signing
+      // in to save progress. At 3/5 queries, nudge again with "sign in
+      // for more" (lighter than the upgrade banner at 5/5).
+      if (!signInNudgeDismissed && (!me || !me.authenticated)) {
+        const used = me?.usage?.used ?? 0;
+        const limit = me?.usage?.limit ?? 5;
+        if (used >= 3 && used < limit) {
+          setSignInNudge(
+            `You've used ${used} of ${limit} free queries. Sign in to keep your chat history and get a weekly digest.`,
+          );
+        } else if (messages.filter((m) => m.role === "agent" && m.content).length === 1) {
+          // First real answer — light nudge to save progress.
+          setSignInNudge("Sign in to save your progress and access Siki from any device.");
+        }
       }
     } catch (e) {
       if (controller.signal.aborted) {
@@ -697,13 +719,33 @@ function BooksView() {
             </div>
 
             {messages.length > 0 && (
-              <button
-                onClick={newSession}
-                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-                title="Start a new conversation"
-              >
-                New
-              </button>
+              confirmClear ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => { newSession(); setConfirmClear(false); }}
+                    className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded btn-press"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    className="text-xs text-stone-500 hover:text-stone-700 px-1.5 py-1 rounded btn-press"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+                  title="Start a new conversation"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Clear
+                </button>
+              )
             )}
           </div>
 
@@ -751,6 +793,33 @@ function BooksView() {
               >
                 ×
               </button>
+            </div>
+          )}
+
+          {/* Sign-in nudge — contextual, dismissible, once per session.
+              Lighter than the upgrade banner: asks for sign-in (free), not
+              upgrade (paid). Shown after the first answer or at 3/5 queries. */}
+          {signInNudge && (
+            <div className="bg-violet-50 border-b border-violet-200 px-4 py-2.5 text-xs text-violet-900 flex items-center justify-between gap-3 fade-in-up">
+              <span>{signInNudge}</span>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href="/account"
+                  className="font-semibold text-white bg-violet-600 hover:bg-violet-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
+                >
+                  Sign in
+                </Link>
+                <button
+                  onClick={() => {
+                    setSignInNudge(null);
+                    sessionStorage.setItem("siki_signin_nudged", "1");
+                  }}
+                  className="text-violet-400 hover:text-violet-600 btn-press"
+                  aria-label="Dismiss sign-in prompt"
+                >
+                  ×
+                </button>
+              </div>
             </div>
           )}
 
@@ -940,6 +1009,34 @@ function BooksView() {
                     !(isLoading && i === messages.length - 1) && (
                     <FeedbackButtons threadId={threadId} messageIndex={i} initial={msg.feedback} />
                   )}
+                  {/* Contextual Zana nudge — only on the last agent message,
+                      only in Siki mode, only when not streaming. Detects
+                      overdue invoices, tax, or savings opportunities in the
+                      response and suggests switching to Zana for the action
+                      Zana is better at (chasing, tax bluntness, savings). */}
+                  {msg.role === "agent" && msg.content &&
+                    persona === "siki" &&
+                    !isLoading && i === messages.length - 1 &&
+                    (() => {
+                      const lower = msg.content.toLowerCase();
+                      let nudge: string | null = null;
+                      if (lower.includes("overdue") || lower.includes("owed") || lower.includes("hasn't paid") || lower.includes("haven't paid"))
+                        nudge = "Zana can draft the chasing email for this →";
+                      else if (lower.includes("tax") || lower.includes("deduct") || lower.includes("corporation tax"))
+                        nudge = "Zana can check if you're overpaying tax →";
+                      else if (lower.includes("saving") || lower.includes("expense") || lower.includes("margin") || lower.includes("profit"))
+                        nudge = "Zana can find savings in your expenses →";
+                      if (!nudge) return null;
+                      return (
+                        <button
+                          onClick={() => handlePersonaChange("zana")}
+                          className="self-start mt-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg btn-press transition-colors fade-in-up flex items-center gap-1.5"
+                        >
+                          <span className="text-rose-400">⚡</span>
+                          {nudge}
+                        </button>
+                      );
+                    })()}
                 </div>
               </div>
               );
