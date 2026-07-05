@@ -6,9 +6,10 @@ import { endpoints } from "@/lib/api";
 import { getTipsForTool, getPersonalizedInsight, type EduTip } from "@/lib/edu-tips";
 
 /**
- * WhileSikiWorks — replaces the plain "Thinking…" spinner with a rotating
+ * WhileAgentWorks — replaces the plain "Thinking…" spinner with a rotating
  * stream of educational content, personalized insights, and live HMRC
- * guidance. Turns dead wait time into value delivery.
+ * guidance. Turns dead wait time into value delivery. Works for both
+ * Siki and Zana personas.
  *
  * Three layers:
  * 1. Curated tips relevant to the current tool call (rotates every 4s)
@@ -20,7 +21,7 @@ import { getTipsForTool, getPersonalizedInsight, type EduTip } from "@/lib/edu-t
  * guidance under the agent's final response.
  */
 
-interface WhileSikiWorksProps {
+interface WhileAgentWorksProps {
   /** The user's original query — used for Exa search. */
   userQuery: string;
   /** Current tool being executed (drives which tips to show). */
@@ -34,13 +35,13 @@ interface WhileSikiWorksProps {
   onContextResults?: (results: ContextResult[]) => void;
 }
 
-export function WhileSikiWorks({
+export function WhileAgentWorks({
   userQuery,
   currentTool,
   thinkingMessage,
   findings,
   onContextResults,
-}: WhileSikiWorksProps) {
+}: WhileAgentWorksProps) {
   const [tipIndex, setTipIndex] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [contextResults, setContextResults] = useState<ContextResult[]>([]);
@@ -89,7 +90,7 @@ export function WhileSikiWorks({
         <span className="thinking-pulse" />
       </div>
       <div className="flex-1 space-y-2">
-        {/* Status line — what Siki is doing + elapsed timer */}
+        {/* Status line — what the agent is doing + elapsed timer */}
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm text-stone-600 t-shimmer">
             {thinkingMessage || "Thinking…"}

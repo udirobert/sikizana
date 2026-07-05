@@ -19,7 +19,7 @@ import { SuccessCheck } from "@/components/SuccessCheck";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
-import { WhileSikiWorks } from "@/components/WhileSikiWorks";
+import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -1085,7 +1085,7 @@ function BooksView() {
                   {persona === "siki" ? <SikiMascot size={32} mood="look" /> : <ZanaMascot size={32} mood="look" />}
                 </div>
                 <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex-1">
-                  <WhileSikiWorks
+                  <WhileAgentWorks
                     userQuery={lastQuery}
                     currentTool={currentTool}
                     thinkingMessage={thinkingMessage}
