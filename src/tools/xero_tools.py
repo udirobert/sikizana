@@ -361,7 +361,9 @@ def get_xero_contacts(query: str = "") -> str:
         if c.get("isCustomer"):
             roles.append("Customer")
         role = " | ".join(roles) if roles else "Contact"
-        summary += f"- {c['name']} ({role})\n"
+        email = c.get("emailAddress", "")
+        email_str = f" | {email}" if email else ""
+        summary += f"- {c['name']} ({role}{email_str})\n"
     return summary
 
 
@@ -586,26 +588,39 @@ def get_tax_insights() -> str:
 def draft_invoice_reminder(
     invoice_id: str = "",
     contact_name: str = "",
+    contact_email: str = "",
     amount: float = 0.0,
     invoice_number: str = "",
     days_overdue: int = 0,
     tone: str = "",
+    negotiation_tactic: str = "",
 ) -> str:
     """
-    Draft a reminder email for an overdue invoice. The tone escalates
-    based on days overdue:
-      - 1-14 days: Friendly reminder
-      - 15-30 days: Firm but professional
-      - 31-60 days: Final notice with late payment interest
-      - 60+ days: Recommend debt collection
+    Draft a reminder email for an overdue invoice using Chris Voss'
+    negotiation principles (Never Split the Difference). The tone
+    escalates based on days overdue, and the negotiation tactic is
+    selected to match the situation.
 
-    Returns the drafted email text for the user to review and send.
+    Returns a structured email draft with the chosen tactic, situation
+    analysis, and the psychology behind the approach — so the user
+    understands WHY this email works, not just what it says.
     """
     try:
         amount = float(amount or 0)
         days_overdue = int(days_overdue or 0)
     except (TypeError, ValueError):
         amount, days_overdue = 0.0, 0
+
+    # Look up contact email if not provided
+    if not contact_email and contact_name:
+        try:
+            contacts = _svc().list_contacts()
+            for c in contacts:
+                if c.get("name", "").lower() == contact_name.lower():
+                    contact_email = c.get("emailAddress", "") or ""
+                    break
+        except Exception:  # noqa: BLE001
+            pass
 
     # Determine tone from days overdue if not specified
     if not tone:
@@ -618,9 +633,83 @@ def draft_invoice_reminder(
         else:
             tone = "collection"
 
+    # Select negotiation tactic based on situation (Chris Voss principles)
+    # if not explicitly provided
+    if not negotiation_tactic:
+        if days_overdue <= 14:
+            negotiation_tactic = "mirror"
+        elif days_overdue <= 30:
+            negotiation_tactic = "calibrated_question"
+        elif days_overdue <= 60:
+            negotiation_tactic = "label"
+        else:
+            negotiation_tactic = "no_oriented"
+
+    # Tactic metadata: label, psychology, and how it's applied
+    _TACTICS = {
+        "mirror": {
+            "label": "Mirroring",
+            "psychology": (
+                "Repeat the last 1-3 words of their likely concern as a question. "
+                "Mirroring creates unconscious rapport and prompts the other side "
+                "to elaborate, revealing their real constraint. People feel heard "
+                "without realizing why."
+            ),
+        },
+        "calibrated_question": {
+            "label": "Calibrated Question",
+            "psychology": (
+                "Ask 'How' or 'What' questions instead of making demands. "
+                "'How would you like to resolve this?' gives the debtor agency — "
+                "they feel like they're choosing, not being forced. People resist "
+                "demands but cooperate with choices. It also makes them think "
+                "through the solution themselves."
+            ),
+        },
+        "label": {
+            "label": "Labeling",
+            "psychology": (
+                "Name the emotion or situation: 'It seems like cash flow is tight "
+                "right now.' Labeling acknowledges their position without agreeing "
+                "with it, which defuses defensiveness. When people feel understood, "
+                "they become more flexible."
+            ),
+        },
+        "no_oriented": {
+            "label": "No-Oriented Question",
+            "psychology": (
+                "Frame as 'Would it be a terrible idea to...' — people find it "
+                "easier to say 'no' than 'yes,' and saying 'no' to the negative "
+                "actually means yes to your request. It feels safe and non-binding, "
+                "which lowers their guard."
+            ),
+        },
+        "accusation_audit": {
+            "label": "Accusation Audit",
+            "psychology": (
+                "Pre-empt every negative thing they could think about you: "
+                "'You're probably going to think I'm being unreasonable.' "
+                "Naming the worst fears upfront defuses them. Once spoken, "
+                "they lose their power."
+            ),
+        },
+    }
+
+    tactic_info = _TACTICS.get(negotiation_tactic, _TACTICS["calibrated_question"])
+    tactic_label = tactic_info["label"]
+    tactic_psychology = tactic_info["psychology"]
+
+    # Situation analysis
+    if days_overdue <= 14:
+        situation = f"First chase — {days_overdue} days late, relationship is fresh"
+    elif days_overdue <= 30:
+        situation = f"Second chase — {days_overdue} days late, patience wearing thin"
+    elif days_overdue <= 60:
+        situation = f"Final notice — {days_overdue} days late, statutory interest applies"
+    else:
+        situation = f"Debt recovery — {days_overdue} days late, formal action looming"
+
     # Late payment interest under UK Late Payment of Commercial Debts Act 1998
-    # = 8% + Bank of England base rate (configurable via env). The rate is
-    # cited in the reminder so the debtor can verify it.
     interest_rate = 8.0 + _BANK_RATE
     daily_interest = (amount * interest_rate / 100) / 365 * days_overdue
     total_with_interest = amount + daily_interest
@@ -649,8 +738,8 @@ This is a follow-up regarding invoice {invoice_number} for £{amount:,.2f},
 which is now {days_overdue} days overdue.
 
 I've not yet received payment or heard from you regarding this invoice.
-Could you please arrange payment by return, or contact me immediately to
-discuss any issues?
+How would you like to resolve this? I'm open to discussing payment terms
+if that would help.
 
 I value our business relationship, but I do need this resolved promptly.
 
@@ -663,6 +752,9 @@ Regards,
 
 Despite previous reminders, invoice {invoice_number} for £{amount:,.2f}
 remains unpaid and is now {days_overdue} days overdue.
+
+It seems like there may be a cash flow constraint on your end. I understand
+that can happen — but I need to address this now.
 
 Under the Late Payment of Commercial Debts (Interest) Act 1998, I am
 entitled to charge interest at {interest_rate}% per annum (Bank Rate + 8%).
@@ -686,8 +778,8 @@ overdue. Despite multiple reminders, no payment has been received.
 The total amount due, including statutory interest of £{daily_interest:,.2f}
 under the Late Payment of Commercial Debts Act 1998, is £{total_with_interest:,.2f}.
 
-If payment is not received within 7 days, I will refer this matter to a
-debt collection agency or pursue recovery through the Small Claims Court.
+Would it be a terrible idea to settle this before I refer it to a debt
+collection agency or pursue recovery through the Small Claims Court?
 
 This is my final communication before formal recovery proceedings begin.
 
@@ -695,7 +787,17 @@ Regards,
 [Your name]
 """
 
-    return f"Subject: {subject}\n\n{body}"
+    # Structured output with markers for frontend parsing
+    output = f"""NEGOTIATION EMAIL
+Tactic: {negotiation_tactic}
+Tactic Label: {tactic_label}
+Situation: {situation}
+Psychology: {tactic_psychology}
+To: {contact_email or "[no email on file — look up manually]"}
+Subject: {subject}
+
+{body}"""
+    return output
 
 
 def get_savings_opportunities() -> str:

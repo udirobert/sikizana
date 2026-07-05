@@ -372,7 +372,7 @@ _TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "draft_invoice_reminder",
-            "description": "Draft a reminder email for an overdue invoice. The tone escalates based on days overdue (friendly → firm → final notice with late payment interest → debt collection). Returns the drafted email text for the user to review and send. Use this when the user wants to chase an overdue invoice or asks for help collecting payments.",
+            "description": "Draft a reminder email for an overdue invoice using Chris Voss negotiation principles. The tone escalates based on days overdue (friendly → firm → final notice with late payment interest → debt collection). Returns a structured email with the negotiation tactic, situation analysis, and psychology. Use this when the user wants to chase an overdue invoice or asks for help collecting payments.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -383,6 +383,10 @@ _TOOL_DEFS = [
                     "contact_name": {
                         "type": "string",
                         "description": "The customer name to address the email to",
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "description": "The customer's email address. If omitted, the tool will look it up from contacts.",
                     },
                     "amount": {"type": "number", "description": "The invoice amount due in pounds"},
                     "invoice_number": {
@@ -396,6 +400,10 @@ _TOOL_DEFS = [
                     "tone": {
                         "type": "string",
                         "description": "Override tone: 'friendly', 'firm', 'final', or 'collection'. If omitted, tone is determined by days_overdue.",
+                    },
+                    "negotiation_tactic": {
+                        "type": "string",
+                        "description": "Override negotiation tactic: 'mirror', 'calibrated_question', 'label', 'no_oriented', or 'accusation_audit'. If omitted, tactic is selected based on days_overdue.",
                     },
                 },
                 "required": [],

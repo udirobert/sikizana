@@ -21,6 +21,7 @@ import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
+import { NegotiationEmailCard, parseNegotiationEmail } from "@/components/NegotiationEmailCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -981,9 +982,13 @@ function BooksView() {
             {messages.map((msg, i) => {
               // Parse for journal entry card if agent message
               const journal = msg.role === "agent" && msg.content ? parseJournalEntry(msg.content) : null;
-              // The text to display (remove the journal entry block if we're showing it as a card)
+              // Parse for negotiation email card if agent message
+              const negotiationEmail = msg.role === "agent" && msg.content ? parseNegotiationEmail(msg.content) : null;
+              // The text to display (remove the structured block if we're showing it as a card)
               const displayContent = journal
                 ? msg.content.split(/PROPOSED JOURNAL ENTRY/i)[0].trim()
+                : negotiationEmail
+                ? msg.content.split(/NEGOTIATION EMAIL/i)[0].trim()
                 : msg.content;
 
               return (
@@ -1043,6 +1048,9 @@ function BooksView() {
                         inputRef.current?.focus();
                       }}
                     />
+                  )}
+                  {negotiationEmail && (
+                    <NegotiationEmailCard email={negotiationEmail} />
                   )}
                   {/* Feedback on completed agent answers (not while streaming) */}
                   {msg.role === "agent" && msg.content && threadId &&
