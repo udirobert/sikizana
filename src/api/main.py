@@ -153,21 +153,31 @@ _CURATED_CONTEXT = [
 async def context_search(q: str = ""):
     """
     Fetch relevant HMRC/tax content for the user's query.
-    Uses Exa's instant search if an API key is configured;
-    falls back to curated content otherwise.
+
+    Pipeline:
+    1. Exa instant search → find top gov.uk pages (~250ms)
+    2. Firecrawl scrape the #1 result → extract clean markdown (~2-5s)
+    3. Extract the most relevant paragraph from the scraped content
+
+    Falls back to curated content if no API keys are configured.
+    Results are cached for 5 minutes.
     """
     if not q.strip():
         return {"results": _CURATED_CONTEXT[:2], "source": "curated"}
 
     exa_key = os.environ.get("EXA_API_KEY", "")
+    firecrawl_key = os.environ.get("FIRECRAWL_API_KEY", "")
     cache_key = q.lower().strip()
 
     # Check cache
     if cache_key in _exa_cache:
         cached_at, cached_results = _exa_cache[cache_key]
         if time.time() - cached_at < _EXA_CACHE_TTL:
-            return {"results": cached_results, "source": "exa_cached"}
+            return {"results": cached_results, "source": cached_results[0].get("_source", "exa_cached") if cached_results else "curated"}
 
+    results = []
+
+    # Step 1: Exa search
     if exa_key:
         try:
             import httpx
@@ -197,11 +207,58 @@ async def context_search(q: str = ""):
                     }
                     for r in data.get("results", [])
                 ]
-                if results:
-                    _exa_cache[cache_key] = (time.time(), results)
-                    return {"results": results, "source": "exa"}
         except Exception:
-            pass  # fall through to curated
+            pass
+
+    # Step 2: Firecrawl deep scrape the top result
+    if results and firecrawl_key:
+        try:
+            import httpx
+
+            top_url = results[0]["url"]
+            async with httpx.AsyncClient(timeout=8.0) as cx:
+                resp = await cx.post(
+                    "https://api.firecrawl.dev/v2/scrape",
+                    headers={
+                        "Authorization": f"Bearer {firecrawl_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "url": top_url,
+                        "formats": ["markdown"],
+                        "onlyMainContent": True,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                markdown = data.get("data", {}).get("markdown", "")
+
+                # Extract the most relevant paragraph — find the section
+                # that contains query keywords and is 50-400 chars.
+                if markdown:
+                    query_words = [w.lower() for w in q.split() if len(w) > 3]
+                    paragraphs = markdown.split("\n\n")
+                    best_para = ""
+                    best_score = 0
+                    for para in paragraphs:
+                        para_clean = para.strip().replace("#", "").replace("*", "").strip()
+                        if len(para_clean) < 50 or len(para_clean) > 400:
+                            continue
+                        para_lower = para_clean.lower()
+                        score = sum(1 for w in query_words if w in para_lower)
+                        if score > best_score:
+                            best_score = score
+                            best_para = para_clean
+
+                    if best_para:
+                        results[0]["deep_content"] = best_para
+        except Exception:
+            pass  # snippet from Exa is still useful
+
+    if results:
+        source = "exa+firecrawl" if any(r.get("deep_content") for r in results) else "exa"
+        _exa_cache[cache_key] = (time.time(), results)
+        return {"results": results, "source": source}
 
     # Curated fallback — pick based on query keywords
     q_lower = q.lower()

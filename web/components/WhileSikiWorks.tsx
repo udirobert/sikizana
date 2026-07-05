@@ -95,7 +95,7 @@ export function WhileSikiWorks({
           </div>
         )}
 
-        {/* Layer 3: Live HMRC content from Exa */}
+        {/* Layer 3: Live HMRC content from Exa + Firecrawl */}
         {showContext && contextResults.length > 0 && (
           <div className="text-[11px] leading-relaxed bg-violet-50 rounded-lg px-3 py-2 fade-in-up">
             <p className="text-violet-600 font-medium mb-1">
@@ -103,20 +103,27 @@ export function WhileSikiWorks({
               Relevant HMRC guidance
             </p>
             {contextResults.slice(0, 2).map((r) => (
-              <a
-                key={r.url}
-                href={r.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-violet-700 hover:text-violet-900 transition-colors mb-1"
-              >
-                <span className="font-medium underline">{r.title}</span>
-                {r.snippet && (
+              <div key={r.url} className="mb-1.5 last:mb-0">
+                {/* Deep content from Firecrawl — the actual guidance text */}
+                {r.deep_content && (
+                  <p className="text-violet-800 text-[10px] leading-relaxed mb-1 italic">
+                    &ldquo;{r.deep_content}&rdquo;
+                  </p>
+                )}
+                <a
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-violet-700 hover:text-violet-900 transition-colors font-medium underline"
+                >
+                  {r.title}
+                </a>
+                {!r.deep_content && r.snippet && (
                   <span className="text-violet-500 block text-[10px] mt-0.5 line-clamp-2">
                     {r.snippet}
                   </span>
                 )}
-              </a>
+              </div>
             ))}
           </div>
         )}
