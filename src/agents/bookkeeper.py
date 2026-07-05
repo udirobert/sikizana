@@ -513,7 +513,12 @@ async def run_bookkeeper_streaming(
             history[:] = history[-_HISTORY_LIMIT:]
         await asyncio.to_thread(save_conversation, conv_key, history)
 
-    messages = [{"role": "system", "content": _load_prompt(persona)}] + history
+    _system_prompt = _load_prompt(persona)
+    # Append a hard guardrail that works across all models (Venice's llama
+    # models in particular tend to narrate tool calls and echo raw output).
+    _system_prompt += "\n\n### CRITICAL OUTPUT RULES\n- Never mention which tool you are calling or just called. The UI shows tool activity automatically.\n- Never echo raw tool output (e.g. 'UNRECONCILED BANK TRANSACTIONS (4):'). Always rephrase in natural English.\n- Never say 'This response is the result of calling...' or similar meta-commentary.\n- Your text output must be the answer itself, written as if you already know the information.\n"
+
+    messages = [{"role": "system", "content": _system_prompt}] + history
 
     # Human-readable tool name mapping
     tool_labels = {

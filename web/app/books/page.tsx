@@ -152,9 +152,10 @@ function BooksView() {
     void endpoints.xero
       .organisation()
       .then((o) => {
-        const data = o as unknown as OrgData;
-        setOrgData(data);
-        setXeroMode(data.isDemoCompany ? "demo" : "live-cli");
+        // /api/xero/status is the single source of truth for the mode —
+        // org data has no reliable isDemoCompany field outside Xero's own
+        // demo company, and guessing here showed "Xero Live" on demo data.
+        setOrgData(o as unknown as OrgData);
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFindings flips its loading flag synchronously by design
