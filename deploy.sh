@@ -17,7 +17,10 @@ COMPOSE_FILE="docker-compose.vps.yml"
 BACKEND_FILES=(
   src/agents/bookkeeper.py
   src/agents/prompts/bookkeeper.txt
+  src/agents/prompts/zana.txt
   src/tools/xero_tools.py
+  src/tools/rag_engine.py
+  src/tools/vision_audit.py
   src/services/xero_service.py
   src/services/xero_oauth.py
   src/services/logging.py
