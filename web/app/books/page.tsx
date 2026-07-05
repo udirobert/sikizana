@@ -7,6 +7,7 @@ import { useXeroThread } from "@/hooks/useXeroThread";
 import {
   ApiError,
   endpoints,
+  type ContextResult,
   type Finding,
   type FindingsResponse,
   type XeroMode,
@@ -68,6 +69,9 @@ function BooksView() {
   const [confirmClear, setConfirmClear] = useState(false);
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [lastQuery, setLastQuery] = useState("");
+  // HMRC context results fetched during the wait — persisted under the
+  // agent's response so the guidance stays visible after loading completes.
+  const [lastContextResults, setLastContextResults] = useState<ContextResult[]>([]);
   // Sign-in nudge — shown once per browser session after the first real answer.
   // sessionStorage persists across page reloads but clears when the tab closes.
   const [signInNudge, setSignInNudge] = useState<string | null>(null);
@@ -304,6 +308,7 @@ function BooksView() {
 
     try {
       setLastQuery(message);
+      setLastContextResults([]);
       for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
@@ -1042,6 +1047,33 @@ function BooksView() {
                         </button>
                       );
                     })()}
+                  {/* HMRC guidance footnote — persists the context found
+                      during the wait under the agent's response. Only on
+                      the last agent message, only when not streaming. */}
+                  {msg.role === "agent" && msg.content &&
+                    !isLoading && i === messages.length - 1 &&
+                    lastContextResults.length > 0 && (
+                    <div className="mt-1 border-t border-stone-200/60 pt-2 fade-in-up">
+                      <p className="text-[10px] text-stone-400 font-medium mb-0.5">
+                        📖 Related HMRC guidance
+                      </p>
+                      {lastContextResults.slice(0, 1).map((r) => (
+                        <div key={r.url}>
+                          <p className="text-[11px] text-stone-600 leading-relaxed">
+                            {r.summary || r.snippet}
+                          </p>
+                          <a
+                            href={r.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-stone-400 hover:text-violet-600 transition-colors text-[9px] mt-0.5 inline-block"
+                          >
+                            {r.title.length > 45 ? r.title.slice(0, 45) + "…" : r.title} ↗
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               );
@@ -1058,6 +1090,7 @@ function BooksView() {
                     currentTool={currentTool}
                     thinkingMessage={thinkingMessage}
                     findings={findings}
+                    onContextResults={setLastContextResults}
                   />
                 </div>
               </div>

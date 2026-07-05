@@ -14,6 +14,10 @@ import { getTipsForTool, getPersonalizedInsight, type EduTip } from "@/lib/edu-t
  * 1. Curated tips relevant to the current tool call (rotates every 4s)
  * 2. Personalized insight from the user's findings data (static per session)
  * 3. Live HMRC content from Exa search (fetched once per query)
+ *
+ * Also shows an elapsed timer so the user knows how long they've been
+ * waiting, and calls onContextResults so the page can persist the HMRC
+ * guidance under the agent's final response.
  */
 
 interface WhileSikiWorksProps {
@@ -25,6 +29,9 @@ interface WhileSikiWorksProps {
   thinkingMessage: string;
   /** Findings data for personalized insights. */
   findings: FindingsResponse | null;
+  /** Called when HMRC context results are fetched — lets the page
+   *  persist them under the agent's response after loading completes. */
+  onContextResults?: (results: ContextResult[]) => void;
 }
 
 export function WhileSikiWorks({
@@ -32,8 +39,10 @@ export function WhileSikiWorks({
   currentTool,
   thinkingMessage,
   findings,
+  onContextResults,
 }: WhileSikiWorksProps) {
   const [tipIndex, setTipIndex] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
   const [contextResults, setContextResults] = useState<ContextResult[]>([]);
   const [showContext, setShowContext] = useState(false);
   const fetchedRef = useRef<string | null>(null);
@@ -45,6 +54,12 @@ export function WhileSikiWorks({
   // Layer 2: Personalized insight from findings
   const insight = getPersonalizedInsight(findings);
 
+  // Elapsed timer — ticks every second while mounted
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Layer 3: Fetch live HMRC content once per query
   useEffect(() => {
     if (!userQuery.trim() || fetchedRef.current === userQuery) return;
@@ -54,12 +69,13 @@ export function WhileSikiWorks({
       .then((data) => {
         if (data.results.length > 0) {
           setContextResults(data.results);
+          onContextResults?.(data.results);
           // Show context after a brief delay so the tips get seen first
           setTimeout(() => setShowContext(true), 6000);
         }
       })
       .catch(() => {});
-  }, [userQuery]);
+  }, [userQuery, onContextResults]);
 
   // Rotate tips every 4 seconds
   useEffect(() => {
@@ -73,10 +89,15 @@ export function WhileSikiWorks({
         <span className="thinking-pulse" />
       </div>
       <div className="flex-1 space-y-2">
-        {/* Status line — what Siki is doing right now */}
-        <p className="text-sm text-stone-600 t-shimmer">
-          {thinkingMessage || "Thinking…"}
-        </p>
+        {/* Status line — what Siki is doing + elapsed timer */}
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-stone-600 t-shimmer">
+            {thinkingMessage || "Thinking…"}
+          </p>
+          <span className="text-[10px] text-stone-400 tabular-nums shrink-0">
+            {elapsed}s
+          </span>
+        </div>
 
         {/* Layer 1: Rotating educational tip */}
         <div
