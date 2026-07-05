@@ -296,6 +296,26 @@ Solo build by @udirobert, using AI-assisted development tools.
 
 ## What's Next
 
+### Completed Post-Hackathon
+
+- **Behavioral design system** — loss aversion framing ("£340 slipping
+  away"), cost-of-inaction counters (daily statutory interest), peak-end
+  summary cards, commitment ladder (Save findings), social proof banner
+  on activity page.
+- **Negotiation mode** — Chris Voss "Never Split the Difference" tactics
+  integrated into Zana's chasing emails. Each email shows the tactic,
+  situation analysis, and psychology. Copy + mailto: for zero-infrastructure
+  sending.
+- **Persona handoff** — Siki ↔ Zana switching now includes context handoff
+  with persona markers in history, so the new persona knows it's taking
+  over. Persona persists across page refreshes.
+- **Agent robustness** — two-tier streaming timeout (60s first token, 15s
+  inter-token), duplicate tool-call detection, retry after stream failure.
+- **Aggregate activity** — social proof banner showing weekly queries,
+  tool calls, journals posted, and active users.
+
+### Roadmap
+
 - **Xero App Store listing** — package as a Xero app for distribution
   to 4.4M subscribers.
 - **Premium tier** — free audit, paid auto-fix (Siki posts the
@@ -306,6 +326,16 @@ Solo build by @udirobert, using AI-assisted development tools.
   summaries from the reconciled data.
 - **Industry benchmarking** — use Firecrawl to scrape ONS sector data
   and compare the user's margins against their industry average.
+- **Email automation (Make/Zapier)** — let users connect their email
+  (Gmail/Outlook) via Make or Zapier webhooks so Zana's drafted emails
+  can be sent directly. Currently uses copy + mailto: (zero setup,
+  works with any email client). Make/Zapier is the upgrade path for
+  power users who want automated sending with audit trails.
+- **Cross-session memory (cognee)** — evaluate cognee.ai for knowledge
+  graph + vector store memory across sessions. Would enable remembering
+  user preferences, past findings, actions taken, and negotiation
+  history. Currently uses SQLite conversation history with persona
+  markers (sufficient for single-session, not cross-session).
 - **Workflow automation** — evaluate TinyFish Agent API for automating
   browser-based workflows (HMRC filing navigation, Xero reconciliation
   UI automation) with human-in-the-loop safeguards.

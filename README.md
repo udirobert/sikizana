@@ -1,6 +1,6 @@
 # Sikizana — AI Finance Assistant for Xero
 
-**Find money you're owed. Estimate your tax bill. Fix discrepancies. All in plain English.**
+**Stop money slipping away. Estimate your tax bill. Fix discrepancies. All in plain English.**
 
 Sikizana is an AI finance assistant that connects to Xero and acts
 as a 24/7 bookkeeper for small businesses. It finds overdue invoices,
@@ -74,10 +74,10 @@ falling back to the operator's CLI org, falling back to seeded demo data
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization
-- **WhileSikiWorks**: `web/components/WhileSikiWorks.tsx` — educational content while the agent works (tips + insights + live HMRC)
+- **WhileAgentWorks**: `web/components/WhileAgentWorks.tsx` — educational content while the agent works (tips + insights + live HMRC)
 - **Edu tips**: `web/lib/edu-tips.ts` — curated tip library keyed by tool type
 - **Impact**: `web/app/impact/page.tsx` — live metrics dashboard
-- **Components**: SikiMascot, ZanaMascot, JournalEntryCard, ReceiptUpload, ProactiveAlert, FindingsPanel, WhileSikiWorks, etc.
+- **Components**: SikiMascot, ZanaMascot, JournalEntryCard, NegotiationEmailCard, ReceiptUpload, ProactiveAlert, FindingsPanel, WhileAgentWorks, ResponseSummary, etc.
 
 ### Deployment
 - Docker Compose on VPS (Traefik reverse proxy)
@@ -125,7 +125,35 @@ After Siki finds overdue invoices, tax issues, or savings opportunities,
 a chip appears suggesting switching to Zana for the action Zana does
 better (chasing emails, tax bluntness, savings analysis).
 
-### 9. Conversion-Aware UX
+### 9. Negotiation Mode (Chris Voss Tactics)
+When Zana drafts a chasing email, she applies negotiation principles
+from "Never Split the Difference" — automatically selecting the right
+tactic based on how late the invoice is:
+- **Mirroring** (1-14 days): rapport-building
+- **Calibrated Questions** (15-30 days): "How would you like to resolve this?"
+- **Labeling** (31-60 days): "It seems like cash flow is tight right now"
+- **No-Oriented Questions** (60+ days): "Would it be a terrible idea to settle?"
+
+Each email card shows the tactic, situation analysis, and a "Why this
+works" toggle explaining the psychology — turning each email into a
+mini-lesson in negotiation. Copy-to-clipboard and mailto: links let
+the user send from any email client with zero infrastructure.
+
+### 10. Behavioral Design
+The product applies behavioral psychology principles throughout:
+- **Loss aversion**: "£340 slipping away" instead of "£340 you're owed"
+- **Cost-of-inaction**: "losing £0.47/day in statutory interest"
+- **Peak-end rule**: ResponseSummary card after each agent response
+- **Commitment ladder**: "Save" button on findings persists across sessions
+- **Social proof**: aggregate activity banner on the activity page
+
+### 11. Persona Handoff
+Siki ↔ Zana switching includes context handoff — the new persona gets
+a system prompt section explaining it's taking over from the other,
+with persona markers in conversation history so past messages show
+the correct mascot. Persona persists across page refreshes.
+
+### 12. Conversion-Aware UX
 Contextual sign-in nudges at key moments (after first answer, at 3/5
 queries), upgrade prompt at 5/5, and clear chat with two-step
 confirmation.

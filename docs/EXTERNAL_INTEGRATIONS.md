@@ -140,8 +140,9 @@ User asks a question
   ↓
 Bookkeeper Agent (NVIDIA NIM Llama 3.3 70B)
   ├── Calls Xero tools (find_discrepancies, get_xero_invoices, etc.)
+  ├── Persona handoff: detects Siki ↔ Zana switch, injects context
   ↓
-While Siki Works (parallel to agent execution)
+WhileAgentWorks (parallel to agent execution)
   ├── Layer 1: Curated tips from edu-tips.ts (rotated by tool type)
   ├── Layer 2: Personalized insights from findings data
   └── Layer 3: /api/context/search
@@ -150,11 +151,79 @@ While Siki Works (parallel to agent execution)
        └── Backend extracts most relevant paragraph
   ↓
 Agent response (plain English with findings + actions)
+  ├── If journal entry: JournalEntryCard (approve → post to Xero)
+  ├── If chasing email: NegotiationEmailCard (tactic + psychology + copy/mailto)
+  └── ResponseSummary card (peak-end: issues found · money at stake · urgent count)
   ↓
 Contextual Zana nudge (if overdue/tax/savings detected)
   ↓
 Sign-in nudge (if anonymous, after first answer or at 3/5 queries)
 ```
+
+---
+
+## Planned Integrations
+
+### Make / Zapier — Email Automation
+
+**Status**: Planned (roadmap)
+**Current approach**: Copy-to-clipboard + mailto: links (zero infrastructure)
+
+Currently, when Zana drafts a chasing email, the user gets a
+NegotiationEmailCard with:
+- The email content (subject + body)
+- The negotiation tactic and psychology
+- "Copy email" button (clipboard)
+- "Open in email client" button (mailto: link with To/Subject/Body pre-filled)
+
+This works with any email client (Gmail, Outlook, Apple Mail) and
+requires zero setup — but the user still has to click send themselves.
+
+**Make/Zapier upgrade path**:
+- User connects their Gmail/Outlook via Zapier or Make.com
+- Zana triggers a webhook to send the drafted email directly
+- Benefits: audit trail, scheduled sending, follow-up automation
+- Trade-off: heavier user setup, most demo users won't do this before
+  seeing value
+
+**Recommendation**: Ship copy + mailto: first (done), add Make/Zapier
+as a Pro feature for power users who want automated sending.
+
+---
+
+### Cognee — Cross-Session Memory
+
+**Status**: Evaluated, not yet integrated
+**Docs**: https://docs.cognee.ai/
+
+Cognee is a knowledge graph + vector store memory engine for AI
+applications. It handles entity extraction, ontology building, and
+semantic recall across sessions.
+
+**Current memory approach**:
+- SQLite `conversations` table: JSON message history per session+thread
+- 20-message limit per thread (token-overflow guard)
+- 30-day TTL
+- Persona markers on each assistant message (for Siki ↔ Zana handoff)
+- Sufficient for single-session context, not cross-session memory
+
+**What cognee would add**:
+- **User preferences**: "Rishi prefers firm tone, chases on Thursdays"
+- **Past findings**: "Last week Siki found £340 in overdue invoices
+  from Acme Corp — was it resolved?"
+- **Action history**: "Zana drafted a chasing email on March 15 using
+  calibrated question tactic — did it work?"
+- **Negotiation outcomes**: Track which tactics work for which contacts
+  over time, refine future email drafts
+
+**Why not yet**:
+- Cognee adds infrastructure: vector DB, graph DB, embedding pipeline
+- The current problem (persona handoff) was solved without it
+- Cross-session memory is a roadmap item, not a current blocker
+
+**Recommendation**: Add cognee when we need cross-session personalization
+(remembering user preferences, past findings, negotiation outcomes).
+Not needed for the current single-session experience.
 
 ## Environment Variables
 
