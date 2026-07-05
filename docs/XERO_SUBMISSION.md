@@ -15,7 +15,8 @@ Sikizana Books is an AI finance assistant with two personalities: **Siki**
 finds you money (savings, deductions, margin improvements), and **Zana**
 makes sure you get paid (chases overdue invoices, drafts reminder emails,
 flags cash flow cliffs). Both run on live Xero data with 15 tools,
-human-in-the-loop journal entries, and HMRC rule citations.
+human-in-the-loop journal entries, HMRC rule citations, and live gov.uk
+guidance fetched in real-time via Exa + Firecrawl.
 
 ## The Problem
 
@@ -117,7 +118,7 @@ Sikizana Books integrates with Xero via:
 ```
 User asks a question (as Siki or Zana)
   ↓
-Bookkeeper Agent (Llama 3.1 via NVIDIA NIM)
+Bookkeeper Agent (Llama 3.3 70B via NVIDIA NIM, Venice fallback)
   ├── find_discrepancies()           → scans for unreconciled + overdue
   ├── get_xero_transactions()        → searches bank transactions by reference
   ├── get_xero_invoices()            → lists invoices with overdue flags
@@ -134,16 +135,33 @@ Bookkeeper Agent (Llama 3.1 via NVIDIA NIM)
   ├── draft_invoice_reminder()       → drafts reminder email (escalating tone)
   └── get_savings_opportunities()    → finds unused subscriptions, margin gaps
   ↓
+While Siki Works (educational content while the agent runs)
+  ├── Layer 1: Curated tips rotated by tool type (25+ tips, every 4s)
+  ├── Layer 2: Personalized insights from findings data
+  └── Layer 3: Live HMRC guidance via Exa search + Firecrawl deep scrape
+  ↓
 Plain-English response with findings + recommended actions
+  ↓
+Contextual Zana nudge (if overdue/tax/savings detected)
+  ↓
+Sign-in nudge (if anonymous, after first answer or at 3/5 queries)
 ```
 
-The agent uses OpenAI-compatible function calling via NVIDIA NIM. The
-NVIDIA API handles tool-call orchestration; we execute the actual
-Python functions that call the Xero CLI and feed results back.
+The agent uses OpenAI-compatible function calling via NVIDIA NIM
+(Llama 3.3 70B, primary). If NVIDIA times out or errors, it falls
+back to Venice AI (llama-3.3-70b). The tool-calling loop is
+model-agnostic — any OpenAI-compatible provider works.
 
 **Streaming transparency**: The agent streams tool calls and results
 in real-time via Server-Sent Events (SSE). Users see exactly which
 Xero tools the agent is calling and what it found — no black box.
+
+**While Siki Works**: Instead of a blank spinner, the wait time is
+filled with three layers of educational content:
+1. Curated tips relevant to the current tool (rotated every 4s)
+2. Personalized insights from the user's findings data
+3. Live HMRC guidance from gov.uk, fetched via Exa instant search
+   (~250ms) and deep-scraped via Firecrawl for the actual guidance text
 
 The agent always proposes before acting. Journal entries require user
 approval. This is human-in-the-loop design — the agent does the
@@ -174,6 +192,17 @@ Try these queries:
 ### Proactive features:
 - **Auto-audit on page load** — Siki runs `find_discrepancies`
   automatically when you open `/books` and shows a notification
+- **While Siki Works** — while the agent runs tools, the user sees
+  rotating educational tips, personalized insights from their findings,
+  and live HMRC guidance from gov.uk (Exa search + Firecrawl scrape)
+- **Contextual Zana nudges** — after Siki finds overdue invoices,
+  tax issues, or savings opportunities, a chip appears suggesting
+  switching to Zana for the action Zana does better (chasing, tax
+  bluntness, savings analysis)
+- **Sign-in nudges** — anonymous users get contextual prompts to sign
+  in after their first answer, at 3/5 queries, and at 5/5 (upgrade)
+- **Clear chat with confirmation** — trash icon + two-step confirm
+  so users don't accidentally lose their conversation
 - **Webhook alerts** — when Xero pushes a webhook, Siki surfaces
   a proactive alert
 - **Receipt upload** — drag a receipt photo onto the chat, Siki
@@ -187,13 +216,14 @@ Try these queries:
 
 | Layer | Technology |
 |---|---|
-| Agent brain | Llama 3.3 70B (NVIDIA NIM) |
-| Agent orchestration | Custom tool-calling loop (OpenAI-compatible) |
-| Xero integration | Xero CLI + Xero Webhooks |
+| Agent brain | Llama 3.3 70B (NVIDIA NIM, primary) → Llama 3.3 70B (Venice, fallback) |
+| Agent orchestration | Custom tool-calling loop (OpenAI-compatible, model-agnostic) |
+| Xero integration | Xero CLI + Xero Webhooks + direct Accounting API (OAuth2 PKCE) |
+| Live HMRC content | Exa instant search (discovery) + Firecrawl deep scrape (extraction) |
 | Backend | Python / FastAPI |
 | Frontend | Next.js 16 / React 19 / Tailwind CSS |
 | Mascot | Siki the Owl — pure SVG pixel art, CSS keyframe animations |
-| Vision | Multimodal receipt matching |
+| Vision | Google Gemini (receipt matching) |
 | Motion design | transitions.dev patterns, Codrops rotated reveal, Emil Kowalski design engineering |
 | Deployment | Docker Compose on VPS, Coolify Traefik proxy, Let's Encrypt HTTPS |
 
@@ -211,42 +241,52 @@ Docker Compose, behind Coolify's Traefik proxy:
 
 1. **Dual persona — Siki & Zana.** The good cop / bad cop pattern maps
    to how real accounting firms work: the friendly advisor who finds
-   savings, and the enforcer who chases payments. This is the demo
-   moment judges remember.
+   savings, and the enforcer who chases payments. Contextual nudges
+   in the chat suggest switching to Zana at the right moment — after
+   finding overdue invoices, tax issues, or savings opportunities.
 
 2. **Real agent, not a chatbot wrapper.** 15 tools orchestrated
    autonomously — it plans, gathers evidence, cross-references, drafts
    communications, and proposes fixes. That's agentic AI, not a prompt
    template.
 
-3. **Action Center.** Not just a chat — the sidebar shows a prioritized
-   action list based on the proactive audit. "1. Chase overdue invoices
-   (£270). 2. Reconcile 9 transactions. 3. Check tax & deductions."
-   Click to act.
+3. **While Siki Works — educational wait time.** Instead of a blank
+   spinner, the 30-60s wait becomes value delivery: rotating tips
+   relevant to the current tool, personalized insights from the user's
+   findings, and live HMRC guidance from gov.uk fetched via Exa +
+   Firecrawl. Users learn while they wait.
 
-4. **Invoice chasing with legal teeth.** Zana drafts reminder emails
+4. **Live HMRC guidance with deep content.** Exa instant search finds
+   the right gov.uk page (~250ms), Firecrawl scrapes it for clean
+   markdown (~2-5s), and the most relevant paragraph is extracted and
+   shown inline. Users get the actual HMRC guidance text without
+   leaving the chat — a critical trust signal for a finance product.
+
+5. **Invoice chasing with legal teeth.** Zana drafts reminder emails
    that escalate from friendly to final notice, citing the Late Payment
    of Commercial Debts Act 1998 and calculating statutory interest.
    No other Xero app does this.
 
-5. **HMRC rule citations.** When the agent says "client entertainment
-   isn't deductible," it cites BIM45010. This builds trust and
-   credibility — it's not making things up.
+6. **HMRC rule citations.** When the agent says "client entertainment
+   isn't deductible," it cites BIM45010 — and the While Siki Works
+   panel shows the actual HMRC manual page from gov.uk.
 
-6. **Savings finder.** Analyzes the P&L for unused subscriptions, high
+7. **Savings finder.** Analyzes the P&L for unused subscriptions, high
    expense ratios, and margin improvement opportunities. Ranked by
    financial impact. Goes beyond bookkeeping into financial advisory.
 
-7. **Streaming transparency.** Users see every tool call and result in
+8. **Streaming transparency.** Users see every tool call and result in
    real-time. No black box — you watch the agent investigate your books.
 
-8. **Human-in-the-loop.** The agent proposes, the human approves. No
+9. **Human-in-the-loop.** The agent proposes, the human approves. No
    autonomous journal entries or sent emails without consent.
 
-9. **Multimodal.** Receipt photos → Vision AI → matched to Xero
-   transactions.
+10. **Conversion-aware UX.** Contextual sign-in nudges at key moments
+    (after first answer, at 3/5 queries), upgrade prompt at 5/5, and
+    a clear chat flow with two-step confirmation. The product is
+    designed for the funnel, not just the demo.
 
-10. **Memorable mascots.** Siki (warm, orange) and Zana (dark, sharp)
+11. **Memorable mascots.** Siki (warm, orange) and Zana (dark, sharp)
     give the product personality and make AI bookkeeping feel
     approachable — not intimidating.
 
@@ -264,3 +304,10 @@ Solo build by @udirobert, using AI-assisted development tools.
   without leaving the chat.
 - **Tax readiness** — generate VAT returns and year-end preparation
   summaries from the reconciled data.
+- **Industry benchmarking** — use Firecrawl to scrape ONS sector data
+  and compare the user's margins against their industry average.
+- **Workflow automation** — evaluate TinyFish Agent API for automating
+  browser-based workflows (HMRC filing navigation, Xero reconciliation
+  UI automation) with human-in-the-loop safeguards.
+- **Live regulatory alerts** — monitor gov.uk for tax rate changes and
+  filing deadline updates, push proactive alerts to users.

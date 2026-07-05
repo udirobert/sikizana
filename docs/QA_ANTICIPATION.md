@@ -20,7 +20,9 @@ giving them an accountant.
 Llama 3.3 70B at a fraction of the cost per token. Second, openness —
 Llama is open-weight, so if we need to self-host for data sovereignty
 (important for financial data), we can. Third, the OpenAI-compatible API
-means we can swap models without changing our code. The agent loop is
+means we can swap models without changing our code. We also have Venice
+AI as an automatic fallback — if NVIDIA goes down, the agent switches
+to Venice's Llama 3.3 70B without the user noticing. The agent loop is
 model-agnostic.
 
 ---
@@ -135,6 +137,70 @@ endpoints — deep platform integration, not a surface-level wrapper.
 And the human-in-the-loop design means we're safe by default — we
 propose, the human approves. We're ready to start the certification
 process today.
+
+---
+
+### Q: "What are Exa and Firecrawl doing in your stack?"
+
+**A:** They power the 'While Siki Works' panel. When the agent is
+running tools (30-60 seconds), instead of showing a blank spinner,
+we fetch live HMRC guidance from gov.uk. Exa's instant search finds
+the right page in ~250ms, Firecrawl scrapes it for clean markdown in
+~2-5s, and we extract the most relevant paragraph. The user sees the
+actual HMRC guidance text inline — not just a link. It's cached for
+5 minutes so repeat queries don't hit the APIs again. If neither key
+is configured, curated fallback content is shown instead.
+
+---
+
+### Q: "The agent takes 30-60 seconds to respond. Isn't that too slow?"
+
+**A:** Two answers. First, we use Llama 3.3 70B — a large model that's
+slow to cold-start but produces much better tool-calling and reasoning
+than smaller models. We tried 8B and it looped on tool calls and
+produced garbage. Second, we turned the wait into a feature: the
+'While Siki Works' panel shows rotating educational tips, personalized
+insights from the user's findings, and live HMRC guidance. Users learn
+while they wait. The wait time is value delivery time, not dead time.
+
+---
+
+### Q: "How do the Siki/Zana nudges work?"
+
+**A:** After Siki finishes a response, we scan the text for three
+patterns: overdue invoices, tax/deduction mentions, and savings/expenses.
+If any match, a contextual chip appears at the bottom of the message:
+'Zana can draft the chasing email for this →' or 'Zana can check if
+you're overpaying tax →'. Clicking it switches to Zana. It only shows
+on the last agent message, only in Siki mode, and only when not
+streaming — so it never interrupts the flow.
+
+---
+
+### Q: "How does the conversion funnel work?"
+
+**A:** Three contextual touchpoints. After the first real answer, a
+violet banner suggests signing in to save progress. At 3 out of 5 free
+queries, another nudge suggests signing in for more. At 5/5, the
+existing upgrade banner links to the pricing page. The sign-in nudge
+uses sessionStorage so it shows once per browser session. The key
+design principle: sign-in is the lighter ask, upgrade is the heavier
+ask. We nudge the lighter one first.
+
+---
+
+### Q: "Have you considered TinyFish for browser automation?"
+
+**A:** We evaluated TinyFish's four APIs. Their Search and Fetch overlap
+with Exa and Firecrawl (which we already use), so there's no reason to
+switch. Their Agent API is the genuinely novel capability — natural-
+language goals to automate workflows on real websites. For a finance
+product, automating browser workflows on Xero or HMRC is risky but
+interesting: it could navigate filing forms, pre-fill fields, or
+automate reconciliation UI flows. That's on the roadmap with human-in-
+the-loop safeguards. We wouldn't let an agent autonomously submit tax
+filings — but it could navigate to the right form and pre-fill it for
+review.
 
 ---
 

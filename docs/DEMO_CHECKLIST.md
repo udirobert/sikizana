@@ -34,12 +34,15 @@ ssh nuncio-vultr "cd ~/sikizana && sudo docker compose -f docker-compose.vps.yml
 ### 2. Test the agent
 In the chat box, type: "What is my net profit?"
 - Siki's eyes should shift to "look" mode (loading)
+- While Siki Works panel appears with educational tips + insights
 - Tool calls appear in the trace
-- Response within 10-15 seconds with £4,883.13
+- Response within 30-60 seconds with £4,883.13
+- After response, Zana nudge chip may appear if tax/savings detected
 
 If agent doesn't respond:
 - Check NVIDIA_API_KEY is set: `ssh nuncio-vultr "cat ~/sikizana/.env"`
 - Check backend logs: `ssh nuncio-vultr "sudo docker logs sikizana-api --tail 20"`
+- The 70B model can take up to 60s on cold start — wait for it
 
 ### 3. Open the pitch slides
 ```bash
@@ -64,8 +67,12 @@ Open https://sikizana.persidian.com/books in a second tab as fallback.
 - Point out Siki the Owl mascot in the nav
 - Show proactive audit notification (auto-appears on page load)
 - Type: "Check my books and tell me what's wrong"
+- Watch the While Siki Works panel — point out the rotating tips,
+  personalized insights, and live HMRC guidance from gov.uk
 - Watch the tool call trace stream in real-time (transparency!)
-- Wait for response (10-15s — DON'T talk over it, let it land)
+- Wait for response (30-60s — DON'T talk over it, let it land)
+- Point out the Zana nudge chip ("Zana can draft the chasing email →")
+- Click it to switch to Zana — show the persona change
 - Type: "What's my net profit this month?"
 - Wait for response (£4,883.13)
 - If time: upload a receipt or ask about overdue invoices
@@ -73,7 +80,9 @@ Open https://sikizana.persidian.com/books in a second tab as fallback.
 
 ### 1:40-2:30 — Tech
 - Slide 6 (architecture)
-- Mention: NVIDIA NIM, Xero CLI, webhooks, multimodal
+- Mention: NVIDIA NIM (Llama 3.3 70B), Venice fallback, Xero CLI, webhooks
+- Mention Exa + Firecrawl: "Live HMRC guidance from gov.uk, fetched in real-time"
+- Mention While Siki Works: "Educational content while the agent works — no dead spinner"
 - Mention Siki mascot: "Built entirely from SVG rectangles, no images"
 - Mention streaming transparency: "Users see every tool call in real-time"
 
@@ -129,7 +138,12 @@ Open https://sikizana.persidian.com/books in a second tab as fallback.
 | Invoices | 10 |
 | Accounts | 90 |
 | Contacts | 52 |
-| Agent tools | 10 |
+| Agent tools | 15 |
+| LLM model | Llama 3.3 70B (NVIDIA NIM) |
+| Fallback model | Llama 3.3 70B (Venice AI) |
+| Live HMRC content | Exa search + Firecrawl scrape |
+| Edu tips library | 25+ tips across 10 tool categories |
 | Bookkeeper cost (traditional) | £50-100/month |
 | Our price (planned) | £15-25/month |
 | Mascot | Siki the Owl (pure SVG, 5 moods) |
+| Response time | 30-60s (70B model cold start) |

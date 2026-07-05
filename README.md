@@ -44,8 +44,11 @@ Siki the Owl is an AI agent that:
 ## Architecture
 
 ```
-User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.1, streamed)
+User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.3 70B, streamed)
+                                           → Venice AI (fallback when NVIDIA is down)
                                            → Xero API (per-session OAuth2 → CLI → mock)
+                                           → Exa search (live HMRC guidance discovery)
+                                           → Firecrawl (deep page content extraction)
                                            → Gemini Vision (receipt matching)
                                            → SQLite (tokens, feedback, audit, impact, webhooks)
 ```
@@ -58,9 +61,10 @@ falling back to the operator's CLI org, falling back to seeded demo data
 — with the active mode reported honestly in the UI.
 
 ### Backend (Python / FastAPI)
-- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM, real token streaming
-- **Tools**: `src/tools/xero_tools.py` — 14 tools (discrepancies, invoices, P&L, tax, journals, reminders, savings)
+- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM (Llama 3.3 70B), Venice fallback, real token streaming
+- **Tools**: `src/tools/xero_tools.py` — 15 tools (discrepancies, invoices, P&L, tax, journals, reminders, savings)
 - **Tax rules**: `src/tools/rag_engine.py` — embedded HMRC rules with citations
+- **Context search**: `src/api/main.py` — `/api/context/search` endpoint using Exa + Firecrawl for live HMRC guidance
 - **Xero service**: `src/services/xero_service.py` — session-scoped OAuth → CLI → mock resolution
 - **Xero API client**: `src/services/xero_api.py` — direct Accounting API (tenant header, idempotency, rate-limit retry)
 - **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow (SQLite state store, locked token refresh)
@@ -70,8 +74,10 @@ falling back to the operator's CLI org, falling back to seeded demo data
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization
+- **WhileSikiWorks**: `web/components/WhileSikiWorks.tsx` — educational content while the agent works (tips + insights + live HMRC)
+- **Edu tips**: `web/lib/edu-tips.ts` — curated tip library keyed by tool type
 - **Impact**: `web/app/impact/page.tsx` — live metrics dashboard
-- **Components**: SikiMascot, JournalEntryCard, ReceiptUpload, ProactiveAlert, etc.
+- **Components**: SikiMascot, ZanaMascot, JournalEntryCard, ReceiptUpload, ProactiveAlert, FindingsPanel, WhileSikiWorks, etc.
 
 ### Deployment
 - Docker Compose on VPS (Traefik reverse proxy)
@@ -85,28 +91,44 @@ falling back to the operator's CLI org, falling back to seeded demo data
 The agent runs `find_discrepancies` automatically when the user opens
 the books page — they see value before typing a single word.
 
-### 2. Tax Insights (Cleo Pattern)
+### 2. While Siki Works (Educational Wait Time)
+Instead of a blank spinner, the 30-60s wait is filled with three layers:
+- **Layer 1**: Curated tips relevant to the current tool (25+ tips, rotated every 4s)
+- **Layer 2**: Personalized insights from the user's findings data
+- **Layer 3**: Live HMRC guidance from gov.uk via Exa search + Firecrawl deep scrape
+
+### 3. Tax Insights
 `get_tax_insights` estimates Corporation Tax, flags non-deductible
 expenses (client entertainment), identifies missed deductions
 (software subscriptions), and shows cash flow impact of overdue invoices.
 
-### 3. HMRC Rule Citations
+### 4. HMRC Rule Citations + Live Guidance
 `lookup_tax_rule` returns the relevant UK tax rule with its HMRC source
-citation. When the agent says "client entertainment isn't deductible,"
-it cites BIM45010.
+citation. The While Siki Works panel also fetches live guidance from
+gov.uk via Exa + Firecrawl, showing the actual HMRC text inline.
 
-### 4. Journal Entry Write-Back
+### 5. Journal Entry Write-Back
 `create_xero_journal_entry` posts manual journals directly to Xero —
 but only after the user approves a proposed entry. Human-in-the-loop
 by design.
 
-### 5. Receipt Matching
+### 6. Receipt Matching
 Upload a receipt photo → Gemini Vision extracts supplier, amount, date
 → agent matches it to a Xero bank transaction.
 
-### 6. Streaming Tool Calls
+### 7. Streaming Tool Calls
 The chat streams tool calls in real-time (SSE), so the user sees the
 agent's reasoning as it happens — not a black box.
+
+### 8. Contextual Zana Nudges
+After Siki finds overdue invoices, tax issues, or savings opportunities,
+a chip appears suggesting switching to Zana for the action Zana does
+better (chasing emails, tax bluntness, savings analysis).
+
+### 9. Conversion-Aware UX
+Contextual sign-in nudges at key moments (after first answer, at 3/5
+queries), upgrade prompt at 5/5, and clear chat with two-step
+confirmation.
 
 ---
 
@@ -116,13 +138,16 @@ agent's reasoning as it happens — not a black box.
 - Python 3.11+
 - Node.js 20+
 - Xero OAuth credentials (https://developer.xero.com/myapps)
-- NVIDIA NIM API key (or OpenAI-compatible endpoint)
+- NVIDIA NIM API key (primary LLM) or Venice API key (fallback)
 - Google Gemini API key (for vision)
+- Exa API key (optional — live HMRC guidance search)
+- Firecrawl API key (optional — deep page content extraction)
 
 ### Backend
 ```bash
 cp .env.example .env
 # Fill in XERO_CLIENT_ID, XERO_CLIENT_SECRET, NVIDIA_API_KEY, GEMINI_API_KEY
+# Optional: EXA_API_KEY, FIRECRAWL_API_KEY (for live HMRC guidance)
 pip install -r requirements.txt
 python -m src.api.main
 ```
@@ -147,12 +172,14 @@ npm run dev
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | NVIDIA NIM (Llama 3.1) |
+| LLM (primary) | NVIDIA NIM — Llama 3.3 70B |
+| LLM (fallback) | Venice AI — Llama 3.3 70B |
 | Vision | Google Gemini |
+| Live web content | Exa instant search + Firecrawl deep scrape |
 | Backend | FastAPI, Python 3.11 |
 | Frontend | Next.js 16, React 19, Tailwind 4 |
 | Database | SQLite (WAL mode) |
-| Auth | Xero OAuth2 |
+| Auth | Xero OAuth2 PKCE |
 | Deploy | Docker Compose, Traefik |
 | Hosting | Vultr VPS |
 
