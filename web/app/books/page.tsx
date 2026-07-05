@@ -13,9 +13,9 @@ import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
-import { SikiMascot, SikiMascotAnimated } from "@/components/SikiMascot";
+import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
-import { SAMPLE_QUERIES, findQuery } from "@/lib/xero-samples";
+import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 
@@ -77,6 +77,7 @@ function BooksView() {
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [persona, setPersona] = useState<"siki" | "zana">("siki");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -223,7 +224,7 @@ function BooksView() {
     addMessage({ role: "agent", content: "", toolCalls: [] });
 
     try {
-      for await (const event of endpoints.xero.chatStream(message, tid)) {
+      for await (const event of endpoints.xero.chatStream(message, tid, persona)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
         } else if (event.type === "tool_call") {
@@ -592,6 +593,97 @@ function BooksView() {
             </div>
           )}
 
+          {/* Action Center — prioritized list of things to do */}
+          {discrepancies && !auditLoading && (unreconciledCount > 0 || overdueCount > 0) && (
+            <div className="pt-2 border-t border-stone-100">
+              <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide mb-2">
+                Action Center
+              </h3>
+              <div className="space-y-1.5">
+                {overdueCount > 0 && (
+                  <button
+                    onClick={() => handleStartSample(
+                      persona === "zana"
+                        ? "Draft a firm reminder email for my most overdue invoice. Include late payment interest."
+                        : "Show me all overdue invoices. Who hasn't paid and how much is outstanding?"
+                    )}
+                    className="w-full text-left text-[10px] border border-red-200 bg-red-50/50 rounded-lg p-2.5 fade-in-up hover:bg-red-50 hover:border-red-300 transition-colors btn-press group"
+                    style={{ animationDelay: "0ms" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-red-500 font-bold">1.</span>
+                      <span className="font-semibold text-red-900">
+                        {persona === "zana" ? "Chase overdue invoices" : "Review overdue invoices"}
+                      </span>
+                    </div>
+                    <div className="text-red-700 mt-0.5 pl-5">
+                      {overdueCount} invoice{overdueCount > 1 ? "s" : ""} · £{totalOverdue.toLocaleString(undefined, { minimumFractionDigits: 2 })} outstanding
+                    </div>
+                  </button>
+                )}
+                {unreconciledCount > 0 && (
+                  <button
+                    onClick={() => handleStartSample(
+                      persona === "zana"
+                        ? "Fix my unreconciled transactions. Show me each one and propose journal entries to fix them."
+                        : "Can you check my unreconciled transactions and help me match them to the right accounts?"
+                    )}
+                    className="w-full text-left text-[10px] border border-amber-200 bg-amber-50/50 rounded-lg p-2.5 fade-in-up hover:bg-amber-50 hover:border-amber-300 transition-colors btn-press group"
+                    style={{ animationDelay: "60ms" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-amber-600 font-bold">2.</span>
+                      <span className="font-semibold text-amber-900">
+                        Reconcile {unreconciledCount} transaction{unreconciledCount > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    <div className="text-amber-700 mt-0.5 pl-5">
+                      Bank transactions need matching
+                    </div>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleStartSample(
+                    persona === "zana"
+                      ? "What am I overpaying in tax? Check for non-deductible expenses and missed deductions."
+                      : "Can you estimate my Corporation Tax and check if I'm missing any deductible expenses?"
+                  )}
+                  className="w-full text-left text-[10px] border border-sky-200 bg-sky-50/50 rounded-lg p-2.5 fade-in-up hover:bg-sky-50 hover:border-sky-300 transition-colors btn-press group"
+                  style={{ animationDelay: "120ms" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sky-500 font-bold">3.</span>
+                    <span className="font-semibold text-sky-900">
+                      Check tax & deductions
+                    </span>
+                  </div>
+                  <div className="text-sky-700 mt-0.5 pl-5">
+                    Estimate CT + flag non-deductible expenses
+                  </div>
+                </button>
+                {persona === "zana" && (
+                  <button
+                    onClick={() => handleStartSample(
+                      "Analyze my expenses and find savings opportunities. What am I wasting money on?"
+                    )}
+                    className="w-full text-left text-[10px] border border-stone-200 bg-stone-50/50 rounded-lg p-2.5 fade-in-up hover:bg-stone-50 hover:border-stone-300 transition-colors btn-press group"
+                    style={{ animationDelay: "180ms" }}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-stone-600 font-bold">4.</span>
+                      <span className="font-semibold text-stone-800">
+                        Find savings
+                      </span>
+                    </div>
+                    <div className="text-stone-600 mt-0.5 pl-5">
+                      Unused subscriptions, margin improvements
+                    </div>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="border-t border-stone-100 pt-3 mt-auto">
             <p className="text-[9px] text-stone-400 leading-relaxed">
               Live Xero data via CLI + Webhooks. AI-powered bookkeeping.
@@ -603,13 +695,19 @@ function BooksView() {
         <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[78vh] overflow-hidden border border-stone-200">
           <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
             <div className="relative">
-              <SikiMascot size={40} mood={isLoading ? "look" : "idle"} />
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-sky-400 border-2 border-white rounded-full" />
+              {persona === "siki" ? (
+                <SikiMascot size={40} mood={isLoading ? "look" : "idle"} />
+              ) : (
+                <ZanaMascot size={40} mood={isLoading ? "look" : "idle"} />
+              )}
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${persona === "siki" ? "bg-sky-400" : "bg-rose-500"}`} />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-stone-800">Siki the Bookkeeper</p>
+              <p className="text-sm font-semibold text-stone-800">
+                {persona === "siki" ? "Siki the Bookkeeper" : "Zana the Enforcer"}
+              </p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-sky-500 rounded-full" />
+                <span className={`w-1.5 h-1.5 rounded-full ${persona === "siki" ? "bg-sky-500" : "bg-rose-500"}`} />
                 {isLoading ? (
                   <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
                 ) : (
@@ -617,6 +715,33 @@ function BooksView() {
                 )}
               </p>
             </div>
+
+            {/* Persona toggle */}
+            <div className="flex items-center gap-1 bg-stone-100 rounded-full p-0.5">
+              <button
+                onClick={() => setPersona("siki")}
+                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                  persona === "siki"
+                    ? "bg-orange-400 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-700"
+                }`}
+                title="Siki — friendly, finds savings, explains in plain English"
+              >
+                Siki
+              </button>
+              <button
+                onClick={() => setPersona("zana")}
+                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                  persona === "zana"
+                    ? "bg-stone-800 text-white shadow-sm"
+                    : "text-stone-500 hover:text-stone-700"
+                }`}
+                title="Zana — direct, chases payments, flags uncomfortable truths"
+              >
+                Zana
+              </button>
+            </div>
+
             {messages.length > 0 && (
               <button
                 onClick={newSession}
@@ -667,17 +792,25 @@ function BooksView() {
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
                 {/* Mascot in the empty state — animated, cycling moods */}
                 <div className="mb-4 fade-in-up">
-                  <SikiMascotAnimated size={100} />
+                  {persona === "siki" ? (
+                    <SikiMascotAnimated size={100} />
+                  ) : (
+                    <ZanaMascot size={100} mood="look" />
+                  )}
                 </div>
                 {/* Staggered text reveal for the empty state */}
                 <div className={`t-stagger ${staggerShown ? "is-shown" : ""}`}>
                   <h2 className="t-stagger-line t-stagger-line--1 text-lg font-semibold text-stone-800 mb-1">
-                    {showWelcome ? "Welcome! I'm Siki" : "Hi! I'm Siki, your AI Bookkeeper"}
+                    {persona === "siki"
+                      ? (showWelcome ? "Welcome! I'm Siki" : "Hi! I'm Siki, your AI Bookkeeper")
+                      : "I'm Zana. Let's get you paid."}
                   </h2>
                   <p className="t-stagger-line t-stagger-line--2 text-sm text-stone-500 max-w-sm">
-                    {showWelcome
-                      ? "I'm your AI bookkeeper. I read your Xero data, find what needs fixing, and explain your finances in plain English — no accounting jargon."
-                      : "I reconcile your Xero transactions, find overdue invoices, explain your P&L in plain English, and propose journal entries to fix discrepancies."}
+                    {persona === "siki"
+                      ? (showWelcome
+                        ? "I'm your AI bookkeeper. I read your Xero data, find what needs fixing, and explain your finances in plain English — no accounting jargon."
+                        : "I reconcile your Xero transactions, find overdue invoices, explain your P&L in plain English, and propose journal entries to fix discrepancies.")
+                      : "I chase overdue invoices, draft reminder emails, flag non-deductible expenses, and find savings you're missing. No sugarcoating."}
                   </p>
                 </div>
 
@@ -732,17 +865,25 @@ function BooksView() {
                   <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-400 font-semibold text-left">
                     {showWelcome ? "Try one of these to get started" : "Try a sample query"}
                   </p>
-                  {SAMPLE_QUERIES.map((sample, i) => (
+                  {(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).map((sample, i) => (
                     <button
                       key={sample.id}
                       onClick={() => handleStartSample(sample.description)}
-                      className="text-left text-xs text-stone-600 bg-stone-50 hover:bg-stone-100 border border-stone-200 rounded-lg px-3 py-2.5 transition-colors btn-press fade-in-up group"
+                      className={`text-left text-xs bg-stone-50 hover:bg-stone-100 border rounded-lg px-3 py-2.5 transition-colors btn-press fade-in-up group ${
+                        persona === "siki"
+                          ? "text-stone-600 border-stone-200"
+                          : "text-stone-600 border-stone-300"
+                      }`}
                       style={{ animationDelay: `${300 + i * 60}ms` }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="font-medium text-stone-800">{sample.title}</div>
                         {sample.hint && (
-                          <span className="text-[9px] text-stone-400 group-hover:text-sky-500 transition-colors">
+                          <span className={`text-[9px] transition-colors ${
+                            persona === "siki"
+                              ? "text-stone-400 group-hover:text-sky-500"
+                              : "text-stone-400 group-hover:text-rose-500"
+                          }`}>
                             {sample.hint}
                           </span>
                         )}
@@ -773,7 +914,7 @@ function BooksView() {
               >
                 {msg.role === "agent" && (
                   <div className="shrink-0">
-                    <SikiMascot size={32} mood="idle" />
+                    {persona === "siki" ? <SikiMascot size={32} mood="idle" /> : <ZanaMascot size={32} mood="idle" />}
                   </div>
                 )}
                 <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
@@ -819,7 +960,7 @@ function BooksView() {
             {isLoading && (
               <div className="flex gap-2.5 fade-in-up">
                 <div className="shrink-0">
-                  <SikiMascot size={32} mood="look" />
+                  {persona === "siki" ? <SikiMascot size={32} mood="look" /> : <ZanaMascot size={32} mood="look" />}
                 </div>
                 <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm">
                   <div className="flex items-center gap-2">

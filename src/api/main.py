@@ -104,6 +104,7 @@ async def feedback_summary():
 class XeroChatRequest(BaseModel):
     message: str
     thread_id: str | None = None
+    persona: str = "siki"
 
 
 @app.post("/api/xero/chat")
@@ -115,7 +116,7 @@ async def xero_chat(req: XeroChatRequest):
     try:
         from src.agents.bookkeeper import run_bookkeeper
 
-        response = await run_bookkeeper(req.message, req.thread_id)
+        response = await run_bookkeeper(req.message, req.thread_id, persona=req.persona)
         agent_available = True
     except ImportError as exc:
         log.warning("bookkeeper_runtime_missing", extra={"error": str(exc)})
@@ -168,7 +169,7 @@ async def xero_chat_stream(req: XeroChatRequest):
 
     async def event_generator():
         try:
-            async for event in run_bookkeeper_streaming(req.message, req.thread_id):
+            async for event in run_bookkeeper_streaming(req.message, req.thread_id, persona=req.persona):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:  # noqa: BLE001
             log.error("bookkeeper_stream_error", extra={"error": str(exc)}, exc_info=True)

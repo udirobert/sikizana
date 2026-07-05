@@ -23,7 +23,9 @@ load_dotenv()
 
 from src.tools.xero_tools import (
     create_xero_journal_entry,
+    draft_invoice_reminder,
     find_discrepancies,
+    get_savings_opportunities,
     get_tax_insights,
     get_xero_balance_sheet,
     get_xero_chart_of_accounts,
@@ -61,8 +63,10 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
-def _load_prompt() -> str:
-    with open("src/agents/prompts/bookkeeper.txt", "r") as f:
+def _load_prompt(persona: str = "siki") -> str:
+    """Load the system prompt for the given persona ('siki' or 'zana')."""
+    prompt_file = "zana.txt" if persona == "zana" else "bookkeeper.txt"
+    with open(f"src/agents/prompts/{prompt_file}", "r") as f:
         return f.read()
 
 
@@ -302,6 +306,33 @@ _TOOL_DEFS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "draft_invoice_reminder",
+            "description": "Draft a reminder email for an overdue invoice. The tone escalates based on days overdue (friendly → firm → final notice with late payment interest → debt collection). Returns the drafted email text for the user to review and send. Use this when the user wants to chase an overdue invoice or asks for help collecting payments.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "invoice_id": {"type": "string", "description": "The Xero invoice ID (optional if other fields are provided)"},
+                    "contact_name": {"type": "string", "description": "The customer name to address the email to"},
+                    "amount": {"type": "number", "description": "The invoice amount due in pounds"},
+                    "invoice_number": {"type": "string", "description": "The invoice number/reference"},
+                    "days_overdue": {"type": "integer", "description": "How many days past the due date"},
+                    "tone": {"type": "string", "description": "Override tone: 'friendly', 'firm', 'final', or 'collection'. If omitted, tone is determined by days_overdue."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_savings_opportunities",
+            "description": "Analyze the P&L and transactions to identify savings opportunities: unused software subscriptions, high expense ratios, top expense categories, margin analysis, and uncollected revenue. Returns a ranked list of savings opportunities. Use this when the user asks about savings, margins, cost cutting, or improving profitability.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
 ]
 
 # Map tool names to actual Python functions
@@ -319,6 +350,8 @@ _TOOL_FUNCS = {
     "create_xero_journal_entry": create_xero_journal_entry,
     "get_tax_insights": get_tax_insights,
     "lookup_tax_rule": lookup_tax_rule,
+    "draft_invoice_reminder": draft_invoice_reminder,
+    "get_savings_opportunities": get_savings_opportunities,
 }
 
 
@@ -335,7 +368,7 @@ def _execute_tool(name: str, arguments: dict[str, Any]) -> str:
         return f"Error calling {name}: {exc}"
 
 
-async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
+async def run_bookkeeper(user_input: str, thread_id: str | None = None, persona: str = "siki") -> str:
     """
     Run the bookkeeper agent on user input with conversation persistence.
 
@@ -343,7 +376,7 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
     tools in sequence to gather evidence before responding.
     """
     events: list[dict[str, Any]] = []
-    async for event in run_bookkeeper_streaming(user_input, thread_id):
+    async for event in run_bookkeeper_streaming(user_input, thread_id, persona=persona):
         events.append(event)
     # Extract the final text from the events
     text_parts = [e["text"] for e in events if e["type"] == "text"]
@@ -353,6 +386,7 @@ async def run_bookkeeper(user_input: str, thread_id: str | None = None) -> str:
 async def run_bookkeeper_streaming(
     user_input: str,
     thread_id: str | None = None,
+    persona: str = "siki",
 ) -> Any:
     """
     Streaming version of run_bookkeeper.
@@ -382,7 +416,7 @@ async def run_bookkeeper_streaming(
     history = _conversations[tid]
     history.append({"role": "user", "content": user_input})
 
-    messages = [{"role": "system", "content": _load_prompt()}] + history
+    messages = [{"role": "system", "content": _load_prompt(persona)}] + history
 
     # Human-readable tool name mapping
     tool_labels = {
@@ -398,6 +432,9 @@ async def run_bookkeeper_streaming(
         "propose_journal_entry": "Preparing journal entry",
         "create_xero_journal_entry": "Posting journal entry to Xero",
         "get_tax_insights": "Analyzing tax insights",
+        "lookup_tax_rule": "Looking up HMRC tax rules",
+        "draft_invoice_reminder": "Drafting invoice reminder email",
+        "get_savings_opportunities": "Finding savings opportunities",
     }
 
     # Agent loop: call the model, execute tools, feed results back

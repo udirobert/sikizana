@@ -38,7 +38,35 @@ export const SAMPLE_QUERIES: SampleQuery[] = [
   },
 ];
 
+export const ZANA_QUERIES: SampleQuery[] = [
+  {
+    id: "chase",
+    title: "Draft a reminder for overdue invoices",
+    description: "I have overdue invoices. Draft a firm reminder email for the worst offender — I need to chase this now.",
+    hint: "Drafts chasing email",
+  },
+  {
+    id: "savings",
+    title: "Where can I cut costs?",
+    description: "Analyze my expenses and find savings opportunities. What am I wasting money on? Where can I improve my margins?",
+    hint: "Finds wasted spend",
+  },
+  {
+    id: "cashflow",
+    title: "Will I be able to pay my tax bill?",
+    description: "I owe Corporation Tax soon. Will I have enough cash to pay it? What happens if my overdue invoices don't come in?",
+    hint: "Cash flow reality check",
+  },
+  {
+    id: "noncompliant",
+    title: "What am I overpaying in tax?",
+    description: "Check my expenses for non-deductible items I'm claiming by mistake, and missed deductions I should be claiming. How much is this costing me?",
+    hint: "Stops tax overpayment",
+  },
+];
+
 export function findQuery(id: string | null): SampleQuery | undefined {
   if (!id) return undefined;
-  return SAMPLE_QUERIES.find((q) => q.id === id);
+  const all = [...SAMPLE_QUERIES, ...ZANA_QUERIES];
+  return all.find((q) => q.id === id);
 }

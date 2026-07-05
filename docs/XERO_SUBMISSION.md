@@ -11,12 +11,11 @@
 
 ## The Pitch (30 seconds)
 
-Sikizana Books is an AI finance assistant that finds money you're owed,
-estimates your tax bill, explains your numbers in plain English, and
-fixes discrepancies — all from your Xero data, in seconds.
-
-Meet **Siki the Owl** — your AI finance companion. Siki watches over
-your books, finds what others miss, and talks to you in plain English.
+Sikizana Books is an AI finance assistant with two personalities: **Siki**
+finds you money (savings, deductions, margin improvements), and **Zana**
+makes sure you get paid (chases overdue invoices, drafts reminder emails,
+flags cash flow cliffs). Both run on live Xero data with 15 tools,
+human-in-the-loop journal entries, and HMRC rule citations.
 
 ## The Problem
 
@@ -40,27 +39,43 @@ more:
    who hasn't paid, how much is outstanding, and how long it's overdue.
    Validated pain point: "automatically send invoice reminders for all
    overdue invoices" is a top-voted request on productideas.xero.com.
-2. **Estimates your tax bill** — calculates UK Corporation Tax, flags
+2. **Drafts invoice reminders** — Zana drafts reminder emails with
+   escalating tone (friendly → firm → final notice with late payment
+   interest → debt collection), citing the Late Payment of Commercial
+   Debts Act 1998. The user reviews and sends — no autonomous emails.
+3. **Estimates your tax bill** — calculates UK Corporation Tax, flags
    non-deductible expenses (client entertainment), identifies missed
    deductions (software/subscriptions), and connects cash flow to tax
-   liability. The Cleo pattern: deterministic financial logic + plain-
-   English explanation.
-3. **Audits your books** — finds unreconciled bank transactions, overdue
+   liability. Cites HMRC rules (BIM45010, EIM31240) with source
+   references.
+4. **Finds savings opportunities** — analyzes the P&L and transactions
+   to identify unused software subscriptions, high expense ratios, and
+   margin improvement opportunities. Ranked by financial impact.
+5. **Audits your books** — finds unreconciled bank transactions, overdue
    invoices, and trial balance imbalances automatically.
-4. **Explains your finances** — translates "Net Profit: -£2,705" into
+6. **Explains your finances** — translates "Net Profit: -£2,705" into
    "You're running at a loss. Your rent is 41% of expenses. Sales
    aren't covering costs yet."
-5. **Fixes discrepancies** — proposes journal entries with the right
+7. **Fixes discrepancies** — proposes journal entries with the right
    account codes, waits for your approval, then posts directly to Xero.
    Human-in-the-loop by design.
-6. **Matches receipts** — multimodal vision AI reads receipt photos and
+8. **Matches receipts** — multimodal vision AI reads receipt photos and
    matches them to Xero bank transactions.
 
-## Siki the Owl — Mascot & Brand
+## Siki & Zana — Dual Persona Mascots
 
-Siki is the face of Sikizana Books. Built entirely from SVG `<rect>`
-elements (pixel art style, inspired by Claude AI's mascot approach),
-Siki has five animated moods that reflect the app's state:
+**Siki the Owl** is the friendly face of Sikizana Books — warm orange
+plumage, sky-blue eyes, gentle animations. Siki finds savings, explains
+finances in plain English, and celebrates when you fix things.
+
+**Zana the Owl** is Siki's alter ego — dark slate plumage, rose-red
+eyes, sharper presence. Zana chases payments, drafts firm reminder
+emails, flags non-deductible expenses bluntly, and warns about cash
+flow cliffs. The "bad cop" to Siki's "good cop."
+
+Both mascots are built entirely from SVG `<rect>` elements (pixel art
+style, inspired by Claude AI's mascot approach). Siki has five animated
+moods:
 
 - **Idle** — gentle breathing (waiting for you)
 - **Look** — eyes shift left/right (investigating your books)
@@ -71,9 +86,9 @@ Siki has five animated moods that reflect the app's state:
 All animations are CSS keyframe-based — no images, no GIFs, no video
 files. Pure code, ~5KB total.
 
-Siki appears in the nav, chat header, empty states, loading
-indicators, success overlays, and the homepage hero with a speech
-bubble that changes based on mood.
+Users toggle between Siki and Zana with a pill switch in the chat
+header. The mascot, system prompt, sample queries, and action center
+all adapt to the selected persona.
 
 ## How It Uses Xero
 
@@ -100,18 +115,24 @@ Sikizana Books integrates with Xero via:
 ## Agent Architecture
 
 ```
-User asks a question
+User asks a question (as Siki or Zana)
   ↓
-Bookkeeper Agent (Llama 3.3 70B via NVIDIA NIM)
-  ├── find_discrepancies()        → scans for unreconciled + overdue + TB imbalance
-  ├── get_xero_transactions()     → searches bank transactions by reference
-  ├── get_xero_invoices()         → lists invoices with overdue flags
-  ├── get_xero_chart_of_accounts()→ gets account codes for journal entries
-  ├── get_xero_profit_and_loss()  → pulls P&L for plain-English explanation
-  ├── get_xero_balance_sheet()    → pulls balance sheet
-  ├── get_xero_contacts()         → searches customers/suppliers
+Bookkeeper Agent (Llama 3.1 via NVIDIA NIM)
+  ├── find_discrepancies()           → scans for unreconciled + overdue
+  ├── get_xero_transactions()        → searches bank transactions by reference
+  ├── get_xero_invoices()            → lists invoices with overdue flags
+  ├── get_xero_chart_of_accounts()   → gets account codes for journal entries
+  ├── get_xero_profit_and_loss()     → pulls P&L for plain-English explanation
+  ├── get_xero_balance_sheet()       → pulls balance sheet
+  ├── get_xero_contacts()            → searches customers/suppliers
+  ├── get_xero_organisation()        → reads org details
   ├── match_receipt_to_transaction() → Vision AI reads receipt photo
-  └── propose_journal_entry()     → generates the fixing entry (awaiting approval)
+  ├── propose_journal_entry()        → generates the fixing entry (awaiting approval)
+  ├── create_xero_journal_entry()    → posts journal to Xero (after approval)
+  ├── get_tax_insights()             → estimates CT, flags non-deductible expenses
+  ├── lookup_tax_rule()              → cites HMRC rules (BIM45010, EIM31240, etc.)
+  ├── draft_invoice_reminder()       → drafts reminder email (escalating tone)
+  └── get_savings_opportunities()    → finds unused subscriptions, margin gaps
   ↓
 Plain-English response with findings + recommended actions
 ```
@@ -139,10 +160,16 @@ demo runs on **live Xero data** from a Demo Company (UK) with:
 - 90 accounts, 52 contacts
 
 Try these queries:
+
+**As Siki (good cop):**
 1. "Can you check my books and tell me if everything is reconciled?"
-2. "Show me all overdue invoices. Who hasn't paid?"
-3. "Give me my P&L and explain it in plain English."
-4. "What are these unreconciled transactions?"
+2. "Give me my P&L and explain it in plain English."
+3. "Can you estimate my Corporation Tax and check if I'm missing any deductible expenses?"
+
+**As Zana (bad cop — toggle in chat header):**
+4. "Draft a firm reminder email for my most overdue invoice. Include late payment interest."
+5. "What am I overpaying in tax? Check for non-deductible expenses and missed deductions."
+6. "Analyze my expenses and find savings opportunities. What am I wasting money on?"
 
 ### Proactive features:
 - **Auto-audit on page load** — Siki runs `find_discrepancies`
@@ -182,30 +209,46 @@ Docker Compose, behind Coolify's Traefik proxy:
 
 ## Why This Wins
 
-1. **Real agent, not a chatbot wrapper.** The agent has 10 tools it
-   orchestrates autonomously — it plans, gathers evidence, cross-references,
-   and proposes fixes. That's agentic AI, not a prompt template.
+1. **Dual persona — Siki & Zana.** The good cop / bad cop pattern maps
+   to how real accounting firms work: the friendly advisor who finds
+   savings, and the enforcer who chases payments. This is the demo
+   moment judges remember.
 
-2. **Streaming transparency.** Users see every tool call and result in
-   real-time. No black box — you watch Siki investigate your books.
+2. **Real agent, not a chatbot wrapper.** 15 tools orchestrated
+   autonomously — it plans, gathers evidence, cross-references, drafts
+   communications, and proposes fixes. That's agentic AI, not a prompt
+   template.
 
-3. **Solves a real, expensive problem.** 4.4M Xero subscribers. Most
-   can't afford a bookkeeper. This replaces £50-100/month of bookkeeping
-   labour with an AI agent that costs pence per query.
+3. **Action Center.** Not just a chat — the sidebar shows a prioritized
+   action list based on the proactive audit. "1. Chase overdue invoices
+   (£270). 2. Reconcile 9 transactions. 3. Check tax & deductions."
+   Click to act.
 
-4. **Human-in-the-loop.** The agent proposes, the human approves. No
-   autonomous journal entries without consent. Safe by design.
+4. **Invoice chasing with legal teeth.** Zana drafts reminder emails
+   that escalate from friendly to final notice, citing the Late Payment
+   of Commercial Debts Act 1998 and calculating statutory interest.
+   No other Xero app does this.
 
-5. **Multimodal.** Receipt photos → Vision AI → matched to Xero
-   transactions. This is the bridge between physical and digital
-   bookkeeping that small businesses actually need.
+5. **HMRC rule citations.** When the agent says "client entertainment
+   isn't deductible," it cites BIM45010. This builds trust and
+   credibility — it's not making things up.
 
-6. **Proactive, not reactive.** Webhooks mean Siki comes to you —
-   "Hey, you have a new unreconciled transaction" — instead of waiting
-   for you to notice problems at tax time.
+6. **Savings finder.** Analyzes the P&L for unused subscriptions, high
+   expense ratios, and margin improvement opportunities. Ranked by
+   financial impact. Goes beyond bookkeeping into financial advisory.
 
-7. **Memorable mascot.** Siki the Owl gives the product personality
-   and makes AI bookkeeping feel approachable — not intimidating.
+7. **Streaming transparency.** Users see every tool call and result in
+   real-time. No black box — you watch the agent investigate your books.
+
+8. **Human-in-the-loop.** The agent proposes, the human approves. No
+   autonomous journal entries or sent emails without consent.
+
+9. **Multimodal.** Receipt photos → Vision AI → matched to Xero
+   transactions.
+
+10. **Memorable mascots.** Siki (warm, orange) and Zana (dark, sharp)
+    give the product personality and make AI bookkeeping feel
+    approachable — not intimidating.
 
 ## Team
 

@@ -125,8 +125,8 @@ export const endpoints = {
   // ---- Xero (Bookkeeper mode) ----
 
   xero: {
-    chat: (message: string, thread_id?: string) =>
-      api.post<ChatResponse>("/api/xero/chat", { message, thread_id }),
+    chat: (message: string, thread_id?: string, persona?: string) =>
+      api.post<ChatResponse>("/api/xero/chat", { message, thread_id, persona }),
 
     /**
      * Streaming chat — returns an async generator of events.
@@ -136,11 +136,12 @@ export const endpoints = {
     chatStream: async function* (
       message: string,
       thread_id?: string,
+      persona?: string,
     ): AsyncGenerator<AgentEvent> {
       const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, thread_id }),
+        body: JSON.stringify({ message, thread_id, persona }),
       });
       if (!res.ok || !res.body) {
         throw new ApiError(res.status, await res.text().catch(() => res.statusText));

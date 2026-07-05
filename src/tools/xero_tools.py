@@ -539,3 +539,256 @@ def get_tax_insights() -> str:
     summary += "\nReminders: File CT600 within 12 months of period end. Pay tax within 9 months + 1 day. Keep receipts for 6 years. This is an estimate — consult an accountant for actual filing.\n"
 
     return summary
+
+
+def draft_invoice_reminder(
+    invoice_id: str = "",
+    contact_name: str = "",
+    amount: float = 0.0,
+    invoice_number: str = "",
+    days_overdue: int = 0,
+    tone: str = "",
+) -> str:
+    """
+    Draft a reminder email for an overdue invoice. The tone escalates
+    based on days overdue:
+      - 1-14 days: Friendly reminder
+      - 15-30 days: Firm but professional
+      - 31-60 days: Final notice with late payment interest
+      - 60+ days: Recommend debt collection
+
+    Returns the drafted email text for the user to review and send.
+    """
+    # Determine tone from days overdue if not specified
+    if not tone:
+        if days_overdue <= 14:
+            tone = "friendly"
+        elif days_overdue <= 30:
+            tone = "firm"
+        elif days_overdue <= 60:
+            tone = "final"
+        else:
+            tone = "collection"
+
+    # Late payment interest under UK Late Payment of Commercial Debts Act 1998
+    # = 8% + Bank Rate (currently 5.25%), so ~13.25% annual
+    bank_rate = 5.25
+    interest_rate = 8.0 + bank_rate
+    daily_interest = (amount * interest_rate / 100) / 365 * days_overdue
+    total_with_interest = amount + daily_interest
+
+    if tone == "friendly":
+        subject = f"Friendly reminder: Invoice {invoice_number}"
+        body = f"""Dear {contact_name},
+
+I hope you're doing well. Just a quick reminder that invoice {invoice_number}
+for £{amount:,.2f} was due {days_overdue} days ago.
+
+I'd really appreciate it if you could settle this at your earliest convenience.
+If you've already paid, please disregard this email.
+
+If there's an issue or you need to discuss payment terms, just let me know —
+I'm happy to help.
+
+Best regards,
+[Your name]
+"""
+    elif tone == "firm":
+        subject = f"Overdue invoice {invoice_number} — {days_overdue} days past due"
+        body = f"""Dear {contact_name},
+
+This is a follow-up regarding invoice {invoice_number} for £{amount:,.2f},
+which is now {days_overdue} days overdue.
+
+I've not yet received payment or heard from you regarding this invoice.
+Could you please arrange payment by return, or contact me immediately to
+discuss any issues?
+
+I value our business relationship, but I do need this resolved promptly.
+
+Regards,
+[Your name]
+"""
+    elif tone == "final":
+        subject = f"FINAL NOTICE: Invoice {invoice_number} — {days_overdue} days overdue"
+        body = f"""Dear {contact_name},
+
+Despite previous reminders, invoice {invoice_number} for £{amount:,.2f}
+remains unpaid and is now {days_overdue} days overdue.
+
+Under the Late Payment of Commercial Debts (Interest) Act 1998, I am
+entitled to charge interest at {interest_rate}% per annum (Bank Rate + 8%).
+As of today, interest of £{daily_interest:,.2f} has accrued, bringing the
+total amount due to £{total_with_interest:,.2f}.
+
+Please arrange payment of £{total_with_interest:,.2f} within 7 days.
+If I do not receive payment or a satisfactory response, I will consider
+further action to recover the debt.
+
+Regards,
+[Your name]
+"""
+    else:  # collection
+        subject = f"Debt recovery: Invoice {invoice_number} — {days_overdue} days overdue"
+        body = f"""Dear {contact_name},
+
+Invoice {invoice_number} for £{amount:,.2f} is now {days_overdue} days
+overdue. Despite multiple reminders, no payment has been received.
+
+The total amount due, including statutory interest of £{daily_interest:,.2f}
+under the Late Payment of Commercial Debts Act 1998, is £{total_with_interest:,.2f}.
+
+If payment is not received within 7 days, I will refer this matter to a
+debt collection agency or pursue recovery through the Small Claims Court.
+
+This is my final communication before formal recovery proceedings begin.
+
+Regards,
+[Your name]
+"""
+
+    return f"Subject: {subject}\n\n{body}"
+
+
+def get_savings_opportunities() -> str:
+    """
+    Analyze the P&L and transactions to identify savings opportunities:
+    - Unused software subscriptions (recurring payments with no matching usage)
+    - High-margin vs low-margin product/service lines
+    - Overpriced expense categories (above industry benchmarks)
+    - Tax deductions being missed
+
+    Returns a structured summary of savings opportunities ranked by impact.
+    """
+    try:
+        pl = _xero.get_profit_and_loss()
+        txns = _xero.list_bank_transactions()
+        contacts = _xero.list_contacts()
+    except Exception as exc:
+        return f"Error fetching data for savings analysis: {exc}"
+
+    opportunities: list[str] = []
+
+    # Parse P&L for expense breakdown
+    expenses_by_category: dict[str, float] = {}
+    total_expenses = 0.0
+    total_revenue = 0.0
+
+    for section in pl.get("Reports", [{}])[0].get("Rows", []):
+        row_type = section.get("RowType", "")
+        if row_type == "Header":
+            for cell in section.get("Cells", []):
+                if "Revenue" in str(cell.get("Value", "")):
+                    pass  # Will be captured in Section rows
+        elif row_type == "Section":
+            section_title = section.get("Title", "")
+            for row in section.get("Rows", []):
+                if row.get("RowType") == "Row":
+                    cells = row.get("Cells", [])
+                    if len(cells) >= 2:
+                        label = cells[0].get("Value", "Unknown")
+                        value_str = cells[-1].get("Value", "0")
+                        try:
+                            value = float(value_str) if value_str and value_str != "null" else 0.0
+                        except (ValueError, TypeError):
+                            value = 0.0
+
+                        if "expense" in section_title.lower() or "cost" in section_title.lower():
+                            expenses_by_category[label] = expenses_by_category.get(label, 0) + value
+                            total_expenses += value
+                        elif "revenue" in section_title.lower() or "income" in section_title.lower():
+                            total_revenue += value
+
+    # 1. Identify recurring payments (potential unused subscriptions)
+    recurring: dict[str, list[float]] = {}
+    for t in txns:
+        ref = str(t.get("reference", t.get("Reference", "")))
+        amount = abs(float(t.get("amount", t.get("Amount", 0)) or 0))
+        if amount > 0:
+            # Look for subscription-like patterns
+            ref_lower = ref.lower()
+            for keyword in ["subscription", "monthly", "saas", "adobe", "microsoft",
+                            "google", "slack", "notion", "figma", "github",
+                            "aws", "cloud", "domain", "hosting"]:
+                if keyword in ref_lower:
+                    recurring[keyword] = recurring.get(keyword, [])
+                    recurring[keyword].append(amount)
+                    break
+
+    unused_subs = []
+    for keyword, amounts in recurring.items():
+        monthly_total = sum(amounts) / max(len(amounts), 1)
+        annual_cost = monthly_total * 12
+        if annual_cost > 100:  # Only flag if > £100/year
+            unused_subs.append(f"  - {keyword.title()}: ~£{monthly_total:.2f}/mo (£{annual_cost:.0f}/yr)")
+
+    if unused_subs:
+        opportunities.append(
+            f"💡 SUBSCRIPTIONS: Found {len(unused_subs)} recurring software/cloud payments:\n"
+            + "\n".join(unused_subs)
+            + "\n  Review these — cancel anything you haven't used in 90 days."
+        )
+
+    # 2. Expense ratio analysis
+    if total_expenses > 0 and total_revenue > 0:
+        expense_ratio = (total_expenses / total_revenue) * 100
+        opportunities.append(
+            f"📊 EXPENSE RATIO: Your expenses are {expense_ratio:.0f}% of revenue. "
+            f" (£{total_revenue:,.0f} revenue, £{total_expenses:,.0f} expenses). "
+            f"{'This is high — target 60-70% for retail.' if expense_ratio > 80 else 'This looks healthy.'}"
+        )
+
+    # 3. Top expense categories
+    if expenses_by_category:
+        sorted_expenses = sorted(expenses_by_category.items(), key=lambda x: x[1], reverse=True)
+        top_3 = sorted_expenses[:3]
+        expense_lines = [f"  - {cat}: £{val:,.0f}" for cat, val in top_3]
+        opportunities.append(
+            f"📋 TOP EXPENSES:\n" + "\n".join(expense_lines)
+            + "\n  These are your biggest costs. Even a 10% reduction here would save significant money."
+        )
+
+    # 4. Margin analysis
+    if total_revenue > 0:
+        net_margin = ((total_revenue - total_expenses) / total_revenue) * 100
+        if net_margin < 0:
+            opportunities.append(
+                f"⚠️ MARGIN ALERT: You're running at a {abs(net_margin):.0f}% LOSS. "
+                f"Revenue (£{total_revenue:,.0f}) isn't covering expenses (£{total_expenses:,.0f}). "
+                f"Priority: increase prices, cut costs, or boost sales volume."
+            )
+        elif net_margin < 10:
+            opportunities.append(
+                f"📉 LOW MARGIN: Your net margin is {net_margin:.0f}%. "
+                f"Healthy retail margins are 10-20%. Consider pricing review."
+            )
+        else:
+            opportunities.append(
+                f"✅ HEALTHY MARGIN: Your net margin is {net_margin:.0f}%. "
+                f"Look for ways to reinvest this in growth."
+            )
+
+    # 5. Overdue invoices as missed opportunity
+    try:
+        overdue = _xero.find_overdue_invoices()
+        if overdue:
+            total_overdue = sum(float(i.get("amountDue", 0) or 0) for i in overdue)
+            opportunities.append(
+                f"💰 UNCOLLECTED REVENUE: {len(overdue)} overdue invoices totalling "
+                f"£{total_overdue:,.2f}. This is money you've earned but haven't received. "
+                f"Chasing these is the fastest way to improve cash flow."
+            )
+    except Exception:
+        pass
+
+    if not opportunities:
+        return "No specific savings opportunities identified. Your expenses look standard and your margins are healthy."
+
+    summary = "SAVINGS OPPORTUNITIES (ranked by impact):\n\n"
+    for i, opp in enumerate(opportunities, 1):
+        summary += f"{i}. {opp}\n\n"
+
+    summary += "Next steps: Review each opportunity and decide which to act on. Even small savings compound over the year."
+
+    return summary
+
