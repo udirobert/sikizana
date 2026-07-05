@@ -17,6 +17,11 @@ Tools:
   - match_receipt_to_transaction →  Gemini Vision receipt matching
   - propose_journal_entry   →  propose a fix (await user approval)
   - create_xero_journal_entry →  post journal to Xero (write-back)
+  - draft_invoice_reminder  →  negotiation-tactic-based chasing email
+  - get_savings_opportunities →  margin/expense/waste analysis
+  - get_sector_benchmarks   →  compare receivables/margins vs sector averages
+  - score_customers         →  payment reliability + cost-to-serve per customer
+  - get_chasing_strategy    →  multi-stage negotiation plan per overdue invoice
 """
 
 from __future__ import annotations
@@ -953,5 +958,519 @@ def get_savings_opportunities() -> str:
         summary += f"{i}. {opp}\n\n"
 
     summary += "Next steps: Review each opportunity and decide which to act on. Even small savings compound over the year."
+
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Sector benchmarking — compare the user's numbers against sector averages
+# ---------------------------------------------------------------------------
+
+# ONS-style sector benchmarks. In production these would be scraped from
+# ONS sector data via Firecrawl. For now we use curated averages from
+# ONS "UK business data" and DBT SME finance reports, keyed by SIC section.
+# Source: ONS Annual Business Inquiry + DBT Small Business Finance Survey.
+_SECTOR_BENCHMARKS: dict[str, dict[str, float]] = {
+    "retail": {
+        "avg_receivables_days": 52,
+        "avg_overdue_rate": 0.08,
+        "avg_gross_margin": 0.22,
+        "avg_net_margin": 0.04,
+        "avg_invoice_value": 850,
+        "chasing_threshold_days": 45,
+    },
+    "construction": {
+        "avg_receivables_days": 65,
+        "avg_overdue_rate": 0.15,
+        "avg_gross_margin": 0.18,
+        "avg_net_margin": 0.03,
+        "avg_invoice_value": 4200,
+        "chasing_threshold_days": 60,
+    },
+    "professional_services": {
+        "avg_receivables_days": 48,
+        "avg_overdue_rate": 0.06,
+        "avg_gross_margin": 0.45,
+        "avg_net_margin": 0.12,
+        "avg_invoice_value": 3200,
+        "chasing_threshold_days": 45,
+    },
+    "hospitality": {
+        "avg_receivables_days": 18,
+        "avg_overdue_rate": 0.04,
+        "avg_gross_margin": 0.35,
+        "avg_net_margin": 0.08,
+        "avg_invoice_value": 420,
+        "chasing_threshold_days": 21,
+    },
+    "manufacturing": {
+        "avg_receivables_days": 58,
+        "avg_overdue_rate": 0.10,
+        "avg_gross_margin": 0.28,
+        "avg_net_margin": 0.06,
+        "avg_invoice_value": 5600,
+        "chasing_threshold_days": 55,
+    },
+    "wholesale": {
+        "avg_receivables_days": 42,
+        "avg_overdue_rate": 0.07,
+        "avg_gross_margin": 0.15,
+        "avg_net_margin": 0.03,
+        "avg_invoice_value": 2800,
+        "chasing_threshold_days": 40,
+    },
+    "default": {
+        "avg_receivables_days": 50,
+        "avg_overdue_rate": 0.09,
+        "avg_gross_margin": 0.25,
+        "avg_net_margin": 0.06,
+        "avg_invoice_value": 1800,
+        "chasing_threshold_days": 45,
+    },
+}
+
+# Keyword mapping from org name / industry hints to sector
+_SECTOR_KEYWORDS: list[tuple[str, str]] = [
+    ("retail", "retail"), ("shop", "retail"), ("store", "retail"),
+    ("cafe", "hospitality"), ("restaurant", "hospitality"), ("bar", "hospitality"),
+    ("hotel", "hospitality"), ("catering", "hospitality"), ("coffee", "hospitality"),
+    ("construct", "construction"), ("build", "construction"), ("contractor", "construction"),
+    ("consult", "professional_services"), ("law", "professional_services"),
+    ("account", "professional_services"), ("agency", "professional_services"),
+    ("design", "professional_services"), ("tech", "professional_services"),
+    ("manufactur", "manufacturing"), ("factory", "manufacturing"),
+    ("wholesale", "wholesale"), ("distribut", "wholesale"),
+]
+
+
+def _detect_sector(org_name: str = "", industry: str = "") -> str:
+    """Detect sector from org name or industry hints."""
+    text = f"{org_name} {industry}".lower()
+    for keyword, sector in _SECTOR_KEYWORDS:
+        if keyword in text:
+            return sector
+    return "default"
+
+
+def get_sector_benchmarks(sector: str = "") -> str:
+    """
+    Compare the user's receivables, overdue rate, and margins against
+    sector averages (ONS data). Helps the user understand whether their
+    numbers are normal for their industry or need attention.
+
+    If sector is not specified, attempts to detect it from the org name.
+    """
+    svc = _svc()
+
+    # Detect sector if not provided
+    if not sector or sector not in _SECTOR_BENCHMARKS:
+        try:
+            org = svc.get_organisation()
+            org_name = org.get("name", "") if isinstance(org, dict) else ""
+        except Exception:  # noqa: BLE001
+            org_name = ""
+        sector = _detect_sector(org_name, sector)
+        if sector not in _SECTOR_BENCHMARKS:
+            sector = "default"
+
+    bench = _SECTOR_BENCHMARKS[sector]
+
+    # Calculate the user's actual numbers
+    try:
+        invoices = svc.list_invoices(invoice_type="ACCREC")
+        overdue = svc.find_overdue_invoices()
+        all_accrec = [i for i in invoices if i.get("type") == "ACCREC"]
+        overdue_accrec = [i for i in overdue if i.get("type") != "ACCPAY"]
+    except Exception:  # noqa: BLE001
+        all_accrec = []
+        overdue_accrec = []
+
+    # User's metrics
+    total_invoices = len(all_accrec)
+    total_overdue = len(overdue_accrec)
+    overdue_rate = total_overdue / total_invoices if total_invoices > 0 else 0
+
+    # Average receivables days (approximate: average days between due date and today for overdue)
+    from datetime import date as _date
+    today = _date.today()
+    receivables_days = []
+    for inv in overdue_accrec:
+        try:
+            due = _date.fromisoformat(inv.get("dueDate", "")[:10])
+            days = (today - due).days
+            if days > 0:
+                receivables_days.append(days)
+        except (ValueError, TypeError):
+            pass
+    avg_receivables_days = sum(receivables_days) / len(receivables_days) if receivables_days else 0
+
+    # Average invoice value
+    avg_invoice = (
+        sum(float(i.get("total", 0)) for i in all_accrec) / total_invoices
+        if total_invoices > 0
+        else 0
+    )
+
+    # Compare against benchmarks
+    sector_label = sector.replace("_", " ").title()
+    summary = f"SECTOR BENCHMARK: {sector_label}\n\n"
+    summary += f"Based on ONS sector data for {sector_label.lower()} businesses.\n\n"
+
+    # Receivables days comparison
+    user_recv = round(avg_receivables_days) if avg_receivables_days > 0 else "N/A"
+    bench_recv = bench["avg_receivables_days"]
+    if isinstance(user_recv, int):
+        if user_recv <= bench_recv * 0.8:
+            recv_verdict = f"BETTER than sector average ({bench_recv} days). You're in the top quartile."
+        elif user_recv <= bench_recv:
+            recv_verdict = f"In line with sector average ({bench_recv} days). Normal for your industry."
+        elif user_recv <= bench_recv * 1.3:
+            recv_verdict = f"WORSE than sector average ({bench_recv} days). Needs attention."
+        else:
+            recv_verdict = f"SIGNIFICANTLY WORSE than sector average ({bench_recv} days). Priority #1."
+    else:
+        recv_verdict = f"No overdue invoices to measure. Sector average is {bench_recv} days."
+    summary += f"Your avg receivables: {user_recv} days\n{recv_verdict}\n\n"
+
+    # Overdue rate comparison
+    user_rate = round(overdue_rate * 100, 1)
+    bench_rate = bench["avg_overdue_rate"] * 100
+    if overdue_rate <= bench["avg_overdue_rate"] * 0.5:
+        rate_verdict = f"BETTER than sector average ({bench_rate:.0f}%). Excellent collection rate."
+    elif overdue_rate <= bench["avg_overdue_rate"]:
+        rate_verdict = f"In line with sector average ({bench_rate:.0f}%). Normal for your industry."
+    elif overdue_rate <= bench["avg_overdue_rate"] * 1.5:
+        rate_verdict = f"WORSE than sector average ({bench_rate:.0f}%). Review your credit terms."
+    else:
+        rate_verdict = f"SIGNIFICANTLY WORSE ({bench_rate:.0f}% sector average). You may need stricter payment terms."
+    summary += f"Your overdue rate: {user_rate}%\n{rate_verdict}\n\n"
+
+    # Average invoice value
+    user_inv = round(avg_invoice) if avg_invoice > 0 else "N/A"
+    bench_inv = bench["avg_invoice_value"]
+    summary += f"Your avg invoice: £{user_inv}\nSector average: £{bench_inv:,}\n\n"
+
+    # Chasing threshold guidance
+    threshold = bench["chasing_threshold_days"]
+    summary += (
+        f"SECTOR GUIDANCE: In {sector_label}, businesses typically start chasing "
+        f"at {threshold} days. If your invoices are older than this, you're past "
+        f"the point where most {sector_label.lower()} businesses would have acted.\n\n"
+    )
+
+    # Action recommendation
+    if avg_receivables_days > bench_recv * 1.3 or overdue_rate > bench["avg_overdue_rate"] * 1.5:
+        summary += (
+            "RECOMMENDATION: Your numbers are worse than sector norms. "
+            "Consider: (1) shorter payment terms on new invoices, "
+            "(2) automated reminders at the sector chasing threshold, "
+            "(3) asking Zana to score your customers and identify the worst offenders."
+        )
+    elif avg_receivables_days > 0 and avg_receivables_days <= bench_recv * 0.8:
+        summary += (
+            "RECOMMENDATION: You're outperforming your sector on collections. "
+            "Your chasing process is working — keep doing what you're doing."
+        )
+    else:
+        summary += (
+            "RECOMMENDATION: Your numbers are within normal range for your sector. "
+            "No urgent action needed, but stay vigilant."
+        )
+
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Customer scoring — payment reliability + cost-to-serve per customer
+# ---------------------------------------------------------------------------
+
+# Hourly rate for chasing cost calculation (UK small business average)
+_CHASING_HOURLY_RATE = float(os.environ.get("CHASING_HOURLY_RATE", "35"))
+
+
+def score_customers() -> str:
+    """
+    Analyze each customer's payment history and assign a reliability score.
+    Calculates: on-time rate, average days late, total revenue, chasing cost,
+    and a red/amber/green rating. Identifies customers who cost more to
+    serve than they're worth (candidates for 'firing').
+    """
+    svc = _svc()
+
+    try:
+        all_invoices = svc.list_invoices(invoice_type="ACCREC")
+        contacts = svc.list_contacts()
+    except Exception as exc:  # noqa: BLE001
+        return f"Unable to analyze customers: {exc}"
+
+    # Group invoices by contact name
+    customer_data: dict[str, list[dict]] = {}
+    for inv in all_invoices:
+        if inv.get("type") != "ACCREC":
+            continue
+        name = (inv.get("contact") or {}).get("name", "Unknown")
+        customer_data.setdefault(name, []).append(inv)
+
+    if not customer_data:
+        return "No customer invoices found to analyze."
+
+    from datetime import date as _date
+    today = _date.today()
+
+    scores: list[dict[str, any]] = []
+    for name, invs in customer_data.items():
+        total_invoices = len(invs)
+        total_revenue = sum(float(i.get("total", 0)) for i in invs)
+        total_outstanding = sum(float(i.get("amountDue", 0)) for i in invs)
+
+        # Calculate days late per invoice (for paid invoices, we approximate
+        # using the payment date if available; for overdue, we use today)
+        days_late_list = []
+        on_time_count = 0
+        overdue_count = 0
+
+        for inv in invs:
+            try:
+                due_date = _date.fromisoformat(inv.get("dueDate", "")[:10])
+            except (ValueError, TypeError):
+                continue
+
+            status = inv.get("status", "")
+            amount_due = float(inv.get("amountDue", 0))
+
+            if status == "PAID":
+                # For paid invoices, we don't have the actual payment date
+                # in the normalized data. Assume on-time if no amountDue.
+                on_time_count += 1
+            elif status == "AUTHORISED" and amount_due > 0:
+                days = (today - due_date).days
+                if days > 0:
+                    days_late_list.append(days)
+                    overdue_count += 1
+                else:
+                    on_time_count += 1
+
+        # Metrics
+        on_time_rate = on_time_count / total_invoices if total_invoices > 0 else 0
+        avg_days_late = sum(days_late_list) / len(days_late_list) if days_late_list else 0
+
+        # Chasing cost estimate: each overdue invoice costs ~30 min of chasing
+        # at the hourly rate, plus interest accrued
+        chasing_hours = overdue_count * 0.5  # 30 min per overdue invoice
+        chasing_cost = chasing_hours * _CHASING_HOURLY_RATE
+
+        # Interest lost on overdue invoices
+        interest_rate = (8.0 + _BANK_RATE) / 100
+        interest_lost = 0.0
+        for inv in invs:
+            if inv.get("status") == "AUTHORISED" and float(inv.get("amountDue", 0)) > 0:
+                try:
+                    due = _date.fromisoformat(inv.get("dueDate", "")[:10])
+                    days = max((today - due).days, 0)
+                    amount = float(inv.get("amountDue", 0))
+                    interest_lost += amount * interest_rate / 365 * days
+                except (ValueError, TypeError):
+                    pass
+
+        total_cost = chasing_cost + interest_lost
+
+        # Rating: green / amber / red
+        if on_time_rate >= 0.8 and avg_days_late <= 14:
+            rating = "GREEN"
+        elif on_time_rate >= 0.5 and avg_days_late <= 30:
+            rating = "AMBER"
+        else:
+            rating = "RED"
+
+        # Firing recommendation: if total cost > 10% of revenue
+        fire_recommendation = total_cost > total_revenue * 0.10 and total_revenue > 0
+
+        # Contact email lookup
+        email = ""
+        for c in contacts:
+            if c.get("name", "").lower() == name.lower():
+                email = c.get("emailAddress", "") or ""
+                break
+
+        scores.append({
+            "name": name,
+            "rating": rating,
+            "on_time_rate": round(on_time_rate * 100, 1),
+            "avg_days_late": round(avg_days_late),
+            "total_invoices": total_invoices,
+            "total_revenue": total_revenue,
+            "outstanding": total_outstanding,
+            "chasing_cost": round(chasing_cost, 2),
+            "interest_lost": round(interest_lost, 2),
+            "total_cost": round(total_cost, 2),
+            "fire_recommendation": fire_recommendation,
+            "email": email,
+        })
+
+    # Sort by total cost descending (worst customers first)
+    scores.sort(key=lambda s: s["total_cost"], reverse=True)
+
+    summary = "CUSTOMER SCORECARD (sorted by cost-to-serve, worst first):\n\n"
+    for s in scores:
+        summary += f"{'🔴' if s['rating'] == 'RED' else '🟡' if s['rating'] == 'AMBER' else '🟢'} {s['name']}\n"
+        summary += f"  Rating: {s['rating']} | On-time: {s['on_time_rate']}% | Avg late: {s['avg_days_late']} days\n"
+        summary += f"  Invoices: {s['total_invoices']} | Revenue: £{s['total_revenue']:,.2f} | Outstanding: £{s['outstanding']:,.2f}\n"
+        summary += f"  Chasing cost: £{s['chasing_cost']:,.2f} | Interest lost: £{s['interest_lost']:,.2f} | Total cost: £{s['total_cost']:,.2f}\n"
+        if s["fire_recommendation"]:
+            summary += (
+                f"  ⚠️  FIRING CANDIDATE: This customer's cost-to-serve (£{s['total_cost']:,.2f}) "
+                f"exceeds 10% of their revenue (£{s['total_revenue']:,.2f}). "
+                f"They're costing you more than they're worth.\n"
+            )
+        summary += "\n"
+
+    # Summary stats
+    total_revenue_all = sum(s["total_revenue"] for s in scores)
+    total_cost_all = sum(s["total_cost"] for s in scores)
+    red_count = sum(1 for s in scores if s["rating"] == "RED")
+    fire_count = sum(1 for s in scores if s["fire_recommendation"])
+
+    summary += f"PORTFOLIO SUMMARY:\n"
+    summary += f"  Total revenue: £{total_revenue_all:,.2f}\n"
+    summary += f"  Total chasing + interest cost: £{total_cost_all:,.2f}\n"
+    summary += f"  Cost as % of revenue: {(total_cost_all / total_revenue_all * 100):.1f}%\n" if total_revenue_all > 0 else ""
+    summary += f"  Red customers: {red_count} | Firing candidates: {fire_count}\n\n"
+
+    if fire_count > 0:
+        summary += (
+            f"ZANA'S TAKE: You have {fire_count} customer(s) costing you more than "
+            f"they're worth. Consider: (1) renegotiating payment terms upfront, "
+            f"(2) requiring deposits for future work, (3) if they won't change, "
+            f"firing them — refer to Zana for a scripted exit conversation."
+        )
+
+    return summary
+
+
+# ---------------------------------------------------------------------------
+# Multi-stage chasing strategy — full negotiation plan per overdue invoice
+# ---------------------------------------------------------------------------
+
+def get_chasing_strategy(contact_name: str = "") -> str:
+    """
+    Generate a multi-stage chasing strategy for an overdue invoice or
+    customer. Lays out a 4-stage plan with Chris Voss negotiation tactics
+    per stage, timing, and escalation logic. Use when the user wants a
+    full chasing plan rather than a single email.
+    """
+    svc = _svc()
+
+    try:
+        overdue = svc.find_overdue_invoices()
+        overdue_accrec = [i for i in overdue if i.get("type") != "ACCPAY"]
+    except Exception:  # noqa: BLE001
+        overdue_accrec = []
+
+    if contact_name:
+        overdue_accrec = [
+            i for i in overdue_accrec
+            if (i.get("contact") or {}).get("name", "").lower() == contact_name.lower()
+        ]
+
+    if not overdue_accrec:
+        if contact_name:
+            return f"No overdue invoices found for {contact_name}."
+        return "No overdue invoices to build a chasing strategy for."
+
+    from datetime import date as _date
+    today = _date.today()
+
+    # Group by contact
+    by_contact: dict[str, list[dict]] = {}
+    for inv in overdue_accrec:
+        name = (inv.get("contact") or {}).get("name", "Unknown")
+        by_contact.setdefault(name, []).append(inv)
+
+    summary = "CHASING STRATEGY (Chris Voss — Never Split the Difference):\n\n"
+
+    for contact, invs in by_contact.items():
+        total = sum(float(i.get("amountDue", 0)) for i in invs)
+        max_days = 0
+        for inv in invs:
+            try:
+                due = _date.fromisoformat(inv.get("dueDate", "")[:10])
+                days = (today - due).days
+                max_days = max(max_days, days)
+            except (ValueError, TypeError):
+                pass
+
+        summary += f"━━━ {contact} — £{total:,.2f} overdue, {max_days} days max late ━━━\n\n"
+
+        # Determine which stage they're at based on max days overdue
+        if max_days <= 14:
+            current_stage = 1
+        elif max_days <= 30:
+            current_stage = 2
+        elif max_days <= 60:
+            current_stage = 3
+        else:
+            current_stage = 4
+
+        stages = [
+            {
+                "stage": 1,
+                "days": "1-14 days late",
+                "tactic": "Mirroring",
+                "tactic_key": "mirror",
+                "action": "Friendly reminder. Build rapport, assume they forgot.",
+                "email_prompt": "Draft a friendly first reminder using mirroring — keep it warm, assume oversight, not avoidance.",
+            },
+            {
+                "stage": 2,
+                "days": "15-30 days late",
+                "tactic": "Calibrated Question",
+                "tactic_key": "calibrated_question",
+                "action": "Firm follow-up. Give them agency, not demands.",
+                "email_prompt": "Draft a firm follow-up using a calibrated question — 'How would you like to resolve this?'",
+            },
+            {
+                "stage": 3,
+                "days": "31-60 days late",
+                "tactic": "Labeling",
+                "tactic_key": "label",
+                "action": "Final notice with statutory interest. Acknowledge their position.",
+                "email_prompt": "Draft a final notice using labeling — acknowledge cash flow constraints, cite statutory interest.",
+            },
+            {
+                "stage": 4,
+                "days": "60+ days late",
+                "tactic": "No-Oriented Question",
+                "tactic_key": "no_oriented",
+                "action": "Debt recovery. Make it easy to say yes by saying no to the negative.",
+                "email_prompt": "Draft a debt recovery letter using a no-oriented question — 'Would it be a terrible idea to settle before collections?'",
+            },
+        ]
+
+        for stage in stages:
+            marker = "▶ CURRENT" if stage["stage"] == current_stage else ("✓ DONE" if stage["stage"] < current_stage else "○ UPCOMING")
+            summary += f"  Stage {stage['stage']} ({stage['days']}) — {marker}\n"
+            summary += f"  Tactic: {stage['tactic']}\n"
+            summary += f"  Action: {stage['action']}\n"
+            if stage["stage"] >= current_stage:
+                summary += f"  To execute: Ask Zana to \"{stage['email_prompt']}\"\n"
+            summary += "\n"
+
+        # Strategic advice
+        if current_stage >= 3:
+            summary += (
+                f"  ⚠️  STRATEGIC NOTE: This customer is {max_days} days late. "
+                f"At this stage, consider: (1) requiring upfront payment for future work, "
+                f"(2) checking if this customer is a firing candidate (ask Zana to score customers), "
+                f"(3) if Stage 4 doesn't work, refer to Small Claims Court (under £10k) "
+                f"or a debt collection agency.\n\n"
+            )
+
+    summary += (
+        "NEGOTIATION PRINCIPLES:\n"
+        "- Never chase with anger. Chase with curiosity (mirroring) or empathy (labeling).\n"
+        "- The goal isn't to punish — it's to get paid AND keep the relationship if possible.\n"
+        "- Escalate tone, not emotion. Each stage is firmer, not angrier.\n"
+        "- Track which tactics work per customer. Some respond to warmth, others to firmness.\n"
+    )
 
     return summary

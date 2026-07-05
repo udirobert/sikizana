@@ -25,7 +25,9 @@ from src.tools.xero_tools import (
     create_xero_journal_entry,
     draft_invoice_reminder,
     find_discrepancies,
+    get_chasing_strategy,
     get_savings_opportunities,
+    get_sector_benchmarks,
     get_tax_insights,
     get_xero_balance_sheet,
     get_xero_chart_of_accounts,
@@ -36,6 +38,7 @@ from src.tools.xero_tools import (
     get_xero_transactions,
     match_receipt_to_transaction,
     propose_journal_entry,
+    score_customers,
     set_current_session,
 )
 from src.tools.rag_engine import lookup_tax_rule
@@ -418,6 +421,48 @@ _TOOL_DEFS = [
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_sector_benchmarks",
+            "description": "Compare the user's receivables days, overdue rate, and average invoice value against ONS sector averages. Detects the sector from the org name if not specified. Helps the user understand whether their numbers are normal for their industry. Use when the user asks 'is this normal', 'how do I compare', or about industry benchmarks.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sector": {
+                        "type": "string",
+                        "description": "Sector to compare against: 'retail', 'construction', 'professional_services', 'hospitality', 'manufacturing', 'wholesale'. If omitted, auto-detects from org name.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "score_customers",
+            "description": "Analyze each customer's payment history and assign a reliability score (RED/AMBER/GREEN). Calculates on-time rate, average days late, total revenue, chasing cost, interest lost, and identifies 'firing candidates' — customers whose cost-to-serve exceeds 10% of their revenue. Use when the user asks about customer quality, who their worst customers are, or whether to drop a customer.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_chasing_strategy",
+            "description": "Generate a multi-stage chasing strategy (4 stages) for overdue invoices using Chris Voss negotiation tactics. Shows which stage the customer is currently at, what tactic to use, and what to do next. Use when the user wants a full chasing plan rather than a single email, or asks 'what should I do about this overdue invoice'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "contact_name": {
+                        "type": "string",
+                        "description": "Customer name to build a strategy for. If omitted, builds strategies for all overdue customers.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 # Map tool names to actual Python functions
@@ -437,6 +482,9 @@ _TOOL_FUNCS = {
     "lookup_tax_rule": lookup_tax_rule,
     "draft_invoice_reminder": draft_invoice_reminder,
     "get_savings_opportunities": get_savings_opportunities,
+    "get_sector_benchmarks": get_sector_benchmarks,
+    "score_customers": score_customers,
+    "get_chasing_strategy": get_chasing_strategy,
 }
 
 
@@ -574,6 +622,9 @@ async def run_bookkeeper_streaming(
         "lookup_tax_rule": "Looking up HMRC tax rules",
         "draft_invoice_reminder": "Drafting invoice reminder email",
         "get_savings_opportunities": "Finding savings opportunities",
+        "get_sector_benchmarks": "Comparing against sector benchmarks",
+        "score_customers": "Scoring customer payment reliability",
+        "get_chasing_strategy": "Building chasing strategy",
     }
 
     # Agent loop: stream the model, execute tools, feed results back.
