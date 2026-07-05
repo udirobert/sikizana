@@ -73,7 +73,7 @@ export default function ActivityPage() {
             <SikiMascot size={48} mood="look" />
             <p className="text-sm text-stone-500 mt-3">
               No activity yet. When Siki posts or reverses journal entries,
-              they'll appear here.
+              they&apos;ll appear here.
             </p>
             <Link
               href="/books"
@@ -119,6 +119,18 @@ export default function ActivityPage() {
                       <p className="text-[10px] text-stone-400 mt-1">
                         ID: {event.journal_id}
                       </p>
+                    )}
+                    {event.action === "journal_posted" && (
+                      <Link
+                        href={`/books?q=${encodeURIComponent(
+                          `Reverse the journal entry "${event.description}"${
+                            event.journal_id ? ` (ID ${event.journal_id})` : ""
+                          } for £${(event.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}. Propose the reversing journal and wait for my approval.`,
+                        )}`}
+                        className="inline-block mt-1.5 text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
+                      >
+                        ↩ Reverse with Siki
+                      </Link>
                     )}
                   </div>
                   {event.amount != null && (

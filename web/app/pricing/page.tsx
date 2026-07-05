@@ -24,12 +24,12 @@ const TIERS: Array<{
     plan: "free",
     price: "£0",
     period: "forever",
-    tagline: "Try it out with demo data",
+    tagline: "See what Siki finds in your books",
     features: [
-      "Demo company data (UK)",
-      "5 AI queries per month",
+      "Connect your Xero — free audit of your real books",
+      "Finds overdue invoices & unreconciled transactions",
       "P&L explanation in plain English",
-      "Health check dashboard",
+      "5 AI queries per month",
     ],
     highlight: false,
   },
@@ -38,15 +38,16 @@ const TIERS: Array<{
     plan: "pro",
     price: "£29",
     period: "per month",
-    tagline: "For small businesses with one Xero org",
+    tagline: "Let Siki fix what it finds",
     features: [
-      "Connect your real Xero org",
+      "Everything in Free, plus:",
+      "Journal entries posted to Xero (with your approval)",
+      "One-tap reversal of any posted entry",
+      "Invoice chasing — escalating reminder emails",
       "Unlimited AI queries",
-      "Proactive discrepancy alerts",
       "Tax insights (Corporation Tax estimate)",
-      "Journal entries posted to Xero",
       "Receipt scanning & matching",
-      "Email support",
+      "Weekly email digest",
     ],
     highlight: true,
   },
@@ -245,6 +246,10 @@ export default function PricingPage() {
           <p className="text-[11px] text-stone-400 max-w-md mx-auto">
             All plans include the AI bookkeeper agent, plain-English explanations, and
             human-in-the-loop journal entries. No long-term contracts. Cancel anytime.
+          </p>
+          <p className="text-[11px] text-stone-400 max-w-md mx-auto mt-1.5">
+            On Free, after your 5 monthly queries Siki keeps auditing your books — upgrading
+            unlocks unlimited chat and the fixes.
           </p>
           <div className="flex items-center justify-center gap-3 mt-3">
             <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">

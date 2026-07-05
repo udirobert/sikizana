@@ -213,6 +213,120 @@ function UsageMeter({ usage }: { usage: MeResponse["usage"] }) {
   );
 }
 
+function DigestToggle({ initial }: { initial: boolean }) {
+  const [enabled, setEnabled] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const next = !enabled;
+    try {
+      await endpoints.digest.opt(next);
+      setEnabled(next);
+    } catch {
+      setError("Couldn't update your digest preference. Try again.");
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+            Weekly digest
+          </span>
+          <p className="text-[11px] text-stone-500 mt-0.5">
+            Siki emails you what changed in your books each week.
+          </p>
+        </div>
+        <button
+          onClick={() => void toggle()}
+          disabled={busy}
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Weekly email digest"
+          className={`relative shrink-0 w-9 h-5 rounded-full transition-colors btn-press disabled:opacity-50 ${
+            enabled ? "bg-sky-600" : "bg-stone-300"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+              enabled ? "left-[18px]" : "left-0.5"
+            }`}
+          />
+        </button>
+      </div>
+      {error && (
+        <p className="text-[11px] text-red-600 mt-1.5" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function YourImpact() {
+  const [journals, setJournals] = useState<{ count: number; total: number } | null>(null);
+  const [moneyFound, setMoneyFound] = useState<number | null>(null);
+
+  useEffect(() => {
+    void endpoints
+      .activity()
+      .then((r) => {
+        const posted = r.events.filter((e) => e.action === "journal_posted");
+        setJournals({
+          count: posted.length,
+          total: posted.reduce((sum, e) => sum + (e.amount ?? 0), 0),
+        });
+      })
+      .catch(() => {});
+    void endpoints.xero
+      .findings()
+      .then((f) => setMoneyFound(f.money_found))
+      .catch(() => {});
+  }, []);
+
+  if (journals === null && moneyFound === null) return null;
+
+  return (
+    <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+          Your impact
+        </span>
+        <Link href="/activity" className="text-[11px] font-medium text-sky-600 hover:text-sky-800">
+          View activity →
+        </Link>
+      </div>
+      <div className="flex items-center gap-5 mt-2">
+        {moneyFound !== null && (
+          <div>
+            <div className="text-sm font-bold text-stone-900">
+              £{Math.round(moneyFound).toLocaleString()}
+            </div>
+            <div className="text-[10px] text-stone-500">found in your books</div>
+          </div>
+        )}
+        {journals !== null && (
+          <div>
+            <div className="text-sm font-bold text-stone-900">{journals.count}</div>
+            <div className="text-[10px] text-stone-500">
+              journal{journals.count === 1 ? "" : "s"} posted
+              {journals.total > 0
+                ? ` · £${journals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                : ""}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AccountView() {
   const searchParams = useSearchParams();
   const intent = parseIntent(searchParams.get("intent"));
@@ -353,6 +467,8 @@ function AccountView() {
 
             <div className="mt-4 space-y-3">
               <UsageMeter usage={me.usage} />
+              <YourImpact />
+              <DigestToggle initial={me.digest_opt_in} />
 
               {/* aria-live so billing errors are announced */}
               <div aria-live="polite" role="status">

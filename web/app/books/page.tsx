@@ -163,6 +163,7 @@ function BooksView() {
         setXeroMode(data.isDemoCompany ? "demo" : "live-cli");
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFindings flips its loading flag synchronously by design
     void loadFindings();
     // Fetch P&L for the dashboard sidebar
     void endpoints.xero
@@ -208,7 +209,7 @@ function BooksView() {
     }
 
     // Full-attention moment: Siki looks around while the fresh audit loads.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setConnectStage("analyzing");
     void endpoints.xero
       .connection()
@@ -277,7 +278,7 @@ function BooksView() {
     const sampleId = searchParams.get("sample");
     const sample = sampleId ? findQuery(sampleId) : undefined;
     if (sample && messages.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setInput(sample.description);
     }
   }, [searchParams, messages.length]);
@@ -541,7 +542,24 @@ function BooksView() {
         </div>
       </nav>
 
-      <div className="flex-1 flex items-stretch justify-center p-4 gap-4">
+      <div className="flex-1 flex flex-col items-center lg:flex-row lg:items-stretch lg:justify-center p-4 gap-4">
+        {/* Mobile: the findings panel stacks ABOVE the chat — small screens
+            get the audit's value instead of losing the sidebar entirely. */}
+        <div className="lg:hidden w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-stone-200 p-4">
+          <FindingsPanel
+            data={findings}
+            loading={findingsLoading}
+            askedIds={askedFindingIds}
+            disabled={isLoading}
+            onAct={handleFindingAct}
+            onSuggest={(prompt) => {
+              setInput(prompt);
+              inputRef.current?.focus();
+            }}
+            suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+          />
+        </div>
+
         {/* Dashboard Sidebar */}
         <aside className="hidden lg:flex flex-col w-72 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
           {/* Org header — skeleton uses SkeletonReveal for consistency */}
@@ -845,8 +863,8 @@ function BooksView() {
           </div>
         </aside>
 
-        {/* Chat */}
-        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[78vh] overflow-hidden border border-stone-200">
+        {/* Chat — dvh on mobile so browser chrome doesn't fight the layout */}
+        <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[70dvh] lg:h-[78vh] overflow-hidden border border-stone-200">
           <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
             <div className="relative">
               {persona === "siki" ? (
@@ -873,10 +891,10 @@ function BooksView() {
               </p>
             </div>
 
-            {/* Persona toggle */}
+            {/* Persona toggle — explicit modes, described on switch */}
             <div className="flex items-center gap-1 bg-stone-100 rounded-full p-0.5">
               <button
-                onClick={() => setPersona("siki")}
+                onClick={() => handlePersonaChange("siki")}
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
                   persona === "siki"
                     ? "bg-orange-400 text-white shadow-sm"
@@ -887,7 +905,7 @@ function BooksView() {
                 Siki
               </button>
               <button
-                onClick={() => setPersona("zana")}
+                onClick={() => handlePersonaChange("zana")}
                 className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
                   persona === "zana"
                     ? "bg-stone-800 text-white shadow-sm"
@@ -909,6 +927,18 @@ function BooksView() {
               </button>
             )}
           </div>
+
+          {/* Mode description — appears briefly after switching personas */}
+          {modeHintShown && (
+            <div
+              className="px-5 py-1.5 bg-stone-50 border-b border-stone-100 text-[11px] text-stone-600 fade-in-up"
+              role="status"
+            >
+              {persona === "siki"
+                ? "Bookkeeper mode — finds & fixes: reconciliation, journal entries, tax."
+                : "Advisor mode — chases payments, finds savings, tells hard truths."}
+            </div>
+          )}
 
           {/* Quota / plan-gate banner — an upgrade prompt, deliberately not styled as an error */}
           {upgradeBanner && (
@@ -1250,6 +1280,72 @@ function BooksView() {
             <SuccessCheck show={showSuccessCheck} size={48} className="text-emerald-600" />
             <p className="text-sm font-semibold text-stone-800">Journal entry posted to Xero</p>
             <p className="text-xs text-stone-500">Your books are now reconciled.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Post-connect moment — full-attention staging after the OAuth
+          return: Siki "reads" the fresh books, then reveals what it found
+          with the money number front and centre. */}
+      {connectStage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Analysing your books"
+        >
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center gap-3 text-center fade-in-up">
+            {connectStage === "analyzing" ? (
+              <>
+                <SikiMascot size={80} mood="look" />
+                <p className="text-sm font-semibold text-stone-800">
+                  Connected ✓ Give me a moment with your books…
+                </p>
+                <p className="text-xs text-stone-500 t-shimmer">
+                  Scanning invoices, bank transactions, and your P&amp;L
+                </p>
+              </>
+            ) : (
+              <>
+                <SikiMascot
+                  size={80}
+                  mood={findings && !findings.clean ? "look" : "celebrate"}
+                />
+                {findings && findings.money_found > 0 ? (
+                  <>
+                    <div className="text-4xl font-bold text-stone-900 leading-none">
+                      <AnimatedNumber prefix="£" value={Math.round(findings.money_found)} />
+                    </div>
+                    <p className="text-sm font-semibold text-stone-800">
+                      found in overdue invoices
+                    </p>
+                    <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
+                  </>
+                ) : findings && !findings.clean ? (
+                  <>
+                    <p className="text-sm font-semibold text-stone-800">
+                      Here&apos;s what I found in your books
+                    </p>
+                    <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold text-stone-800">
+                      Your books look clean ✓
+                    </p>
+                    <p className="text-xs text-stone-500">
+                      Nothing overdue, nothing unreconciled.
+                    </p>
+                  </>
+                )}
+                <button
+                  onClick={dismissConnectMoment}
+                  className="mt-2 text-sm font-semibold bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 btn-press transition-colors"
+                >
+                  Show me →
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

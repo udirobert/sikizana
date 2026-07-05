@@ -3,17 +3,27 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { endpoints, type ImpactMetrics } from "@/lib/api";
+import { SikiMascot } from "@/components/SikiMascot";
+import { RotatedReveal } from "@/components/RotatedReveal";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 
+/**
+ * Impact — aggregate social proof: money found, issues caught, tax
+ * savings, feedback. Styled to the same stone/sky system as the rest of
+ * the site (this page used to be visually off-brand). Personal impact
+ * lives on /account; this page is the public story.
+ */
 export default function ImpactPage() {
   const [data, setData] = useState<ImpactMetrics | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
 
   const load = async () => {
     try {
       const metrics = await endpoints.impact();
       setData(metrics);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load data");
+      setError(false);
+    } catch {
+      setError(true);
     }
   };
 
@@ -33,187 +43,147 @@ export default function ImpactPage() {
   const feedbackRatio =
     feedbackTotal > 0 ? Math.round((feedbackUp / feedbackTotal) * 100) : null;
 
+  const steps = [
+    {
+      step: "1",
+      title: "Connect Xero",
+      desc: "One-click OAuth. Siki reads your invoices, bank transactions, and P&L.",
+    },
+    {
+      step: "2",
+      title: "Ask in plain English",
+      desc: "“What’s overdue?” “How much tax will I owe?” “What can I deduct?”",
+    },
+    {
+      step: "3",
+      title: "Siki acts",
+      desc: "Flags discrepancies, estimates tax, posts journal entries — with your approval.",
+    },
+  ];
+
   return (
-    <div style={{ padding: "32px 20px 80px", maxWidth: 900, margin: "0 auto" }}>
-      <header style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700 }}>Siki&apos;s Impact</h1>
-        <p style={{ fontSize: 15, color: "var(--muted)", marginTop: 6 }}>
-          Live numbers from Sikizana&apos;s Xero reconciliation engine.
-          Updated every 30 seconds.
-        </p>
-      </header>
-
-      {error ? (
-        <div
-          style={{
-            background: "#fef3c7",
-            border: "1px solid #fbbf24",
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 20,
-            fontSize: 13,
-          }}
-        >
-          Could not reach the backend right now. Showing cached values.
-        </div>
-      ) : null}
-
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 14,
-          marginBottom: 32,
-        }}
-      >
-        <StatCard
-          label="Money Found"
-          value={`£${moneyFound.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-          sub={`${overdueCount} overdue invoice${overdueCount === 1 ? "" : "s"} identified`}
-        />
-        <StatCard
-          label="Issues Caught"
-          value={discrepanciesFound.toString()}
-          sub="Discrepancies flagged before accountant"
-        />
-        <StatCard
-          label="Est. Tax Savings"
-          value={`£${taxSavings.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-          sub="From deductible expenses identified"
-        />
-        <StatCard
-          label="Thumbs-up Rate"
-          value={feedbackRatio !== null ? `${feedbackRatio}%` : "—"}
-          sub={`${feedbackUp} of ${feedbackTotal} responses`}
-        />
-      </section>
-
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 12 }}>
-          How it works
-        </h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {[
-            {
-              step: "1",
-              title: "Connect Xero",
-              desc: "One-click OAuth. Siki reads your invoices, bank transactions, and P&L.",
-            },
-            {
-              step: "2",
-              title: "Ask in plain English",
-              desc: "“What’s overdue?” “How much tax will I owe?” “What can I deduct?”",
-            },
-            {
-              step: "3",
-              title: "Siki acts",
-              desc: "Flags discrepancies, estimates tax, posts journal entries — with your approval.",
-            },
-          ].map((item) => (
-            <div
-              key={item.step}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 12,
-                padding: 18,
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: "var(--primary)",
-                  color: "white",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  marginBottom: 10,
-                }}
-              >
-                {item.step}
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
-                {item.title}
-              </div>
-              <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
-                {item.desc}
-              </div>
+    <main className="min-h-screen bg-stone-100 flex flex-col">
+      <RotatedReveal />
+      <nav className="bg-white border-b border-stone-200 px-4 py-3">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <SikiMascot size={36} mood="idle" />
+            <div>
+              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA BOOKS</h1>
+              <p className="text-[10px] text-stone-500 leading-none mt-0.5">Impact</p>
             </div>
-          ))}
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/pricing"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="/books"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+            >
+              Open Bookkeeper →
+            </Link>
+          </div>
         </div>
-      </section>
+      </nav>
 
-      <section
-        style={{
-          background: "var(--primary-light)",
-          borderRadius: 14,
-          padding: 22,
-          textAlign: "center",
-        }}
-      >
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
-          See it in action
-        </h2>
-        <p style={{ fontSize: 14, color: "var(--foreground)", marginBottom: 12 }}>
-          Connect your Xero org and ask Siki anything about your books.
+      <div className="flex-1 w-full max-w-4xl mx-auto px-5 py-8">
+        <header className="mb-7 fade-in-up">
+          <h2 className="text-2xl font-bold text-stone-900">Siki&apos;s Impact</h2>
+          <p className="text-sm text-stone-500 mt-1">
+            Live numbers from Sikizana&apos;s Xero reconciliation engine. Updated every 30
+            seconds.
+          </p>
+        </header>
+
+        {error && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-xs text-amber-800">
+            Could not reach the backend right now — showing the last values.
+          </div>
+        )}
+
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+          <StatCard
+            label="Money Found"
+            sub={`${overdueCount} overdue invoice${overdueCount === 1 ? "" : "s"} identified`}
+          >
+            <AnimatedNumber prefix="£" value={Math.round(moneyFound)} />
+          </StatCard>
+          <StatCard label="Issues Caught" sub="Discrepancies flagged before accountant">
+            <AnimatedNumber value={discrepanciesFound} />
+          </StatCard>
+          <StatCard label="Est. Tax Savings" sub="From deductible expenses identified">
+            <AnimatedNumber prefix="£" value={Math.round(taxSavings)} />
+          </StatCard>
+          <StatCard
+            label="Thumbs-up Rate"
+            sub={`${feedbackUp} of ${feedbackTotal} responses`}
+          >
+            {feedbackRatio !== null ? `${feedbackRatio}%` : "—"}
+          </StatCard>
+        </section>
+
+        <section className="mb-8">
+          <h3 className="text-sm font-bold text-stone-900 mb-3">How it works</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {steps.map((item, i) => (
+              <div
+                key={item.step}
+                className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm fade-in-up"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
+                <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-sky-600 text-white text-xs font-bold mb-2.5">
+                  {item.step}
+                </div>
+                <div className="text-sm font-semibold text-stone-800 mb-1">{item.title}</div>
+                <div className="text-xs text-stone-500 leading-relaxed">{item.desc}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="bg-sky-50 border border-sky-200 rounded-2xl p-6 text-center fade-in-up">
+          <h3 className="text-base font-bold text-stone-900 mb-1">See it in action</h3>
+          <p className="text-sm text-stone-600 mb-4">
+            Connect your Xero org — free — and see what Siki finds in your books.
+          </p>
+          <Link
+            href="/books"
+            className="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors"
+          >
+            Open Bookkeeper →
+          </Link>
+        </section>
+      </div>
+
+      <footer className="text-center py-3">
+        <p className="text-xs text-stone-400">
+          Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
         </p>
-        <Link
-          href="/books"
-          style={{
-            display: "inline-block",
-            background: "var(--primary)",
-            color: "white",
-            padding: "10px 22px",
-            borderRadius: 10,
-            fontSize: 14,
-            fontWeight: 600,
-            textDecoration: "none",
-          }}
-        >
-          Open Bookkeeper
-        </Link>
-      </section>
-    </div>
+      </footer>
+    </main>
   );
 }
 
 function StatCard({
   label,
-  value,
   sub,
+  children,
 }: {
   label: string;
-  value: string;
   sub?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 14,
-        padding: 16,
-      }}
-    >
-      <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
+    <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
+      <div className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold mb-1">
         {label}
       </div>
-      <div style={{ fontSize: 24, fontWeight: 700 }}>{value}</div>
-      {sub ? (
-        <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
-          {sub}
-        </div>
-      ) : null}
+      <div className="text-2xl font-bold text-stone-900">{children}</div>
+      {sub && <div className="text-[11px] text-stone-500 mt-1">{sub}</div>}
     </div>
   );
 }
