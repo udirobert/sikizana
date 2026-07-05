@@ -574,9 +574,25 @@ async def xero_chat_stream(
             # friendly SSE message instead of a raw 500 (matches /api/xero/chat)
             from src.agents.bookkeeper import run_bookkeeper_streaming
 
+            # Record the user's query in the audit trail
+            record_audit(
+                action="query_asked",
+                description=req.message[:200],
+                session_id=session_id,
+            )
+
             async for event in run_bookkeeper_streaming(
                 req.message, req.thread_id, persona=req.persona, session_id=session_id
             ):
+                # Intercept events to build the audit trail
+                if event.get("type") == "tool_result":
+                    tool_name = event.get("tool", "")
+                    summary = event.get("summary", "")
+                    record_audit(
+                        action="tool_called",
+                        description=f"{tool_name}: {summary}" if summary else tool_name,
+                        session_id=session_id,
+                    )
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as exc:  # noqa: BLE001
             log.error("bookkeeper_stream_error", extra={"error": str(exc)}, exc_info=True)

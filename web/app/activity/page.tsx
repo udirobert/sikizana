@@ -8,10 +8,21 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 
 /**
  * Activity page — the audit trail for this session.
- * Every journal posted or reversed by Siki appears here with a timestamp,
- * amount, and description. This is the trust surface that makes AI
- * write-back accountable: users can see exactly what happened and when.
+ * Shows everything Siki has done: queries asked, tools called,
+ * journals posted or reversed. This is the trust surface that
+ * makes AI write-back accountable.
  */
+
+const EVENT_STYLES: Record<
+  ActivityEvent["action"],
+  { label: string; badge: string; icon: string }
+> = {
+  journal_posted: { label: "Journal Posted", badge: "bg-sky-100 text-sky-700", icon: "📝" },
+  journal_reversed: { label: "Journal Reversed", badge: "bg-amber-100 text-amber-700", icon: "↩" },
+  query_asked: { label: "Query", badge: "bg-stone-100 text-stone-600", icon: "💬" },
+  tool_called: { label: "Tool Call", badge: "bg-violet-100 text-violet-700", icon: "🔧" },
+};
+
 export default function ActivityPage() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +59,7 @@ export default function ActivityPage() {
       <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
         <h1 className="text-2xl font-bold text-stone-900 mb-1">Activity</h1>
         <p className="text-sm text-stone-500 mb-6">
-          Every journal entry Siki posted or reversed — your audit trail.
+          Everything Siki has done in this session — queries, tool calls, and journal entries.
         </p>
 
         {loading && (
@@ -72,7 +83,7 @@ export default function ActivityPage() {
           <div className="bg-white rounded-xl border border-stone-200 p-8 text-center">
             <SikiMascot size={48} mood="look" />
             <p className="text-sm text-stone-500 mt-3">
-              No activity yet. When Siki posts or reverses journal entries,
+              No activity yet. When you ask Siki questions and approve journal entries,
               they&apos;ll appear here.
             </p>
             <Link
@@ -85,70 +96,67 @@ export default function ActivityPage() {
         )}
 
         {!loading && !error && events.length > 0 && (
-          <div className="space-y-3">
-            {events.map((event) => (
-              <div
-                key={event.id}
-                className="bg-white rounded-xl border border-stone-200 p-4 fade-in-up"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                          event.action === "journal_posted"
-                            ? "bg-sky-100 text-sky-700"
-                            : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {event.action === "journal_posted" ? "Posted" : "Reversed"}
-                      </span>
-                      <span className="text-[10px] text-stone-400">
-                        {new Date(event.created_at).toLocaleString("en-GB", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-                    <p className="text-sm text-stone-700 mt-1.5">
-                      {event.description}
-                    </p>
-                    {event.journal_id && (
-                      <p className="text-[10px] text-stone-400 mt-1">
-                        ID: {event.journal_id}
+          <div className="space-y-2">
+            {events.map((event) => {
+              const style = EVENT_STYLES[event.action] ?? EVENT_STYLES.query_asked;
+              return (
+                <div
+                  key={event.id}
+                  className="bg-white rounded-xl border border-stone-200 p-3.5 fade-in-up"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${style.badge}`}>
+                          {style.icon} {style.label}
+                        </span>
+                        <span className="text-[10px] text-stone-400">
+                          {new Date(event.created_at).toLocaleString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-stone-700 mt-1.5 break-words">
+                        {event.description}
                       </p>
-                    )}
-                    {event.action === "journal_posted" && (
-                      <Link
-                        href={`/books?q=${encodeURIComponent(
-                          `Reverse the journal entry "${event.description}"${
-                            event.journal_id ? ` (ID ${event.journal_id})` : ""
-                          } for £${(event.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}. Propose the reversing journal and wait for my approval.`,
-                        )}`}
-                        className="inline-block mt-1.5 text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
-                      >
-                        ↩ Reverse with Siki
-                      </Link>
+                      {event.journal_id && (
+                        <p className="text-[10px] text-stone-400 mt-1">
+                          ID: {event.journal_id}
+                        </p>
+                      )}
+                      {event.action === "journal_posted" && (
+                        <Link
+                          href={`/books?q=${encodeURIComponent(
+                            `Reverse the journal entry "${event.description}"${
+                              event.journal_id ? ` (ID ${event.journal_id})` : ""
+                            } for £${(event.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}. Propose the reversing journal and wait for my approval.`,
+                          )}`}
+                          className="inline-block mt-1.5 text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
+                        >
+                          ↩ Reverse with Siki
+                        </Link>
+                      )}
+                    </div>
+                    {event.amount != null && (
+                      <div className="text-right shrink-0">
+                        <div
+                          className={`text-sm font-bold ${
+                            event.action === "journal_posted"
+                              ? "text-stone-900"
+                              : "text-amber-700"
+                          }`}
+                        >
+                          £{event.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {event.amount != null && (
-                    <div className="text-right shrink-0">
-                      <div
-                        className={`text-sm font-bold ${
-                          event.action === "journal_posted"
-                            ? "text-stone-900"
-                            : "text-amber-700"
-                        }`}
-                      >
-                        £{event.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

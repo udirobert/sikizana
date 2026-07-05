@@ -177,7 +177,7 @@ export interface FindingsResponse {
 
 export interface ActivityEvent {
   id: number;
-  action: "journal_posted" | "journal_reversed";
+  action: "journal_posted" | "journal_reversed" | "query_asked" | "tool_called";
   description: string;
   amount: number | null;
   journal_id: string;
