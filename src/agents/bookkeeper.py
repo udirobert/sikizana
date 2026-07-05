@@ -510,6 +510,19 @@ async def run_bookkeeper_streaming(
 
     conv_key = _conversation_key(session_id, thread_id)
     history = await asyncio.to_thread(load_conversation, conv_key)
+
+    # Detect persona switch: if the last assistant message was from a
+    # different persona, inject a handoff context so the new persona
+    # understands what was already discussed and by whom.
+    _persona_name = "Zana" if persona == "zana" else "Siki"
+    _other_persona = "Siki" if persona == "zana" else "Zana"
+    _last_persona = None
+    for msg in reversed(history):
+        if msg.get("role") == "assistant" and msg.get("persona"):
+            _last_persona = msg["persona"]
+            break
+    persona_switched = _last_persona and _last_persona != persona
+
     history.append({"role": "user", "content": user_input})
 
     async def _persist_history() -> None:
@@ -521,6 +534,18 @@ async def run_bookkeeper_streaming(
     # Append a hard guardrail that works across all models (Venice's llama
     # models in particular tend to narrate tool calls and echo raw output).
     _system_prompt += "\n\n### CRITICAL OUTPUT RULES\n- Never mention which tool you are calling or just called. The UI shows tool activity automatically.\n- Never echo raw tool output (e.g. 'UNRECONCILED BANK TRANSACTIONS (4):'). Always rephrase in natural English.\n- Never say 'This response is the result of calling...' or similar meta-commentary.\n- Your text output must be the answer itself, written as if you already know the information.\n"
+
+    # If the persona switched, inject a handoff system message so the new
+    # persona knows the conversation context and who said what.
+    if persona_switched:
+        _system_prompt += (
+            f"\n\n### CONTEXT HANDOFF\n"
+            f"You are {_persona_name}, taking over from {_other_persona} in the same conversation. "
+            f"The message history below contains responses from {_other_persona} — read them to "
+            f"understand what has already been discussed, but respond in YOUR own voice as "
+            f"{_persona_name}. Do not reference the handoff or mention {_other_persona} unless "
+            f"the user asks. Pick up where the conversation left off naturally.\n"
+        )
 
     messages = [{"role": "system", "content": _system_prompt}] + history
 
@@ -657,7 +682,7 @@ async def run_bookkeeper_streaming(
             if streamed_text:
                 # Partial answer already reached the user — close it honestly
                 partial = "".join(streamed_text)
-                history.append({"role": "assistant", "content": partial})
+                history.append({"role": "assistant", "content": partial, "persona": persona})
                 await _persist_history()
                 yield {
                     "type": "text",
@@ -802,8 +827,8 @@ async def run_bookkeeper_streaming(
             final_text = "I couldn't process that request."
             yield {"type": "text", "text": final_text}
 
-        # Save to conversation history
-        history.append({"role": "assistant", "content": final_text})
+        # Save to conversation history (tag with persona for handoff detection)
+        history.append({"role": "assistant", "content": final_text, "persona": persona})
         await _persist_history()
 
         yield {"type": "done"}
@@ -811,7 +836,7 @@ async def run_bookkeeper_streaming(
 
     # If we hit max iterations, return what we have
     fallback = "I've gathered the information from your books but need more context. Could you rephrase your question?"
-    history.append({"role": "assistant", "content": fallback})
+    history.append({"role": "assistant", "content": fallback, "persona": persona})
     await _persist_history()
     yield {"type": "text", "text": fallback}
     yield {"type": "done"}

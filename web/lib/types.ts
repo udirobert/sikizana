@@ -7,6 +7,8 @@ export type Role = "user" | "agent";
 export interface Message {
   role: Role;
   content: string;
+  /** Which persona generated this message (for mascot display). */
+  persona?: "siki" | "zana";
   /** Set when the agent response was feedback-rated. */
   feedback?: "up" | "down" | null;
   /** Optional structured verdict metadata. */

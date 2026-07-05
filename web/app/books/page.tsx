@@ -113,7 +113,14 @@ function BooksView() {
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const [persona, setPersona] = useState<"siki" | "zana">("siki");
+  const [persona, setPersona] = useState<"siki" | "zana">(() => {
+    // Persist persona in localStorage so it survives page refreshes
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sikizana.persona");
+      if (saved === "siki" || saved === "zana") return saved;
+    }
+    return "siki";
+  });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +329,7 @@ function BooksView() {
     let responseText = "";
 
     // Add a placeholder agent message that we'll update as events stream in
-    addMessage({ role: "agent", content: "", toolCalls: [] });
+    addMessage({ role: "agent", content: "", toolCalls: [], persona });
 
     try {
       setLastQuery(message);
@@ -425,7 +432,7 @@ function BooksView() {
       role: "user",
       content: `📎 Uploaded receipt: ${filename}`,
     });
-    addMessage({ role: "agent", content: response });
+    addMessage({ role: "agent", content: response, persona });
   };
 
   const handleReceiptError = (message: string, status?: number) => {
@@ -453,6 +460,7 @@ function BooksView() {
   const handlePersonaChange = (next: "siki" | "zana") => {
     setPersona(next);
     setModeHintShown(true);
+    try { localStorage.setItem("sikizana.persona", next); } catch { /* ignore */ }
   };
 
   // Auto-hide the mode description a few seconds after switching.
@@ -987,7 +995,7 @@ function BooksView() {
               >
                 {msg.role === "agent" && (
                   <div className="shrink-0">
-                    {persona === "siki" ? <SikiMascot size={32} mood="idle" /> : <ZanaMascot size={32} mood="idle" />}
+                    {(msg.persona ?? persona) === "siki" ? <SikiMascot size={32} mood="idle" /> : <ZanaMascot size={32} mood="idle" />}
                   </div>
                 )}
                 <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
