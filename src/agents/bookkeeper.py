@@ -610,7 +610,11 @@ async def run_bookkeeper_streaming(
         pending_tools: dict[int, dict[str, Any]] = {}
         stream_failed = False
         try:
-            async for chunk in _iter_with_timeout(stream, per_chunk_timeout=30.0):
+            async for chunk in _iter_with_timeout(
+                stream,
+                first_chunk_timeout=60.0,
+                subsequent_chunk_timeout=15.0,
+            ):
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
@@ -631,13 +635,21 @@ async def run_bookkeeper_streaming(
                         slot["arguments"] += tc.function.arguments
         except Exception as exc:  # noqa: BLE001 — includes per-chunk timeout
             log.error(
-                "nvidia_stream_error",
-                extra={"error": str(exc), "iteration": iteration},
+                "stream_error",
+                extra={"error": str(exc), "iteration": iteration, "provider": "venice" if using_venice else "nvidia"},
                 exc_info=True,
             )
             stream_failed = True
 
         if stream_failed:
+            # If we already have tool results in the message history but no
+            # streamed text, the model gathered data but stalled generating
+            # the response. Retry once instead of giving up.
+            has_tool_results = any(m.get("role") == "tool" for m in messages)
+            if not streamed_text and has_tool_results and iteration < max_iterations - 1:
+                log.info("stream_retry_after_tool_results", extra={"iteration": iteration})
+                yield {"type": "status", "message": "Composing your answer…"}
+                continue
             if streamed_text:
                 # Partial answer already reached the user — close it honestly
                 partial = "".join(streamed_text)
@@ -801,14 +813,27 @@ async def run_bookkeeper_streaming(
     yield {"type": "done"}
 
 
-async def _iter_with_timeout(stream: Any, per_chunk_timeout: float):
-    """Iterate an async stream, raising if any single chunk stalls too long."""
+async def _iter_with_timeout(
+    stream: Any,
+    first_chunk_timeout: float = 60.0,
+    subsequent_chunk_timeout: float = 15.0,
+):
+    """Iterate an async stream with a two-tier timeout.
+
+    The first chunk (time-to-first-token) gets a longer budget because the
+    model needs to process the full context before generating anything.
+    Subsequent chunks (inter-token latency) get a shorter budget — if the
+    stream stalls mid-response, something is wrong.
+    """
     it = stream.__aiter__()
+    is_first = True
     while True:
+        timeout = first_chunk_timeout if is_first else subsequent_chunk_timeout
         try:
-            chunk = await asyncio.wait_for(it.__anext__(), timeout=per_chunk_timeout)
+            chunk = await asyncio.wait_for(it.__anext__(), timeout=timeout)
         except StopAsyncIteration:
             return
+        is_first = False
         yield chunk
 
 
