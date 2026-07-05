@@ -43,10 +43,14 @@ from src.services.logging import get_logger
 
 log = get_logger("sikizana.bookkeeper")
 
-# NVIDIA NIM API (OpenAI-compatible) — primary inference provider
+# NVIDIA NIM API (OpenAI-compatible) — primary inference provider.
+# Multi-model fallback chain (all on NVIDIA NIM, fast failover):
+#   1. llama-3.1-70b  — proven tool calling, ~2s response
+#   2. qwen3-next-80b — MoE (80B total, 3B active), ~0.8s response
+# Then Venice as a cross-provider last resort.
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.3-70b-instruct")
-_NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "meta/llama-3.1-70b-instruct")
+_NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
+_NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "qwen/qwen3-next-80b-a3b-instruct")
 _NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
 # Venice AI — cross-provider fallback when NVIDIA is down entirely.
@@ -561,7 +565,7 @@ async def run_bookkeeper_streaming(
                     max_tokens=2000,
                     stream=True,
                 ),
-                timeout=30.0,
+                timeout=15.0,
             )
         except asyncio.TimeoutError:
             log.error("inference_timeout", extra={"iteration": iteration, "model": active_model, "provider": "venice" if using_venice else "nvidia"})

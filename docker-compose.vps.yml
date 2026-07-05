@@ -14,8 +14,8 @@ services:
       - "18081:8081"
     environment:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
-      - NVIDIA_MODEL=${NVIDIA_MODEL:-meta/llama-3.3-70b-instruct}
-      - NVIDIA_FALLBACK_MODEL=${NVIDIA_FALLBACK_MODEL:-meta/llama-3.1-70b-instruct}
+      - NVIDIA_MODEL=${NVIDIA_MODEL:-meta/llama-3.1-70b-instruct}
+      - NVIDIA_FALLBACK_MODEL=${NVIDIA_FALLBACK_MODEL:-qwen/qwen3-next-80b-a3b-instruct}
       - VENICE_API_KEY=${VENICE_API_KEY}
       - VENICE_MODEL=${VENICE_MODEL:-llama-3.3-70b}
       - EXA_API_KEY=${EXA_API_KEY:-}
