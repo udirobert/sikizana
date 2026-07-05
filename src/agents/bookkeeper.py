@@ -546,6 +546,8 @@ async def run_bookkeeper_streaming(
     max_iterations = 8
     current_model = _NVIDIA_MODEL
     retried = False
+    # Track tool calls to detect and break duplicate-call loops
+    tool_call_history: list[tuple[str, str]] = []
     for iteration in range(max_iterations):
         active_client = _get_venice_client() if using_venice else client
         active_model = _VENICE_MODEL if using_venice else current_model
@@ -559,7 +561,7 @@ async def run_bookkeeper_streaming(
                     max_tokens=2000,
                     stream=True,
                 ),
-                timeout=60.0,
+                timeout=30.0,
             )
         except asyncio.TimeoutError:
             log.error("inference_timeout", extra={"iteration": iteration, "model": active_model, "provider": "venice" if using_venice else "nvidia"})
@@ -608,7 +610,7 @@ async def run_bookkeeper_streaming(
         pending_tools: dict[int, dict[str, Any]] = {}
         stream_failed = False
         try:
-            async for chunk in _iter_with_timeout(stream, per_chunk_timeout=60.0):
+            async for chunk in _iter_with_timeout(stream, per_chunk_timeout=30.0):
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
@@ -679,6 +681,39 @@ async def run_bookkeeper_streaming(
                     tool_args = json.loads(t["arguments"]) if t["arguments"] else {}
                 except json.JSONDecodeError:
                     tool_args = {}
+
+                # Loop detection: if the model calls the same tool with the
+                # same args twice, don't re-execute — inject a nudge to use
+                # the result it already has.
+                call_sig = (tool_name, json.dumps(tool_args, sort_keys=True))
+                if call_sig in tool_call_history:
+                    log.warning("duplicate_tool_call", extra={"tool": tool_name, "iteration": iteration})
+                    result = (
+                        f"You already called {tool_name} with these arguments and received the result. "
+                        "Use that result to answer the user's question. Do not call the same tool again."
+                    )
+                    yield {
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "label": tool_labels.get(tool_name, tool_name),
+                        "args": tool_args,
+                    }
+                    yield {
+                        "type": "tool_result",
+                        "tool": tool_name,
+                        "label": tool_labels.get(tool_name, tool_name),
+                        "summary": "Already called — using previous result",
+                    }
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tool_call_id,
+                            "content": result,
+                        }
+                    )
+                    continue
+
+                tool_call_history.append(call_sig)
 
                 # Safety: block create_xero_journal_entry if proposed in same turn
                 if tool_name == "create_xero_journal_entry" and proposed_this_turn:

@@ -226,8 +226,10 @@ export interface MeResponse {
 
 export type PaidPlan = "pro" | "business";
 
-/** Overall wall-clock budget for a single streamed chat response. */
-const STREAM_TIMEOUT_MS = 120_000;
+/** Overall wall-clock budget for a single streamed chat response.
+ *  Allows for: 30s NVIDIA timeout → Venice fallback → 3-4 tool calls
+ *  → final inference → streamed response. */
+const STREAM_TIMEOUT_MS = 180_000;
 
 // ---- Endpoint functions (typed) ----
 
