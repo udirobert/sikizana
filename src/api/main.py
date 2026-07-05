@@ -243,7 +243,8 @@ async def context_search(q: str = ""):
                         "query": exa_query,
                         "type": "instant",
                         "numResults": 3,
-                        "includeDomains": ["gov.uk"],
+                        "includeDomains": ["gov.uk", "legislation.gov.uk"],
+                        "excludeDomains": ["gov.uk/hmrc-internal-manuals"],
                         "contents": {
                             "highlights": True,
                             "maxCharacters": 200,
