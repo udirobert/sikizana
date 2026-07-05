@@ -42,10 +42,13 @@ interface OrgData {
 }
 
 interface ProfitAndLossData {
-  revenue: number;
-  expenses: number;
+  revenue?: number;
+  expenses?: number;
   netProfit: number;
-  reportDate: string;
+  reportDate?: string;
+  fromDate?: string;
+  toDate?: string;
+  rows?: { account: string; code: string; value: number }[];
 }
 
 /** Legacy shape — the sidebar health-check cards still consume this.
@@ -613,20 +616,20 @@ function BooksView() {
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] text-stone-500">This month</span>
                     <span className="text-[10px] text-stone-500">
-                      as of {new Date(profitAndLoss.reportDate).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                      as of {new Date(profitAndLoss.reportDate || profitAndLoss.toDate || "").toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <div className="text-[10px] text-stone-500">Revenue</div>
                       <div className="text-sm font-bold text-emerald-700">
-                        £{profitAndLoss.revenue.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                        £{(profitAndLoss.revenue ?? profitAndLoss.rows?.filter(r => r.value > 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div>
                       <div className="text-[10px] text-stone-500">Expenses</div>
                       <div className="text-sm font-bold text-red-600">
-                        £{profitAndLoss.expenses.toLocaleString(undefined, { minimumFractionDigits: 0 })}
+                        £{Math.abs(profitAndLoss.expenses ?? profitAndLoss.rows?.filter(r => r.value < 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                   </div>
