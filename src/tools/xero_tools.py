@@ -416,6 +416,7 @@ def create_xero_journal_entry(
         description=description,
         amount=amount,
         journal_id=result.get("journal_id") or "",
+        session_id=_current_session.get(),
     )
     record_impact_event(event_type="journal_posted", amount=amount, description=description)
 
@@ -478,11 +479,18 @@ def get_tax_insights() -> str:
     elif net_profit > _CORP_TAX_MAIN_LIMIT:
         corp_tax = net_profit * _CORP_TAX_MAIN_RATE
         tax_rate = f"{_CORP_TAX_MAIN_RATE * 100:.0f}%"
-        tax_note = f"You're at the main rate ({tax_rate}). Estimated Corporation Tax: £{corp_tax:,.2f}"
+        tax_note = (
+            f"You're at the main rate ({tax_rate}). Estimated Corporation Tax: £{corp_tax:,.2f}"
+        )
     else:
         # Marginal relief between small and main limits
-        corp_tax = net_profit * _CORP_TAX_MAIN_RATE - (_CORP_TAX_MAIN_LIMIT - net_profit) * _CORP_TAX_MARGINAL_RELIEF
-        tax_rate = f"{_CORP_TAX_SMALL_RATE * 100:.0f}-{_CORP_TAX_MAIN_RATE * 100:.0f}% (marginal relief)"
+        corp_tax = (
+            net_profit * _CORP_TAX_MAIN_RATE
+            - (_CORP_TAX_MAIN_LIMIT - net_profit) * _CORP_TAX_MARGINAL_RELIEF
+        )
+        tax_rate = (
+            f"{_CORP_TAX_SMALL_RATE * 100:.0f}-{_CORP_TAX_MAIN_RATE * 100:.0f}% (marginal relief)"
+        )
         tax_note = (
             f"You're in the marginal relief zone. Estimated Corporation Tax: £{corp_tax:,.2f}"
         )

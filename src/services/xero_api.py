@@ -343,10 +343,12 @@ def list_tax_rates(session_id: str) -> list[dict[str, Any]]:
         total_rate = 0.0
         for comp in components:
             total_rate += float(comp.get("Rate", 0) or 0)
-        result.append({
-            "name": r.get("Name", ""),
-            "rate": total_rate,
-            "taxType": r.get("TaxType", ""),
-            "status": r.get("Status", ""),
-        })
+        result.append(
+            {
+                "name": r.get("Name", ""),
+                "rate": total_rate,
+                "taxType": r.get("TaxType", ""),
+                "status": r.get("Status", ""),
+            }
+        )
     return result

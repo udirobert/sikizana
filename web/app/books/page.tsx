@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useXeroThread } from "@/hooks/useXeroThread";
-import { ApiError, endpoints, type XeroMode } from "@/lib/api";
+import {
+  ApiError,
+  endpoints,
+  type Finding,
+  type FindingsResponse,
+  type XeroMode,
+} from "@/lib/api";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
@@ -13,6 +19,7 @@ import { ReceiptUpload } from "@/components/ReceiptUpload";
 import { ProactiveAlert } from "@/components/ProactiveAlert";
 import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
+import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
@@ -22,24 +29,6 @@ import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
-
-interface DiscrepancyData {
-  unreconciled: Array<{
-    id: string;
-    date: string;
-    type: string;
-    contact: { name: string };
-    total: number;
-    reference: string;
-  }>;
-  overdue: Array<{
-    id: string;
-    invoiceNumber: string;
-    contact: { name: string };
-    amountDue: number;
-    dueDate: string;
-  }>;
-}
 
 interface OrgData {
   name: string;
@@ -59,6 +48,13 @@ interface ProfitAndLossData {
   reportDate: string;
 }
 
+/** Legacy shape — the sidebar health-check cards still consume this.
+ *  Derived from the new structured FindingsResponse so both surfaces agree. */
+interface DiscrepancyData {
+  unreconciled: { id: string; total: number; reference?: string; date?: string }[];
+  overdue: { id: string; amountDue: number; invoiceNumber?: string; contactName?: string }[];
+}
+
 function BooksView() {
   const searchParams = useSearchParams();
   const { threadId, messages, addMessage, updateLastAgentMessage, flush, ensureThread, newSession } = useXeroThread();
@@ -72,15 +68,22 @@ function BooksView() {
   // Plan/quota banner (HTTP 402 quota exhausted, 403 plan-gated Xero connect) —
   // distinct from errorBanner: it's an upgrade prompt, not an error.
   const [upgradeBanner, setUpgradeBanner] = useState<string | null>(null);
-  const [discrepancies, setDiscrepancies] = useState<DiscrepancyData | null>(null);
-  const [auditLoading, setAuditLoading] = useState(true);
+  const [findings, setFindings] = useState<FindingsResponse | null>(null);
+  const [findingsLoading, setFindingsLoading] = useState(true);
+  // Findings the user already acted on — "asked" state on the cards.
+  const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  // Post-connect moment: full-attention staging after the OAuth return.
+  const [connectStage, setConnectStage] = useState<"analyzing" | "reveal" | null>(null);
+  // Proactive audit banner text (legacy — kept for the sidebar alert)
+  const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
   const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
   const [pnLoading, setPnLoading] = useState(true);
   const [staggerShown, setStaggerShown] = useState(false);
-  const [proactiveAudit, setProactiveAudit] = useState<string | null>(null);
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
+  // One-line mode description, shown briefly after switching personas.
+  const [modeHintShown, setModeHintShown] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
@@ -131,7 +134,22 @@ function BooksView() {
     setShowWelcome(false);
   };
 
-  // Fetch quick-audit data + Xero status + P&L on mount.
+  /** Fetch the structured audit findings — the heart of the page. */
+  const loadFindings = useCallback(async (): Promise<FindingsResponse | null> => {
+    setFindingsLoading(true);
+    try {
+      const data = await endpoints.xero.findings();
+      setFindings(data);
+      return data;
+    } catch {
+      setFindings(null);
+      return null;
+    } finally {
+      setFindingsLoading(false);
+    }
+  }, []);
+
+  // Fetch findings + Xero status + P&L on mount.
   useEffect(() => {
     void endpoints.xero
       .status()
@@ -145,30 +163,7 @@ function BooksView() {
         setXeroMode(data.isDemoCompany ? "demo" : "live-cli");
       })
       .catch(() => {});
-    void endpoints.xero
-      .discrepancies()
-      .then((d) => {
-        const data = d as DiscrepancyData;
-        setDiscrepancies(data);
-        setAuditLoading(false);
-        // Proactive audit — the "Active Arbitrator" pattern.
-        const unrec = data.unreconciled.length;
-        const overdue = data.overdue.length;
-        if (unrec > 0 || overdue > 0) {
-          const parts: string[] = [];
-          if (unrec > 0) parts.push(`${unrec} unreconciled bank transaction${unrec > 1 ? "s" : ""}`);
-          if (overdue > 0) {
-            const total = data.overdue.reduce((s, i) => s + i.amountDue, 0);
-            parts.push(`${overdue} overdue invoice${overdue > 1 ? "s" : ""} (£${total.toLocaleString(undefined, { minimumFractionDigits: 0 })} outstanding)`);
-          }
-          setProactiveAudit(
-            `I've audited your books and found ${parts.join(" and ")}. ` +
-            `An accountant would charge £200+ and take 3 days for this. ` +
-            `I did it in 4 seconds. Ask me "what did you find?" to see the details.`,
-          );
-        }
-      })
-      .catch(() => setAuditLoading(false));
+    void loadFindings();
     // Fetch P&L for the dashboard sidebar
     void endpoints.xero
       .profitAndLoss()
@@ -187,46 +182,71 @@ function BooksView() {
         setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
       })
       .catch(() => {});
-  }, []);
+  }, [loadFindings]);
 
-  // Handle OAuth callback redirect (?connected=true&org=...)
+  // Handle OAuth callback redirect (?connected=true&org=...) — once. The
+  // param is stripped from the URL immediately so a refresh doesn't
+  // re-trigger the post-connect moment.
+  const connectHandledRef = useRef(false);
   useEffect(() => {
+    if (connectHandledRef.current) return;
     const connected = searchParams.get("connected");
-    if (connected === "true") {
-      const org = searchParams.get("org");
-      // Refresh connection status
-      void endpoints.xero.connection().then((c) => {
+    if (connected !== "true" && connected !== "false") return;
+    connectHandledRef.current = true;
+
+    // Clean the query string (keep any other params, e.g. ?q=).
+    const cleaned = new URLSearchParams(searchParams.toString());
+    cleaned.delete("connected");
+    cleaned.delete("org");
+    const qs = cleaned.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+
+    if (connected === "false") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setErrorBanner("Failed to connect your Xero account. Please try again.");
+      return;
+    }
+
+    // Full-attention moment: Siki looks around while the fresh audit loads.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setConnectStage("analyzing");
+    void endpoints.xero
+      .connection()
+      .then((c) => {
         setOauthConfigured(c.oauth_configured);
         setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
-      }).catch(() => {});
-      // Show success message
-      if (org) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setErrorBanner(null);
-      }
-    } else if (connected === "false") {
-      setErrorBanner("Failed to connect your Xero account. Please try again.");
+      })
+      .catch(() => {});
+    const startedAt = Date.now();
+    void loadFindings().then(() => {
+      // Let the moment breathe — reveal after at least 1.6s.
+      const wait = Math.max(0, 1600 - (Date.now() - startedAt));
+      setTimeout(() => setConnectStage("reveal"), wait);
+    });
+  }, [searchParams, loadFindings]);
+
+  const dismissConnectMoment = () => {
+    setConnectStage(null);
+    // Free plan + money on the table → frame the upgrade.
+    if (findings && findings.money_found > 0 && (!me || me.plan === "free")) {
+      setUpgradeBanner(
+        `Siki found £${Math.round(findings.money_found).toLocaleString()} in your books — upgrade to Pro to let Siki fix these.`,
+      );
     }
-  }, [searchParams]);
+  };
 
   const handleConnectXero = async () => {
     setConnecting(true);
     try {
+      // Connecting Xero is free for everyone — only write-back is Pro-gated.
       const result = await endpoints.xero.auth();
       if (result.configured && result.auth_url) {
         window.location.href = result.auth_url;
       } else {
         setErrorBanner("Xero OAuth is not configured yet. Using demo data for now.");
       }
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 403) {
-        // Plan-gated: connecting your own Xero needs a paid plan — not an error.
-        setUpgradeBanner(
-          "Connecting your own Xero org is a Pro feature — upgrade to link your real books.",
-        );
-      } else {
-        setErrorBanner("Failed to start Xero connection flow.");
-      }
+    } catch {
+      setErrorBanner("Failed to start Xero connection flow.");
     }
     setConnecting(false);
   };
@@ -241,11 +261,19 @@ function BooksView() {
     }
   };
 
-  // Seed sample query from URL param — once, after mount (never during render).
+  // Seed the chat input from URL params — once, after mount (never during
+  // render). `?sample=<id>` looks up a canned query; `?q=<text>` seeds
+  // free text (used by the Activity page's Reverse button).
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
     seededRef.current = true;
+    const q = searchParams.get("q");
+    if (q?.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInput(q.trim());
+      return;
+    }
     const sampleId = searchParams.get("sample");
     const sample = sampleId ? findQuery(sampleId) : undefined;
     if (sample && messages.length === 0) {
@@ -364,11 +392,29 @@ function BooksView() {
     }
   };
 
-  const handleProactiveAuditClick = () => {
-    if (!proactiveAudit) return;
-    addMessage({ role: "agent", content: proactiveAudit });
-    setProactiveAudit(null);
+  /**
+   * Act on a finding: send its server-provided prompt into the chat via the
+   * same path as user-typed messages (streaming + tool traces included),
+   * then mark the card as asked.
+   */
+  const handleFindingAct = (finding: Finding) => {
+    if (isLoading) return;
+    setAskedFindingIds((prev) => new Set(prev).add(finding.id));
+    addMessage({ role: "user", content: finding.action.prompt });
+    void sendToAgent(finding.action.prompt);
   };
+
+  const handlePersonaChange = (next: "siki" | "zana") => {
+    setPersona(next);
+    setModeHintShown(true);
+  };
+
+  // Auto-hide the mode description a few seconds after switching.
+  useEffect(() => {
+    if (!modeHintShown) return;
+    const timer = setTimeout(() => setModeHintShown(false), 5000);
+    return () => clearTimeout(timer);
+  }, [modeHintShown, persona]);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -382,6 +428,30 @@ function BooksView() {
     setInput(description);
   };
 
+  const handleProactiveAuditClick = () => {
+    if (!proactiveAudit) return;
+    addMessage({ role: "agent", content: proactiveAudit });
+    setProactiveAudit(null);
+  };
+
+  // Derive legacy discrepancy shape from the new structured findings so
+  // the sidebar health-check cards and counts stay in sync with the panel.
+  const discrepancies: DiscrepancyData | null = findings
+    ? {
+        unreconciled: findings.findings
+          .filter((f) => f.kind === "unreconciled")
+          .map((f) => ({ id: f.id, total: f.amount, reference: f.title, date: f.detail })),
+        overdue: findings.findings
+          .filter((f) => f.kind === "overdue_invoice" || f.kind === "overdue_bill")
+          .map((f) => ({
+            id: f.id,
+            amountDue: f.amount,
+            invoiceNumber: f.title,
+            contactName: f.detail,
+          })),
+      }
+    : null;
+  const auditLoading = findingsLoading;
   const unreconciledCount = discrepancies?.unreconciled.length ?? 0;
   const overdueCount = discrepancies?.overdue.length ?? 0;
   const totalOverdue = discrepancies?.overdue.reduce((sum, i) => sum + i.amountDue, 0) ?? 0;
@@ -437,6 +507,12 @@ function BooksView() {
                 {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
               </span>
             )}
+            <Link
+              href="/activity"
+              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+            >
+              Activity
+            </Link>
             <Link
               href="/account"
               className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press flex items-center gap-1.5"
@@ -661,7 +737,7 @@ function BooksView() {
                         £{t.total.toFixed(2)}
                       </span>
                       <span className="text-[10px] text-stone-500">
-                        {new Date(t.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
+                        {t.date ? new Date(t.date).toLocaleDateString("en-GB", { month: "short", day: "numeric" }) : ""}
                       </span>
                     </div>
                     <div className="text-stone-500 truncate mt-0.5">{t.reference}</div>

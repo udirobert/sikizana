@@ -38,7 +38,9 @@ def test_pkce_pair_is_valid_s256():
     # Verifier should be 43+ chars (base64url of 32 bytes = 43 chars)
     assert len(verifier) >= 43
     # Challenge should be base64url of SHA256(verifier)
-    expected = base64.urlsafe_b64encode(
-        hashlib.sha256(verifier.encode("ascii")).digest()
-    ).decode("ascii").rstrip("=")
+    expected = (
+        base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest())
+        .decode("ascii")
+        .rstrip("=")
+    )
     assert challenge == expected

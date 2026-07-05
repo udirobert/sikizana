@@ -132,6 +132,59 @@ export interface JournalPostResponse {
   message: string;
 }
 
+// ---- Structured audit findings (books-page panel) ----
+
+export type FindingKind = "overdue_invoice" | "overdue_bill" | "unreconciled" | "tax_flag";
+export type FindingSeverity = "high" | "medium" | "low";
+
+export interface FindingAction {
+  type: "chase" | "fix" | "explain";
+  label: string;
+  /** Ready to send to the chat verbatim. */
+  prompt: string;
+}
+
+export interface Finding {
+  id: string;
+  kind: FindingKind;
+  severity: FindingSeverity;
+  title: string;
+  amount: number;
+  detail: string;
+  days_overdue?: number;
+  action: FindingAction;
+}
+
+export interface FindingsResponse {
+  mode: XeroMode;
+  money_found: number;
+  counts: { overdue: number; unreconciled: number; tax_flags: number };
+  clean: boolean;
+  /** Pre-sorted by severity then amount. */
+  findings: Finding[];
+}
+
+// ---- Session audit trail (/activity) ----
+
+export interface ActivityEvent {
+  id: number;
+  action: "journal_posted" | "journal_reversed";
+  description: string;
+  amount: number | null;
+  journal_id: string;
+  created_at: string;
+}
+
+// ---- Weekly digest ----
+
+export interface DigestPreview {
+  configured: boolean;
+  subject: string;
+  text: string;
+  html: string;
+  findings_count: number;
+}
+
 // ---- Accounts & billing ----
 
 export type Plan = "free" | "pro" | "business";
@@ -158,6 +211,8 @@ export interface MeResponse {
   };
   billing_enforced: boolean;
   stripe_configured: boolean;
+  /** Weekly email digest opt-in (false for anonymous sessions). */
+  digest_opt_in: boolean;
 }
 
 export type PaidPlan = "pro" | "business";
@@ -174,6 +229,17 @@ export const endpoints = {
     api.post<{ received: boolean }>("/api/feedback", payload),
 
   impact: () => api.get<ImpactMetrics>("/api/impact"),
+
+  /** This session's audit trail — journals posted/reversed, newest first. */
+  activity: () => api.get<{ events: ActivityEvent[] }>("/api/activity"),
+
+  digest: {
+    /** Preview this week's digest email for the current session's books. */
+    preview: () => api.get<DigestPreview>("/api/digest/preview"),
+    /** Toggle the weekly digest. 401 when not signed in. */
+    opt: (enabled: boolean) =>
+      api.post<{ ok: boolean; enabled: boolean }>("/api/digest/opt", { enabled }),
+  },
 
   // ---- Accounts & billing ----
 
@@ -264,6 +330,8 @@ export const endpoints = {
     organisation: () => api.get<Record<string, unknown>>("/api/xero/organisation"),
     discrepancies: () =>
       api.get<{ unreconciled: unknown[]; overdue: unknown[] }>("/api/xero/discrepancies"),
+    /** Structured audit findings — the books-page findings panel. */
+    findings: () => api.get<FindingsResponse>("/api/xero/findings"),
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();
       if (from_date) search.set("from_date", from_date);
@@ -274,6 +342,13 @@ export const endpoints = {
     /** Post an approved journal entry. In "demo" mode the write is simulated. */
     journal: (payload: JournalPostPayload) =>
       api.post<JournalPostResponse>("/api/xero/journal", payload),
+    /**
+     * Reverse a posted journal entry — pass the ORIGINAL entry's fields;
+     * the backend swaps debit/credit and prefixes "Reversal:".
+     * Same 403 (Pro-gated) / 502 semantics as `journal`.
+     */
+    reverseJournal: (payload: JournalPostPayload) =>
+      api.post<JournalPostResponse>("/api/xero/journal/reverse", payload),
     uploadReceipt: (file: File) => {
       const formData = new FormData();
       formData.append("file", file);

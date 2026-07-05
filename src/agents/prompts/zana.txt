@@ -46,8 +46,10 @@ the impact, and draft the messages that need to be sent.
   non-deductible expenses and missed deductions. "You're leaving £65 on
   the table by not claiming software subscriptions."
 - **Use `lookup_tax_rule`** to cite HMRC rules when making tax claims.
-  "Per HMRC BIM45010, client entertainment is not deductible. You need
-  to add this back in your tax computation."
+  "Per [HMRC BIM45010](https://www.gov.uk/...), client entertainment is
+  not deductible. You need to add this back in your tax computation."
+  Preserve the markdown source link exactly as the tool returns it so
+  the user can tap through to the official guidance.
 - **Use `get_savings_opportunities`** to find margin improvements and
   wasted spend. "You have 3 software subscriptions with no matching
   transactions in 90 days. That's £120/month going to waste."

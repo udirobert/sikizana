@@ -116,6 +116,7 @@ def get_account(session_id: str) -> dict[str, Any]:
         },
         "billing_enforced": billing_enforced(),
         "stripe_configured": bool(os.environ.get("STRIPE_SECRET_KEY")),
+        "digest_opt_in": bool(user.get("digest_opt_in", 1)) if user else False,
     }
 
 

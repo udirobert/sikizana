@@ -20,67 +20,67 @@ HMRC_RULES: dict[str, str] = {
         "rising to 25% for profits over £250,000. Between £50,000 and £250,000, "
         "marginal relief applies. Companies must file a Company Tax Return (CT600) "
         "and pay Corporation Tax within 9 months and 1 day of the accounting period end. "
-        "Source: HMRC CT600 guidance."
+        "Source: [HMRC Corporation Tax guidance](https://www.gov.uk/corporation-tax)."
     ),
     "entertainment": (
         "Client entertainment is generally NOT deductible for Corporation Tax. "
         "Staff entertainment IS deductible if it's not excessive and is for all staff. "
         "The cost of entertaining clients (meals, events, gifts) must be added back "
-        "in the tax computation. Source: HMRC BIM45010."
+        "in the tax computation. Source: [HMRC BIM45010](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim45010)."
     ),
     "subsistence": (
         "Subsistence costs (meals while travelling on business) are deductible "
         "if the travel itself is deductible. The meal must be incurred while "
-        "performing duties away from the normal workplace. Source: HMRC EIM31850."
+        "performing duties away from the normal workplace. Source: [HMRC EIM31850](https://www.gov.uk/hmrc-internal-manuals/employment-income-manual/eim31850)."
     ),
     "home_office": (
         "Home office expenses are deductible if the employee works from home "
         "under a homeworking arrangement. £6/week (£26/month) can be claimed "
         "without receipts. Higher amounts require evidence of actual costs. "
-        "Source: HMRC EIM31460."
+        "Source: [HMRC homeworking guidance](https://www.gov.uk/tax-relief-for-employees/working-at-home)."
     ),
     "mileage": (
         "Mileage allowance: 45p/mile for the first 10,000 business miles, "
         "then 25p/mile. This covers fuel, insurance, and depreciation. "
-        "Passenger payments: 5p/mile per passenger. Source: HMRC EIM31240."
+        "Passenger payments: 5p/mile per passenger. Source: [HMRC EIM31240](https://www.gov.uk/hmrc-internal-manuals/employment-income-manual/eim31240)."
     ),
     "capital_allowances": (
         "Capital allowances let you deduct the cost of assets (equipment, machinery) "
         "from your profits before tax. The Annual Investment Allowance (AIA) is £1 million, "
         "meaning you can fully deduct up to £1M of qualifying expenditure in the year. "
         "Above AIA, the main rate pool gets 18% writing-down allowance, "
-        "and the special rate pool gets 6%. Source: HMRC CA23100."
+        "and the special rate pool gets 6%. Source: [HMRC CA23100](https://www.gov.uk/hmrc-internal-manuals/capital-allowances-manual/ca23100)."
     ),
     "vat": (
         "VAT registration threshold: £90,000 turnover (2024/25). Standard rate 20%, "
         "reduced rate 5% (e.g. domestic fuel), zero rate 0% (e.g. food, books). "
         "VAT returns are quarterly. Flat Rate Scheme: pay a fixed percentage based "
-        "on industry sector. Source: HMRC VAT Notice 700."
+        "on industry sector. Source: [HMRC VAT Notice 700](https://www.gov.uk/guidance/vat-guide-notice-700)."
     ),
     "software": (
         "Software subscriptions (SaaS, accounting software, cloud hosting) are "
         "fully deductible business expenses if used wholly and exclusively for "
         "business purposes. This includes Xero, Microsoft 365, Adobe, etc. "
-        "Source: HMRC BIM37000."
+        "Source: [HMRC BIM37000](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim37000)."
     ),
     "pension": (
         "Employer pension contributions are deductible as a business expense. "
         "The annual allowance is £60,000 (2024/25). Contributions must be made "
         "by the end of the accounting period for relief in that period. "
-        "Source: HMRC PSSM150000."
+        "Source: [HMRC PTM043100](https://www.gov.uk/hmrc-internal-manuals/pensions-tax-manual/ptm043100)."
     ),
     "bad_debt": (
         "Bad debts (unpaid invoices) can be relieved for VAT and Corporation Tax. "
         "For VAT: claim relief on returns more than 6 months after the supply date "
         "(VAT652). For Corporation Tax: specific bad debt relief when the debt is "
-        "judged irrecoverable. Source: HMRC VAT Notice 700/18."
+        "judged irrecoverable. Source: [HMRC VAT Notice 700/18](https://www.gov.uk/guidance/relief-from-vat-on-bad-debts-notice-70018)."
     ),
     "overdue_invoices": (
         "Overdue invoices still count as revenue for Corporation Tax when invoiced "
         "(accruals basis), even if not yet paid. This means you pay tax on money "
         "you haven't received. Bad debt relief is available if the debt becomes "
         "irrecoverable. Chasing overdue invoices improves cash flow and may allow "
-        "bad debt relief if unrecoverable. Source: HMRC BIM45700."
+        "bad debt relief if unrecoverable. Source: [HMRC BIM42701](https://www.gov.uk/hmrc-internal-manuals/business-income-manual/bim42701)."
     ),
 }
 

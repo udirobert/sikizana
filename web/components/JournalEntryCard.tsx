@@ -45,6 +45,12 @@ export function JournalEntryCard({
   const [status, setStatus] = useState<"pending" | "posting" | "posted" | "rejected">("pending");
   const [result, setResult] = useState<JournalPostResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // One-tap undo on a real (non-demo) posted entry.
+  const [reverseState, setReverseState] = useState<
+    "idle" | "confirm" | "reversing" | "reversed"
+  >("idle");
+  const [reverseMessage, setReverseMessage] = useState<string | null>(null);
+  const [reverseError, setReverseError] = useState<string | null>(null);
 
   const handleApprove = async () => {
     if (status === "posting") return;
@@ -75,6 +81,34 @@ export function JournalEntryCard({
   const handleReject = () => {
     setStatus("rejected");
     onReject?.();
+  };
+
+  const handleReverse = async () => {
+    if (reverseState === "reversing") return;
+    setReverseState("reversing");
+    setReverseError(null);
+    try {
+      // Pass the ORIGINAL entry's fields — the backend swaps debit/credit
+      // and prefixes "Reversal:".
+      const res = await endpoints.xero.reverseJournal({
+        description,
+        debit_account_code: debitAccount,
+        credit_account_code: creditAccount,
+        amount,
+        thread_id: threadId || undefined,
+      });
+      setReverseMessage(res.message);
+      setReverseState("reversed");
+    } catch (e) {
+      setReverseState("confirm");
+      setReverseError(
+        e instanceof ApiError
+          ? e.status === 403
+            ? "Reversing entries requires the Pro plan."
+            : e.message
+          : "Reversal failed. Check your connection and try again.",
+      );
+    }
   };
 
   const isDemo = result?.mode === "demo";
@@ -155,6 +189,56 @@ export function JournalEntryCard({
           <p className={`mt-2 text-xs fade-in-up ${isDemo ? "text-amber-700" : "text-emerald-700"}`}>
             {result.message}
           </p>
+        )}
+
+        {/* Reverse — one-tap undo for a real posted entry */}
+        {status === "posted" && result?.posted && !isDemo && (
+          <div className="mt-2 pt-2 border-t border-stone-100 fade-in-up">
+            {reverseState === "idle" && (
+              <button
+                onClick={() => setReverseState("confirm")}
+                className="text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
+                aria-label={`Reverse this journal entry for £${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+              >
+                ↩ Reverse this entry
+              </button>
+            )}
+            {(reverseState === "confirm" || reverseState === "reversing") && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-stone-700">
+                  Post a reversing entry for £
+                  {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}?
+                </span>
+                <button
+                  onClick={() => void handleReverse()}
+                  disabled={reverseState === "reversing"}
+                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700 btn-press transition-colors disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {reverseState === "reversing" ? "Reversing…" : "Yes, reverse"}
+                </button>
+                <button
+                  onClick={() => {
+                    setReverseState("idle");
+                    setReverseError(null);
+                  }}
+                  disabled={reverseState === "reversing"}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 btn-press transition-colors disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {reverseState === "reversed" && reverseMessage && (
+              <p className="text-xs text-amber-700" role="status">
+                ↩ {reverseMessage}
+              </p>
+            )}
+            {reverseError && (
+              <p className="mt-1 text-xs text-red-600 fade-in-up" role="alert">
+                {reverseError}
+              </p>
+            )}
+          </div>
         )}
       </div>
 

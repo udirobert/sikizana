@@ -43,14 +43,20 @@ from src.services.logging import get_logger
 
 log = get_logger("sikizana.bookkeeper")
 
-# NVIDIA NIM API (OpenAI-compatible)
+# NVIDIA NIM API (OpenAI-compatible) — primary inference provider
 _NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
-# Primary model for tool-calling; fallback if it times out
 _NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
 _NVIDIA_FALLBACK_MODEL = os.environ.get("NVIDIA_FALLBACK_MODEL", "meta/llama-3.1-8b-instruct")
 _NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "")
 
+# Venice AI — cross-provider fallback when NVIDIA is down entirely.
+# OpenAI-compatible API, so the same tool-calling loop works unchanged.
+_VENICE_BASE_URL = "https://api.venice.ai/api/v1"
+_VENICE_MODEL = os.environ.get("VENICE_MODEL", "llama-3.3-70b")
+_VENICE_API_KEY = os.environ.get("VENICE_API_KEY", "")
+
 _client: AsyncOpenAI | None = None
+_venice_client: AsyncOpenAI | None = None
 
 # Conversations are keyed by "{session_id}:{thread_id}" so one visitor's
 # chat can never bleed into another's, and stored in SQLite so they
@@ -70,6 +76,21 @@ def _get_client() -> AsyncOpenAI:
             api_key=_NVIDIA_API_KEY,
         )
     return _client
+
+
+def _get_venice_client() -> AsyncOpenAI:
+    """Venice AI client — cross-provider fallback when NVIDIA is unreachable."""
+    global _venice_client
+    if _venice_client is None:
+        _venice_client = AsyncOpenAI(
+            base_url=_VENICE_BASE_URL,
+            api_key=_VENICE_API_KEY,
+        )
+    return _venice_client
+
+
+def _venice_available() -> bool:
+    return bool(_VENICE_API_KEY)
 
 
 _PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "prompts")
@@ -466,10 +487,10 @@ async def run_bookkeeper_streaming(
     Text events are real model tokens (stream=True), not a replay — the
     first words appear as soon as the model produces them.
     """
-    if not _NVIDIA_API_KEY:
+    if not _NVIDIA_API_KEY and not _venice_available():
         yield {
             "type": "text",
-            "text": "I'm not connected to an AI model yet. Set NVIDIA_API_KEY in .env to enable the bookkeeper agent.",
+            "text": "I'm not connected to an AI model yet. Set NVIDIA_API_KEY or VENICE_API_KEY in .env to enable the bookkeeper agent.",
         }
         yield {"type": "done"}
         return
@@ -477,7 +498,9 @@ async def run_bookkeeper_streaming(
     # Emit an immediate status event so the UI never appears frozen
     yield {"type": "status", "message": _generate_status_message(user_input)}
 
-    client = _get_client()
+    # If NVIDIA isn't configured but Venice is, start with Venice directly
+    using_venice = not _NVIDIA_API_KEY and _venice_available()
+    client = _get_venice_client() if using_venice else _get_client()
 
     from src.services.payment_store import load_conversation, save_conversation
 
@@ -511,15 +534,18 @@ async def run_bookkeeper_streaming(
         "get_savings_opportunities": "Finding savings opportunities",
     }
 
-    # Agent loop: stream the model, execute tools, feed results back
+    # Agent loop: stream the model, execute tools, feed results back.
+    # Provider fallback chain: NVIDIA (primary + fallback model) → Venice.
     max_iterations = 5
     current_model = _NVIDIA_MODEL
     retried = False
     for iteration in range(max_iterations):
+        active_client = _get_venice_client() if using_venice else client
+        active_model = _VENICE_MODEL if using_venice else current_model
         try:
             stream = await asyncio.wait_for(
-                client.chat.completions.create(
-                    model=current_model,
+                active_client.chat.completions.create(
+                    model=active_model,
                     messages=messages,
                     tools=_TOOL_DEFS,
                     temperature=0.3,
@@ -529,15 +555,21 @@ async def run_bookkeeper_streaming(
                 timeout=30.0,
             )
         except asyncio.TimeoutError:
-            log.error("nvidia_api_timeout", extra={"iteration": iteration, "model": current_model})
-            # One retry before giving up — on the fallback model if one is configured
-            if not retried:
+            log.error("inference_timeout", extra={"iteration": iteration, "model": active_model, "provider": "venice" if using_venice else "nvidia"})
+            if not retried and not using_venice:
                 retried = True
                 if current_model != _NVIDIA_FALLBACK_MODEL:
                     current_model = _NVIDIA_FALLBACK_MODEL
                     yield {"type": "status", "message": "Switching to a faster model…"}
                 else:
                     yield {"type": "status", "message": "Taking a moment — retrying…"}
+                continue
+            # NVIDIA exhausted — try Venice if available
+            if not using_venice and _venice_available():
+                using_venice = True
+                retried = False
+                log.warning("nvidia_timeout_fallback_to_venice")
+                yield {"type": "status", "message": "Switching to backup AI provider…"}
                 continue
             yield {
                 "type": "text",
@@ -548,8 +580,15 @@ async def run_bookkeeper_streaming(
         except Exception as exc:
             # Log the raw error; never leak provider internals to the user
             log.error(
-                "nvidia_api_error", extra={"error": str(exc), "iteration": iteration}, exc_info=True
+                "inference_error", extra={"error": str(exc), "iteration": iteration, "provider": "venice" if using_venice else "nvidia"}, exc_info=True
             )
+            # NVIDIA error — try Venice if available
+            if not using_venice and _venice_available():
+                using_venice = True
+                retried = False
+                log.warning("nvidia_error_fallback_to_venice", extra={"error": str(exc)})
+                yield {"type": "status", "message": "Switching to backup AI provider…"}
+                continue
             yield {
                 "type": "text",
                 "text": "I'm having trouble reaching the AI model right now. Please try again in a moment.",

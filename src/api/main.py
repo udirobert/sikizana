@@ -402,6 +402,27 @@ async def xero_discrepancies(session_id: str = Depends(get_session_id)):
     return await asyncio.to_thread(_audit)
 
 
+@app.get("/api/xero/findings")
+async def xero_findings(session_id: str = Depends(get_session_id)):
+    """
+    Structured audit findings for the books-page panel: one card per
+    issue (overdue invoice, unreconciled transaction, tax flag) with a
+    severity, an amount, and a ready-made action prompt for the agent.
+    """
+    from src.services.findings import build_findings
+
+    return await asyncio.to_thread(build_findings, session_id)
+
+
+@app.get("/api/activity")
+async def activity(session_id: str = Depends(get_session_id)):
+    """This session's audit trail — every journal posted or reversed."""
+    from src.services.payment_store import get_audit_history
+
+    events = await asyncio.to_thread(get_audit_history, session_id)
+    return {"events": events}
+
+
 @app.get("/api/xero/invoices")
 async def xero_invoices(
     status: str | None = None,
@@ -472,7 +493,6 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
     The frontend should redirect the user to this URL.
     """
     from src.services.xero_oauth import is_configured, get_authorization_url
-    from src.services.accounts import require_paid_plan
 
     if not is_configured():
         # OAuth not configured — fall back to demo mode
@@ -482,13 +502,9 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
             "message": "Xero OAuth not configured. Using demo data.",
         }
 
-    allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
-    if not allowed:
-        raise HTTPException(
-            status_code=403,
-            detail="Connecting your own Xero org requires the Pro plan.",
-        )
-
+    # Connecting is deliberately FREE: the read-only audit of the user's
+    # real books is the product's conversion moment. The paywall sits on
+    # the fixes (journal write-back), not on seeing the problems.
     auth_url = await asyncio.to_thread(get_authorization_url, session_id)
     return {"configured": True, "auth_url": auth_url}
 
@@ -641,6 +657,7 @@ async def xero_post_journal(
             description=req.description,
             amount=req.amount,
             journal_id=result.get("journal_id") or "",
+            session_id=session_id,
         )
         record_impact_event(
             event_type="journal_posted",
@@ -658,6 +675,92 @@ async def xero_post_journal(
         },
     )
     return result
+
+
+@app.post("/api/xero/journal/reverse")
+async def xero_reverse_journal(
+    req: JournalEntryRequest,
+    request: Request,
+    session_id: str = Depends(get_session_id),
+):
+    """
+    Reverse a previously posted journal entry by posting its mirror
+    (debit and credit swapped). The one-tap undo that makes the
+    write-back safe to trust. Pass the ORIGINAL entry's fields.
+    """
+    from src.services.xero_service import XeroService
+    from src.services.xero_api import XeroApiError
+    from src.services.accounts import require_paid_plan
+
+    _check_rate_limit(request)
+    allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
+    if not allowed:
+        raise HTTPException(
+            status_code=403,
+            detail="Posting journal entries to Xero requires the Pro plan.",
+        )
+
+    reversal_description = f"Reversal: {req.description}"[:500]
+
+    def _post():
+        svc = XeroService(session_id)
+        # Mirror entry: swap debit and credit
+        return svc.create_manual_journal(
+            description=reversal_description,
+            debit_account_code=req.credit_account_code,
+            credit_account_code=req.debit_account_code,
+            amount=req.amount,
+        )
+
+    try:
+        result = await asyncio.to_thread(_post)
+    except (XeroApiError, RuntimeError) as exc:
+        log.error("journal_reverse_failed", extra={"session_id": session_id, "error": str(exc)})
+        raise HTTPException(
+            status_code=502,
+            detail="Xero rejected the reversal — the original entry still stands.",
+        )
+
+    if result["posted"]:
+        record_audit(
+            action="journal_reversed",
+            description=reversal_description,
+            amount=req.amount,
+            journal_id=result.get("journal_id") or "",
+            session_id=session_id,
+        )
+    result["message"] = (
+        f"Reversing entry posted (£{req.amount:,.2f}) — the original is cancelled out."
+        if result["posted"]
+        else result["message"]
+    )
+    return result
+
+
+# ---- Weekly digest ----
+
+
+@app.get("/api/digest/preview")
+async def digest_preview(session_id: str = Depends(get_session_id)):
+    """Preview this week's digest for the current session's books."""
+    from src.services.digest import build_digest, smtp_configured
+
+    digest = await asyncio.to_thread(build_digest, session_id)
+    return {"configured": smtp_configured(), **digest}
+
+
+class DigestOptRequest(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/digest/opt")
+async def digest_opt(req: DigestOptRequest, session_id: str = Depends(get_session_id)):
+    """Toggle the weekly email digest for the signed-in user."""
+    from src.services.payment_store import set_digest_opt_in
+
+    user = await asyncio.to_thread(_require_user, session_id)
+    await asyncio.to_thread(set_digest_opt_in, user["id"], req.enabled)
+    return {"ok": True, "enabled": req.enabled}
 
 
 _MAX_RECEIPT_BYTES = 8 * 1024 * 1024  # 8 MB

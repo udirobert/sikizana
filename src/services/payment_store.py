@@ -117,6 +117,14 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
     """,
     ),
+    (
+        5,
+        """
+        ALTER TABLE audit_history ADD COLUMN session_id TEXT DEFAULT '';
+        CREATE INDEX IF NOT EXISTS idx_audit_session ON audit_history(session_id);
+        ALTER TABLE users ADD COLUMN digest_opt_in INTEGER NOT NULL DEFAULT 1;
+    """,
+    ),
 ]
 
 
@@ -217,6 +225,7 @@ def record_audit(
     amount: float | None = None,
     xero_tenant_id: str = "",
     journal_id: str = "",
+    session_id: str = "",
 ) -> int:
     """Record an action taken by the agent (journal entry posted, discrepancy fixed, etc.)."""
     init_db()
@@ -224,10 +233,10 @@ def record_audit(
     now = datetime.now(timezone.utc).isoformat()
     cursor = conn.execute(
         """
-        INSERT INTO audit_history (action, description, amount, xero_tenant_id, journal_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO audit_history (action, description, amount, xero_tenant_id, journal_id, session_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (action, description, amount, xero_tenant_id, journal_id, now),
+        (action, description, amount, xero_tenant_id, journal_id, session_id, now),
     )
     conn.commit()
     audit_id = cursor.lastrowid
@@ -235,12 +244,49 @@ def record_audit(
     return audit_id or 0
 
 
-def get_audit_history(limit: int = 50) -> list[dict]:
+def get_audit_history(session_id: str | None = None, limit: int = 50) -> list[dict]:
+    """Audit trail, scoped to one session when given (the /activity page)."""
+    init_db()
+    conn = _get_db()
+    if session_id is not None:
+        rows = conn.execute(
+            "SELECT * FROM audit_history WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
+            (session_id, limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM audit_history ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def set_digest_opt_in(user_id: int, enabled: bool) -> None:
+    init_db()
+    conn = _get_db()
+    conn.execute("UPDATE users SET digest_opt_in = ? WHERE id = ?", (1 if enabled else 0, user_id))
+    conn.commit()
+    conn.close()
+
+
+def get_digest_recipients() -> list[dict]:
+    """
+    Users who should get the weekly digest: opted in, with at least one
+    session that has a Xero connection. Returns one row per user with
+    the most recently used connected session.
+    """
     init_db()
     conn = _get_db()
     rows = conn.execute(
-        "SELECT * FROM audit_history ORDER BY created_at DESC LIMIT ?",
-        (limit,),
+        """
+        SELECT u.id AS user_id, u.email, s.session_id, MAX(t.updated_at) AS last_used
+        FROM users u
+        JOIN auth_sessions s ON s.user_id = u.id
+        JOIN xero_tokens t ON t.session_id = s.session_id
+        WHERE u.digest_opt_in = 1
+        GROUP BY u.id
+        """
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
