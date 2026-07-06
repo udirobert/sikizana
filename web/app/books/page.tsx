@@ -22,6 +22,7 @@ import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { NegotiationEmailCard, parseNegotiationEmail } from "@/components/NegotiationEmailCard";
+import { AnalysisCard, parseAnalysisData } from "@/components/AnalysisCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -1093,11 +1094,15 @@ function BooksView() {
               const journal = msg.role === "agent" && msg.content ? parseJournalEntry(msg.content) : null;
               // Parse for negotiation email card if agent message
               const negotiationEmail = msg.role === "agent" && msg.content ? parseNegotiationEmail(msg.content) : null;
+              // Parse for analysis card (benchmark, scorecard, trend)
+              const analysisData = msg.role === "agent" && msg.content ? parseAnalysisData(msg.content) : null;
               // The text to display (remove the structured block if we're showing it as a card)
               const displayContent = journal
                 ? msg.content.split(/PROPOSED JOURNAL ENTRY/i)[0].trim()
                 : negotiationEmail
                 ? msg.content.split(/NEGOTIATION EMAIL/i)[0].trim()
+                : analysisData
+                ? msg.content.split(/ANALYSIS_DATA/i)[0].trim()
                 : msg.content;
 
               return (
@@ -1160,6 +1165,9 @@ function BooksView() {
                   )}
                   {negotiationEmail && (
                     <NegotiationEmailCard email={negotiationEmail} />
+                  )}
+                  {analysisData && (
+                    <AnalysisCard data={analysisData} />
                   )}
                   {/* Feedback on completed agent answers (not while streaming) */}
                   {msg.role === "agent" && msg.content && threadId &&

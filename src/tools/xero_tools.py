@@ -1298,6 +1298,61 @@ def get_sector_benchmarks(sector: str = "") -> str:
             "No urgent action needed, but stay vigilant."
         )
 
+    # Structured data block for frontend card rendering.
+    # The LLM is instructed to include this verbatim in its response.
+    import json as _json
+
+    def _verdict(user_val, bench_val, lower_is_better=True):
+        if not isinstance(user_val, (int, float)) or user_val == 0:
+            return "N/A"
+        if lower_is_better:
+            if user_val <= bench_val * 0.8:
+                return "BETTER"
+            elif user_val <= bench_val:
+                return "IN_LINE"
+            elif user_val <= bench_val * 1.3:
+                return "WORSE"
+            else:
+                return "SIGNIFICANTLY_WORSE"
+        else:
+            if user_val >= bench_val * 1.2:
+                return "BETTER"
+            elif user_val >= bench_val * 0.8:
+                return "IN_LINE"
+            else:
+                return "WORSE"
+
+    card_data = {
+        "type": "sector_benchmark",
+        "sector": sector_label,
+        "source": "live_ons" if bench.get("_source") == "live_ons" else "curated",
+        "metrics": [
+            {
+                "label": "Avg receivables days",
+                "user_value": user_recv if isinstance(user_recv, int) else None,
+                "sector_value": bench_recv,
+                "unit": "days",
+                "verdict": _verdict(user_recv, bench_recv) if isinstance(user_recv, int) else "N/A",
+            },
+            {
+                "label": "Overdue rate",
+                "user_value": round(overdue_rate * 100, 1),
+                "sector_value": round(bench["avg_overdue_rate"] * 100, 1),
+                "unit": "%",
+                "verdict": _verdict(round(overdue_rate * 100, 1), round(bench["avg_overdue_rate"] * 100, 1)),
+            },
+            {
+                "label": "Avg invoice value",
+                "user_value": round(avg_invoice) if avg_invoice > 0 else None,
+                "sector_value": bench["avg_invoice_value"],
+                "unit": "£",
+                "verdict": "N/A",
+            },
+        ],
+        "chasing_threshold_days": threshold,
+    }
+    summary += "\n\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
+
     return summary
 
 
@@ -1476,6 +1531,36 @@ def score_customers() -> str:
             f"(2) requiring deposits for future work, (3) if they won't change, "
             f"firing them — refer to Zana for a scripted exit conversation."
         )
+
+    # Structured data block for frontend card rendering
+    import json as _json
+
+    card_data = {
+        "type": "customer_scorecard",
+        "customers": [
+            {
+                "name": s["name"],
+                "rating": s["rating"],
+                "on_time_rate": s["on_time_rate"],
+                "avg_days_late": s["avg_days_late"],
+                "total_invoices": s["total_invoices"],
+                "total_revenue": s["total_revenue"],
+                "outstanding": s["outstanding"],
+                "chasing_cost": s["chasing_cost"],
+                "interest_lost": s["interest_lost"],
+                "total_cost": s["total_cost"],
+                "fire_recommendation": s["fire_recommendation"],
+            }
+            for s in scores
+        ],
+        "portfolio": {
+            "total_revenue": round(total_revenue_all, 2),
+            "total_cost": round(total_cost_all, 2),
+            "red_count": red_count,
+            "fire_count": fire_count,
+        },
+    }
+    summary += "\n\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
 
     return summary
 
@@ -1796,5 +1881,48 @@ def get_trend_analysis() -> str:
         )
     else:
         summary += "RECOMMENDATION: Your metrics look healthy. Stay vigilant."
+
+    # Structured data block for frontend card rendering
+    import json as _json
+
+    # Build trend data for each metric
+    trend_metrics = []
+    for key, label, fmt in metrics:
+        values = [s.get(key, 0) for s in snapshots]
+        first = values[0] if values else 0
+        latest_val = values[-1] if values else 0
+        if first == 0 and latest_val == 0:
+            continue
+        if key in ("total_overdue", "overdue_count", "avg_receivables_days", "overdue_rate"):
+            if latest_val < first * 0.9:
+                trend_dir = "IMPROVING"
+            elif latest_val > first * 1.1:
+                trend_dir = "WORSENING"
+            else:
+                trend_dir = "STABLE"
+        elif key == "net_margin":
+            if latest_val > first * 1.1:
+                trend_dir = "IMPROVING"
+            elif latest_val < first * 0.9:
+                trend_dir = "WORSENING"
+            else:
+                trend_dir = "STABLE"
+        else:
+            trend_dir = "STABLE"
+        trend_metrics.append({
+            "label": label,
+            "key": key,
+            "values": values,
+            "first": round(first, 2),
+            "latest": round(latest_val, 2),
+            "trend": trend_dir,
+        })
+
+    card_data = {
+        "type": "trend_analysis",
+        "snapshot_count": len(snapshots),
+        "metrics": trend_metrics,
+    }
+    summary += "\n\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
 
     return summary
