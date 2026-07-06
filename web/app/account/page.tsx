@@ -466,7 +466,7 @@ function AccountView() {
               href="/books"
               className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Open Bookkeeper →
+              Open Sikizana →
             </Link>
           </div>
         </div>

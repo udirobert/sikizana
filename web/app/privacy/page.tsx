@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SikiMascot } from "@/components/SikiMascot";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 
 export const metadata: Metadata = {
   title: "Privacy Policy — Sikizana",
@@ -39,14 +39,33 @@ export default function PrivacyPage() {
               href="/books"
               className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Open Bookkeeper
+              Open Sikizana
             </Link>
           </div>
         </div>
       </nav>
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-12">
-        <h2 className="text-3xl font-bold text-stone-900 mb-2">Privacy Policy</h2>
+        {/* Siki fronts the policy the same way it fronts /security — the
+            promises are identical, this is just the formal version. */}
+        <div className="flex items-start gap-4 mb-6">
+          <div className="shrink-0">
+            <SikiMascot size={64} mood="idle" />
+          </div>
+          <div className="relative bg-white rounded-2xl border border-stone-200 shadow-sm px-5 py-4">
+            <div className="absolute -left-1.5 top-6 w-3 h-3 bg-white border-l border-b border-stone-200 rotate-45" />
+            <h2 className="text-2xl font-bold text-stone-900 mb-1">Privacy Policy</h2>
+            <p className="text-sm text-stone-600">
+              This is the formal version of what I promise on the{" "}
+              <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
+                security page
+              </Link>{" "}
+              — same rules, more detail. If anything here ever contradicts what the app
+              actually does, that&apos;s a bug and I want to hear about it.{" "}
+              <span className="text-stone-400">— Siki 🦉</span>
+            </p>
+          </div>
+        </div>
         <p className="text-xs text-stone-500 mb-8">Last updated: July 2026</p>
 
         <div className="space-y-8 text-sm text-stone-700 leading-relaxed">
@@ -146,13 +165,26 @@ export default function PrivacyPage() {
 
           <section>
             <h3 className="text-base font-semibold text-stone-900 mb-2">Emails sent on your behalf</h3>
-            <p>
-              If you approve a chase sequence for an overdue invoice, reminder emails are sent to
-              that invoice&apos;s billing contact under your business name, with replies routed to
-              your own email address. Sequences stop automatically the moment the invoice is paid,
-              and you can cancel them at any time. We never email your customers without your
-              explicit approval of that specific invoice&apos;s sequence.
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5">
+                <ZanaMascot size={40} mood="idle" />
+              </div>
+              <div>
+                <p>
+                  Chasing is Zana&apos;s department. If you approve a chase sequence for an
+                  overdue invoice, reminder emails are sent to that invoice&apos;s billing
+                  contact under <span className="font-medium">your business name</span> — not
+                  ours — with replies routed to your own email address. Sequences stop
+                  automatically the moment the invoice is paid, and you can cancel them at any
+                  time. Zana never emails your customers without your explicit approval of that
+                  specific invoice&apos;s sequence.
+                </p>
+                <p className="text-xs text-stone-400 italic mt-2">
+                  &quot;I&apos;m persistent, not reckless. You approve, I chase, I stop the
+                  second they pay.&quot; — Zana
+                </p>
+              </div>
+            </div>
           </section>
 
           <section>

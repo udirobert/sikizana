@@ -1596,8 +1596,9 @@ function BooksView() {
               <li className="flex gap-2.5">
                 <span aria-hidden="true">🔒</span>
                 <span>
-                  <span className="font-semibold">Siki can&apos;t change anything</span> without
-                  you — every entry and every chase email needs your explicit approval first.
+                  <span className="font-semibold">Siki can&apos;t change anything, Zana
+                  can&apos;t chase anyone</span> — without you. Every entry and every email
+                  needs your explicit approval first.
                 </span>
               </li>
               <li className="flex gap-2.5">

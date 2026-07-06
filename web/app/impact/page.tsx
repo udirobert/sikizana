@@ -86,7 +86,7 @@ export default function ImpactPage() {
               href="/books"
               className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Open Bookkeeper →
+              Open Sikizana →
             </Link>
           </div>
         </div>
@@ -160,7 +160,7 @@ export default function ImpactPage() {
             href="/books"
             className="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors"
           >
-            Open Bookkeeper →
+            Open Sikizana →
           </Link>
         </section>
       </div>

@@ -1169,8 +1169,8 @@ async def chase_start(
 
     stage = seq.get("next_stage", 1)
     message = (
-        f"Follow-ups scheduled: starting at stage {stage} ({STAGE_LABELS.get(stage, '?')}), "
-        f"escalating automatically, stopping the moment it's paid."
+        f"Zana's on it — starting at stage {stage} ({STAGE_LABELS.get(stage, '?')}), "
+        f"escalating automatically, and stopping the moment it's paid."
     )
     if mode == "demo":
         message = "Simulated (demo mode) — the schedule is recorded but no emails will be sent."

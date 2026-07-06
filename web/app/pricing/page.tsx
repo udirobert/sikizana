@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SikiMascot } from "@/components/SikiMascot";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";
 import type { FindingsResponse, PaidPlan, Plan } from "@/lib/api";
@@ -39,7 +39,7 @@ const TIERS: Array<{
     plan: "pro",
     price: "£29",
     period: "per month",
-    tagline: "Let Siki chase what you're owed",
+    tagline: "Let Zana chase what you're owed",
     features: [
       "Everything in Free, plus:",
       "Invoice chasing — escalating reminders with statutory interest & compensation",
@@ -235,8 +235,22 @@ export default function PricingPage() {
                   Most Popular
                 </div>
               )}
-              <h3 className="text-lg font-bold text-stone-900">{tier.name}</h3>
-              <p className="text-[11px] text-stone-400 mt-0.5">{tier.tagline}</p>
+              {/* Each tier belongs to an owl: Free = Siki watches, Pro =
+                  Zana acts. The mascots carry the story, not just the copy. */}
+              <div className="flex items-center gap-2.5">
+                {tier.plan === "free" && <SikiMascot size={36} mood="idle" />}
+                {tier.plan === "pro" && <ZanaMascot size={36} mood="look" />}
+                {tier.plan === "business" && (
+                  <span className="flex items-center -space-x-1.5">
+                    <SikiMascot size={30} mood="idle" />
+                    <ZanaMascot size={30} mood="idle" />
+                  </span>
+                )}
+                <div>
+                  <h3 className="text-lg font-bold text-stone-900">{tier.name}</h3>
+                  <p className="text-[11px] text-stone-400 mt-0.5">{tier.tagline}</p>
+                </div>
+              </div>
               <div className="mt-4 mb-4">
                 <span className="text-3xl font-bold text-stone-900">{tier.price}</span>
                 <span className="text-sm text-stone-400 ml-1">/ {tier.period}</span>
