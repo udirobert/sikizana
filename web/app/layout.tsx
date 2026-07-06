@@ -13,30 +13,32 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Icons and the share card come from file conventions in this directory
+// (favicon.ico, icon.svg, apple-icon.png, opengraph-image.png) — real
+// files, because link scrapers fetch /favicon.ico directly and ignore
+// data-URI icons. metadataBase makes the og:image URL absolute, which
+// WhatsApp/X require.
 export const metadata: Metadata = {
-  title: "Sikizana — AI Bookkeeper for Xero",
-  description: "AI-powered bookkeeping for Xero. Reconcile transactions, find discrepancies, and get plain-English P&L explanations.",
+  metadataBase: new URL("https://sikizana.persidian.com"),
+  title: "Sikizana — Get Paid Faster, with Xero",
+  description:
+    "See who owes you what (aged 30/60/90 days), learn what's normal for your industry, and chase overdue invoices with escalating emails that stop the moment you're paid.",
   applicationName: "Sikizana",
   authors: [{ name: "Sikizana" }],
-  keywords: ["Xero", "bookkeeping", "AI", "reconciliation", "P&L", "journal entries", "accounting"],
-  icons: {
-    icon: [
-      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23D4843A'/%3E%3Ccircle cx='36' cy='42' r='12' fill='white'/%3E%3Ccircle cx='64' cy='42' r='12' fill='white'/%3E%3Ccircle cx='36' cy='42' r='7' fill='%231A1A2E'/%3E%3Ccircle cx='64' cy='42' r='7' fill='%231A1A2E'/%3E%3Ccircle cx='38' cy='40' r='2.5' fill='white'/%3E%3Ccircle cx='66' cy='40' r='2.5' fill='white'/%3E%3Cpolygon points='46,54 54,54 50,60' fill='%23E8954A'/%3E%3C/svg%3E", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23D4843A'/%3E%3Ccircle cx='36' cy='42' r='12' fill='white'/%3E%3Ccircle cx='64' cy='42' r='12' fill='white'/%3E%3Ccircle cx='36' cy='42' r='7' fill='%231A1A2E'/%3E%3Ccircle cx='64' cy='42' r='7' fill='%231A1A2E'/%3E%3Ccircle cx='38' cy='40' r='2.5' fill='white'/%3E%3Ccircle cx='66' cy='40' r='2.5' fill='white'/%3E%3Cpolygon points='46,54 54,54 50,60' fill='%23E8954A'/%3E%3C/svg%3E" },
-    ],
-  },
+  keywords: ["Xero", "invoices", "late payment", "receivables", "credit control", "AI", "bookkeeping", "accounting"],
   openGraph: {
-    title: "Sikizana — AI Bookkeeper for Xero",
-    description: "Reconcile transactions, find discrepancies, and get plain-English P&L explanations. Powered by AI, human-in-the-loop by design.",
+    title: "Sikizana — Get Paid Faster, with Xero",
+    description:
+      "See who owes you what, learn your industry's payment norms, and chase overdue invoices with escalating emails that stop the moment you're paid.",
     type: "website",
     siteName: "Sikizana",
+    url: "https://sikizana.persidian.com",
   },
   twitter: {
-    card: "summary",
-    title: "Sikizana — AI Bookkeeper for Xero",
-    description: "AI-powered bookkeeping for Xero. Reconcile, audit, and explain your books in plain English.",
+    card: "summary_large_image",
+    title: "Sikizana — Get Paid Faster, with Xero",
+    description:
+      "See who owes you what, learn your industry's payment norms, and chase overdue invoices with escalating emails that stop the moment you're paid.",
   },
 };
 
