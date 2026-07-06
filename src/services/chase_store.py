@@ -148,6 +148,23 @@ def cancel_sequence(session_id: str, sequence_id: int) -> bool:
         conn.close()
 
 
+def active_sequences(session_id: str) -> list[dict[str, Any]]:
+    """All active sequences for one session (due or not) — used by the
+    webhook-triggered payment check."""
+    init_db()
+    conn = _get_db()
+    try:
+        return [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM chase_sequences WHERE session_id = ? AND status = 'active'",
+                (session_id,),
+            ).fetchall()
+        ]
+    finally:
+        conn.close()
+
+
 def due_sequences(as_of: str | None = None) -> list[dict[str, Any]]:
     """Active sequences whose next stage is due (across all sessions)."""
     init_db()

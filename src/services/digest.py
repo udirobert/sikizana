@@ -37,14 +37,56 @@ def smtp_configured() -> bool:
     return bool(os.environ.get("SMTP_HOST"))
 
 
+def _week_delta(session_id: str) -> str | None:
+    """Week-over-week movement of the overdue book, from metric snapshots.
+    The delta is the emotional hook: 'is the tide coming in or going out?'"""
+    from datetime import datetime, timedelta
+
+    from src.services.payment_store import get_metric_snapshots
+
+    try:
+        snapshots = get_metric_snapshots(session_id, limit=12)
+    except Exception:  # noqa: BLE001
+        return None
+    if len(snapshots) < 2:
+        return None
+    latest = snapshots[-1]
+    # Oldest snapshot within the last ~9 days = the week-ago reference.
+    week_ago = datetime.now().astimezone() - timedelta(days=9)
+    reference = None
+    for snap in snapshots[:-1]:
+        try:
+            when = datetime.fromisoformat(snap["captured_at"])
+            if when.tzinfo is None:
+                when = when.astimezone()
+        except (ValueError, TypeError):
+            continue
+        if when >= week_ago:
+            reference = snap
+            break
+    if reference is None:
+        reference = snapshots[-2]
+
+    delta = float(latest.get("total_overdue", 0)) - float(reference.get("total_overdue", 0))
+    if abs(delta) < 1:
+        return "Your overdue book is flat vs. last week."
+    if delta < 0:
+        return f"Your overdue book SHRANK £{abs(delta):,.0f} vs. last week — the chasing is working."
+    return f"Your overdue book GREW £{delta:,.0f} vs. last week — worth a look."
+
+
 def build_digest(session_id: str) -> dict[str, Any]:
     """Build the digest content for one session's books."""
     data = build_findings(session_id)
     findings = data["findings"]
+    recovered = data.get("recovered") or {}
 
-    if data["clean"]:
+    # Recovered money leads when there is any — it's the win, and the
+    # reason to keep the digest coming.
+    if recovered.get("total", 0) > 0:
+        subject = f"Siki recovered £{recovered['total']:,.0f} for you — here's this week's books"
+    elif data["clean"]:
         subject = "Siki checked your books — all clean this week ✓"
-        headline = "Your books are in good shape: nothing overdue, nothing unreconciled."
     else:
         money = data["money_found"]
         issues = len(findings)
@@ -52,13 +94,27 @@ def build_digest(session_id: str) -> dict[str, Any]:
             subject = f"Siki found £{money:,.0f} you're owed — {issues} things need a look"
         else:
             subject = f"Siki found {issues} things in your books this week"
+
+    if data["clean"]:
+        headline = "Your books are in good shape: nothing overdue, nothing unreconciled."
+    else:
         headline = (
-            f"This week: £{money:,.2f} in overdue invoices, "
+            f"This week: £{data['money_found']:,.2f} in overdue invoices, "
             f"{data['counts']['unreconciled']} unreconciled transactions, "
             f"{data['counts']['tax_flags']} tax flags."
         )
 
-    lines = [headline, ""]
+    extras: list[str] = []
+    if recovered.get("total", 0) > 0:
+        extras.append(
+            f"🦉 Recovered so far: £{recovered['total']:,.2f} across "
+            f"{recovered['count']} chased invoice{'s' if recovered['count'] != 1 else ''}."
+        )
+    delta_line = _week_delta(session_id)
+    if delta_line:
+        extras.append(f"📈 {delta_line}")
+
+    lines = [headline, *extras, ""]
     html_items = []
     for f in findings[:8]:
         icon = _KIND_ICONS.get(f["kind"], "•")
@@ -74,10 +130,14 @@ def build_digest(session_id: str) -> dict[str, Any]:
     books_url = f"{_APP_BASE_URL}/books"
     lines += ["", f"Review and fix them with Siki: {books_url}"]
 
+    extras_html = "".join(
+        f"<p style='color:#047857;font-weight:600'>{e}</p>" for e in extras
+    )
     html = f"""\
 <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#1c1917">
   <h2 style="color:#0284c7">🦉 Sikizana — your weekly check-in</h2>
   <p>{headline}</p>
+  {extras_html}
   <ul style="list-style:none;padding:0">{"".join(html_items)}</ul>
   <p><a href="{books_url}" style="display:inline-block;background:#0284c7;color:#fff;
      padding:10px 18px;border-radius:8px;text-decoration:none">Review with Siki →</a></p>

@@ -33,13 +33,17 @@ from src.services.logging import get_logger  # noqa: E402
 log = get_logger("sikizana.jobs.chase")
 
 
-def _invoice_state(svc: XeroService, seq: dict) -> str:
-    """'paid' | 'unpaid' | 'unknown' for the sequence's invoice, from Xero."""
+def _fetch_invoices(svc: XeroService) -> list | None:
+    """The session's sales invoices, or None on a transient Xero error."""
     try:
-        invoices = svc.list_invoices(invoice_type="ACCREC")
+        return svc.list_invoices(invoice_type="ACCREC")
     except Exception as exc:  # noqa: BLE001
-        log.warning("chase_invoice_check_failed", extra={"seq": seq["id"], "error": str(exc)})
-        return "unknown"
+        log.warning("chase_invoice_check_failed", extra={"error": str(exc)})
+        return None
+
+
+def _invoice_state(invoices: list, seq: dict) -> str:
+    """'paid' | 'unpaid' for the sequence's invoice."""
     for inv in invoices:
         matches_id = seq["invoice_id"] and inv.get("id") == seq["invoice_id"]
         matches_number = inv.get("invoiceNumber") == seq["invoice_number"]
@@ -56,34 +60,65 @@ def _sent_count(seq: dict) -> int:
     return sum(1 for e in full.get("events", []) if e["outcome"] in ("sent", "simulated"))
 
 
+def _complete_recovered(seq: dict) -> None:
+    """Mark a sequence's invoice as paid: complete it and, if we actually
+    chased, record the recovery — the product's win moment."""
+    chase_store.complete_sequence(seq["id"], "completed")
+    if _sent_count(seq) > 0:
+        record_impact_event(
+            event_type="chase_recovered",
+            amount=seq["amount"],
+            description=f"{seq['invoice_number']} paid after {_sent_count(seq)} chase email(s)",
+        )
+        record_audit(
+            action="chase_recovered",
+            description=f"{seq['invoice_number']} — {seq['contact_name']} paid",
+            amount=seq["amount"],
+            session_id=seq["session_id"],
+        )
+
+
+def settle_paid_sequences(session_ids: list[str]) -> int:
+    """Complete any ACTIVE sequences whose invoices are now paid, for the
+    given sessions. Called from the Xero webhook on payment events so
+    recoveries register the moment they happen, not at the next cron run.
+    Returns the number of sequences settled."""
+    settled = 0
+    for sid in dict.fromkeys(session_ids):  # de-dupe, keep order
+        seqs = chase_store.active_sequences(sid)
+        if not seqs:
+            continue
+        invoices = _fetch_invoices(XeroService(sid))
+        if invoices is None:
+            continue
+        for seq in seqs:
+            if _invoice_state(invoices, seq) == "paid":
+                _complete_recovered(seq)
+                settled += 1
+    if settled:
+        log.info("chase_settled_on_webhook", extra={"settled": settled})
+    return settled
+
+
 def run(today: date | None = None) -> dict[str, int]:
     today = today or date.today()
     stats = {"due": 0, "sent": 0, "simulated": 0, "completed_paid": 0, "failed": 0, "exhausted": 0}
+    invoice_cache: dict[str, list | None] = {}  # one Xero fetch per session
 
     for seq in chase_store.due_sequences(as_of=today.isoformat()):
         stats["due"] += 1
-        svc = XeroService(seq["session_id"])
+        sid = seq["session_id"]
 
         # 1. Stop on payment — the whole point of a chase loop with brakes.
-        state = _invoice_state(svc, seq)
-        if state == "paid":
-            chase_store.complete_sequence(seq["id"], "completed")
-            stats["completed_paid"] += 1
-            if _sent_count(seq) > 0:
-                record_impact_event(
-                    event_type="chase_recovered",
-                    amount=seq["amount"],
-                    description=f"{seq['invoice_number']} paid after {_sent_count(seq)} chase email(s)",
-                )
-                record_audit(
-                    action="chase_recovered",
-                    description=f"{seq['invoice_number']} — {seq['contact_name']} paid",
-                    amount=seq["amount"],
-                    session_id=seq["session_id"],
-                )
-            continue
-        if state == "unknown":
+        if sid not in invoice_cache:
+            invoice_cache[sid] = _fetch_invoices(XeroService(sid))
+        invoices = invoice_cache[sid]
+        if invoices is None:
             continue  # transient Xero error — retry next run, never guess
+        if _invoice_state(invoices, seq) == "paid":
+            _complete_recovered(seq)
+            stats["completed_paid"] += 1
+            continue
 
         # 2. Build the stage email with authoritative figures.
         try:

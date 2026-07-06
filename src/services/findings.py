@@ -133,6 +133,15 @@ def build_findings(session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         log.warning("aging_unavailable", extra={"error": str(exc)})
 
+    # Money the chase loop has recovered for this session — the win tally.
+    recovered = None
+    try:
+        from src.services.payment_store import get_recovered_total
+
+        recovered = get_recovered_total(session_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("recovered_total_unavailable", extra={"error": str(exc)})
+
     return {
         "mode": mode,
         "money_found": round(money_found, 2),
@@ -140,6 +149,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "clean": not findings,
         "findings": findings,
         "aging": aging,
+        "recovered": recovered,
     }
 
 

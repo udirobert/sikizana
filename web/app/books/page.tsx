@@ -89,6 +89,8 @@ function BooksView() {
   const [chasedFindingIds, setChasedFindingIds] = useState<ReadonlySet<string>>(new Set());
   // Confirmation banner for non-error notices (e.g. chase scheduled).
   const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
+  // The payment moment: amount newly recovered since the user's last visit.
+  const [recoveredCelebration, setRecoveredCelebration] = useState<number | null>(null);
   // Saved findings (commitment ladder) — persists in localStorage so
   // returning users see their saved issues and have a reason to come back.
   const [savedFindingIds, setSavedFindingIds] = useState<ReadonlySet<string>>(new Set());
@@ -510,6 +512,25 @@ function BooksView() {
       );
     }
   };
+
+  // The payment moment: if the chase loop recovered money since the last
+  // visit, celebrate it — this is the product's win, not a log line.
+  useEffect(() => {
+    const total = findings?.recovered?.total ?? 0;
+    if (total <= 0) return;
+    let lastSeen = 0;
+    try {
+      lastSeen = parseFloat(localStorage.getItem("siki_recovered_seen") || "0") || 0;
+    } catch { /* ignore */ }
+    if (total > lastSeen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (lastSeen > 0) setRecoveredCelebration(total - lastSeen);
+      // First-ever recovery also celebrates (lastSeen 0 → show full total).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (lastSeen === 0) setRecoveredCelebration(total);
+      try { localStorage.setItem("siki_recovered_seen", String(total)); } catch { /* ignore */ }
+    }
+  }, [findings]);
 
   // Mark findings whose invoices already have an active chase sequence.
   useEffect(() => {
@@ -1458,6 +1479,38 @@ function BooksView() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* The payment moment — a chased invoice got PAID since the last
+          visit. The product's climax gets the full celebration, not a
+          log line. Click anywhere or Escape to dismiss. */}
+      {recoveredCelebration !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up"
+          onClick={() => setRecoveredCelebration(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Money recovered"
+        >
+          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-3 text-center max-w-sm mx-4">
+            <SikiMascot size={90} mood="celebrate" />
+            <div className="text-4xl font-bold text-emerald-700 leading-none">
+              <AnimatedNumber prefix="£" value={Math.round(recoveredCelebration)} />
+            </div>
+            <p className="text-sm font-semibold text-stone-800">
+              recovered since your last visit 🎉
+            </p>
+            <p className="text-xs text-stone-500">
+              A chased invoice got paid. Siki&apos;s follow-ups stopped automatically.
+            </p>
+            <button
+              onClick={() => setRecoveredCelebration(null)}
+              className="mt-2 text-sm font-semibold bg-emerald-600 text-white px-5 py-2 rounded-lg hover:bg-emerald-700 btn-press transition-colors"
+            >
+              Brilliant →
+            </button>
           </div>
         </div>
       )}

@@ -1285,6 +1285,34 @@ async def xero_webhook(request: Request):
     if processed:
         await asyncio.to_thread(record_webhook_events, processed)
 
+    # A payment/invoice event may mean a chased invoice just got paid —
+    # settle those sequences NOW so the recovery registers the moment it
+    # happens, not at the next cron run. Best-effort; the daily runner is
+    # the backstop.
+    payment_tenants = {
+        e["tenantId"]
+        for e in processed
+        if e["tenantId"] and e["entity"].upper() in ("PAYMENT", "INVOICE")
+    }
+    if payment_tenants:
+
+        def _settle():
+            try:
+                from src.services.xero_oauth import sessions_for_tenant
+                from src.jobs.run_chases import settle_paid_sequences
+
+                sessions: list[str] = []
+                for tenant in payment_tenants:
+                    sessions.extend(sessions_for_tenant(tenant))
+                if sessions:
+                    settle_paid_sequences(sessions)
+            except Exception as exc:  # noqa: BLE001 — never fail the webhook ack
+                log.error("webhook_settle_failed", extra={"error": str(exc)})
+
+        # Fire-and-forget: Xero requires the ack within 5 seconds, and the
+        # settle path calls the Xero API. The daily runner is the backstop.
+        asyncio.get_running_loop().run_in_executor(None, _settle)
+
     log.info(
         "xero_webhook_received",
         extra={"event_count": len(processed), "types": [e["eventType"] for e in processed]},

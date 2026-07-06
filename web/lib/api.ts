@@ -193,6 +193,8 @@ export interface FindingsResponse {
   findings: Finding[];
   /** Aged-receivables summary (30/60/90 buckets) — best-effort, may be null. */
   aging?: AgingSummary | null;
+  /** Money recovered by the chase loop for this session (paid after ≥1 chase). */
+  recovered?: { total: number; count: number } | null;
 }
 
 // ---- Chase sequences (automated follow-ups) ----

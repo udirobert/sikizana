@@ -318,6 +318,23 @@ def get_audit_history(session_id: str | None = None, limit: int = 50) -> list[di
     return [dict(r) for r in rows]
 
 
+def get_recovered_total(session_id: str) -> dict:
+    """Money recovered by the chase loop for one session — invoices that
+    were paid after at least one chase email. The product's win metric."""
+    init_db()
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            """SELECT COALESCE(SUM(amount), 0) AS total, COUNT(*) AS count
+               FROM audit_history
+               WHERE action = 'chase_recovered' AND session_id = ?""",
+            (session_id,),
+        ).fetchone()
+        return {"total": round(row["total"], 2), "count": row["count"]}
+    finally:
+        conn.close()
+
+
 def get_aggregate_activity_stats() -> dict:
     """Aggregate activity across ALL sessions (last 7 days).
 

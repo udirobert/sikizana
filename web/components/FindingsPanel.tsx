@@ -155,6 +155,13 @@ export function FindingsPanel({
                 </div>
               )}
               <p className="text-[11px] text-stone-500 mt-1">{findingsSummary(data)}</p>
+              {/* The win tally — money the chase loop actually got paid. */}
+              {data.recovered && data.recovered.total > 0 && (
+                <p className="text-[11px] font-medium text-emerald-700 mt-1">
+                  🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s
+                  chasing ({data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
+                </p>
+              )}
               {/* Aged-receivables strip — the standard 30/60/90 view of
                   who owes what, right under the money number. */}
               {data.aging && data.aging.total_outstanding > 0 && (
@@ -203,6 +210,11 @@ export function FindingsPanel({
                 <p className="text-[10px] text-emerald-700 mt-0.5">
                   Nothing overdue, nothing unreconciled.
                 </p>
+                {data.recovered && data.recovered.total > 0 && (
+                  <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
+                    🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s chasing
+                  </p>
+                )}
               </div>
             </div>
           )}

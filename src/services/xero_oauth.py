@@ -505,6 +505,21 @@ def _store_tokens(
     db.close()
 
 
+def sessions_for_tenant(tenant_id: str) -> list[str]:
+    """All sessions connected to a tenant — used to route webhook events
+    (e.g. 'a payment landed') to the right sessions' chase sequences."""
+    if not tenant_id:
+        return []
+    conn = _get_db()
+    try:
+        rows = conn.execute(
+            "SELECT session_id FROM xero_tokens WHERE tenant_id = ?", (tenant_id,)
+        ).fetchall()
+        return [r["session_id"] for r in rows]
+    finally:
+        conn.close()
+
+
 def _get_tokens(session_id: str) -> dict | None:
     """Get stored tokens for a session, decrypted. Legacy plaintext rows
     pass through and re-encrypt on the next refresh/store."""

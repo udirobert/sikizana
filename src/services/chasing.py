@@ -69,6 +69,14 @@ class ChaseEmail:
     body: str
 
 
+# Distribution footer — every chase email lands in another business
+# owner's inbox. Stages 1-2 ONLY: a statutory final notice or a Letter
+# Before Action must never carry marketing; it undermines the sender's
+# credibility and the letter's legal seriousness.
+_FOOTER = "\n\n—\nSent via Sikizana (sikizana.persidian.com) — get your invoices paid."
+_FOOTER_MAX_STAGE = 2
+
+
 def _money(v: float) -> str:
     return f"£{v:,.2f}"
 
@@ -205,6 +213,9 @@ proposal within the deadline closes the matter completely.
 Yours sincerely,
 {signature}
 """
+
+    if stage <= _FOOTER_MAX_STAGE:
+        body = body.rstrip("\n") + _FOOTER + "\n"
 
     return ChaseEmail(stage=stage, subject=subject, body=body)
 
