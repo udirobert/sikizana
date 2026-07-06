@@ -196,7 +196,7 @@ def send_email(
     port = int(os.environ.get("SMTP_PORT", "587"))
     user = os.environ.get("SMTP_USER", "")
     password = os.environ.get("SMTP_PASS", "")
-    sender = os.environ.get("SMTP_FROM", user or "siki@sikizana.com")
+    sender = os.environ.get("SMTP_FROM", user or "siki@persidian.com")
 
     msg = build_message(to, subject, text, html, sender, from_name=from_name, reply_to=reply_to)
 

@@ -132,8 +132,8 @@ export default function TermsPage() {
             <h3 className="text-base font-semibold text-stone-900 mb-2">8. Contact</h3>
             <p>
               Questions about these terms? Email{" "}
-              <a href="mailto:hello@sikizana.com" className="text-sky-600 hover:text-sky-700 underline">
-                hello@sikizana.com
+              <a href="mailto:hello@persidian.com" className="text-sky-600 hover:text-sky-700 underline">
+                hello@persidian.com
               </a>
               .
             </p>

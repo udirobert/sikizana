@@ -134,7 +134,7 @@ export default function PricingPage() {
     // Business keeps the mailto fallback until Stripe is configured.
     if (tier.plan === "business" && !stripeConfigured) {
       return (
-        <a href="mailto:hello@sikizana.com" className={ctaClass(tier.highlight)}>
+        <a href="mailto:hello@persidian.com" className={ctaClass(tier.highlight)}>
           Contact Us
         </a>
       );

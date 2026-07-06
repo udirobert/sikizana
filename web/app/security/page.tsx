@@ -124,10 +124,10 @@ export default function SecurityPage() {
             Privacy Policy
           </Link>
           . Questions? Email{" "}
-          <a href="mailto:hello@sikizana.com" className="text-sky-600 hover:text-sky-700 underline">
-            hello@sikizana.com
+          <a href="mailto:hello@persidian.com" className="text-sky-600 hover:text-sky-700 underline">
+            hello@persidian.com
           </a>{" "}
-          — a human reads it.
+          — it goes to the founder, not a ticket queue. (Tiny team: one human, two owls.)
         </p>
       </div>
 

@@ -176,8 +176,8 @@ export default function PrivacyPage() {
             <h3 className="text-base font-semibold text-stone-900 mb-2">Contact</h3>
             <p>
               Questions about this policy or your data? Email{" "}
-              <a href="mailto:hello@sikizana.com" className="text-sky-600 hover:text-sky-700 underline">
-                hello@sikizana.com
+              <a href="mailto:hello@persidian.com" className="text-sky-600 hover:text-sky-700 underline">
+                hello@persidian.com
               </a>
               . For the plain-English version of all of this, see{" "}
               <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
