@@ -42,9 +42,9 @@ _CORP_TAX_MAIN_RATE = float(os.environ.get("CORP_TAX_MAIN_RATE", "0.25"))
 _CORP_TAX_SMALL_LIMIT = float(os.environ.get("CORP_TAX_SMALL_LIMIT", "50000"))
 _CORP_TAX_MAIN_LIMIT = float(os.environ.get("CORP_TAX_MAIN_LIMIT", "250000"))
 _CORP_TAX_MARGINAL_RELIEF = float(os.environ.get("CORP_TAX_MARGINAL_RELIEF", "0.015"))
-# Bank of England base rate for late payment interest (LPCD Act 1998).
-# 8% + Bank Rate = statutory annual rate. Configurable via env.
-_BANK_RATE = float(os.environ.get("BANK_RATE", "5.25"))
+# Statutory late-payment interest lives in services/rates.py — the single
+# source of truth shared with the findings panel and chase emails.
+from src.services.rates import BANK_RATE as _BANK_RATE  # noqa: E402
 
 # Which user session the current tool call is acting for. The agent loop
 # sets this before executing tools, so every tool reads/writes the books
@@ -256,6 +256,70 @@ def find_discrepancies() -> str:
         )
 
     return "\n".join(findings) if findings else "No discrepancies found. Books look clean."
+
+
+def get_receivables_aging() -> str:
+    """
+    Aged receivables report — the standard credit-control view.
+    Buckets every unpaid sales invoice into not-yet-due / 1-30 / 31-60 /
+    61-90 / 90+ days overdue, grouped by debtor, plus how long customers
+    take to pay on average (from actual payment history).
+    """
+    from src.services.receivables import build_aging
+
+    data = build_aging(_svc())
+
+    if data["invoice_count"] == 0:
+        return "No unpaid sales invoices — there is nothing outstanding to age."
+
+    summary = "AGED RECEIVABLES:\n\n"
+    summary += f"Total outstanding: £{data['total_outstanding']:,.2f}"
+    summary += f" (of which £{data['total_overdue']:,.2f} is past due)\n\n"
+
+    summary += "By age:\n"
+    for b in data["buckets"]:
+        if b["count"] == 0:
+            continue
+        summary += f"  {b['label']}: £{b['amount']:,.2f} ({b['count']} invoice{'s' if b['count'] != 1 else ''})\n"
+
+    summary += "\nBy debtor (largest first):\n"
+    for d in data["debtors"][:10]:
+        oldest = f", oldest {d['oldest_days']} days overdue" if d["oldest_days"] > 0 else ""
+        summary += f"  {d['name']}: £{d['total']:,.2f}{oldest}\n"
+
+    dso = data["dso"]
+    if dso["days"] is not None:
+        summary += (
+            f"\nDays to get paid: on average your customers take {dso['days']:.0f} days "
+            f"from invoice to payment (measured over {dso['sample']} paid invoice"
+            f"{'s' if dso['sample'] != 1 else ''}).\n"
+        )
+    else:
+        summary += "\nDays to get paid: not enough payment history to measure yet.\n"
+
+    # The 90+ bucket is where money dies — call it out.
+    b90 = next((b for b in data["buckets"] if b["key"] == "b_90_plus"), None)
+    if b90 and b90["amount"] > 0:
+        summary += (
+            f"\n⚠️  £{b90['amount']:,.2f} is more than 90 days overdue. Collection odds "
+            f"drop sharply past 90 days — these need escalation (statutory interest, "
+            f"letter before action), not another polite reminder.\n"
+        )
+
+    import json as _json
+
+    card_data = {
+        "type": "receivables_aging",
+        "total_outstanding": data["total_outstanding"],
+        "total_overdue": data["total_overdue"],
+        "buckets": data["buckets"],
+        "debtors": data["debtors"][:8],
+        "dso_days": dso["days"],
+        "dso_sample": dso["sample"],
+    }
+    summary += "\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
+
+    return summary
 
 
 def propose_journal_entry(
@@ -616,6 +680,30 @@ def draft_invoice_reminder(
     except (TypeError, ValueError):
         amount, days_overdue = 0.0, 0
 
+    # Server-side resolution: when an invoice reference is given, the REAL
+    # amount, due date, and contact come from Xero — never from whatever
+    # the model happened to pass. An email citing statutory interest with
+    # a wrong amount is worse than no email.
+    if invoice_id or invoice_number:
+        try:
+            from datetime import date as _date_cls
+
+            for inv in _svc().list_invoices(invoice_type="ACCREC"):
+                if (invoice_id and inv.get("id") == invoice_id) or (
+                    invoice_number and inv.get("invoiceNumber") == invoice_number
+                ):
+                    amount = float(inv.get("amountDue", amount) or amount)
+                    invoice_number = inv.get("invoiceNumber", invoice_number)
+                    contact_name = (inv.get("contact") or {}).get("name", contact_name)
+                    try:
+                        due = _date_cls.fromisoformat(str(inv.get("dueDate", ""))[:10])
+                        days_overdue = max((_date_cls.today() - due).days, 0)
+                    except (ValueError, TypeError):
+                        pass
+                    break
+        except Exception:  # noqa: BLE001 — fall back to the provided args
+            pass
+
     # Look up contact email if not provided
     if not contact_email and contact_name:
         try:
@@ -714,10 +802,14 @@ def draft_invoice_reminder(
     else:
         situation = f"Debt recovery — {days_overdue} days late, formal action looming"
 
-    # Late payment interest under UK Late Payment of Commercial Debts Act 1998
+    # Late payment interest + fixed-sum compensation under the UK Late
+    # Payment of Commercial Debts (Interest) Act 1998
+    from src.services.rates import fixed_sum_compensation
+
     interest_rate = 8.0 + _BANK_RATE
     daily_interest = (amount * interest_rate / 100) / 365 * days_overdue
-    total_with_interest = amount + daily_interest
+    compensation = fixed_sum_compensation(amount)
+    total_claim = amount + daily_interest + compensation
 
     if tone == "friendly":
         subject = f"Friendly reminder: Invoice {invoice_number}"
@@ -762,11 +854,12 @@ It seems like there may be a cash flow constraint on your end. I understand
 that can happen — but I need to address this now.
 
 Under the Late Payment of Commercial Debts (Interest) Act 1998, I am
-entitled to charge interest at {interest_rate}% per annum (Bank Rate + 8%).
+entitled to charge interest at {interest_rate}% per annum (Bank Rate + 8%)
+plus fixed-sum debt recovery compensation of £{compensation} per invoice.
 As of today, interest of £{daily_interest:,.2f} has accrued, bringing the
-total amount due to £{total_with_interest:,.2f}.
+total amount due to £{total_claim:,.2f}.
 
-Please arrange payment of £{total_with_interest:,.2f} within 7 days.
+Please arrange payment of £{total_claim:,.2f} within 7 days.
 If I do not receive payment or a satisfactory response, I will consider
 further action to recover the debt.
 
@@ -780,8 +873,9 @@ Regards,
 Invoice {invoice_number} for £{amount:,.2f} is now {days_overdue} days
 overdue. Despite multiple reminders, no payment has been received.
 
-The total amount due, including statutory interest of £{daily_interest:,.2f}
-under the Late Payment of Commercial Debts Act 1998, is £{total_with_interest:,.2f}.
+The total amount due under the Late Payment of Commercial Debts Act 1998 —
+including statutory interest of £{daily_interest:,.2f} and £{compensation}
+fixed-sum recovery compensation — is £{total_claim:,.2f}.
 
 Would it be a terrible idea to settle this before I refer it to a debt
 collection agency or pursue recovery through the Small Claims Court?
@@ -966,10 +1060,10 @@ def get_savings_opportunities() -> str:
 # Sector benchmarking — compare the user's numbers against sector averages
 # ---------------------------------------------------------------------------
 
-# ONS-style sector benchmarks. In production these would be scraped from
-# ONS sector data via Firecrawl. For now we use curated averages from
-# ONS "UK business data" and DBT SME finance reports, keyed by SIC section.
-# Source: ONS Annual Business Inquiry + DBT Small Business Finance Survey.
+# Curated typical ranges for UK small businesses, informed by ONS "UK
+# business data" and DBT SME finance reports. These are INDICATIVE, not
+# live official statistics — every surface that shows them must say so
+# (see get_sector_benchmarks). Update alongside the annual DBT survey.
 _SECTOR_BENCHMARKS: dict[str, dict[str, float]] = {
     "retail": {
         "avg_receivables_days": 52,
@@ -1173,7 +1267,8 @@ def get_sector_benchmarks(sector: str = "") -> str:
     """
     svc = _svc()
 
-    # Detect sector if not provided
+    # Detect sector if not provided — and be honest that it's a guess.
+    sector_guessed = False
     if not sector or sector not in _SECTOR_BENCHMARKS:
         try:
             org = svc.get_organisation()
@@ -1181,6 +1276,7 @@ def get_sector_benchmarks(sector: str = "") -> str:
         except Exception:  # noqa: BLE001
             org_name = ""
         sector = _detect_sector(org_name, sector)
+        sector_guessed = True
         if sector not in _SECTOR_BENCHMARKS:
             sector = "default"
 
@@ -1210,19 +1306,37 @@ def get_sector_benchmarks(sector: str = "") -> str:
     total_overdue = len(overdue_accrec)
     overdue_rate = total_overdue / total_invoices if total_invoices > 0 else 0
 
-    # Average receivables days (approximate: average days between due date and today for overdue)
+    # Receivables days: prefer true days-to-pay from payment history (the
+    # honest comparison with a sector "receivables days" figure). Only if
+    # there's no paid history, fall back to days-past-due on overdue
+    # invoices — a different, harsher measure, so label it as such.
+    recv_measure = "days to get paid (from payment history)"
+    avg_receivables_days = 0.0
+    try:
+        from src.services.receivables import build_aging
+
+        dso = build_aging(svc)["dso"]
+        if dso["days"] is not None and dso["sample"] >= 2:
+            avg_receivables_days = float(dso["days"])
+    except Exception:  # noqa: BLE001
+        pass
+
     from datetime import date as _date
     today = _date.today()
-    receivables_days = []
-    for inv in overdue_accrec:
-        try:
-            due = _date.fromisoformat(inv.get("dueDate", "")[:10])
-            days = (today - due).days
-            if days > 0:
-                receivables_days.append(days)
-        except (ValueError, TypeError):
-            pass
-    avg_receivables_days = sum(receivables_days) / len(receivables_days) if receivables_days else 0
+    if avg_receivables_days == 0:
+        recv_measure = "days past due on currently overdue invoices (no payment history yet)"
+        receivables_days = []
+        for inv in overdue_accrec:
+            try:
+                due = _date.fromisoformat(inv.get("dueDate", "")[:10])
+                days = (today - due).days
+                if days > 0:
+                    receivables_days.append(days)
+            except (ValueError, TypeError):
+                pass
+        avg_receivables_days = (
+            sum(receivables_days) / len(receivables_days) if receivables_days else 0
+        )
 
     # Average invoice value
     avg_invoice = (
@@ -1231,11 +1345,37 @@ def get_sector_benchmarks(sector: str = "") -> str:
         else 0
     )
 
-    # Compare against benchmarks
+    # Compare against benchmarks — with honest sourcing. The curated
+    # numbers are typical ranges informed by ONS/DBT small-business
+    # publications, NOT live official statistics, and must never be
+    # presented as such.
     sector_label = sector.replace("_", " ").title()
-    source_label = "live ONS data" if bench.get("_source") == "live_ons" else "ONS sector averages"
+    if bench.get("_source") == "live_ons":
+        source_label = (
+            "a figure auto-extracted from a gov.uk page (low confidence — verify the "
+            "source), combined with curated typical ranges"
+        )
+    else:
+        source_label = (
+            "typical ranges for UK small businesses, curated from ONS and DBT "
+            "small-business publications (indicative, not live statistics)"
+        )
     summary = f"SECTOR BENCHMARK: {sector_label}\n\n"
-    summary += f"Based on {source_label} for {sector_label.lower()} businesses.\n\n"
+    summary += f"Based on {source_label} for {sector_label.lower()} businesses.\n"
+    if sector_guessed:
+        if sector == "default":
+            summary += (
+                "NOTE: I couldn't tell your sector from your organisation name, so these "
+                "are cross-sector averages. Tell me your sector (retail, construction, "
+                "professional services, hospitality, manufacturing, wholesale) for a "
+                "closer comparison.\n"
+            )
+        else:
+            summary += (
+                f"NOTE: I guessed '{sector_label}' from your organisation name — if that's "
+                f"wrong, tell me your actual sector and I'll re-run the comparison.\n"
+            )
+    summary += "\n"
 
     # Receivables days comparison
     user_recv = round(avg_receivables_days) if avg_receivables_days > 0 else "N/A"
@@ -1251,7 +1391,7 @@ def get_sector_benchmarks(sector: str = "") -> str:
             recv_verdict = f"SIGNIFICANTLY WORSE than sector average ({bench_recv} days). Priority #1."
     else:
         recv_verdict = f"No overdue invoices to measure. Sector average is {bench_recv} days."
-    summary += f"Your avg receivables: {user_recv} days\n{recv_verdict}\n\n"
+    summary += f"Your avg receivables: {user_recv} days (measured as {recv_measure})\n{recv_verdict}\n\n"
 
     # Overdue rate comparison
     user_rate = round(overdue_rate * 100, 1)
@@ -1522,7 +1662,7 @@ def score_customers() -> str:
     red_count = sum(1 for s in scores if s["rating"] == "RED")
     fire_count = sum(1 for s in scores if s["fire_recommendation"])
 
-    summary += f"PORTFOLIO SUMMARY:\n"
+    summary += "PORTFOLIO SUMMARY:\n"
     summary += f"  Total revenue: £{total_revenue_all:,.2f}\n"
     summary += f"  Total chasing + interest cost: £{total_cost_all:,.2f}\n"
     summary += f"  Cost as % of revenue: {(total_cost_all / total_revenue_all * 100):.1f}%\n" if total_revenue_all > 0 else ""
@@ -1630,8 +1770,10 @@ def get_chasing_strategy(contact_name: str = "") -> str:
             current_stage = 2
         elif max_days <= 60:
             current_stage = 3
-        else:
+        elif max_days <= 74:
             current_stage = 4
+        else:
+            current_stage = 5
 
         stages = [
             {
@@ -1660,11 +1802,24 @@ def get_chasing_strategy(contact_name: str = "") -> str:
             },
             {
                 "stage": 4,
-                "days": "60+ days late",
+                "days": "60-74 days late",
                 "tactic": "No-Oriented Question",
                 "tactic_key": "no_oriented",
-                "action": "Debt recovery. Make it easy to say yes by saying no to the negative.",
+                "action": "Debt recovery warning. Make it easy to say yes by saying no to the negative.",
                 "email_prompt": "Draft a debt recovery letter using a no-oriented question — 'Would it be a terrible idea to settle before collections?'",
+            },
+            {
+                "stage": 5,
+                "days": "75+ days late",
+                "tactic": "Letter Before Action",
+                "tactic_key": "lba",
+                "action": (
+                    "Formal Letter Before Action: the full debt (invoice + statutory "
+                    "interest + £40-100 fixed-sum compensation), a 14-day deadline "
+                    "(30 days for sole traders), and notice that court proceedings "
+                    "follow. Pre-action conduct the court expects to see."
+                ),
+                "email_prompt": "Draft a Letter Before Action for this invoice with the total claim and response deadline.",
             },
         ]
 
@@ -1679,13 +1834,19 @@ def get_chasing_strategy(contact_name: str = "") -> str:
 
         # Strategic advice
         if current_stage >= 3:
+            from src.services.rates import fixed_sum_compensation as _fsc
+
             summary += (
                 f"  ⚠️  STRATEGIC NOTE: This customer is {max_days} days late. "
-                f"At this stage, consider: (1) requiring upfront payment for future work, "
-                f"(2) checking if this customer is a firing candidate (ask Zana to score customers), "
-                f"(3) if Stage 4 doesn't work, refer to Small Claims Court (under £10k) "
-                f"or a debt collection agency.\n\n"
+                f"At this stage: (1) claim the £{_fsc(total)} fixed-sum compensation and "
+                f"statutory interest in every message from here on, (2) require upfront "
+                f"payment for future work, (3) check if this customer is a firing candidate "
+                f"(ask Zana to score customers).\n\n"
             )
+        if current_stage >= 5:
+            from src.services.chasing import escalation_checklist as _checklist
+
+            summary += "  " + _checklist(total).replace("\n", "\n  ") + "\n\n"
 
     summary += (
         "NEGOTIATION PRINCIPLES:\n"
@@ -1693,6 +1854,10 @@ def get_chasing_strategy(contact_name: str = "") -> str:
         "- The goal isn't to punish — it's to get paid AND keep the relationship if possible.\n"
         "- Escalate tone, not emotion. Each stage is firmer, not angrier.\n"
         "- Track which tactics work per customer. Some respond to warmth, others to firmness.\n"
+        "\nAUTOMATE IT: You don't have to remember to come back for each stage — the "
+        "⚡ Auto-chase button on any overdue invoice in the findings panel schedules "
+        "this whole ladder. Emails go out on the stage dates and stop automatically "
+        "the moment the invoice is paid.\n"
     )
 
     return summary

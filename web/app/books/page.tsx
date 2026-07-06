@@ -84,6 +84,11 @@ function BooksView() {
   const [findingsLoading, setFindingsLoading] = useState(true);
   // Findings the user already acted on — "asked" state on the cards.
   const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  // Findings with an auto-chase sequence scheduled (from /api/chase/list +
+  // this session's clicks).
+  const [chasedFindingIds, setChasedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  // Confirmation banner for non-error notices (e.g. chase scheduled).
+  const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
   // Saved findings (commitment ladder) — persists in localStorage so
   // returning users see their saved issues and have a reason to come back.
   const [savedFindingIds, setSavedFindingIds] = useState<ReadonlySet<string>>(new Set());
@@ -113,7 +118,7 @@ function BooksView() {
   const [modeHintShown, setModeHintShown] = useState(false);
   const [thinkingMessage, setThinkingMessage] = useState<string>("");
   const [showWelcome, setShowWelcome] = useState(false);
-  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -157,21 +162,14 @@ function BooksView() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Detect first-time visit to show welcome onboarding + demo modal.
+  // Detect first-time visit to show the welcome empty state. (The old
+  // full-screen demo modal is gone — it repeated the welcome banner and
+  // the persistent amber banner, forcing two dismissals before first value.)
   useEffect(() => {
     const visited = localStore.get<boolean>(StorageKeys.BOOKS_VISITED, false);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!visited) setShowWelcome(true);
-    // Show demo explainer modal on first visit if not yet dismissed
-    const demoModalDismissed = localStore.get<boolean>(StorageKeys.DEMO_MODAL_DISMISSED, false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!demoModalDismissed) setShowDemoModal(true);
   }, []);
-
-  const dismissDemoModal = () => {
-    localStore.set(StorageKeys.DEMO_MODAL_DISMISSED, true);
-    setShowDemoModal(false);
-  };
 
   const dismissWelcome = () => {
     localStore.set(StorageKeys.BOOKS_VISITED, true);
@@ -490,6 +488,50 @@ function BooksView() {
     void sendToAgent(finding.action.prompt);
   };
 
+  /**
+   * Auto-chase: approve scheduled follow-ups for one overdue invoice.
+   * The click IS the approval — the backend resolves everything from Xero
+   * and the daily runner escalates until the invoice is paid.
+   */
+  const handleAutoChase = async (finding: Finding) => {
+    if (!finding.invoice_number) return;
+    setChasedFindingIds((prev) => new Set(prev).add(finding.id));
+    try {
+      const res = await endpoints.chase.start(finding.invoice_number, finding.invoice_id);
+      setNoticeBanner(res.message);
+    } catch (e) {
+      setChasedFindingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(finding.id);
+        return next;
+      });
+      setErrorBanner(
+        e instanceof ApiError ? e.message : "Couldn't schedule the follow-ups. Try again.",
+      );
+    }
+  };
+
+  // Mark findings whose invoices already have an active chase sequence.
+  useEffect(() => {
+    if (!findings) return;
+    void endpoints.chase
+      .list()
+      .then(({ sequences }) => {
+        const activeNumbers = new Set(
+          sequences.filter((s) => s.status === "active").map((s) => s.invoice_number),
+        );
+        if (activeNumbers.size === 0) return;
+        setChasedFindingIds((prev) => {
+          const next = new Set(prev);
+          for (const f of findings.findings) {
+            if (f.invoice_number && activeNumbers.has(f.invoice_number)) next.add(f.id);
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+  }, [findings]);
+
   const handlePersonaChange = (next: "siki" | "zana") => {
     setPersona(next);
     setModeHintShown(true);
@@ -512,7 +554,10 @@ function BooksView() {
   };
 
   const handleStartSample = (description: string) => {
+    // Pre-fill AND focus — clicking a sample must visibly hand the user
+    // the next step (cursor in the input, ready to edit or send).
     setInput(description);
+    inputRef.current?.focus();
   };
 
   return (
@@ -526,7 +571,7 @@ function BooksView() {
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                AI Bookkeeper for Xero
+                Get paid faster · Works with Xero
               </p>
             </div>
           </div>
@@ -566,106 +611,74 @@ function BooksView() {
                 {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
               </span>
             )}
-            <Link
-              href="/activity"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Activity
-            </Link>
-            <Link
-              href="/account"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press flex items-center gap-1.5"
-            >
-              {me?.authenticated ? (
-                <>
-                  Account <PlanBadge plan={me.plan} />
-                </>
-              ) : (
-                "Sign in"
+            {/* Nav links — inline from sm up; collapsed behind a menu button
+                on phones so the Connect button never gets squeezed off-screen. */}
+            <div className="hidden sm:flex items-center gap-3">
+              <Link
+                href="/activity"
+                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              >
+                Activity
+              </Link>
+              <Link
+                href="/account"
+                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press flex items-center gap-1.5"
+              >
+                {me?.authenticated ? (
+                  <>
+                    Account <PlanBadge plan={me.plan} />
+                  </>
+                ) : (
+                  "Sign in"
+                )}
+              </Link>
+              <Link
+                href="/pricing"
+                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/"
+                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              >
+                Home
+              </Link>
+            </div>
+            <div className="relative sm:hidden">
+              <button
+                onClick={() => setNavOpen((v) => !v)}
+                aria-expanded={navOpen}
+                aria-label="Menu"
+                className="p-2 rounded-lg text-stone-600 hover:bg-stone-100 btn-press"
+              >
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 6h18M3 12h18M3 18h18" />
+                </svg>
+              </button>
+              {navOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 w-40 bg-white border border-stone-200 rounded-xl shadow-lg py-1 fade-in-up">
+                  {[
+                    { href: "/activity", label: "Activity" },
+                    { href: "/account", label: me?.authenticated ? "Account" : "Sign in" },
+                    { href: "/pricing", label: "Pricing" },
+                    { href: "/", label: "Home" },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setNavOpen(false)}
+                      className="block px-3 py-2 text-xs text-stone-600 hover:bg-stone-50"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
               )}
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Home
-            </Link>
+            </div>
           </div>
         </div>
       </nav>
-
-      {/* First-visit modal — explains demo vs. connect clearly.
-          Shows once per browser (dismissed state persisted in localStorage). */}
-      {showDemoModal && (
-        <div
-          className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 fade-in"
-          onClick={dismissDemoModal}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className="shrink-0 w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center text-xl">
-                🦉
-              </div>
-              <div className="flex-1">
-                <h2 className="text-sm font-bold text-stone-900">Welcome to Sikizana</h2>
-                <p className="text-xs text-stone-600 mt-1">
-                  Your AI bookkeeper that finds money you&apos;re owed, estimates your tax bill, and fixes discrepancies — in plain English.
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <div className="flex gap-3 items-start">
-                <span className="shrink-0 text-base">👀</span>
-                <div>
-                  <p className="text-xs font-semibold text-stone-900">Explore with sample data</p>
-                  <p className="text-[11px] text-stone-600 mt-0.5">
-                    Try asking questions, see how it works. The numbers you see are from a demo business — not your real books.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <span className="shrink-0 text-base">🔗</span>
-                <div>
-                  <p className="text-xs font-semibold text-stone-900">Connect your Xero for real data</p>
-                  <p className="text-[11px] text-stone-600 mt-0.5">
-                    When you&apos;re ready, click <span className="font-medium text-sky-700">&quot;Connect My Xero&quot;</span> anywhere on the page. It&apos;s free — you&apos;ll see your real overdue invoices, tax estimates, and P&amp;L.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              {oauthConfigured && (
-                <button
-                  onClick={() => {
-                    dismissDemoModal();
-                    handleConnectXero();
-                  }}
-                  className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors"
-                >
-                  Connect My Xero →
-                </button>
-              )}
-              <button
-                onClick={dismissDemoModal}
-                className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 btn-press transition-colors"
-              >
-                {oauthConfigured ? "Explore demo first" : "Got it, let me explore"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Persistent demo mode banner — always visible when in demo mode.
           Small business owners were confused about demo vs. real data.
@@ -699,7 +712,9 @@ function BooksView() {
 
       <div className="flex-1 flex flex-col items-center lg:flex-row lg:items-stretch lg:justify-center p-4 gap-4">
         {/* Mobile: the findings panel stacks ABOVE the chat — small screens
-            get the audit's value instead of losing the sidebar entirely. */}
+            get the audit's value instead of losing the sidebar entirely.
+            Compact, capped at 3 with "+N more": a business drowning in
+            findings must not have the chat pushed below the fold. */}
         <div className="lg:hidden w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-stone-200 p-4">
           <FindingsPanel
             data={findings}
@@ -709,11 +724,14 @@ function BooksView() {
             disabled={isLoading}
             onAct={handleFindingAct}
             onSave={handleFindingSave}
+            onAutoChase={(f) => void handleAutoChase(f)}
+            chasedIds={chasedFindingIds}
             onSuggest={(prompt) => {
               setInput(prompt);
               inputRef.current?.focus();
             }}
             suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+            compact
           />
         </div>
 
@@ -818,6 +836,8 @@ function BooksView() {
               disabled={isLoading}
               onAct={handleFindingAct}
               onSave={handleFindingSave}
+              onAutoChase={(f) => void handleAutoChase(f)}
+              chasedIds={chasedFindingIds}
               onSuggest={(prompt) => {
                 setInput(prompt);
                 inputRef.current?.focus();
@@ -874,6 +894,9 @@ function BooksView() {
                 title="Siki — friendly, finds savings, explains in plain English"
               >
                 Siki
+                <span className={`block text-[8px] font-normal leading-none ${persona === "siki" ? "text-orange-100" : "text-stone-400"}`}>
+                  explain
+                </span>
               </button>
               <button
                 onClick={() => handlePersonaChange("zana")}
@@ -885,6 +908,9 @@ function BooksView() {
                 title="Zana — direct, chases payments, flags uncomfortable truths"
               >
                 Zana
+                <span className={`block text-[8px] font-normal leading-none ${persona === "zana" ? "text-stone-300" : "text-stone-400"}`}>
+                  chase
+                </span>
               </button>
             </div>
 
@@ -966,6 +992,20 @@ function BooksView() {
             </div>
           )}
 
+          {/* Confirmation notice (e.g. auto-chase scheduled) — not an error */}
+          {noticeBanner && (
+            <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-xs text-emerald-800 flex items-center justify-between fade-in-up" role="status">
+              <span>{noticeBanner}</span>
+              <button
+                onClick={() => setNoticeBanner(null)}
+                className="text-emerald-500 hover:text-emerald-700 btn-press"
+                aria-label="Dismiss notice"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {/* Sign-in nudge — contextual, dismissible, once per session.
               Lighter than the upgrade banner: asks for sign-in (free), not
               upgrade (paid). Shown after the first answer or at 3/5 queries. */}
@@ -997,8 +1037,15 @@ function BooksView() {
               the findings panel is the proactive audit now, with real
               server-built findings instead of injected agent speech. */}
 
-          {/* aria-live so streamed answers reach screen readers */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin" aria-live="polite">
+          {/* Screen readers: a visually-hidden live region announces each
+              completed answer once. aria-live on the whole scroll container
+              would re-announce the growing message on every streamed token. */}
+          <div className="sr-only" aria-live="polite" role="status">
+            {!isLoading && messages.length > 0 && messages[messages.length - 1].role === "agent"
+              ? messages[messages.length - 1].content
+              : thinkingMessage}
+          </div>
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
                 {/* Mascot in the empty state — animated, cycling moods */}
@@ -1035,10 +1082,10 @@ function BooksView() {
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-sky-900">Here&apos;s what I can do for you</p>
                         <ul className="text-[11px] text-sky-700 mt-1.5 space-y-1">
-                          <li>💰 <span className="font-medium">Find money you&apos;re owed</span> — overdue invoices, who hasn&apos;t paid</li>
-                          <li>📊 <span className="font-medium">Estimate your tax bill</span> — Corporation Tax + deductible expenses</li>
-                          <li>📈 <span className="font-medium">Explain your P&L</span> — plain English, no jargon</li>
-                          <li>✍️ <span className="font-medium">Fix discrepancies</span> — propose & post journal entries to Xero</li>
+                          <li>💰 <span className="font-medium">Show who owes you</span> — every unpaid invoice, aged 30/60/90 days</li>
+                          <li>✉️ <span className="font-medium">Chase what you&apos;re owed</span> — escalating reminder emails that work</li>
+                          <li>📊 <span className="font-medium">Show what&apos;s normal</span> — payment norms for your industry</li>
+                          <li>📈 <span className="font-medium">Explain your books</span> — P&amp;L, tax estimate, fixes — plain English</li>
                         </ul>
                         <p className="text-xs text-sky-600 mt-2.5">
                           {xeroMode === "demo"
@@ -1313,7 +1360,7 @@ function BooksView() {
             </div>
             <div className="flex items-center justify-center mt-2">
               <span className="text-[10px] text-stone-500">
-                Sikizana · AI Bookkeeper for Xero · Human-in-the-loop by design
+                Sikizana · Get paid faster · Human-in-the-loop by design
               </span>
             </div>
           </div>

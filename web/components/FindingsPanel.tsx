@@ -32,6 +32,12 @@ const KIND_LABELS: Record<FindingKind, string> = {
   tax_flag: "Tax flag",
 };
 
+/** Plain-English gloss per kind — the target user isn't an accountant. */
+const KIND_GLOSS: Partial<Record<FindingKind, string>> = {
+  unreconciled: "A bank transaction Xero can't match to an invoice or bill yet",
+  tax_flag: "An expense that may affect what tax you owe",
+};
+
 function severityClasses(severity: Finding["severity"]): string {
   // High = amber/red-tinted left accent; medium/low = stone.
   if (severity === "high") {
@@ -74,6 +80,10 @@ interface FindingsPanelProps {
   onAct: (finding: Finding) => void;
   /** Save a finding for later (commitment ladder — persists across sessions). */
   onSave?: (finding: Finding) => void;
+  /** Schedule automatic follow-ups for an overdue invoice (the chase loop). */
+  onAutoChase?: (finding: Finding) => void;
+  /** Findings with a chase sequence already scheduled. */
+  chasedIds?: ReadonlySet<string>;
   /** Pre-fill the chat input with a suggested prompt (clean state). */
   onSuggest: (prompt: string) => void;
   /** Suggested prompts for the clean/celebration state. */
@@ -92,6 +102,8 @@ export function FindingsPanel({
   disabled = false,
   onAct,
   onSave,
+  onAutoChase,
+  chasedIds,
   onSuggest,
   suggestions,
   compact = false,
@@ -143,6 +155,44 @@ export function FindingsPanel({
                 </div>
               )}
               <p className="text-[11px] text-stone-500 mt-1">{findingsSummary(data)}</p>
+              {/* Aged-receivables strip — the standard 30/60/90 view of
+                  who owes what, right under the money number. */}
+              {data.aging && data.aging.total_outstanding > 0 && (
+                <div className="mt-2 pt-2 border-t border-stone-100">
+                  <div className="flex h-2 rounded-full overflow-hidden bg-stone-100">
+                    {data.aging.buckets
+                      .filter((b) => b.amount > 0)
+                      .map((b) => (
+                        <div
+                          key={b.key}
+                          className={
+                            b.key === "current"
+                              ? "bg-stone-300"
+                              : b.key === "b_1_30"
+                                ? "bg-amber-300"
+                                : b.key === "b_31_60"
+                                  ? "bg-amber-500"
+                                  : b.key === "b_61_90"
+                                    ? "bg-orange-600"
+                                    : "bg-rose-600"
+                          }
+                          style={{
+                            width: `${(b.amount / data.aging!.total_outstanding) * 100}%`,
+                          }}
+                          title={`${b.label}: £${formatMoney(b.amount)}`}
+                        />
+                      ))}
+                  </div>
+                  <p className="text-[10px] text-stone-500 mt-1">
+                    {data.aging.buckets
+                      .filter((b) => b.amount > 0 && b.key !== "current")
+                      .map((b) => `${b.label}: £${formatMoney(Math.round(b.amount))}`)
+                      .join(" · ")}
+                    {data.aging.dso_days !== null &&
+                      ` · paid in ~${Math.round(data.aging.dso_days)}d on avg`}
+                  </p>
+                </div>
+              )}
             </div>
           )}
           {data?.clean && (
@@ -171,37 +221,59 @@ export function FindingsPanel({
         <ul className="mt-2 space-y-1.5" role="list">
           {visibleFindings.map((finding, i) => {
             const asked = askedIds.has(finding.id);
+            const chased = chasedIds?.has(finding.id) ?? false;
+            const chaseable =
+              finding.kind === "overdue_invoice" && !!finding.invoice_number && !!onAutoChase;
             if (compact) {
               return (
                 <li key={finding.id}>
-                  <button
-                    onClick={() => onAct(finding)}
-                    disabled={asked || disabled}
-                    className={`w-full text-left rounded-lg border p-2 fade-in-up transition-colors btn-press disabled:cursor-not-allowed ${severityClasses(finding.severity)} ${
+                  <div
+                    className={`rounded-lg border p-2 fade-in-up transition-colors ${severityClasses(finding.severity)} ${
                       asked ? "opacity-60" : "hover:border-stone-300"
                     }`}
                     style={{ animationDelay: `${Math.min(i, 8) * 40}ms`}}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs leading-none" aria-hidden="true">
-                        {KIND_ICONS[finding.kind]}
-                      </span>
-                      <span className="text-[11px] font-semibold text-stone-800 truncate flex-1">
-                        {finding.title}
-                      </span>
-                      {finding.amount > 0 && (
-                        <span className="text-[11px] font-bold text-stone-900 shrink-0">
-                          £{formatMoney(finding.amount)}
+                    <button
+                      onClick={() => onAct(finding)}
+                      disabled={asked || disabled}
+                      className="w-full text-left btn-press disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs leading-none" aria-hidden="true">
+                          {KIND_ICONS[finding.kind]}
                         </span>
+                        <span className="text-[11px] font-semibold text-stone-800 truncate flex-1">
+                          {finding.title}
+                        </span>
+                        {finding.amount > 0 && (
+                          <span className="text-[11px] font-bold text-stone-900 shrink-0">
+                            £{formatMoney(finding.amount)}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-stone-500 mt-0.5 truncate">
+                        {KIND_LABELS[finding.kind]} · {finding.detail}
+                      </p>
+                      {asked && (
+                        <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
                       )}
-                    </div>
-                    <p className="text-[10px] text-stone-500 mt-0.5 truncate">
-                      {KIND_LABELS[finding.kind]} · {finding.detail}
-                    </p>
-                    {asked && (
-                      <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
+                    </button>
+                    {chaseable && (
+                      <button
+                        onClick={() => onAutoChase!(finding)}
+                        disabled={chased || disabled}
+                        aria-label={`Schedule automatic follow-ups — ${finding.title}`}
+                        title="Schedule escalating follow-up emails; they stop the moment it's paid"
+                        className={`mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded btn-press transition-colors disabled:cursor-not-allowed ${
+                          chased
+                            ? "text-emerald-600 bg-emerald-50"
+                            : "text-amber-700 bg-amber-50 hover:bg-amber-100"
+                        }`}
+                      >
+                        {chased ? "✓ Auto-chase on" : "⚡ Auto-chase"}
+                      </button>
                     )}
-                  </button>
+                  </div>
                 </li>
               );
             }
@@ -231,6 +303,11 @@ export function FindingsPanel({
                     <p className="text-[10px] text-stone-500 mt-0.5">
                       {KIND_LABELS[finding.kind]} · {finding.detail}
                     </p>
+                    {KIND_GLOSS[finding.kind] && (
+                      <p className="text-[10px] text-stone-400 mt-0.5 italic">
+                        {KIND_GLOSS[finding.kind]}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-2 flex items-center gap-2">
@@ -246,6 +323,21 @@ export function FindingsPanel({
                   >
                     {asked ? "✓ Asked" : finding.action.label}
                   </button>
+                  {chaseable && (
+                    <button
+                      onClick={() => onAutoChase!(finding)}
+                      disabled={chased || disabled}
+                      aria-label={`Schedule automatic follow-ups — ${finding.title}`}
+                      title="Schedule escalating follow-up emails; they stop the moment it's paid"
+                      className={`text-[11px] font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
+                        chased
+                          ? "text-emerald-600 bg-emerald-50"
+                          : "text-amber-700 bg-amber-50 hover:bg-amber-100"
+                      }`}
+                    >
+                      {chased ? "✓ Auto-chase on" : "⚡ Auto-chase"}
+                    </button>
+                  )}
                   {asked && (
                     <span className="text-[10px] text-stone-500">In progress — see chat</span>
                   )}

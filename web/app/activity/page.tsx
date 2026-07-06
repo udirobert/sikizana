@@ -23,6 +23,9 @@ const EVENT_STYLES: Record<
   journal_reversed: { label: "Journal Reversed", badge: "bg-amber-100 text-amber-700", icon: "↩" },
   query_asked: { label: "Query", badge: "bg-stone-100 text-stone-600", icon: "💬" },
   tool_called: { label: "Tool Call", badge: "bg-violet-100 text-violet-700", icon: "🔧" },
+  chase_sent: { label: "Chase Email Sent", badge: "bg-amber-100 text-amber-700", icon: "✉️" },
+  chase_recovered: { label: "Invoice Paid", badge: "bg-emerald-100 text-emerald-700", icon: "💰" },
+  chase_exhausted: { label: "Chase Ladder Finished", badge: "bg-rose-100 text-rose-700", icon: "⚠️" },
 };
 
 export default function ActivityPage() {

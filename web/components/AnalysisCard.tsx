@@ -66,7 +66,31 @@ interface TrendData {
   metrics: TrendMetric[];
 }
 
-type AnalysisData = BenchmarkData | ScorecardData | TrendData;
+interface AgingBucket {
+  key: string;
+  label: string;
+  amount: number;
+  count: number;
+}
+
+interface AgingDebtor {
+  name: string;
+  total: number;
+  oldest_days: number;
+  buckets: Record<string, number>;
+}
+
+interface AgingData {
+  type: "receivables_aging";
+  total_outstanding: number;
+  total_overdue: number;
+  buckets: AgingBucket[];
+  debtors: AgingDebtor[];
+  dso_days: number | null;
+  dso_sample: number;
+}
+
+type AnalysisData = BenchmarkData | ScorecardData | TrendData | AgingData;
 
 // parseAnalysisData is no longer used — cards are now delivered via
 // streaming events, not parsed from LLM text. Kept for backward compat.
@@ -110,8 +134,11 @@ function BenchmarkCard({ data }: { data: BenchmarkData }) {
             📊 Sector Benchmark
           </span>
           <span className="text-[10px] font-medium text-stone-600">{data.sector}</span>
+          {/* Honest sourcing: these are typical ranges, not live statistics. */}
           <span className="text-[9px] text-stone-400">
-            {data.source === "live_ons" ? "live ONS data" : "curated averages"}
+            {data.source === "live_ons"
+              ? "auto-extracted from gov.uk — verify"
+              : "typical UK ranges · indicative"}
           </span>
         </div>
       </div>
@@ -121,10 +148,12 @@ function BenchmarkCard({ data }: { data: BenchmarkData }) {
           const style = VERDICT_STYLES[verdictKey] || VERDICT_STYLES.N_A;
           const userStr = m.user_value !== null ? `${m.user_value}${m.unit === "£" ? "" : m.unit === "%" ? "%" : ""}` : "N/A";
           const sectorStr = `${m.unit === "£" ? "£" : ""}${m.sector_value}${m.unit === "days" ? " days" : m.unit === "%" ? "%" : ""}`;
-          // Bar width: user value relative to sector average (capped at 200%)
-          const barWidth = m.user_value !== null && m.sector_value > 0
-            ? Math.min((m.user_value / m.sector_value) * 100, 200)
-            : 100;
+          // Both bars share one scale (largest value = full width) so the
+          // picture matches the verdict badge — a user in line with the
+          // sector must show two equal bars, not one twice as long.
+          const scaleMax = Math.max(m.user_value ?? 0, m.sector_value, 0.001);
+          const userBarWidth = m.user_value !== null ? (m.user_value / scaleMax) * 100 : 0;
+          const sectorBarWidth = (m.sector_value / scaleMax) * 100;
           return (
             <div key={m.label}>
               <div className="flex items-center justify-between text-[10px] mb-1">
@@ -140,7 +169,7 @@ function BenchmarkCard({ data }: { data: BenchmarkData }) {
                     <div className="flex-1 h-3 bg-stone-100 rounded-full overflow-hidden relative">
                       <div
                         className={`h-full rounded-full ${style.bg}`}
-                        style={{ width: `${Math.min(barWidth, 100)}%` }}
+                        style={{ width: `${userBarWidth}%` }}
                       />
                     </div>
                     <span className="font-semibold text-stone-700 w-16 text-right shrink-0">
@@ -150,7 +179,7 @@ function BenchmarkCard({ data }: { data: BenchmarkData }) {
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-stone-400 w-12 shrink-0">Sector:</span>
                     <div className="flex-1 h-3 bg-stone-50 rounded-full overflow-hidden relative">
-                      <div className="h-full bg-stone-200 rounded-full" style={{ width: "50%" }} />
+                      <div className="h-full bg-stone-200 rounded-full" style={{ width: `${sectorBarWidth}%` }} />
                     </div>
                     <span className="text-stone-500 w-16 text-right shrink-0">{sectorStr}</span>
                   </div>
@@ -250,6 +279,86 @@ function CustomerScorecard({ data }: { data: ScorecardData }) {
             </p>
           </div>
         </div>
+        <p className="text-[10px] text-stone-400 mt-1.5">
+          &quot;Cost&quot; = your time spent chasing this customer plus the interest lost while
+          their invoices sit unpaid.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Aged Receivables ────────────────────────────────────────────────
+
+const BUCKET_COLORS: Record<string, string> = {
+  current: "bg-stone-300",
+  b_1_30: "bg-amber-300",
+  b_31_60: "bg-amber-500",
+  b_61_90: "bg-orange-600",
+  b_90_plus: "bg-rose-600",
+};
+
+function AgingCard({ data }: { data: AgingData }) {
+  const maxBucket = Math.max(...data.buckets.map((b) => b.amount), 0.001);
+  return (
+    <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
+      <div className="px-3 py-2.5 border-b border-stone-100 bg-stone-50/50">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+            ⏳ Aged Receivables
+          </span>
+          <span className="text-[10px] text-stone-500">
+            {fmtMoney(data.total_outstanding)} outstanding · {fmtMoney(data.total_overdue)} past due
+          </span>
+        </div>
+      </div>
+      <div className="px-3 py-2.5 space-y-1.5">
+        {data.buckets.filter((b) => b.count > 0).map((b) => (
+          <div key={b.key} className="flex items-center gap-2 text-[10px]">
+            <span className="text-stone-500 w-20 shrink-0">{b.label}</span>
+            <div className="flex-1 h-3 bg-stone-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full ${BUCKET_COLORS[b.key] || "bg-stone-300"}`}
+                style={{ width: `${(b.amount / maxBucket) * 100}%` }}
+              />
+            </div>
+            <span className="font-semibold text-stone-700 w-16 text-right shrink-0">
+              {fmtMoney(b.amount)}
+            </span>
+            <span className="text-stone-400 w-10 shrink-0">
+              {b.count} inv{b.count === 1 ? "" : "s"}
+            </span>
+          </div>
+        ))}
+      </div>
+      {data.debtors.length > 0 && (
+        <div className="px-3 py-2.5 border-t border-stone-100">
+          <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
+            Who owes you (largest first)
+          </p>
+          <div className="space-y-1">
+            {data.debtors.map((d) => (
+              <div key={d.name} className="flex items-center justify-between gap-2 text-[11px]">
+                <span className="text-stone-700 truncate">{d.name}</span>
+                <span className="shrink-0">
+                  <span className="font-semibold text-stone-900">{fmtMoney(d.total)}</span>
+                  {d.oldest_days > 0 && (
+                    <span className={`ml-1.5 ${d.oldest_days > 60 ? "text-rose-600" : "text-stone-400"}`}>
+                      oldest {d.oldest_days}d late
+                    </span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="px-3 py-2 border-t border-stone-100 bg-stone-50/50">
+        <p className="text-[10px] text-stone-500">
+          {data.dso_days !== null
+            ? `Customers take ~${Math.round(data.dso_days)} days to pay you on average (from ${data.dso_sample} paid invoice${data.dso_sample === 1 ? "" : "s"}).`
+            : "Not enough payment history yet to measure how long customers take to pay."}
+        </p>
       </div>
     </div>
   );
@@ -351,6 +460,9 @@ export function AnalysisCard({ data }: AnalysisCardProps) {
   }
   if (data.type === "trend_analysis") {
     return <TrendChart data={data as unknown as TrendData} />;
+  }
+  if (data.type === "receivables_aging") {
+    return <AgingCard data={data as unknown as AgingData} />;
   }
   return null;
 }

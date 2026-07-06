@@ -11,7 +11,10 @@ services:
     container_name: sikizana-api
     restart: unless-stopped
     ports:
-      - "18081:8081"
+      # Localhost only: direct host access would bypass Traefik (no TLS,
+      # HSTS, or CORS) and let clients spoof X-Forwarded-For to defeat
+      # the per-IP rate limiter. Traefik routes via the Docker network.
+      - "127.0.0.1:18081:8081"
     environment:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
       - NVIDIA_MODEL=${NVIDIA_MODEL:-meta/llama-3.1-70b-instruct}
@@ -27,6 +30,10 @@ services:
       - COOKIE_SECURE=true
       - XERO_WEBHOOK_KEY=${XERO_WEBHOOK_KEY}
       - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
+      # Sessions allowed to read the operator's org via the mounted CLI
+      # profile (comma-separated). Unset = CLI fallback disabled; anonymous
+      # visitors always get demo data, never the operator's books.
+      - CLI_SESSION_IDS=${CLI_SESSION_IDS:-}
       # UK tax rates (configurable, set by HMRC)
       - CORP_TAX_SMALL_RATE=0.19
       - CORP_TAX_MAIN_RATE=0.25
@@ -50,7 +57,7 @@ services:
     container_name: sikizana-web
     restart: unless-stopped
     ports:
-      - "13001:3000"
+      - "127.0.0.1:13001:3000"
     environment:
       # Empty = same-origin /api calls via Traefik. Do NOT set to Docker
       # internal URL — the browser can't resolve container names.

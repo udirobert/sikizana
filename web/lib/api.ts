@@ -133,6 +133,8 @@ export interface JournalPostPayload {
   credit_account_code: string;
   amount: number;
   thread_id?: string;
+  /** Stable per-proposal key: double-clicks and retries can't double-post. */
+  idempotency_key?: string;
 }
 
 export interface JournalPostResponse {
@@ -163,6 +165,23 @@ export interface Finding {
   detail: string;
   days_overdue?: number;
   action: FindingAction;
+  /** Present on overdue_invoice findings — enables one-click auto-chase. */
+  invoice_number?: string;
+  invoice_id?: string;
+}
+
+export interface AgingBucketSummary {
+  key: string;
+  label: string;
+  amount: number;
+  count: number;
+}
+
+export interface AgingSummary {
+  buckets: AgingBucketSummary[];
+  total_outstanding: number;
+  /** Average days customers take to pay (from payment history); null = no history. */
+  dso_days: number | null;
 }
 
 export interface FindingsResponse {
@@ -172,13 +191,56 @@ export interface FindingsResponse {
   clean: boolean;
   /** Pre-sorted by severity then amount. */
   findings: Finding[];
+  /** Aged-receivables summary (30/60/90 buckets) — best-effort, may be null. */
+  aging?: AgingSummary | null;
+}
+
+// ---- Chase sequences (automated follow-ups) ----
+
+export interface ChaseEvent {
+  id: number;
+  sequence_id: number;
+  stage: number;
+  outcome: "sent" | "simulated" | "failed" | "skipped_paid";
+  subject: string;
+  to_email: string;
+  detail: string;
+  created_at: string;
+}
+
+export interface ChaseSequence {
+  id: number;
+  invoice_number: string;
+  contact_name: string;
+  contact_email: string;
+  amount: number;
+  due_date: string;
+  status: "active" | "completed" | "cancelled" | "exhausted";
+  simulated: number;
+  next_stage: number;
+  next_send_at: string | null;
+  events: ChaseEvent[];
+}
+
+export interface ChaseStartResponse {
+  sequence: ChaseSequence;
+  mode: XeroMode;
+  message: string;
+  stage_labels: Record<string, string>;
 }
 
 // ---- Session audit trail (/activity) ----
 
 export interface ActivityEvent {
   id: number;
-  action: "journal_posted" | "journal_reversed" | "query_asked" | "tool_called";
+  action:
+    | "journal_posted"
+    | "journal_reversed"
+    | "query_asked"
+    | "tool_called"
+    | "chase_sent"
+    | "chase_recovered"
+    | "chase_exhausted";
   description: string;
   amount: number | null;
   journal_id: string;
@@ -256,6 +318,19 @@ export const endpoints = {
 
   /** This session's audit trail — journals posted/reversed, newest first. */
   activity: () => api.get<{ events: ActivityEvent[]; aggregate: AggregateActivity }>("/api/activity"),
+
+  chase: {
+    /** Approve automatic follow-ups for one overdue invoice (server resolves
+     *  amount/contact/dates from Xero; stops on payment). */
+    start: (invoice_number: string, invoice_id?: string) =>
+      api.post<ChaseStartResponse>("/api/chase/start", { invoice_number, invoice_id }),
+    list: () =>
+      api.get<{ sequences: ChaseSequence[]; stage_labels: Record<string, string> }>(
+        "/api/chase/list",
+      ),
+    cancel: (sequence_id: number) =>
+      api.post<{ cancelled: boolean }>("/api/chase/cancel", { sequence_id }),
+  },
 
   digest: {
     /** Preview this week's digest email for the current session's books. */

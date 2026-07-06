@@ -49,8 +49,11 @@ export function ResponseSummary({ findings, isStreaming }: ResponseSummaryProps)
     <div className="mt-2 rounded-xl border border-stone-200 bg-gradient-to-br from-stone-50 to-white p-3 fade-in-up">
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
+          {/* "Books status", not "Summary" — this card is built from the
+              page-level audit findings, not from the answer above it, and
+              must not claim to summarise an unrelated response. */}
           <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">
-            Summary
+            Books status
           </p>
           <p className="text-xs text-stone-700 font-medium">
             {summary.issues}

@@ -89,21 +89,21 @@ export default function LandingPage() {
         </div>
 
         <div className="inline-block bg-sky-50 text-sky-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up" style={{ animationDelay: "100ms" }}>
-          AI Finance Assistant · Works with Xero
+          Get Paid Faster · Works with Xero
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up" style={{ animationDelay: "200ms" }}>
           Stop money slipping away.
           <br />
           <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-            Understand your numbers.
+            Get your invoices paid.
           </span>
         </h1>
 
         <p className="mt-6 text-lg text-stone-600 max-w-xl mx-auto fade-in-up" style={{ animationDelay: "300ms" }}>
-          Siki reads your Xero data, finds overdue invoices before they hurt your cash flow,
-          explains your P&amp;L in plain English, estimates your tax bill, and fixes discrepancies —
-          all in seconds, not the 3 days an accountant would take.
+          Siki reads your Xero data, shows exactly who owes you what and for how long,
+          tells you what&apos;s normal for your industry, and drafts the chasing emails that
+          actually get you paid — plus tax estimates and a plain-English P&amp;L on the side.
         </p>
 
         <div className="mt-8 flex items-center justify-center gap-3 flex-wrap fade-in-up" style={{ animationDelay: "400ms" }}>
@@ -195,7 +195,7 @@ export default function LandingPage() {
               step: "3",
               icon: "approve",
               title: "You approve",
-              body: "Siki proposes journal entries to fix discrepancies. You review and click approve. Everything posts back to Xero.",
+              body: "Siki drafts the chasing email or the bookkeeping fix. You review and approve — nothing is sent or posted without you.",
             },
           ].map((item, i) => (
             <div
@@ -236,12 +236,12 @@ export default function LandingPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {[
-              { title: "Stop money slipping away", desc: "Shows exactly who hasn't paid, how much is outstanding, and how long it's overdue — before it hurts your cash flow.", emoji: "💰" },
-              { title: "Estimate your tax bill", desc: "Calculates your UK Corporation Tax, flags non-deductible expenses, and finds deductions you might be missing.", emoji: "📊" },
+              { title: "See who owes you", desc: "An aged receivables view — 30/60/90 days — of every unpaid invoice, so you know who to chase first and how urgently.", emoji: "💰" },
+              { title: "Chase with proven tactics", desc: "Escalating reminder emails built on negotiation psychology, with statutory interest and late-payment compensation calculated for you.", emoji: "✉️" },
+              { title: "Know what's normal", desc: "Compares your payment times and overdue rate against typical UK ranges for your sector — so you know if you're being taken advantage of.", emoji: "📊" },
+              { title: "Spot bad customers", desc: "Scores every customer's payment reliability (red/amber/green) and flags the ones who cost more to chase than they're worth.", emoji: "🚦" },
+              { title: "Estimate your tax bill", desc: "Calculates your UK Corporation Tax, flags non-deductible expenses — and reminds you that you pay tax on invoiced money even before it's paid.", emoji: "🏛️" },
               { title: "Explain your P&L", desc: "Translates your profit & loss into plain English. No more guessing what the numbers mean.", emoji: "📈" },
-              { title: "Fix discrepancies", desc: "Suggests journal entries to fix errors. You approve, Siki posts directly to Xero — human-in-the-loop by design.", emoji: "✍️" },
-              { title: "Audit your books", desc: "Scans for unreconciled transactions and discrepancies in seconds. An accountant would charge £200+ and take 3 days.", emoji: "🔍" },
-              { title: "Receipt extraction", desc: "Upload a receipt and Siki reads it, categorizes it, and matches it to a bank transaction.", emoji: "🧾" },
             ].map((feat, i) => (
               <div
                 key={feat.title}
@@ -267,11 +267,11 @@ export default function LandingPage() {
             <SikiMascot size={120} mood="celebrate" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 relative">
-            Ready to stop money slipping away?
+            Ready to get paid?
           </h2>
           <p className="text-sky-100 mb-8 relative">
-            Connect your Xero account and get your first audit — overdue invoices, tax estimate,
-            and plain-English P&L — in under 30 seconds.
+            Connect your Xero account and see who owes you what — aged by 30/60/90 days,
+            with a chasing plan for each debtor — in under 30 seconds.
           </p>
           <Link
             href="/books?connect=1"

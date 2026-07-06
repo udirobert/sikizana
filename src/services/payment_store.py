@@ -145,6 +145,42 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_metrics_date ON metric_snapshots(captured_at);
     """,
     ),
+    (
+        7,
+        """
+        CREATE TABLE IF NOT EXISTS chase_sequences (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            invoice_id TEXT DEFAULT '',
+            invoice_number TEXT NOT NULL,
+            contact_name TEXT NOT NULL,
+            contact_email TEXT DEFAULT '',
+            amount REAL NOT NULL,
+            due_date TEXT DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'active',
+            simulated INTEGER NOT NULL DEFAULT 0,
+            next_stage INTEGER NOT NULL DEFAULT 1,
+            next_send_at TEXT,
+            reply_to TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_chase_session ON chase_sequences(session_id);
+        CREATE INDEX IF NOT EXISTS idx_chase_due ON chase_sequences(status, next_send_at);
+
+        CREATE TABLE IF NOT EXISTS chase_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sequence_id INTEGER NOT NULL REFERENCES chase_sequences(id),
+            stage INTEGER NOT NULL,
+            outcome TEXT NOT NULL,
+            subject TEXT DEFAULT '',
+            to_email TEXT DEFAULT '',
+            detail TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_chase_events_seq ON chase_events(sequence_id);
+    """,
+    ),
 ]
 
 

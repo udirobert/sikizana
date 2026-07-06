@@ -24,9 +24,10 @@ const TIERS: Array<{
     plan: "free",
     price: "£0",
     period: "forever",
-    tagline: "See what Siki finds in your books",
+    tagline: "See who owes you money",
     features: [
       "Connect your Xero — free audit of your real books",
+      "Aged receivables: who owes what, 30/60/90 days",
       "Finds overdue invoices & unreconciled transactions",
       "P&L explanation in plain English",
       "5 AI queries per month",
@@ -38,15 +39,15 @@ const TIERS: Array<{
     plan: "pro",
     price: "£29",
     period: "per month",
-    tagline: "Let Siki fix what it finds",
+    tagline: "Let Siki chase what you're owed",
     features: [
       "Everything in Free, plus:",
-      "Journal entries posted to Xero (with your approval)",
-      "One-tap reversal of any posted entry",
-      "Invoice chasing — escalating reminder emails",
+      "Invoice chasing — escalating reminders with statutory interest & compensation",
+      "Customer payment scoring — spot who's costing you money",
+      "Sector benchmarks — know what's normal for your industry",
       "Unlimited AI queries",
+      "Bookkeeping fixes posted to Xero (with your approval)",
       "Tax insights (Corporation Tax estimate)",
-      "Receipt scanning & matching",
       "Weekly email digest",
     ],
     highlight: true,
@@ -161,7 +162,7 @@ export default function PricingPage() {
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                AI Bookkeeper for Xero
+                Get paid faster · Works with Xero
               </p>
             </div>
           </div>
@@ -185,11 +186,12 @@ export default function PricingPage() {
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="text-center mb-10 fade-in-up">
           <h2 className="text-3xl font-bold text-stone-900 mb-2">
-            Simple pricing that pays for itself
+            Cheaper than one written-off invoice
           </h2>
           <p className="text-sm text-stone-500 max-w-lg mx-auto">
-            One hour of an accountant&apos;s time costs £40-60. Sikizana replaces 3-5 hours
-            of bookkeeping every month — for less than the cost of a single hour.
+            The average small business writes off hundreds of pounds a year in invoices
+            that were never chased properly. Sikizana chases what you&apos;re owed, shows
+            you what&apos;s normal for your industry — and costs less than losing one of them.
           </p>
           {me?.authenticated && me.email && (
             <p className="text-[11px] text-stone-400 mt-2">

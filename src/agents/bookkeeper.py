@@ -22,10 +22,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.tools.xero_tools import (
-    create_xero_journal_entry,
     draft_invoice_reminder,
     find_discrepancies,
     get_chasing_strategy,
+    get_receivables_aging,
     get_savings_opportunities,
     get_sector_benchmarks,
     get_tax_insights,
@@ -230,6 +230,14 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
+            "name": "get_receivables_aging",
+            "description": "Aged receivables report — buckets every unpaid sales invoice into not-yet-due / 1-30 / 31-60 / 61-90 / 90+ days overdue, grouped by debtor, with average days-to-get-paid from real payment history. THE standard view of who owes what and how urgently. Call this first when the user asks who owes them money, about cash flow, or about their receivables.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "get_xero_chart_of_accounts",
             "description": "List the chart of accounts from Xero — account codes, names, and types. Useful for proposing journal entries.",
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -293,7 +301,7 @@ _TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "propose_journal_entry",
-            "description": "Propose a journal entry to fix a discrepancy. Requires debit and credit account codes and an amount. The entry must balance (debit = credit). Returns the proposed entry for user approval.",
+            "description": "Propose a journal entry to fix a discrepancy. Requires debit and credit account codes and an amount. The entry must balance (debit = credit). The proposal is shown to the user as a card with an Approve button — posting to Xero happens ONLY through that button, never through you.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -318,35 +326,10 @@ _TOOL_DEFS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "create_xero_journal_entry",
-            "description": "Create and post a manual journal entry directly to Xero. This is the WRITE-BACK action — only call this AFTER the user has approved a proposed journal entry. Requires the same parameters as propose_journal_entry.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "description": "Description of what the journal entry is for",
-                    },
-                    "debit_account_code": {
-                        "type": "string",
-                        "description": "The account code to debit",
-                    },
-                    "credit_account_code": {
-                        "type": "string",
-                        "description": "The account code to credit",
-                    },
-                    "amount": {
-                        "type": "number",
-                        "description": "The amount in the organisation's base currency",
-                    },
-                },
-                "required": ["description", "debit_account_code", "credit_account_code", "amount"],
-            },
-        },
-    },
+    # NOTE: create_xero_journal_entry is deliberately NOT exposed to the
+    # LLM. Posting to Xero is a real-money write; the only path is the
+    # /api/xero/journal endpoint behind the Approve button, so a model
+    # that misreads "sounds right" as approval can never move money.
     {
         "type": "function",
         "function": {
@@ -426,7 +409,7 @@ _TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "get_sector_benchmarks",
-            "description": "Compare the user's receivables days, overdue rate, and average invoice value against ONS sector averages. Detects the sector from the org name if not specified. Helps the user understand whether their numbers are normal for their industry. Use when the user asks 'is this normal', 'how do I compare', or about industry benchmarks.",
+            "description": "Compare the user's receivables days, overdue rate, and average invoice value against typical UK ranges for their sector (curated from ONS/DBT small-business publications — indicative, not live statistics; the tool labels its sources honestly). Guesses the sector from the org name if not specified and says so. Use when the user asks 'is this normal', 'how do I compare', or about industry benchmarks.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -477,6 +460,7 @@ _TOOL_DEFS = [
 # Map tool names to actual Python functions
 _TOOL_FUNCS = {
     "find_discrepancies": find_discrepancies,
+    "get_receivables_aging": get_receivables_aging,
     "get_xero_organisation": get_xero_organisation,
     "get_xero_transactions": get_xero_transactions,
     "get_xero_invoices": get_xero_invoices,
@@ -486,7 +470,6 @@ _TOOL_FUNCS = {
     "get_xero_contacts": get_xero_contacts,
     "match_receipt_to_transaction": match_receipt_to_transaction,
     "propose_journal_entry": propose_journal_entry,
-    "create_xero_journal_entry": create_xero_journal_entry,
     "get_tax_insights": get_tax_insights,
     "lookup_tax_rule": lookup_tax_rule,
     "draft_invoice_reminder": draft_invoice_reminder,
@@ -618,6 +601,7 @@ async def run_bookkeeper_streaming(
     # Human-readable tool name mapping
     tool_labels = {
         "find_discrepancies": "Auditing books for discrepancies",
+        "get_receivables_aging": "Building aged receivables report",
         "get_xero_organisation": "Reading organisation details",
         "get_xero_transactions": "Fetching bank transactions",
         "get_xero_invoices": "Fetching invoices",
@@ -784,7 +768,6 @@ async def run_bookkeeper_streaming(
             messages.append(assistant_msg)
 
             # Execute each tool call
-            proposed_this_turn = False
             for i, t in enumerate(ordered):
                 tool_name = t["name"]
                 tool_call_id = t["id"] or f"call_{i}"
@@ -826,12 +809,16 @@ async def run_bookkeeper_streaming(
 
                 tool_call_history.append(call_sig)
 
-                # Safety: block create_xero_journal_entry if proposed in same turn
-                if tool_name == "create_xero_journal_entry" and proposed_this_turn:
+                # Hard guard: the write-back tool is not in _TOOL_DEFS, but a
+                # model can still hallucinate a call to it (or replay one from
+                # an old conversation). Never execute it — posting to Xero
+                # only happens via the Approve button's endpoint.
+                if tool_name == "create_xero_journal_entry":
                     result = (
-                        "BLOCKED: You just proposed this journal entry. You must wait for the user to approve it "
-                        "in their next message before calling create_xero_journal_entry. "
-                        "Ask the user: 'Would you like me to post this journal entry to Xero? Reply approve to confirm.'"
+                        "BLOCKED: You cannot post journal entries to Xero. The entry you proposed "
+                        "is shown to the user as a card with an Approve button — posting happens "
+                        "only when the user clicks Approve. Tell the user to review the card and "
+                        "approve it there if they're happy with it."
                     )
                     yield {
                         "type": "tool_call",
@@ -843,7 +830,7 @@ async def run_bookkeeper_streaming(
                         "type": "tool_result",
                         "tool": tool_name,
                         "label": tool_labels.get(tool_name, tool_name),
-                        "summary": "Blocked — waiting for user approval",
+                        "summary": "Blocked — posting happens via the Approve button",
                     }
                     messages.append(
                         {
@@ -853,10 +840,6 @@ async def run_bookkeeper_streaming(
                         }
                     )
                     continue
-
-                # Track if a journal entry was proposed this turn
-                if tool_name == "propose_journal_entry":
-                    proposed_this_turn = True
 
                 # Stream the tool call event
                 yield {

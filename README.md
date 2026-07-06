@@ -1,11 +1,16 @@
-# Sikizana — AI Finance Assistant for Xero
+# Sikizana — Get Paid Faster, with Xero
 
-**Stop money slipping away. Estimate your tax bill. Fix discrepancies. All in plain English.**
+**Stop money slipping away. See who owes you what, learn what's normal for your industry, and chase effectively.**
 
-Sikizana is an AI finance assistant that connects to Xero and acts
-as a 24/7 bookkeeper for small businesses. It finds overdue invoices,
-flags unreconciled transactions, estimates UK Corporation Tax, cites
-HMRC rules, and posts journal entries — with human-in-the-loop approval.
+Sikizana is an AI credit controller (and bookkeeper) that connects to
+Xero. It builds an aged receivables view (30/60/90 days by debtor),
+scores customers' payment reliability, compares your numbers against
+typical UK sector ranges, drafts escalating chasing emails with
+statutory interest and fixed-sum compensation calculated, and lays out
+the escalation path from friendly reminder to formal action. On the
+side: plain-English P&L, UK Corporation Tax estimates with HMRC
+citations, and bookkeeping fixes posted to Xero with human-in-the-loop
+approval.
 
 Built for the Xero Hackathon.
 
@@ -24,20 +29,25 @@ Built for the Xero Hackathon.
 
 ## The Problem
 
-4.4 million small businesses use Xero. Most don't have an accountant.
-They log transactions but never reconcile, ignore overdue invoices, and
-don't understand their P&L. When discrepancies pile up, they pay
-£200+ for a human bookkeeper — or they let it slide and lose money.
+4.4 million small businesses use Xero. Most don't have an accountant —
+or a credit controller. They're owed money they never chase, don't know
+whether their late payers are normal or outrageous for their industry,
+and don't know the escalation options (statutory interest, fixed-sum
+compensation, letter before action) that UK law gives them. Meanwhile
+the books drift: unreconciled transactions pile up and the P&L stays
+opaque.
 
 ## The Solution
 
 Siki the Owl is an AI agent that:
 1. **Audits automatically** — runs on page load, before the user types anything
-2. **Finds money** — identifies overdue invoices and unreconciled transactions
-3. **Estimates tax** — calculates UK Corporation Tax, flags non-deductible expenses
-4. **Cites HMRC rules** — references official guidance (BIM45010, EIM31240, etc.)
-5. **Fixes things** — proposes journal entries, posts them to Xero after approval
-6. **Explains everything** — translates accounting jargon into plain English
+2. **Ages the receivables** — who owes what, bucketed 30/60/90 days, plus true days-to-get-paid
+3. **Chases effectively** — escalating reminder emails (negotiation-psychology based) with statutory interest and compensation calculated
+4. **Benchmarks honestly** — compares against typical UK sector ranges, clearly labelled as indicative
+5. **Scores customers** — RED/AMBER/GREEN payment reliability, flags customers who cost more than they're worth
+6. **Estimates tax** — UK Corporation Tax, non-deductible flags, HMRC citations (BIM45010, EIM31240, etc.)
+7. **Fixes things** — proposes journal entries; posting happens only via the user's Approve button
+8. **Explains everything** — translates accounting jargon into plain English
 
 ---
 
@@ -70,6 +80,9 @@ falling back to the operator's CLI org, falling back to seeded demo data
 - **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow (SQLite state store, locked token refresh)
 - **Vision**: `src/tools/vision_audit.py` — Gemini Vision receipt matching
 - **Storage**: `src/services/payment_store.py` — feedback, audit history, impact + webhook events
+- **Chase loop**: `src/services/chasing.py` (5-stage ladder incl. Letter Before Action), `src/services/chase_store.py` (sequences), `src/jobs/run_chases.py` (daily cron: re-checks payment in Xero, sends the due stage, stops on payment)
+- **Rates**: `src/services/rates.py` — single source of truth for statutory interest (8% + Bank Rate) and £40/£70/£100 fixed-sum compensation
+- **Receivables**: `src/services/receivables.py` — aged 30/60/90 buckets by debtor + true days-to-get-paid
 - **Tests**: `tests/` — report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools
 
 ### Frontend (Next.js / React / Tailwind)

@@ -295,12 +295,15 @@ def create_manual_journal(
     debit_account_code: str,
     credit_account_code: str,
     amount: float,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     """
     Post a manual journal (the write-back action). Sent with an
     Idempotency-Key so a retried request can never create a duplicate
-    entry in the user's books. Raises XeroApiError on failure — a failed
-    financial write must never look like success.
+    entry in the user's books. Callers should pass a stable per-proposal
+    key so user-level retries are covered too; without one, a fresh key
+    only protects the internal retry loop. Raises XeroApiError on
+    failure — a failed financial write must never look like success.
     """
     body = {
         "Narration": narration,
@@ -315,7 +318,7 @@ def create_manual_journal(
         "ManualJournals",
         session_id,
         json_body=body,
-        idempotency_key=str(uuid.uuid4()),
+        idempotency_key=idempotency_key or str(uuid.uuid4()),
     )
     journals = data.get("ManualJournals", [])
     journal = journals[0] if journals else {}

@@ -3,6 +3,15 @@
 import { useState } from "react";
 import { ApiError, endpoints, type JournalPostResponse } from "@/lib/api";
 
+/** Stable per-card keys so a retried or double-submitted post/reversal can
+ * never create a duplicate journal in Xero (backend passes them through as
+ * the Idempotency-Key header). */
+function newIdempotencyKey(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `jk-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+}
+
 /**
  * JournalEntryCard — visual card for a proposed journal entry.
  *
@@ -51,6 +60,9 @@ export function JournalEntryCard({
   >("idle");
   const [reverseMessage, setReverseMessage] = useState<string | null>(null);
   const [reverseError, setReverseError] = useState<string | null>(null);
+  // Fixed for the card's lifetime — retries reuse the same key.
+  const [postKey] = useState(newIdempotencyKey);
+  const [reverseKey] = useState(newIdempotencyKey);
 
   const handleApprove = async () => {
     if (status === "posting") return;
@@ -63,6 +75,7 @@ export function JournalEntryCard({
         credit_account_code: creditAccount,
         amount,
         thread_id: threadId || undefined,
+        idempotency_key: postKey,
       });
       setResult(res);
       setStatus("posted");
@@ -96,6 +109,7 @@ export function JournalEntryCard({
         credit_account_code: creditAccount,
         amount,
         thread_id: threadId || undefined,
+        idempotency_key: reverseKey,
       });
       setReverseMessage(res.message);
       setReverseState("reversed");
@@ -169,12 +183,23 @@ export function JournalEntryCard({
           </div>
         </div>
 
-        {/* Balanced indicator */}
-        <div className="mt-3 pt-2 border-t border-stone-100 flex items-center gap-1.5">
-          <svg aria-hidden="true" className="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-[10px] text-stone-500">Balanced · Debits = Credits</span>
+        {/* Balanced indicator + plain-English gloss */}
+        <div className="mt-3 pt-2 border-t border-stone-100">
+          <div className="flex items-center gap-1.5">
+            <svg aria-hidden="true" className="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-[10px] text-stone-500">Balanced · Debits = Credits</span>
+          </div>
+          <p className="text-[10px] text-stone-400 mt-1">
+            In plain English: this records £
+            {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} against{" "}
+            <span className="font-medium text-stone-500">{debitAccountName || `account ${debitAccount}`}</span>{" "}
+            (Dr = where the value goes) and{" "}
+            <span className="font-medium text-stone-500">{creditAccountName || `account ${creditAccount}`}</span>{" "}
+            (Cr = where it comes from). Nothing leaves your bank — it corrects how the amount
+            is categorised in your books.
+          </p>
         </div>
 
         {/* Post error — entry stays approvable */}
@@ -248,9 +273,9 @@ export function JournalEntryCard({
           // Parsing couldn't extract a trustworthy entry — never post garbage.
           <div className="px-4 py-3 bg-stone-50 border-t border-stone-200">
             <p className="text-xs text-stone-600">
-              I couldn&apos;t read every detail of this entry reliably. Reply{" "}
-              <span className="font-semibold">&quot;approve&quot;</span> in the chat and the agent
-              will post it for you.
+              I couldn&apos;t read every detail of this entry reliably, so one-click posting is
+              disabled. Ask the agent to propose the entry again with the exact accounts and
+              amount, and a fresh card will appear here.
             </p>
           </div>
         ) : (

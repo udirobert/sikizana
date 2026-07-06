@@ -14,6 +14,7 @@ from datetime import date
 from typing import Any
 
 from src.services.xero_service import XeroService
+from src.services.rates import daily_statutory_interest
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.findings")
@@ -29,7 +30,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
 
     # --- Overdue invoices: money the business is owed ---
     # Loss aversion framing: "£X is slipping away" instead of "£X you're owed"
-    # Cost-of-inaction: statutory interest accrues at 8% + Bank Rate (~13.5% APR)
+    # Cost-of-inaction: statutory interest accrues at 8% + Bank Rate
     overdue = svc.find_overdue_invoices()
     money_found = 0.0
     for inv in overdue:
@@ -43,9 +44,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         days = _days_overdue(inv.get("dueDate", ""), today)
         number = inv.get("invoiceNumber", "?")
         contact = (inv.get("contact") or {}).get("name", "Unknown")
-        # Statutory interest: 8% + Bank Rate (4.75% as of 2025) = ~13.5% APR
-        # Daily rate = 13.5% / 365 ≈ 0.037%
-        daily_interest = round(amount * 0.135 / 365, 2)
+        daily_interest = round(daily_statutory_interest(amount), 2)
         finding = {
             "id": f"inv-{inv.get('id', number)}",
             "kind": kind,
@@ -55,6 +54,10 @@ def build_findings(session_id: str) -> dict[str, Any]:
             "detail": f"{days} day{'s' if days != 1 else ''} late · losing £{daily_interest}/day in interest",
             "days_overdue": days,
             "daily_interest": daily_interest,
+            # For the one-click auto-chase button — the chase endpoint
+            # re-resolves everything from Xero, it only needs the reference.
+            "invoice_number": number,
+            "invoice_id": inv.get("id", ""),
         }
         if kind == "overdue_invoice":
             finding["action"] = {
@@ -115,12 +118,28 @@ def build_findings(session_id: str) -> dict[str, Any]:
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     findings.sort(key=lambda f: (severity_rank.get(f["severity"], 3), -f.get("amount", 0)))
 
+    # Aged-receivables summary for the panel header (30/60/90 buckets +
+    # days-to-get-paid) — the standard credit-control view, best-effort.
+    aging = None
+    try:
+        from src.services.receivables import build_aging
+
+        full = build_aging(svc)
+        aging = {
+            "buckets": full["buckets"],
+            "total_outstanding": full["total_outstanding"],
+            "dso_days": full["dso"]["days"],
+        }
+    except Exception as exc:  # noqa: BLE001
+        log.warning("aging_unavailable", extra={"error": str(exc)})
+
     return {
         "mode": mode,
         "money_found": round(money_found, 2),
         "counts": counts,
         "clean": not findings,
         "findings": findings,
+        "aging": aging,
     }
 
 

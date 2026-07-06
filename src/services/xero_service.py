@@ -16,6 +16,7 @@ Every method reports which mode served it via `self.mode()` so callers
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import threading
@@ -28,6 +29,13 @@ from src.services import xero_api
 from src.services.xero_api import XeroApiError
 
 log = get_logger("sikizana.xero")
+
+# The CLI profile belongs to the OPERATOR's Xero org. It must never serve
+# anonymous visitors — otherwise every session without its own OAuth would
+# read (and write to!) the operator's real books. Only sessions listed in
+# CLI_SESSION_IDS (comma-separated) may resolve to live-cli; unset means
+# the CLI fallback is disabled and such sessions get demo data instead.
+_CLI_SESSION_IDS = {s.strip() for s in os.getenv("CLI_SESSION_IDS", "").split(",") if s.strip()}
 
 
 def _cli_available() -> bool:
@@ -522,12 +530,22 @@ class XeroService:
         """Which source will serve this session: live-oauth | live-cli | demo."""
         if xero_api.is_connected(self.session_id):
             return "live-oauth"
-        if _cli_authenticated():
+        if self._cli_allowed() and _cli_authenticated():
             return "live-cli"
         return "demo"
 
     def is_live(self) -> bool:
         return self.mode() != "demo"
+
+    def _cli_allowed(self) -> bool:
+        """CLI data is the operator's org — allowlisted sessions only."""
+        return self.session_id in _CLI_SESSION_IDS
+
+    def _cli(self, args: list[str], timeout: int = 30) -> dict[str, Any] | list[Any] | None:
+        """Session-gated CLI runner: None (fall through to mock) unless allowed."""
+        if not self._cli_allowed():
+            return None
+        return _run_cli(args, timeout=timeout)
 
     def _oauth(self, fetch, label: str):
         """
@@ -552,7 +570,7 @@ class XeroService:
         via_oauth = self._oauth(lambda: xero_api.get_organisation(self.session_id), "organisation")
         if via_oauth:
             return via_oauth
-        live = _run_cli(["org", "details"])
+        live = self._cli(["org", "details"])
         if live is not None:
             # CLI returns a list of orgs; take the first one
             if isinstance(live, list):
@@ -566,7 +584,7 @@ class XeroService:
         via_oauth = self._oauth(lambda: xero_api.list_accounts(self.session_id), "accounts")
         if via_oauth is not None:
             return via_oauth
-        live = _run_cli(["accounts", "list"])
+        live = self._cli(["accounts", "list"])
         if live is not None:
             return live  # type: ignore[return-value]
         return _MOCK_ACCOUNTS
@@ -596,7 +614,7 @@ class XeroService:
         via_oauth = self._oauth(lambda: xero_api.list_contacts(self.session_id), "contacts")
         if via_oauth is not None:
             return via_oauth
-        live = _run_cli(["contacts", "list"])
+        live = self._cli(["contacts", "list"])
         if live is not None:
             return live  # type: ignore[return-value]
         return _MOCK_CONTACTS
@@ -618,7 +636,7 @@ class XeroService:
         else:
             # The Xero CLI's `invoices list` doesn't support --status/--type
             # flags, so we fetch all and filter client-side.
-            live = _run_cli(["invoices", "list"])
+            live = self._cli(["invoices", "list"])
             result = live if live is not None else list(_MOCK_INVOICES)  # type: ignore[assignment]
             if status:
                 result = [i for i in result if i.get("status") == status.upper()]
@@ -640,7 +658,7 @@ class XeroService:
         else:
             # The Xero CLI's `bank-transactions list` doesn't support --type,
             # so we fetch all and filter client-side.
-            live = _run_cli(["bank-transactions", "list"])
+            live = self._cli(["bank-transactions", "list"])
             result = live if live is not None else list(_MOCK_BANK_TXNS)  # type: ignore[assignment]
         if txn_type:
             result = [t for t in result if t.get("type") == txn_type.upper()]
@@ -649,7 +667,7 @@ class XeroService:
     # ---- Payments ----
 
     def list_payments(self) -> list[dict[str, Any]]:
-        live = _run_cli(["payments", "list"])
+        live = self._cli(["payments", "list"])
         if live is not None:
             return live  # type: ignore[return-value]
         return _MOCK_PAYMENTS
@@ -677,7 +695,7 @@ class XeroService:
             args += ["--from", from_date]
         if to_date:
             args += ["--to", to_date]
-        live = _run_cli(args)
+        live = self._cli(args)
         if live is not None:
             return _parse_report(live)  # type: ignore[arg-type]
         pl = dict(_MOCK_PL)
@@ -698,7 +716,7 @@ class XeroService:
         args = ["reports", "balance-sheet"]
         if as_of:
             args += ["--date", as_of]
-        live = _run_cli(args)
+        live = self._cli(args)
         if live is not None:
             return _parse_report(live)  # type: ignore[arg-type]
         bs = dict(_MOCK_BALANCE_SHEET)
@@ -717,7 +735,7 @@ class XeroService:
         args = ["reports", "trial-balance"]
         if as_of:
             args += ["--date", as_of]
-        live = _run_cli(args)
+        live = self._cli(args)
         if live is not None:
             return live  # type: ignore[return-value]
         tb = dict(_MOCK_TRIAL_BALANCE)
@@ -775,6 +793,7 @@ class XeroService:
         debit_account_code: str,
         credit_account_code: str,
         amount: float,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """
         Post a manual journal entry. Returns
@@ -782,6 +801,8 @@ class XeroService:
 
         A failed live write RAISES — it must never be reported as success.
         In demo mode nothing is written and the response says so explicitly.
+        A client-supplied idempotency_key makes user-level retries (double
+        click, timeout + resubmit) safe, not just the internal retry loop.
         """
         mode = self.mode()
 
@@ -793,6 +814,7 @@ class XeroService:
                 debit_account_code=debit_account_code,
                 credit_account_code=credit_account_code,
                 amount=amount,
+                idempotency_key=idempotency_key,
             )
             return {
                 "posted": True,
@@ -802,7 +824,7 @@ class XeroService:
             }
 
         if mode == "live-cli":
-            result = _run_cli(
+            result = self._cli(
                 [
                     "manual-journals",
                     "create",

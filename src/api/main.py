@@ -64,16 +64,19 @@ app.add_middleware(
 # Every browser gets an anonymous HttpOnly session cookie. Xero tokens,
 # conversations, and journal write-backs are all scoped to it, so one
 # visitor can never see (or post to) another visitor's books. A `session`
-# query param is accepted as a fallback for non-browser clients.
+# query param is accepted for non-browser clients, but it is never written
+# into the cookie: the session ID is the credential that guards Xero
+# tokens, so a crafted ?session= link must not be able to plant a known
+# ID in a victim's browser (session fixation).
 
 _SESSION_COOKIE = "sikizana_session"
 _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+# Generated IDs are token_urlsafe(24) = 32 chars; anything shorter (e.g.
+# "default", which collides with the agent's fallback session) is rejected.
+_MIN_PARAM_SESSION_LEN = 22
 
 
-def get_session_id(request: Request, response: Response, session: str | None = None) -> str:
-    sid = request.cookies.get(_SESSION_COOKIE) or session
-    if not sid or len(sid) > 64:
-        sid = secrets.token_urlsafe(24)
+def _set_session_cookie(response: Response, sid: str) -> None:
     response.set_cookie(
         _SESSION_COOKIE,
         sid,
@@ -82,6 +85,19 @@ def get_session_id(request: Request, response: Response, session: str | None = N
         secure=_COOKIE_SECURE,
         max_age=60 * 60 * 24 * 90,
     )
+
+
+def get_session_id(request: Request, response: Response, session: str | None = None) -> str:
+    sid = request.cookies.get(_SESSION_COOKIE)
+    if sid and len(sid) <= 64:
+        _set_session_cookie(response, sid)  # refresh expiry on activity
+        return sid
+    # Non-browser fallback: honour the param for this request only —
+    # never persist it into the cookie.
+    if session and _MIN_PARAM_SESSION_LEN <= len(session) <= 64:
+        return session
+    sid = secrets.token_urlsafe(24)
+    _set_session_cookie(response, sid)
     return sid
 
 
@@ -745,7 +761,7 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
 
 
 @app.get("/api/xero/callback")
-async def xero_callback(code: str, state: str):
+async def xero_callback(code: str, state: str, request: Request):
     """
     Handle the Xero OAuth callback.
 
@@ -763,6 +779,18 @@ async def xero_callback(code: str, state: str):
             status_code=400, detail="Invalid or expired OAuth state. Please try again."
         )
     session_id, code_verifier = state_result
+
+    # The browser completing the flow must be the one that started it:
+    # tokens must only ever land in the session whose cookie this browser
+    # already holds. Blocks login-CSRF (attacker-initiated state completed
+    # by a victim would bind the victim's org to the attacker's session).
+    cookie_sid = request.cookies.get(_SESSION_COOKIE)
+    if cookie_sid != session_id:
+        log.warning("xero_oauth_session_mismatch")
+        return RedirectResponse(
+            url="/books?connected=false&error=session_mismatch",
+            status_code=302,
+        )
 
     try:
         result = await asyncio.to_thread(exchange_code, code, session_id, code_verifier)
@@ -829,6 +857,9 @@ class JournalEntryRequest(BaseModel):
     credit_account_code: str = Field(..., min_length=1, max_length=20)
     amount: float = Field(..., gt=0, le=1_000_000)
     thread_id: str | None = Field(default=None, max_length=64)
+    # Stable per-proposal key from the client so a double-clicked Approve
+    # (or a retry after a slow response) can never post the entry twice.
+    idempotency_key: str | None = Field(default=None, min_length=8, max_length=64)
 
 
 @app.post("/api/xero/journal")
@@ -870,6 +901,7 @@ async def xero_post_journal(
             debit_account_code=req.debit_account_code,
             credit_account_code=req.credit_account_code,
             amount=req.amount,
+            idempotency_key=req.idempotency_key,
         )
 
     try:
@@ -945,6 +977,7 @@ async def xero_reverse_journal(
             debit_account_code=req.credit_account_code,
             credit_account_code=req.debit_account_code,
             amount=req.amount,
+            idempotency_key=req.idempotency_key,
         )
 
     try:
@@ -970,6 +1003,122 @@ async def xero_reverse_journal(
         else result["message"]
     )
     return result
+
+
+# ---- Chase sequences (the automated follow-up loop) ----
+
+
+class ChaseStartRequest(BaseModel):
+    invoice_number: str = Field(..., min_length=1, max_length=64)
+    invoice_id: str = Field(default="", max_length=64)
+
+
+@app.post("/api/chase/start")
+async def chase_start(
+    req: ChaseStartRequest,
+    request: Request,
+    session_id: str = Depends(get_session_id),
+):
+    """
+    Approve automatic follow-ups for one overdue invoice. This button IS
+    the approval: from here the daily runner sends the escalating stage
+    emails on the ladder dates and stops the moment the invoice is paid.
+
+    Everything about the invoice (amount, contact, due date, email) is
+    resolved server-side from Xero — client-supplied figures are never
+    trusted for emails that cite statutory interest.
+    """
+    from src.services.xero_service import XeroService
+    from src.services import chase_store
+    from src.services.chasing import STAGE_LABELS
+
+    _check_rate_limit(request)
+
+    def _resolve_and_create():
+        svc = XeroService(session_id)
+        mode = svc.mode()
+        invoices = svc.list_invoices(invoice_type="ACCREC")
+        inv = next(
+            (
+                i
+                for i in invoices
+                if (req.invoice_id and i.get("id") == req.invoice_id)
+                or i.get("invoiceNumber") == req.invoice_number
+            ),
+            None,
+        )
+        if inv is None:
+            raise HTTPException(status_code=404, detail="Invoice not found in your Xero data.")
+        amount_due = float(inv.get("amountDue", 0) or 0)
+        if inv.get("status") != "AUTHORISED" or amount_due <= 0:
+            raise HTTPException(status_code=400, detail="That invoice is already settled.")
+
+        contact_name = (inv.get("contact") or {}).get("name", "Unknown")
+        contact_email = ""
+        try:
+            for c in svc.list_contacts():
+                if c.get("name", "").lower() == contact_name.lower():
+                    contact_email = c.get("emailAddress", "") or ""
+                    break
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Reply-To: the signed-in user's address, so debtor replies reach them.
+        from src.services.payment_store import get_user_for_session
+
+        user = get_user_for_session(session_id)
+        reply_to = (user or {}).get("email", "")
+
+        seq = chase_store.create_sequence(
+            session_id=session_id,
+            invoice_number=inv.get("invoiceNumber", req.invoice_number),
+            contact_name=contact_name,
+            amount=amount_due,
+            invoice_id=inv.get("id", ""),
+            contact_email=contact_email,
+            due_date=inv.get("dueDate", ""),
+            simulated=mode == "demo",
+            reply_to=reply_to,
+        )
+        return seq, mode, contact_email
+
+    seq, mode, contact_email = await asyncio.to_thread(_resolve_and_create)
+
+    stage = seq.get("next_stage", 1)
+    message = (
+        f"Follow-ups scheduled: starting at stage {stage} ({STAGE_LABELS.get(stage, '?')}), "
+        f"escalating automatically, stopping the moment it's paid."
+    )
+    if mode == "demo":
+        message = "Simulated (demo mode) — the schedule is recorded but no emails will be sent."
+    elif not contact_email:
+        message += " ⚠ No email on file for this customer — add one in Xero or the sends will stall."
+
+    return {"sequence": seq, "mode": mode, "message": message, "stage_labels": STAGE_LABELS}
+
+
+@app.get("/api/chase/list")
+async def chase_list(session_id: str = Depends(get_session_id)):
+    """This session's chase sequences with their send history."""
+    from src.services import chase_store
+    from src.services.chasing import STAGE_LABELS
+
+    sequences = await asyncio.to_thread(chase_store.list_sequences, session_id)
+    return {"sequences": sequences, "stage_labels": STAGE_LABELS}
+
+
+class ChaseCancelRequest(BaseModel):
+    sequence_id: int
+
+
+@app.post("/api/chase/cancel")
+async def chase_cancel(req: ChaseCancelRequest, session_id: str = Depends(get_session_id)):
+    from src.services import chase_store
+
+    ok = await asyncio.to_thread(chase_store.cancel_sequence, session_id, req.sequence_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="No active sequence with that id.")
+    return {"cancelled": True}
 
 
 # ---- Weekly digest ----
@@ -1146,13 +1295,24 @@ async def xero_webhook(request: Request):
 
 
 @app.get("/api/xero/webhook/events")
-async def xero_webhook_events(since: int = 0):
+async def xero_webhook_events(since: int = 0, session_id: str = Depends(get_session_id)):
     """
     Poll webhook events for proactive alerts. Returns events with id >
     `since`; `total` is the latest event id (pass it back as the next
     `since`). Ids are stable, so pollers never see duplicates or gaps.
+
+    Events are scoped to the tenant connected to THIS session — one org's
+    activity must never leak to other visitors. Sessions without a
+    connected org (demo mode) get no events.
     """
+    from src.services.xero_oauth import get_connection_status
+
+    status = await asyncio.to_thread(get_connection_status, session_id)
+    tenant_id = status.get("tenant_id") if status.get("connected") else None
     events, last_id = await asyncio.to_thread(get_webhook_events, since)
+    if not tenant_id:
+        return {"events": [], "total": last_id}
+    events = [e for e in events if e.get("tenantId") == tenant_id]
     return {"events": events, "total": last_id}
 
 
