@@ -34,6 +34,14 @@ services:
       # profile (comma-separated). Unset = CLI fallback disabled; anonymous
       # visitors always get demo data, never the operator's books.
       - CLI_SESSION_IDS=${CLI_SESSION_IDS:-}
+      # Outbound email (chase sequences + weekly digest) via Postmark SMTP.
+      # Values live in the VPS .env, never in git. Unset = email loops
+      # log-and-skip safely.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
       # UK tax rates (configurable, set by HMRC)
       - CORP_TAX_SMALL_RATE=0.19
       - CORP_TAX_MAIN_RATE=0.25
