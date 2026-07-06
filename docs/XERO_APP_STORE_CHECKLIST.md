@@ -3,7 +3,11 @@
 Track for getting Sikizana listed on the Xero App Store, enabling
 distribution to 4.4M Xero subscribers.
 
-## Status: Not Started
+## Status: In Progress — most security/privacy blockers cleared 2026-07-06
+
+The two biggest risks flagged below (data deletion, rate limiting) are
+now done. Remaining work is mostly App Store listing assets and
+pre-submission testing, not core product gaps.
 
 ---
 
@@ -26,39 +30,48 @@ using PKCE and SQLite state store.
 - [ ] **Redirect URI registered** — `https://sikizana.persidian.com/api/xero/callback`
       must be registered in the Xero app config
 - [ ] **Token refresh tested** — ensure refresh token flow works for
-      long-lived sessions (currently implemented, needs production test)
-- [ ] **Disconnect flow** — user can revoke access cleanly
-      (need to add `/api/xero/disconnect` endpoint)
+      long-lived sessions (implemented, needs production soak test)
+- [x] **Disconnect flow** — `POST /api/xero/disconnect` revokes tokens;
+      `POST /api/data/delete` goes further (revoke + erase all stored
+      session data) and is exposed as "Delete my data" on the Account page
 
 ## 2. Security Audit
 
 Xero requires evidence of security best practices.
 
 ### Requirements
-- [ ] **HTTPS only** — already enforced via Traefik (Let's Encrypt)
-- [ ] **Secure cookies** — HttpOnly, Secure, SameSite=Lax
-      (verify in production)
-- [ ] **CSRF protection** — state parameter in OAuth flow (implemented)
-- [ ] **No secrets in client code** — all API keys server-side only
-- [ ] **Rate limiting** — protect against API abuse
-      (currently relies on Xero's own rate limits; add app-level)
+- [x] **HTTPS only** — enforced via Traefik (Let's Encrypt) + HSTS headers,
+      port 18081 bound to 127.0.0.1 so it's unreachable except through Traefik
+- [x] **Secure cookies** — HttpOnly, Secure (prod), SameSite=Lax; verified live
+- [x] **CSRF / session-fixation protection** — OAuth state parameter (implemented),
+      PLUS: `?session=` query param is never written into the cookie (was a
+      fixation risk — fixed 2026-07-06), and the OAuth callback verifies the
+      completing browser holds the session that initiated the flow
+- [x] **No secrets in client code** — all API keys server-side only
+- [x] **Rate limiting** — per-IP limiter (`src/services/rate_limit.py`) on
+      chat and journal-write endpoints
 - [ ] **Input validation** — all user inputs validated server-side
+      (Pydantic models on most endpoints; audit remaining raw params)
 - [ ] **SQL injection protection** — using parameterized queries (verify all paths)
 - [ ] **XSS protection** — React escapes by default, verify no dangerouslySetInnerHTML
-- [ ] **Data retention policy** — document how long user data is stored
-      (currently 30-day TTL on conversations)
-- [ ] **Data deletion on disconnect** — when user revokes OAuth, delete their data
-      (need to implement)
+- [x] **Data retention policy** — documented on `/privacy` and `/security`
+      (session-scoped storage; conversations capped at 20 messages/thread)
+- [x] **Data deletion on disconnect** — `POST /api/data/delete` revokes
+      Xero + erases conversations, audit trail, chase sequences, snapshots,
+      and session prefs; available to anonymous sessions too
 
 ## 3. Privacy & Compliance
 
 ### Requirements
-- [ ] **Privacy policy** — already at `/privacy`, review for App Store compliance
+- [x] **Privacy policy** — `/privacy`, names every processor (NVIDIA/Venice,
+      Gemini, Postmark, Stripe, Exa/Firecrawl) and what each receives —
+      review for final App Store wording
 - [ ] **Terms of service** — already at `/terms`, review for App Store compliance
 - [ ] **Data processing agreement** — may be required for App Store
-- [ ] **GDPR compliance** — right to access, right to erasure
-      (need to add data export + deletion endpoints)
+- [x] **GDPR compliance (erasure)** — `POST /api/data/delete` implemented
+      and exposed in the UI. Right to ACCESS (data export) still open.
 - [ ] **Cookie policy** — document what cookies are set and why
+      (currently just the one session cookie, documented informally on `/privacy`)
 
 ## 4. App Store Listing
 
@@ -86,10 +99,11 @@ Xero requires evidence of security best practices.
       (implemented: falls back to demo mode with honest UI reporting)
 - [ ] **Pagination** — handle large orgs with 1000+ invoices
       (implemented in xero_api.py via _get_paged)
-- [ ] **Rate limit handling** — 429 backoff with Retry-After header
+- [x] **Rate limit handling** — 429 backoff with Retry-After header
       (implemented in xero_api.py)
-- [ ] **Idempotency** — journal entries use Idempotency-Key
-      (implemented in xero_api.py)
+- [x] **Idempotency** — journal entries use a client-supplied
+      Idempotency-Key (covers user-level retries/double-clicks, not
+      just the internal retry loop — fixed 2026-07-06)
 
 ## 6. Pre-Submission Testing
 
@@ -98,7 +112,7 @@ Xero requires evidence of security best practices.
 - [ ] **Test OAuth disconnect/reconnect** — ensure clean state management
 - [ ] **Test with empty org** — new Xero org with no data (edge case)
 - [ ] **Test with large org** — org with 1000+ invoices
-- [ ] **Test all 19 tools** — each tool works with live Xero data
+- [ ] **Test all agent tools** (19, incl. aged receivables, chasing, benchmarks) — each works with live Xero data
 - [ ] **Test journal write-back** — create + post a real journal entry
 - [ ] **Test receipt matching** — upload a real receipt photo
 - [ ] **Cross-browser test** — Chrome, Safari, Firefox, Edge
@@ -131,18 +145,24 @@ Xero requires evidence of security best practices.
 ## Key Risks
 
 1. **Single VPS, no redundancy** — Xero may flag uptime concerns.
-   Mitigation: add health monitoring + auto-restart, or move to
-   multi-AZ deployment before submission.
+   Mitigation: add health monitoring + auto-restart (a free
+   healthchecks.io ping on the cron jobs would also catch a silently
+   dead chase runner — currently nothing alerts if it stops firing),
+   or move to multi-AZ deployment before submission. **Still open.**
 
-2. **Data deletion on disconnect** — Xero requires clean data
-   deletion when users revoke access. Not yet implemented.
-   Priority: high.
+2. ~~**Data deletion on disconnect**~~ — **Done 2026-07-06.**
+   `POST /api/data/delete` revokes Xero access and erases all stored
+   session data; surfaced as "Delete my data" on the Account page.
 
-3. **No rate limiting at app level** — we rely on Xero's rate limits.
-   Xero may want to see app-level protection. Quick fix: add a
-   simple per-session rate limiter.
+3. ~~**No rate limiting at app level**~~ — **Done.** Per-IP limiter on
+   chat and write endpoints (`src/services/rate_limit.py`).
 
 4. **Demo mode honesty** — when Xero API is unavailable, we fall back
    to demo data and report it honestly in the UI. This is a feature,
    not a bug, but Xero reviewers may initially flag it. Document
-   clearly in the submission.
+   clearly in the submission. **Still open** (documentation task).
+
+5. **New since this doc was written** — the CLI-org fallback (used for
+   the operator's demo data) is now allowlisted via `CLI_SESSION_IDS`
+   and disabled by default; worth calling out proactively in the
+   submission as a security control, not just documenting if asked.

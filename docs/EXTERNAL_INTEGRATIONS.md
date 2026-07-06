@@ -19,7 +19,15 @@ The `instant` mode is fast enough for real-time use. The
 
 **Cost**: Free tier available. Paid tiers for higher volume.
 
-**Cache**: 5-minute in-memory cache per query to avoid repeat calls.
+**Cache**: `src/services/cache.py` — SQLite-backed, 24-hour TTL, keyed on
+the INTENT-MAPPED query (`_map_query_to_exa`), not the raw user text.
+"Who owes me money?", "chase Acme", and "overdue invoices" all map to
+the same canonical query and share one cache entry — previously each
+paid for its own Exa call. Two side benefits of this design: (1) queries
+with no matched intent map to `None` and never reach Exa at all, so raw
+chat text (which can contain customer names/amounts) is never sent to a
+third party; (2) the cache is bounded (500 rows) and survives deploys,
+unlike the in-memory dict this replaced.
 
 ---
 
@@ -43,6 +51,13 @@ measures automatically.
 
 **Pipeline**: Exa finds → Firecrawl reads → backend extracts relevant
 paragraph → user sees the actual HMRC guidance text inline.
+
+**Also used for**: `_fetch_ons_benchmarks` in `src/tools/xero_tools.py`
+(sector benchmark comparison). Cached per sector for 7 days (the source
+data updates ~annually) — previously every "is this normal for my
+industry?" question paid for a fresh Exa search + Firecrawl scrape.
+Failed scrapes are cached for 6 hours so a broken source page isn't
+hammered on every question.
 
 ---
 
@@ -70,6 +85,36 @@ natural, conversational responses.
 **How it works**: If NVIDIA fails (timeout, error, rate limit), the
 agent loop automatically switches to Venice. Same OpenAI-compatible
 API, same tool-calling loop — no code changes needed.
+
+---
+
+### Postmark — Transactional Email
+**Status**: Integrated, live on production
+**Config**: `SMTP_HOST=smtp.postmarkapp.com`, `SMTP_PORT=587`,
+`SMTP_USER`/`SMTP_PASS` = the Postmark server token, `SMTP_FROM` =
+sending address (set in VPS `.env`)
+**Usage**: `src/services/digest.py:send_email` — chase-sequence stage
+emails (`src/jobs/run_chases.py`) and the weekly digest
+(`src/jobs/send_digests.py`)
+
+**What it does**: Plain SMTP (stdlib `smtplib`, no SDK dependency).
+Chase emails set the **From display name to the user's Xero
+organisation name** (not "Sikizana") and **Reply-To to the user's own
+email** — a debtor must see who they owe and replies must reach the
+user, not a third-party robot. Digests stay Sikizana-branded
+("Siki at Sikizana"). Unconfigured (`SMTP_HOST` unset) → both jobs
+log "not configured" and skip sending; nothing fails or half-sends.
+
+**Why Postmark**: best-in-class deliverability reputation for
+transactional mail (chase emails that land in spam defeat the whole
+product), free tier covers current volume, simple DKIM/domain
+verification. Sending domain (`persidian.com`) is DKIM + Return-Path
+verified.
+
+**Distribution footer**: a "Sent via Sikizana" line rides stages 1-2
+(friendly/firm) only — never the final notice, recovery warning, or
+Letter Before Action, where a marketing footer would undermine the
+letter's legal seriousness.
 
 ---
 
@@ -151,43 +196,66 @@ WhileAgentWorks (parallel to agent execution)
        └── Backend extracts most relevant paragraph
   ↓
 Agent response (plain English with findings + actions)
-  ├── If journal entry: JournalEntryCard (approve → post to Xero)
+  ├── If journal PROPOSED: JournalEntryCard (Approve button → /api/xero/journal,
+  │     the ONLY path that ever posts — the LLM has no posting tool)
   ├── If chasing email: NegotiationEmailCard (tactic + psychology + copy/mailto)
+  ├── If aging/benchmark/scorecard/trend data: AnalysisCard (backend-built,
+  │     never LLM-passthrough — see bookkeeper.py:_extract_analysis_data)
   └── ResponseSummary card (peak-end: issues found · money at stake · urgent count)
   ↓
 Contextual Zana nudge (if overdue/tax/savings detected)
   ↓
 Sign-in nudge (if anonymous, after first answer or at 3/5 queries)
+
+Separately — the chase loop (not part of a single chat turn):
+  ⚡ Auto-chase click → chase_store.create_sequence (resolves amount/contact/
+  due-date from Xero server-side)
+    ↓
+  Daily cron (run_chases.py) OR Xero payment webhook (instant)
+    ↓
+  Re-check invoice against Xero → paid? → complete + record recovery
+                                → unpaid? → send due stage via Postmark
+                                            under the user's business name
+    ↓
+  Payment-moment celebration + recovered tally on next visit; digest leads
+  with it + week-over-week delta
 ```
 
 ---
 
 ## Planned Integrations
 
-### Make / Zapier — Email Automation
+### Email Automation — Shipped (via Postmark, not Make/Zapier)
 
-**Status**: Planned (roadmap)
-**Current approach**: Copy-to-clipboard + mailto: links (zero infrastructure)
+**Status**: Done. Originally planned as a Make/Zapier integration
+("user connects their Gmail/Outlook, Zapier triggers sending"); shipped
+instead as first-party scheduled sending via Postmark (see above),
+which needed zero per-user OAuth setup — the biggest risk flagged in
+the original plan below.
 
-Currently, when Zana drafts a chasing email, the user gets a
-NegotiationEmailCard with:
-- The email content (subject + body)
-- The negotiation tactic and psychology
-- "Copy email" button (clipboard)
-- "Open in email client" button (mailto: link with To/Subject/Body pre-filled)
+The one-off path from the original plan is still there too: a chasing
+email drafted by Zana (`draft_invoice_reminder`) is still shown as a
+NegotiationEmailCard with copy-to-clipboard and mailto: — useful for a
+single ad-hoc email outside a scheduled sequence.
 
-This works with any email client (Gmail, Outlook, Apple Mail) and
-requires zero setup — but the user still has to click send themselves.
+The scheduled path (`src/services/chase_store.py`,
+`src/jobs/run_chases.py`): the user clicks ⚡ Auto-chase once, approving
+the whole 5-stage ladder; a daily cron sends the due stage, re-checking
+payment status in Xero first, and settles instantly on a Xero payment
+webhook too. No Gmail/Outlook connection required — sends go via
+Postmark under the user's business name with Reply-To routed to them.
 
-**Make/Zapier upgrade path**:
-- User connects their Gmail/Outlook via Zapier or Make.com
-- Zana triggers a webhook to send the drafted email directly
-- Benefits: audit trail, scheduled sending, follow-up automation
-- Trade-off: heavier user setup, most demo users won't do this before
-  seeing value
+**Original plan, for reference** (superseded):
+> User connects their Gmail/Outlook via Zapier or Make.com; Zana
+> triggers a webhook to send directly. Trade-off flagged at the time:
+> heavier user setup, most users won't do it before seeing value. This
+> is exactly why the first-party Postmark path won — zero extra setup
+> for the user, same "it actually sends" outcome.
 
-**Recommendation**: Ship copy + mailto: first (done), add Make/Zapier
-as a Pro feature for power users who want automated sending.
+**Possible future addition**: per-user Gmail/Outlook "send as" (OAuth)
+so chase emails land in the user's own Sent folder — the gold-standard
+sender-identity tier. Meaningful integration effort; not needed while
+running one connected org.
 
 ---
 
@@ -234,11 +302,27 @@ Not needed for the current single-session experience.
 | `NVIDIA_FALLBACK_MODEL` | No | Defaults to `meta/llama-3.1-70b-instruct` |
 | `VENICE_API_KEY` | No | Fallback LLM (auto-switches if NVIDIA fails) |
 | `VENICE_MODEL` | No | Defaults to `llama-3.3-70b` |
-| `EXA_API_KEY` | No | Live HMRC guidance search (curated fallback without it) |
+| `EXA_API_KEY` | No | Live HMRC guidance search + sector benchmarks (curated fallback without it) |
 | `FIRECRAWL_API_KEY` | No | Deep page content extraction (Exa snippets without it) |
 | `GEMINI_API_KEY` | No | Receipt photo vision matching |
 | `XERO_CLIENT_ID` | Yes | Xero OAuth app credentials |
 | `XERO_CLIENT_SECRET` | Yes | Xero OAuth app credentials |
+| `XERO_WEBHOOK_KEY` | No | HMAC key for verifying Xero webhook signatures (instant chase settlement) |
+| `TOKEN_ENCRYPTION_KEY` | Yes (prod) | Fernet key encrypting Xero tokens at rest |
+| `CLI_SESSION_IDS` | No | Comma-separated allowlist for the Xero CLI fallback. Unset = disabled, every anonymous session gets demo data |
+| `SMTP_HOST` / `PORT` / `USER` / `PASS` / `FROM` | No | Postmark (or any SMTP) — chase emails + weekly digest. Unset = both jobs log-and-skip safely |
+| `BANK_RATE` | No | Bank of England base rate for statutory interest (defaults 5.25) — single source of truth in `src/services/rates.py` |
+| `CORP_TAX_SMALL_RATE` / `MAIN_RATE` / `SMALL_LIMIT` / `MAIN_LIMIT` / `MARGINAL_RELIEF` | No | UK Corporation Tax bands, set by HMRC |
+| `PAYMENT_DB_PATH` | No | SQLite path (defaults `data/sikizana.db`) |
+| `ALLOWED_ORIGINS` | Prod | CORS allowlist — wildcard disables credentialed cookies |
+| `COOKIE_SECURE` | Prod | Set `true` in production (HTTPS-only cookies) |
 
 All keys are set in VPS `~/sikizana/.env` (not committed to the repo).
 `docker-compose.vps.yml` passes them through to the container.
+
+**Scheduled jobs** (cron, not env-gated but worth noting here since
+they drive the email integrations above):
+```
+30 8 * * *  python -m src.jobs.run_chases     # daily, sends due chase stages
+0  8 * * 1  python -m src.jobs.send_digests   # Monday, weekly digest
+```
