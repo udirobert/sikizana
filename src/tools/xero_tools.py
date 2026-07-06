@@ -1151,10 +1151,22 @@ def _fetch_ons_benchmarks(sector: str) -> dict[str, float] | None:
     Attempt to fetch live ONS sector data via Firecrawl.
     Returns None if Firecrawl is unavailable or scraping fails,
     in which case we fall back to hardcoded benchmarks.
+
+    Cached per sector for a week (the source data updates ~annually) —
+    without this, every "is this normal?" question paid for an Exa
+    search AND a Firecrawl scrape. Failures are cached briefly too, so
+    a broken source doesn't get hammered on every question.
     """
     firecrawl_key = os.environ.get("FIRECRAWL_API_KEY", "")
     if not firecrawl_key:
         return None
+
+    from src.services import cache
+
+    cache_key = f"benchmarks:{sector}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return None if cached.get("_miss") else cached
 
     # ONS publishes sector-level business data. The most relevant page
     # for receivables / payment performance is the DBT Small Business
@@ -1195,11 +1207,13 @@ def _fetch_ons_benchmarks(sector: str) -> dict[str, float] | None:
             search_resp.raise_for_status()
             results = search_resp.json().get("results", [])
             if not results:
+                cache.put(cache_key, {"_miss": True}, cache.TTL_FAILURE)
                 return None
 
             # Step 2: Firecrawl scrape the top result
             top_url = results[0].get("url", "")
             if not top_url:
+                cache.put(cache_key, {"_miss": True}, cache.TTL_FAILURE)
                 return None
 
             scrape_resp = cx.post(
@@ -1218,6 +1232,7 @@ def _fetch_ons_benchmarks(sector: str) -> dict[str, float] | None:
             markdown = scrape_resp.json().get("data", {}).get("markdown", "")
 
             if not markdown or len(markdown) < 200:
+                cache.put(cache_key, {"_miss": True}, cache.TTL_FAILURE)
                 return None
 
             # Step 3: Extract benchmark numbers from the markdown.
@@ -1247,11 +1262,13 @@ def _fetch_ons_benchmarks(sector: str) -> dict[str, float] | None:
                 bench = dict(_SECTOR_BENCHMARKS.get(sector, _SECTOR_BENCHMARKS["default"]))
                 bench["avg_receivables_days"] = float(found_days)
                 bench["_source"] = "live_ons"
+                cache.put(cache_key, bench, cache.TTL_WEEK)
                 return bench
 
     except Exception:  # noqa: BLE001
         pass
 
+    cache.put(cache_key, {"_miss": True}, cache.TTL_FAILURE)
     return None
 
 

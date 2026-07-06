@@ -15,6 +15,8 @@ Every method reports which mode served it via `self.mode()` so callers
 
 from __future__ import annotations
 
+import copy
+import functools
 import json
 import os
 import shutil
@@ -41,6 +43,49 @@ _CLI_SESSION_IDS = {s.strip() for s in os.getenv("CLI_SESSION_IDS", "").split(",
 def _cli_available() -> bool:
     """Check if the xero CLI is installed and on PATH."""
     return shutil.which("xero") is not None
+
+
+# ---------------------------------------------------------------------------
+# Read-through cache: one auto-audit fetches invoices 2-3×, and an agent
+# turn re-fetches per tool call. A short TTL keeps a burst of reads to one
+# Xero API hit per resource without ever serving stale data for long —
+# and writes invalidate the session's entries immediately.
+# ---------------------------------------------------------------------------
+
+_READ_TTL_SECONDS = 45
+_READ_CACHE_MAX = 512
+_read_cache: dict[tuple[str, str], tuple[float, Any]] = {}
+_read_cache_lock = threading.Lock()
+
+
+def _read_through_cache(fn):
+    """Session-scoped 45s cache over a XeroService fetch method. Values
+    are deep-copied on the way out so callers can't mutate cached state."""
+
+    @functools.wraps(fn)
+    def wrapper(self: "XeroService", *args, **kwargs):
+        key = (self.session_id, f"{fn.__name__}:{args!r}:{sorted(kwargs.items())!r}")
+        now = time.time()
+        with _read_cache_lock:
+            hit = _read_cache.get(key)
+            if hit and now - hit[0] < _READ_TTL_SECONDS:
+                return copy.deepcopy(hit[1])
+        value = fn(self, *args, **kwargs)
+        with _read_cache_lock:
+            _read_cache[key] = (time.time(), value)
+            if len(_read_cache) > _READ_CACHE_MAX:
+                for k, _ in sorted(_read_cache.items(), key=lambda kv: kv[1][0])[:128]:
+                    _read_cache.pop(k, None)
+        return copy.deepcopy(value)
+
+    return wrapper
+
+
+def _invalidate_session_reads(session_id: str) -> None:
+    """Drop a session's cached reads — called after any Xero write."""
+    with _read_cache_lock:
+        for k in [k for k in _read_cache if k[0] == session_id]:
+            _read_cache.pop(k, None)
 
 
 # The CLI liveness probe spawns a Node process, so cache the result briefly
@@ -566,6 +611,7 @@ class XeroService:
 
     # ---- Organisation ----
 
+    @_read_through_cache
     def get_organisation(self) -> dict[str, Any]:
         via_oauth = self._oauth(lambda: xero_api.get_organisation(self.session_id), "organisation")
         if via_oauth:
@@ -580,6 +626,7 @@ class XeroService:
 
     # ---- Chart of Accounts ----
 
+    @_read_through_cache
     def list_accounts(self) -> list[dict[str, Any]]:
         via_oauth = self._oauth(lambda: xero_api.list_accounts(self.session_id), "accounts")
         if via_oauth is not None:
@@ -591,6 +638,7 @@ class XeroService:
 
     # ---- Tax Rates ----
 
+    @_read_through_cache
     def list_tax_rates(self) -> list[dict[str, Any]]:
         """Fetch tax rates from Xero (OAuth) or return UK defaults (demo).
 
@@ -610,6 +658,7 @@ class XeroService:
 
     # ---- Contacts ----
 
+    @_read_through_cache
     def list_contacts(self) -> list[dict[str, Any]]:
         via_oauth = self._oauth(lambda: xero_api.list_contacts(self.session_id), "contacts")
         if via_oauth is not None:
@@ -621,6 +670,7 @@ class XeroService:
 
     # ---- Invoices ----
 
+    @_read_through_cache
     def list_invoices(
         self,
         status: str | None = None,
@@ -646,6 +696,7 @@ class XeroService:
 
     # ---- Bank Transactions ----
 
+    @_read_through_cache
     def list_bank_transactions(
         self,
         txn_type: str | None = None,
@@ -666,6 +717,7 @@ class XeroService:
 
     # ---- Payments ----
 
+    @_read_through_cache
     def list_payments(self) -> list[dict[str, Any]]:
         live = self._cli(["payments", "list"])
         if live is not None:
@@ -674,6 +726,7 @@ class XeroService:
 
     # ---- Reports ----
 
+    @_read_through_cache
     def get_profit_and_loss(
         self,
         from_date: str | None = None,
@@ -705,6 +758,7 @@ class XeroService:
             pl["toDate"] = to_date
         return pl
 
+    @_read_through_cache
     def get_balance_sheet(self, as_of: str | None = None) -> dict[str, Any]:
         params = {"date": as_of} if as_of else {}
         via_oauth = self._oauth(
@@ -724,6 +778,7 @@ class XeroService:
             bs["asOf"] = as_of
         return bs
 
+    @_read_through_cache
     def get_trial_balance(self, as_of: str | None = None) -> dict[str, Any]:
         params = {"date": as_of} if as_of else {}
         via_oauth = self._oauth(
@@ -816,6 +871,7 @@ class XeroService:
                 amount=amount,
                 idempotency_key=idempotency_key,
             )
+            _invalidate_session_reads(self.session_id)
             return {
                 "posted": True,
                 "mode": mode,
@@ -842,6 +898,7 @@ class XeroService:
                     "Xero CLI failed to create the manual journal — the entry was NOT posted."
                 )
             journal_id = result.get("manualJournalID") if isinstance(result, dict) else None
+            _invalidate_session_reads(self.session_id)
             return {
                 "posted": True,
                 "mode": mode,

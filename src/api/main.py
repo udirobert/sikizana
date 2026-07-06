@@ -19,7 +19,6 @@ import hashlib
 import hmac
 import os
 import secrets
-import time
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File
@@ -135,10 +134,13 @@ async def health():
 
 
 # ---- Contextual content (while Siki is working) ----
-
-# Simple in-memory cache for Exa search results (5 min TTL).
-_exa_cache: dict[str, tuple[float, list]] = {}
-_EXA_CACHE_TTL = 300  # 5 minutes
+#
+# Results are cached in SQLite (services/cache.py) for 24h, keyed on the
+# INTENT-MAPPED query — "who owes me money?", "chase Acme", and "overdue
+# invoices" all map to one canonical Exa query, so they share one cached
+# entry and one paid API call. (The old in-memory cache keyed on the raw
+# text and expired in 5 minutes: near-zero hit rate on annual-stable
+# HMRC guidance.)
 
 # Curated fallback content when no Exa key is available.
 # Each entry has a short, human-written summary (not a raw snippet).
@@ -228,29 +230,29 @@ async def context_search(q: str = ""):
     3. Extract the most relevant paragraph from the scraped content
 
     Falls back to curated content if no API keys are configured.
-    Results are cached for 5 minutes.
+    Results are cached for 24 hours, keyed on the intent-mapped query.
     """
     if not q.strip():
         return {"results": _CURATED_CONTEXT[:2], "source": "curated"}
 
+    from src.services import cache
+
     exa_key = os.environ.get("EXA_API_KEY", "")
     firecrawl_key = os.environ.get("FIRECRAWL_API_KEY", "")
-    cache_key = q.lower().strip()
+    exa_query = _map_query_to_exa(q)
+    cache_key = f"context:{exa_query.lower()}"
 
-    # Check cache
-    if cache_key in _exa_cache:
-        cached_at, cached_results = _exa_cache[cache_key]
-        if time.time() - cached_at < _EXA_CACHE_TTL:
-            return {"results": cached_results, "source": cached_results[0].get("_source", "exa_cached") if cached_results else "curated"}
+    cached = await asyncio.to_thread(cache.get, cache_key)
+    if cached is not None:
+        return {"results": cached, "source": "exa_cached"}
 
     results = []
 
-    # Step 1: Exa search — use intent-mapped query for better relevance
+    # Step 1: Exa search — the intent-mapped query
     if exa_key:
         try:
             import httpx
 
-            exa_query = _map_query_to_exa(q)
             async with httpx.AsyncClient(timeout=5.0) as cx:
                 resp = await cx.post(
                     "https://api.exa.ai/search",
@@ -327,7 +329,7 @@ async def context_search(q: str = ""):
 
     if results:
         source = "exa+firecrawl" if any(r.get("summary") for r in results) else "exa"
-        _exa_cache[cache_key] = (time.time(), results)
+        await asyncio.to_thread(cache.put, cache_key, results, cache.TTL_DAY)
         return {"results": results, "source": source}
 
     # Curated fallback — pick based on query keywords

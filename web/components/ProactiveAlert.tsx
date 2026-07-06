@@ -19,7 +19,9 @@ export function ProactiveAlert() {
     let active = true;
 
     const poll = async () => {
-      if (!active) return;
+      // Skip hidden tabs — webhook alerts aren't sub-minute urgent, and a
+      // backgrounded tab polling forever is pure waste.
+      if (!active || document.visibilityState === "hidden") return;
       try {
         const { endpoints } = await import("@/lib/api");
         const data = await endpoints.xero.webhookEvents(since);
@@ -38,10 +40,16 @@ export function ProactiveAlert() {
     };
 
     poll();
-    const interval = setInterval(poll, 5000);
+    const interval = setInterval(poll, 30_000);
+    // Catch up promptly when the user returns to the tab.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
 
