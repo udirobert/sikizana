@@ -70,11 +70,25 @@ export default function SecurityPage() {
       </nav>
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-12">
-        <h2 className="text-3xl font-bold text-stone-900 mb-2">Your data, protected</h2>
-        <p className="text-sm text-stone-600 mb-8">
-          You&apos;re trusting Sikizana with your company&apos;s books. Here are the straight
-          answers to the questions you should be asking — in plain English, no legalese.
-        </p>
+        {/* Siki fronts the trust conversation — an owl asking you to ask
+            the hard questions is more disarming (and more memorable) than
+            a wall of policy text. */}
+        <div className="flex items-start gap-4 mb-8">
+          <div className="shrink-0">
+            <SikiMascot size={72} mood="idle" />
+          </div>
+          <div className="relative bg-white rounded-2xl border border-stone-200 shadow-sm px-5 py-4">
+            <div className="absolute -left-1.5 top-6 w-3 h-3 bg-white border-l border-b border-stone-200 rotate-45" />
+            <h2 className="text-xl font-bold text-stone-900 mb-1">
+              You&apos;re about to trust me with your books.
+            </h2>
+            <p className="text-sm text-stone-600">
+              So ask me the hard questions — here are the five every business owner should ask,
+              answered straight. No legalese, no small print.{" "}
+              <span className="text-stone-400">— Siki 🦉</span>
+            </p>
+          </div>
+        </div>
 
         <div className="space-y-4">
           {QUESTIONS.map((item) => (
@@ -88,14 +102,20 @@ export default function SecurityPage() {
           ))}
         </div>
 
-        <div className="mt-8 bg-sky-50 border border-sky-200 rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-sky-900 mb-1.5">
-            The short version
-          </h3>
-          <p className="text-sm text-sky-800 leading-relaxed">
-            Read-only until you approve an action. Encrypted, session-private, never sold,
-            never used to train AI. One click to disconnect, one click to erase everything.
-          </p>
+        <div className="mt-8 bg-sky-50 border border-sky-200 rounded-2xl p-5 flex items-start gap-4">
+          <div className="shrink-0">
+            <SikiMascot size={44} mood="celebrate" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-sky-900 mb-1.5">
+              The short version
+            </h3>
+            <p className="text-sm text-sky-800 leading-relaxed">
+              Read-only until you approve an action. Encrypted, session-private, never sold,
+              never used to train AI. One click to disconnect, one click to erase everything.
+              Your books stay yours — I just watch them for you.
+            </p>
+          </div>
         </div>
 
         <p className="mt-8 text-xs text-stone-500">

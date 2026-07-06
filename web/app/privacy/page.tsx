@@ -24,7 +24,7 @@ export default function PrivacyPage() {
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                AI Bookkeeper for Xero
+                Get paid faster · Works with Xero
               </p>
             </div>
           </Link>

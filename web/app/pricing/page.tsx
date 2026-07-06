@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SikiMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";
-import type { PaidPlan, Plan } from "@/lib/api";
+import type { FindingsResponse, PaidPlan, Plan } from "@/lib/api";
 import { useMe } from "@/hooks/useMe";
 import { PLAN_LABELS } from "@/components/PlanBadge";
 
@@ -75,6 +75,19 @@ export default function PricingPage() {
   const { me } = useMe();
   const [busyPlan, setBusyPlan] = useState<PaidPlan | null>(null);
   const [ctaError, setCtaError] = useState<string | null>(null);
+  // Personalized anchor: THEIR overdue number makes the price concrete.
+  // Live modes only — quoting sample-data figures here would be dishonest.
+  const [findings, setFindings] = useState<FindingsResponse | null>(null);
+  useEffect(() => {
+    void endpoints.xero
+      .findings()
+      .then(setFindings)
+      .catch(() => {});
+  }, []);
+  const liveOverdue =
+    findings && findings.mode !== "demo" && findings.money_found > 0
+      ? findings.money_found
+      : null;
 
   const stripeConfigured = me?.stripe_configured === true;
 
@@ -193,6 +206,12 @@ export default function PricingPage() {
             that were never chased properly. Sikizana chases what you&apos;re owed, shows
             you what&apos;s normal for your industry — and costs less than losing one of them.
           </p>
+          {liveOverdue !== null && (
+            <p className="mt-3 text-sm font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 inline-block fade-in-up">
+              Right now you have £{Math.round(liveOverdue).toLocaleString()} sitting in overdue
+              invoices. Pro is £29/month — one chased invoice pays for it many times over.
+            </p>
+          )}
           {me?.authenticated && me.email && (
             <p className="text-[11px] text-stone-400 mt-2">
               Signed in as {me.email} · Current plan: {PLAN_LABELS[me.plan]}

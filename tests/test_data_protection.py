@@ -35,6 +35,26 @@ def test_delete_session_data_erases_everything_scoped():
     assert get_audit_history("bystander")
 
 
+def test_stored_sector_beats_org_name_guess():
+    """The onboarding sector answer must win over guessing from the org
+    name — and must be erased with the rest of the session's data."""
+    from src.services.payment_store import get_session_pref, set_session_pref
+    from src.tools.xero_tools import set_current_session, get_sector_benchmarks
+
+    sid = "sector-test"
+    set_session_pref(sid, "sector", "construction")
+    set_current_session(sid)
+    # Demo org is "The Daily Grind Ltd" (no keyword match → would guess
+    # "default"); the stored preference must be used instead, without the
+    # "I guessed" disclaimer.
+    out = get_sector_benchmarks()
+    assert "SECTOR BENCHMARK: Construction" in out
+    assert "I guessed" not in out and "couldn't tell your sector" not in out
+
+    delete_session_data(sid)
+    assert get_session_pref(sid, "sector") is None
+
+
 def test_exa_never_receives_raw_user_text():
     """Unmatched queries must map to None (curated fallback), never to a
     string containing the user's text — chat can contain customer names

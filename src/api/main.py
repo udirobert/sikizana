@@ -1015,6 +1015,44 @@ async def xero_reverse_journal(
     return result
 
 
+# ---- Session preferences (ask once, personalize everywhere) ----
+
+_VALID_SECTORS = {
+    "retail",
+    "construction",
+    "professional_services",
+    "hospitality",
+    "manufacturing",
+    "wholesale",
+    "other",
+}
+
+
+class PrefsRequest(BaseModel):
+    sector: str = Field(..., max_length=32)
+
+
+@app.post("/api/prefs")
+async def set_prefs(req: PrefsRequest, session_id: str = Depends(get_session_id)):
+    """Store the user's sector — asked once during onboarding, used by the
+    benchmark comparison instead of guessing from the org name."""
+    from src.services.payment_store import set_session_pref
+
+    sector = req.sector.strip().lower()
+    if sector not in _VALID_SECTORS:
+        raise HTTPException(status_code=400, detail="Unknown sector.")
+    await asyncio.to_thread(set_session_pref, session_id, "sector", sector)
+    return {"ok": True, "sector": sector}
+
+
+@app.get("/api/prefs")
+async def get_prefs(session_id: str = Depends(get_session_id)):
+    from src.services.payment_store import get_session_pref
+
+    sector = await asyncio.to_thread(get_session_pref, session_id, "sector")
+    return {"sector": sector}
+
+
 # ---- Data deletion (right to erasure — and a trust feature) ----
 
 

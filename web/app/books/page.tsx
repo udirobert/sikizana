@@ -126,6 +126,25 @@ function BooksView() {
   const [connecting, setConnecting] = useState(false);
   // Pre-OAuth consent screen — what Siki reads, what it can't do, how to leave.
   const [showConnectConfirm, setShowConnectConfirm] = useState(false);
+  // Onboarding sector question — the one personal datum we ask for, so
+  // "is this normal?" compares against THEIR industry instead of a guess.
+  const [sector, setSector] = useState<string | null>(null);
+  const [sectorSaved, setSectorSaved] = useState(false);
+  useEffect(() => {
+    void endpoints.prefs
+      .get()
+      .then((p) => setSector(p.sector))
+      .catch(() => {});
+  }, []);
+  const handleSectorPick = async (value: string) => {
+    setSector(value);
+    setSectorSaved(true);
+    try {
+      await endpoints.prefs.set(value);
+    } catch {
+      /* best-effort — the chips can be re-picked */
+    }
+  };
   const [persona, setPersona] = useState<"siki" | "zana">(() => {
     // Persist persona in localStorage so it survives page refreshes
     if (typeof window !== "undefined") {
@@ -1122,6 +1141,51 @@ function BooksView() {
                             ? "The sidebar shows a demo business so you can explore. Try a question below, then connect your Xero to see your real numbers →"
                             : "The sidebar shows a live snapshot of your books. Try a question below to see me in action →"}
                         </p>
+
+                        {/* The one onboarding question: their sector. Personalizes
+                            "is this normal?" against their actual industry instead
+                            of guessing from the org name. */}
+                        <div className="mt-3 pt-3 border-t border-sky-100">
+                          {sector && !sectorSaved ? (
+                            <p className="text-[11px] text-sky-700">
+                              📊 Comparing you against{" "}
+                              <span className="font-semibold">{sector.replace("_", " ")}</span>{" "}
+                              businesses.
+                            </p>
+                          ) : sectorSaved ? (
+                            <p className="text-[11px] font-medium text-emerald-700 fade-in-up">
+                              ✓ Noted — I&apos;ll compare your numbers against{" "}
+                              {sector?.replace("_", " ")} businesses.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-[11px] font-semibold text-sky-900 mb-1.5">
+                                One quick question: what&apos;s your line of business?
+                              </p>
+                              <p className="text-[10px] text-sky-600 mb-2">
+                                So &quot;is this normal?&quot; compares you against YOUR industry.
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  ["retail", "Retail"],
+                                  ["construction", "Construction"],
+                                  ["professional_services", "Services"],
+                                  ["hospitality", "Hospitality"],
+                                  ["manufacturing", "Manufacturing"],
+                                  ["wholesale", "Wholesale"],
+                                ].map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    onClick={() => void handleSectorPick(value)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-700 hover:bg-sky-100 btn-press transition-colors"
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <button

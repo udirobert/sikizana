@@ -181,6 +181,18 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_chase_events_seq ON chase_events(sequence_id);
     """,
     ),
+    (
+        8,
+        """
+        CREATE TABLE IF NOT EXISTS session_prefs (
+            session_id TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (session_id, key)
+        );
+    """,
+    ),
 ]
 
 
@@ -318,6 +330,37 @@ def get_audit_history(session_id: str | None = None, limit: int = 50) -> list[di
     return [dict(r) for r in rows]
 
 
+def set_session_pref(session_id: str, key: str, value: str) -> None:
+    """Store a small user preference (e.g. their sector) for a session —
+    the 'ask once, personalize everywhere' data. Erased with the session."""
+    init_db()
+    conn = _get_db()
+    try:
+        conn.execute(
+            """INSERT INTO session_prefs (session_id, key, value, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(session_id, key) DO UPDATE SET
+                 value = excluded.value, updated_at = excluded.updated_at""",
+            (session_id, key, value, datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_session_pref(session_id: str, key: str) -> str | None:
+    init_db()
+    conn = _get_db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM session_prefs WHERE session_id = ? AND key = ?",
+            (session_id, key),
+        ).fetchone()
+        return row["value"] if row else None
+    finally:
+        conn.close()
+
+
 def delete_session_data(session_id: str) -> dict:
     """
     Erase everything stored for a session: conversations, audit trail,
@@ -341,6 +384,9 @@ def delete_session_data(session_id: str) -> dict:
         ).rowcount
         counts["auth_sessions"] = conn.execute(
             "DELETE FROM auth_sessions WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["session_prefs"] = conn.execute(
+            "DELETE FROM session_prefs WHERE session_id = ?", (session_id,)
         ).rowcount
         conn.commit()
         return counts

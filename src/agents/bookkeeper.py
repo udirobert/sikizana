@@ -409,7 +409,7 @@ _TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "get_sector_benchmarks",
-            "description": "Compare the user's receivables days, overdue rate, and average invoice value against typical UK ranges for their sector (curated from ONS/DBT small-business publications — indicative, not live statistics; the tool labels its sources honestly). Guesses the sector from the org name if not specified and says so. Use when the user asks 'is this normal', 'how do I compare', or about industry benchmarks.",
+            "description": "Compare the user's receivables days, overdue rate, and average invoice value against typical UK ranges for their sector (curated from ONS/DBT small-business publications — indicative, not live statistics; the tool labels its sources honestly). Uses the sector the user set during onboarding when available; otherwise guesses from the org name and says so. Use when the user asks 'is this normal', 'how do I compare', or about industry benchmarks.",
             "parameters": {
                 "type": "object",
                 "properties": {

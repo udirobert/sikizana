@@ -1284,18 +1284,29 @@ def get_sector_benchmarks(sector: str = "") -> str:
     """
     svc = _svc()
 
-    # Detect sector if not provided — and be honest that it's a guess.
+    # Sector resolution, most-trusted first: explicit argument → the
+    # sector the user told us during onboarding → a guess from the org
+    # name (honestly disclosed as a guess).
     sector_guessed = False
     if not sector or sector not in _SECTOR_BENCHMARKS:
         try:
-            org = svc.get_organisation()
-            org_name = org.get("name", "") if isinstance(org, dict) else ""
+            from src.services.payment_store import get_session_pref
+
+            stored = get_session_pref(_current_session.get(), "sector")
         except Exception:  # noqa: BLE001
-            org_name = ""
-        sector = _detect_sector(org_name, sector)
-        sector_guessed = True
-        if sector not in _SECTOR_BENCHMARKS:
-            sector = "default"
+            stored = None
+        if stored and stored in _SECTOR_BENCHMARKS:
+            sector = stored
+        else:
+            try:
+                org = svc.get_organisation()
+                org_name = org.get("name", "") if isinstance(org, dict) else ""
+            except Exception:  # noqa: BLE001
+                org_name = ""
+            sector = _detect_sector(org_name, sector)
+            sector_guessed = True
+            if sector not in _SECTOR_BENCHMARKS:
+                sector = "default"
 
     # Try live ONS data first, fall back to hardcoded
     bench = _fetch_ons_benchmarks(sector)

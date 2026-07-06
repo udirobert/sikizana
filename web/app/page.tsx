@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SikiMascot, type MascotMood } from "@/components/SikiMascot";
+import { SikiMascot, ZanaMascot, type MascotMood } from "@/components/SikiMascot";
 import { useImpactMetrics } from "@/hooks/useRevenue";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
@@ -228,6 +228,60 @@ export default function LandingPage() {
               </p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ── Meet the duo ────────────────────────────────────────────── */}
+      {/* The two-mascot device IS the product story: understanding your
+          money (Siki) and getting it back (Zana). Users otherwise discover
+          the persona toggle by accident. */}
+      <section className="max-w-4xl mx-auto px-6 pb-20">
+        <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
+          Two owls, one job: your money
+        </h2>
+        <p className="text-sm text-stone-500 text-center mb-10">
+          Good cop, firm cop. Switch between them any time in the chat.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white border border-stone-200 rounded-2xl p-6 fade-in-up hover:shadow-md transition-shadow">
+            <div className="flex items-center gap-4 mb-3">
+              <SikiMascot size={64} mood="wave" />
+              <div>
+                <h3 className="text-base font-bold text-stone-900">Siki</h3>
+                <p className="text-[11px] font-semibold text-sky-600 uppercase tracking-wide">
+                  The Explainer
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-stone-600 leading-relaxed">
+              Gentle, patient, allergic to jargon. Siki reads your books, shows you who owes
+              what, explains your P&amp;L like a friend would, and flags what needs attention —
+              before you ask.
+            </p>
+            <p className="text-xs text-stone-400 mt-3 italic">
+              &quot;You&apos;re owed £4,200. Here&apos;s who, and for how long. Want me to help?&quot;
+            </p>
+          </div>
+          <div className="bg-white border border-stone-300 rounded-2xl p-6 fade-in-up hover:shadow-md transition-shadow" style={{ animationDelay: "100ms" }}>
+            <div className="flex items-center gap-4 mb-3">
+              <ZanaMascot size={64} mood="look" />
+              <div>
+                <h3 className="text-base font-bold text-stone-900">Zana</h3>
+                <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wide">
+                  The Enforcer
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-stone-600 leading-relaxed">
+              Direct, unbothered, gets you paid. Zana drafts the chasing emails you&apos;ve been
+              putting off — negotiation psychology built in — calculates the statutory interest
+              you&apos;re owed, and escalates until the invoice is settled.
+            </p>
+            <p className="text-xs text-stone-400 mt-3 italic">
+              &quot;It&apos;s been 45 days. Here&apos;s the email to send. You&apos;re also owed
+              £70 in compensation — I added it.&quot;
+            </p>
+          </div>
         </div>
       </section>
 

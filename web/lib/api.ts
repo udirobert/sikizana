@@ -321,6 +321,12 @@ export const endpoints = {
   /** This session's audit trail — journals posted/reversed, newest first. */
   activity: () => api.get<{ events: ActivityEvent[]; aggregate: AggregateActivity }>("/api/activity"),
 
+  prefs: {
+    /** Store the user's sector — asked once, personalizes benchmarks. */
+    set: (sector: string) => api.post<{ ok: boolean; sector: string }>("/api/prefs", { sector }),
+    get: () => api.get<{ sector: string | null }>("/api/prefs"),
+  },
+
   data: {
     /** Disconnect Xero AND erase everything stored for this session —
      *  tokens, conversations, audit trail, chase sequences, snapshots. */
