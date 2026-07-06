@@ -17,6 +17,9 @@ export interface Message {
   index?: number;
   /** Tool calls made by the agent (for transparency display) */
   toolCalls?: ToolCallEvent[];
+  /** Structured analysis cards (benchmarks, scorecards, trends) emitted
+   *  by the backend alongside the text response. */
+  analysisCards?: AnalysisCardData[];
 }
 
 /** A single tool call made by the agent during reasoning */
@@ -27,11 +30,18 @@ export interface ToolCallEvent {
   status: "calling" | "done";
 }
 
+/** Structured analysis card data emitted by the backend (not via LLM text) */
+export type AnalysisCardData = {
+  type: "sector_benchmark" | "customer_scorecard" | "trend_analysis";
+  [key: string]: unknown;
+};
+
 /** Events streamed from the agent during a chat */
 export type AgentEvent =
   | { type: "status"; message: string }
   | { type: "tool_call"; tool: string; label: string; args: Record<string, unknown> }
   | { type: "tool_result"; tool: string; label: string; summary: string }
+  | { type: "analysis_card"; data: AnalysisCardData }
   | { type: "text"; text: string }
   | { type: "done" };
 

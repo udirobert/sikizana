@@ -872,6 +872,14 @@ async def run_bookkeeper_streaming(
                 result = await asyncio.to_thread(_execute_tool, tool_name, tool_args, session_id)
                 log.info("tool_result", extra={"tool": tool_name, "result_len": len(result)})
 
+                # Extract structured ANALYSIS_DATA block before feeding to LLM.
+                # The LLM is unreliable at passing structured blocks through
+                # verbatim, so we emit the card data as a separate event and
+                # strip the block from the tool result the LLM sees.
+                result, card_data = _extract_analysis_data(result)
+                if card_data:
+                    yield {"type": "analysis_card", "data": card_data}
+
                 # Stream the tool result event
                 yield {
                     "type": "tool_result",
@@ -910,6 +918,33 @@ async def run_bookkeeper_streaming(
     await _persist_history()
     yield {"type": "text", "text": fallback}
     yield {"type": "done"}
+
+
+def _extract_analysis_data(result: str) -> tuple[str, dict | None]:
+    """
+    Extract an ANALYSIS_DATA block from a tool result.
+
+    Returns (cleaned_result, parsed_json or None).
+    The cleaned result has the block stripped so the LLM never sees it —
+    the LLM doesn't need to pass it through, which is unreliable.
+    The structured data is emitted as a separate event to the frontend.
+    """
+    marker = "ANALYSIS_DATA"
+    end_marker = "END_ANALYSIS_DATA"
+    start = result.find(marker)
+    if start == -1:
+        return result, None
+    end = result.find(end_marker, start)
+    if end == -1:
+        return result, None
+    json_str = result[start + len(marker) : end].strip()
+    try:
+        data = json.loads(json_str)
+    except json.JSONDecodeError:
+        return result, None
+    # Strip the block (and surrounding whitespace) from the result
+    cleaned = (result[:start] + result[end + len(end_marker) :]).rstrip()
+    return cleaned, data
 
 
 async def _iter_with_timeout(

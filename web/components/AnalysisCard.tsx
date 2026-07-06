@@ -68,6 +68,8 @@ interface TrendData {
 
 type AnalysisData = BenchmarkData | ScorecardData | TrendData;
 
+// parseAnalysisData is no longer used — cards are now delivered via
+// streaming events, not parsed from LLM text. Kept for backward compat.
 export function parseAnalysisData(text: string): AnalysisData | null {
   const marker = text.indexOf("ANALYSIS_DATA");
   if (marker === -1) return null;
@@ -337,18 +339,18 @@ function TrendChart({ data }: { data: TrendData }) {
 // ─── Main Component ──────────────────────────────────────────────────
 
 interface AnalysisCardProps {
-  data: AnalysisData;
+  data: { type: string; [key: string]: unknown };
 }
 
 export function AnalysisCard({ data }: AnalysisCardProps) {
   if (data.type === "sector_benchmark") {
-    return <BenchmarkCard data={data} />;
+    return <BenchmarkCard data={data as unknown as BenchmarkData} />;
   }
   if (data.type === "customer_scorecard") {
-    return <CustomerScorecard data={data} />;
+    return <CustomerScorecard data={data as unknown as ScorecardData} />;
   }
   if (data.type === "trend_analysis") {
-    return <TrendChart data={data} />;
+    return <TrendChart data={data as unknown as TrendData} />;
   }
   return null;
 }

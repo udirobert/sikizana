@@ -12,6 +12,7 @@ import {
   type FindingsResponse,
   type XeroMode,
 } from "@/lib/api";
+import type { AnalysisCardData } from "@/lib/types";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
@@ -22,7 +23,7 @@ import { ToolCallTrace } from "@/components/ToolCallTrace";
 import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { NegotiationEmailCard, parseNegotiationEmail } from "@/components/NegotiationEmailCard";
-import { AnalysisCard, parseAnalysisData } from "@/components/AnalysisCard";
+import { AnalysisCard } from "@/components/AnalysisCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -351,6 +352,7 @@ function BooksView() {
 
     // Track tool calls and response text for this message
     const toolCalls: ToolCallEvent[] = [];
+    const analysisCards: AnalysisCardData[] = [];
     let responseText = "";
 
     // Add a placeholder agent message that we'll update as events stream in
@@ -381,6 +383,11 @@ function BooksView() {
             setThinkingMessage("Composing your answer…");
           }
           updateLastAgentMessage({ toolCalls: [...toolCalls] });
+        } else if (event.type === "analysis_card") {
+          // Structured card data emitted by the backend (not via LLM text).
+          // Accumulate on the current agent message for rendering after text.
+          analysisCards.push(event.data);
+          updateLastAgentMessage({ analysisCards: [...analysisCards] });
         } else if (event.type === "text") {
           responseText += event.text;
           setThinkingMessage(""); // Clear thinking once text starts arriving
@@ -1094,15 +1101,13 @@ function BooksView() {
               const journal = msg.role === "agent" && msg.content ? parseJournalEntry(msg.content) : null;
               // Parse for negotiation email card if agent message
               const negotiationEmail = msg.role === "agent" && msg.content ? parseNegotiationEmail(msg.content) : null;
-              // Parse for analysis card (benchmark, scorecard, trend)
-              const analysisData = msg.role === "agent" && msg.content ? parseAnalysisData(msg.content) : null;
+              // Analysis cards are now delivered via events, not parsed from text
+              const cards = msg.analysisCards || [];
               // The text to display (remove the structured block if we're showing it as a card)
               const displayContent = journal
                 ? msg.content.split(/PROPOSED JOURNAL ENTRY/i)[0].trim()
                 : negotiationEmail
                 ? msg.content.split(/NEGOTIATION EMAIL/i)[0].trim()
-                : analysisData
-                ? msg.content.split(/ANALYSIS_DATA/i)[0].trim()
                 : msg.content;
 
               return (
@@ -1166,9 +1171,9 @@ function BooksView() {
                   {negotiationEmail && (
                     <NegotiationEmailCard email={negotiationEmail} />
                   )}
-                  {analysisData && (
-                    <AnalysisCard data={analysisData} />
-                  )}
+                  {cards.map((card, ci) => (
+                    <AnalysisCard key={ci} data={card} />
+                  ))}
                   {/* Feedback on completed agent answers (not while streaming) */}
                   {msg.role === "agent" && msg.content && threadId &&
                     !(isLoading && i === messages.length - 1) && (

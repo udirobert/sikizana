@@ -1436,10 +1436,14 @@ def score_customers() -> str:
                     days_late_list.append(days)
                     overdue_count += 1
                 else:
-                    on_time_count += 1
+                    # Not due yet — don't count as on-time or late.
+                    # It's too early to judge. Exclude from on-time rate.
+                    pass
 
-        # Metrics
-        on_time_rate = on_time_count / total_invoices if total_invoices > 0 else 0
+        # Metrics — on-time rate is based on invoices that are actually
+        # due (paid or overdue), not future-due invoices.
+        judged_invoices = on_time_count + overdue_count
+        on_time_rate = on_time_count / judged_invoices if judged_invoices > 0 else 1.0
         avg_days_late = sum(days_late_list) / len(days_late_list) if days_late_list else 0
 
         # Chasing cost estimate: each overdue invoice costs ~30 min of chasing
