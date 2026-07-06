@@ -373,7 +373,7 @@ function BooksView() {
   const sendToAgent = async (message: string) => {
     setIsLoading(true);
     setErrorBanner(null);
-    setThinkingMessage("Looking into your books…");
+    setThinkingMessage(persona === "siki" ? "Looking into your books…" : "On it. Checking the books…");
     const tid = ensureThread();
 
     const controller = new AbortController();
@@ -916,7 +916,7 @@ function BooksView() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-stone-800">
-                {persona === "siki" ? "Siki the Bookkeeper" : "Zana the Enforcer"}
+                {persona === "siki" ? "Siki · The Explainer" : "Zana · The Enforcer"}
               </p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 {isLoading ? (
@@ -1001,8 +1001,8 @@ function BooksView() {
               role="status"
             >
               {persona === "siki"
-                ? "Bookkeeper mode — finds & fixes: reconciliation, journal entries, tax."
-                : "Advisor mode — chases payments, finds savings, tells hard truths."}
+                ? "Siki explains — who owes you, what your numbers mean, what's normal for your industry. No jargon."
+                : "Zana enforces — chasing emails, escalation plans, customer scoring, hard truths. Let's get you paid."}
             </div>
           )}
 
@@ -1423,7 +1423,11 @@ function BooksView() {
                   // composition, it shouldn't send the message.
                   if (e.key === "Enter" && !e.nativeEvent.isComposing) handleSend();
                 }}
-                placeholder="Ask about your books, invoices, or P&L..."
+                placeholder={
+                  persona === "siki"
+                    ? "Ask Siki — who owes me? what's this number? is this normal?"
+                    : "Tell Zana — chase this invoice, score my customers, what's my plan?"
+                }
                 disabled={isLoading}
                 className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white disabled:opacity-50"
               />

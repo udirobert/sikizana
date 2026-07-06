@@ -14,6 +14,10 @@ approval.
 
 Built for the Xero Hackathon.
 
+**Writing any user-facing copy?** Read [docs/BRAND.md](docs/BRAND.md)
+first — the Siki/Zana duo rule (Siki explains, Zana enforces), honesty
+rules, and canonical copy live there.
+
 ---
 
 ## Live URL
