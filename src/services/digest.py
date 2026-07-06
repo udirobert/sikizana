@@ -155,7 +155,39 @@ def build_digest(session_id: str) -> dict[str, Any]:
     }
 
 
-def send_email(to: str, subject: str, text: str, html: str) -> bool:
+def build_message(
+    to: str,
+    subject: str,
+    text: str,
+    html: str,
+    sender: str,
+    from_name: str = "",
+    reply_to: str = "",
+) -> MIMEMultipart:
+    """Assemble the MIME message. From shows the sender's display name
+    (for chases: the user's BUSINESS, not Sikizana — debtors must see who
+    they owe) and Reply-To routes responses to the user's real mailbox."""
+    from email.utils import formataddr
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = formataddr((from_name, sender)) if from_name else sender
+    msg["To"] = to
+    if reply_to:
+        msg["Reply-To"] = reply_to
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+    return msg
+
+
+def send_email(
+    to: str,
+    subject: str,
+    text: str,
+    html: str,
+    from_name: str = "",
+    reply_to: str = "",
+) -> bool:
     """Send via SMTP. Returns False (with a log) when unconfigured/failed."""
     host = os.environ.get("SMTP_HOST", "")
     if not host:
@@ -166,12 +198,7 @@ def send_email(to: str, subject: str, text: str, html: str) -> bool:
     password = os.environ.get("SMTP_PASS", "")
     sender = os.environ.get("SMTP_FROM", user or "siki@sikizana.com")
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = to
-    msg.attach(MIMEText(text, "plain"))
-    msg.attach(MIMEText(html, "html"))
+    msg = build_message(to, subject, text, html, sender, from_name=from_name, reply_to=reply_to)
 
     try:
         with smtplib.SMTP(host, port, timeout=20) as smtp:

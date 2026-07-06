@@ -101,6 +101,35 @@ def test_email_money_math():
     assert "interest" not in e1.body.lower()  # stage 1 stays friendly
 
 
+def test_sender_identity_headers():
+    """Debtors must see the BUSINESS in From, and replies must route to
+    the user's real mailbox — never a bare third-party robot address."""
+    from src.services.digest import build_message
+
+    msg = build_message(
+        to="debtor@example.com",
+        subject="s",
+        text="t",
+        html="<p>t</p>",
+        sender="chase@persidian.com",
+        from_name="Bloggs Retail Ltd",
+        reply_to="owner@bloggsretail.co.uk",
+    )
+    assert msg["From"] == "Bloggs Retail Ltd <chase@persidian.com>"
+    assert msg["Reply-To"] == "owner@bloggsretail.co.uk"
+    # Without a display name / reply-to, headers stay minimal.
+    bare = build_message("a@b.c", "s", "t", "<p>t</p>", sender="chase@persidian.com")
+    assert bare["From"] == "chase@persidian.com"
+    assert bare["Reply-To"] is None
+
+
+def test_email_signature_uses_business_name():
+    """Automated sends must never go out signed '[Your name]'."""
+    e = build_chase_email(2, "Acme", 500.0, "INV-1", 20, sender_name="Bloggs Retail Ltd")
+    assert "Bloggs Retail Ltd" in e.body
+    assert "[Your name]" not in e.body
+
+
 def test_footer_on_early_stages_only():
     """The distribution footer rides friendly emails, never legal ones."""
     for stage in (1, 2):

@@ -32,7 +32,12 @@ def main() -> None:
     sent = failed = 0
     for r in recipients:
         digest = build_digest(r["session_id"])
-        ok = send_email(r["email"], digest["subject"], digest["text"], digest["html"])
+        # Digests are correctly Siki-branded — unlike chase emails, which
+        # send under the user's business name.
+        ok = send_email(
+            r["email"], digest["subject"], digest["text"], digest["html"],
+            from_name="Siki at Sikizana",
+        )
         sent += ok
         failed += not ok
     log.info("digest_job_completed", extra={"recipients": len(recipients), "sent": sent})

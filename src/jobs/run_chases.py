@@ -100,10 +100,19 @@ def settle_paid_sequences(session_ids: list[str]) -> int:
     return settled
 
 
+def _org_name(svc: XeroService) -> str:
+    try:
+        org = svc.get_organisation()
+        return org.get("name", "") if isinstance(org, dict) else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def run(today: date | None = None) -> dict[str, int]:
     today = today or date.today()
     stats = {"due": 0, "sent": 0, "simulated": 0, "completed_paid": 0, "failed": 0, "exhausted": 0}
     invoice_cache: dict[str, list | None] = {}  # one Xero fetch per session
+    org_cache: dict[str, str] = {}  # business name per session (From identity)
 
     for seq in chase_store.due_sequences(as_of=today.isoformat()):
         stats["due"] += 1
@@ -120,7 +129,12 @@ def run(today: date | None = None) -> dict[str, int]:
             stats["completed_paid"] += 1
             continue
 
-        # 2. Build the stage email with authoritative figures.
+        # 2. Build the stage email with authoritative figures, signed with
+        # the user's BUSINESS name — a debtor must see who they owe, not a
+        # third-party robot (and never a "[Your name]" placeholder).
+        if sid not in org_cache:
+            org_cache[sid] = _org_name(XeroService(sid))
+        business = org_cache[sid]
         try:
             due = date.fromisoformat(str(seq["due_date"])[:10])
         except (ValueError, TypeError):
@@ -133,6 +147,7 @@ def run(today: date | None = None) -> dict[str, int]:
             amount=float(seq["amount"]),
             invoice_number=seq["invoice_number"],
             days_overdue=days_overdue,
+            sender_name=business,
         )
 
         # 3. Send / simulate / fail — always recorded, never silent.
@@ -155,7 +170,14 @@ def run(today: date | None = None) -> dict[str, int]:
             continue  # retry when the operator configures SMTP
         else:
             html = f"<pre style='font-family:inherit;white-space:pre-wrap'>{email.body}</pre>"
-            ok = send_email(seq["contact_email"], email.subject, email.body, html)
+            ok = send_email(
+                seq["contact_email"],
+                email.subject,
+                email.body,
+                html,
+                from_name=business,  # inbox shows "Bloggs Retail Ltd", not Siki
+                reply_to=seq["reply_to"] or "",  # replies reach the user's mailbox
+            )
             outcome = "sent" if ok else "failed"
             chase_store.record_send(
                 seq["id"], stage, outcome, email.subject, seq["contact_email"]
