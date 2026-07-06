@@ -124,6 +124,8 @@ function BooksView() {
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
   const [connecting, setConnecting] = useState(false);
+  // Pre-OAuth consent screen — what Siki reads, what it can't do, how to leave.
+  const [showConnectConfirm, setShowConnectConfirm] = useState(false);
   const [persona, setPersona] = useState<"siki" | "zana">(() => {
     // Persist persona in localStorage so it survives page refreshes
     if (typeof window !== "undefined") {
@@ -227,17 +229,11 @@ function BooksView() {
         setOauthConfigured(c.oauth_configured);
         setUserConnection({ connected: c.connected, tenant_name: c.tenant_name });
         // If the user came from the landing page "Connect My Xero" button
-        // (?connect=1), auto-trigger the OAuth flow — but only if OAuth
-        // is configured and they're not already connected.
+        // (?connect=1), open the consent screen — never hard-redirect a
+        // first-time visitor into Xero's permissions page unexplained.
         if (c.oauth_configured && !c.connected && searchParams.get("connect") === "1") {
-          void endpoints.xero
-            .auth()
-            .then((result) => {
-              if (result.configured && result.auth_url) {
-                window.location.href = result.auth_url;
-              }
-            })
-            .catch(() => {});
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setShowConnectConfirm(true);
         }
       })
       .catch(() => {});
@@ -295,7 +291,8 @@ function BooksView() {
     }
   };
 
-  const handleConnectXero = async () => {
+  /** The actual OAuth redirect — only ever called from the consent screen. */
+  const startXeroOAuth = async () => {
     setConnecting(true);
     try {
       // Connecting Xero is free for everyone — only write-back is Pro-gated.
@@ -303,12 +300,24 @@ function BooksView() {
       if (result.configured && result.auth_url) {
         window.location.href = result.auth_url;
       } else {
+        setShowConnectConfirm(false);
         setErrorBanner("Xero OAuth is not configured yet. Using demo data for now.");
       }
     } catch {
+      setShowConnectConfirm(false);
       setErrorBanner("Failed to start Xero connection flow.");
     }
     setConnecting(false);
+  };
+
+  /**
+   * Every "Connect" button opens the consent screen first — users are
+   * about to hand over their company's books, and Xero's own OAuth page
+   * explains nothing about what happens after. This screen answers the
+   * trust questions BEFORE the scary permissions page.
+   */
+  const handleConnectXero = () => {
+    setShowConnectConfirm(true);
   };
 
   const handleDisconnect = async () => {
@@ -1479,6 +1488,92 @@ function BooksView() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Pre-OAuth consent — the trust moment. Users are handing over
+          their company's books; answer the five questions they're
+          actually asking BEFORE Xero's permissions page appears. */}
+      {showConnectConfirm && (
+        <div
+          className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 fade-in"
+          onClick={() => setShowConnectConfirm(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setShowConnectConfirm(false);
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Before you connect your Xero"
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <SikiMascot size={40} mood="idle" />
+              <div>
+                <h2 className="text-sm font-bold text-stone-900">Before you connect</h2>
+                <p className="text-xs text-stone-600 mt-0.5">
+                  You&apos;re about to share your company&apos;s books. Here&apos;s exactly what
+                  that means:
+                </p>
+              </div>
+            </div>
+
+            <ul className="space-y-2.5 mb-5 text-xs text-stone-700">
+              <li className="flex gap-2.5">
+                <span aria-hidden="true">👀</span>
+                <span>
+                  <span className="font-semibold">Siki reads</span> your invoices, contacts, bank
+                  transactions, and reports — on demand, not bulk-copied.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span aria-hidden="true">🔒</span>
+                <span>
+                  <span className="font-semibold">Siki can&apos;t change anything</span> without
+                  you — every entry and every chase email needs your explicit approval first.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span aria-hidden="true">🤐</span>
+                <span>
+                  <span className="font-semibold">Never sold, never shared</span> with advertisers,
+                  never used to train AI models. Access tokens are encrypted.
+                </span>
+              </li>
+              <li className="flex gap-2.5">
+                <span aria-hidden="true">🚪</span>
+                <span>
+                  <span className="font-semibold">Leave anytime</span> — one click disconnects
+                  instantly, and &quot;Delete my data&quot; erases everything we stored.
+                </span>
+              </li>
+            </ul>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => void startXeroOAuth()}
+                disabled={connecting}
+                className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+              >
+                {connecting ? "Connecting…" : "Continue to Xero →"}
+              </button>
+              <button
+                onClick={() => setShowConnectConfirm(false)}
+                disabled={connecting}
+                className="text-xs font-semibold px-4 py-2.5 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 btn-press transition-colors disabled:opacity-50"
+              >
+                Not yet
+              </button>
+            </div>
+            <p className="text-[10px] text-stone-400 mt-3 text-center">
+              Full details:{" "}
+              <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
+                how your data is protected
+              </Link>
+            </p>
           </div>
         </div>
       )}

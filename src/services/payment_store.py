@@ -318,6 +318,36 @@ def get_audit_history(session_id: str | None = None, limit: int = 50) -> list[di
     return [dict(r) for r in rows]
 
 
+def delete_session_data(session_id: str) -> dict:
+    """
+    Erase everything stored for a session: conversations, audit trail,
+    metric snapshots, and the session→user link. The GDPR right-to-erasure
+    path — and a trust feature: "you can leave completely, anytime."
+    Xero tokens and chase sequences are deleted by their own modules.
+    Returns per-table deletion counts.
+    """
+    init_db()
+    conn = _get_db()
+    try:
+        counts = {}
+        counts["conversations"] = conn.execute(
+            "DELETE FROM conversations WHERE key LIKE ?", (f"{session_id}:%",)
+        ).rowcount
+        counts["audit_history"] = conn.execute(
+            "DELETE FROM audit_history WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["metric_snapshots"] = conn.execute(
+            "DELETE FROM metric_snapshots WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["auth_sessions"] = conn.execute(
+            "DELETE FROM auth_sessions WHERE session_id = ?", (session_id,)
+        ).rowcount
+        conn.commit()
+        return counts
+    finally:
+        conn.close()
+
+
 def get_recovered_total(session_id: str) -> dict:
     """Money recovered by the chase loop for one session — invoices that
     were paid after at least one chase email. The product's win metric."""

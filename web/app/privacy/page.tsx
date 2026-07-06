@@ -76,15 +76,36 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h3 className="text-base font-semibold text-stone-900 mb-2">AI processing</h3>
-            <p>
-              Your conversations with the assistant — including the Xero data it retrieves to
-              answer your questions and any receipts you upload — are processed by third-party
-              large language model providers, currently <span className="font-medium">NVIDIA
-              NIM</span> and <span className="font-medium">Google Gemini</span>. Those providers
-              process this data to generate responses. We do not use your accounting data to
-              train our own models.
+            <h3 className="text-base font-semibold text-stone-900 mb-2">
+              Who processes your data
+            </h3>
+            <p className="mb-2">
+              We use a small number of service providers, each for one specific job:
             </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li>
+                <span className="font-medium">NVIDIA (with Venice AI as backup)</span> — the AI
+                models that generate the assistant&apos;s answers process your questions and the
+                Xero data retrieved to answer them. Your data is not used to train models.
+              </li>
+              <li>
+                <span className="font-medium">Google Gemini</span> — reads receipt images you
+                choose to upload, to extract the supplier, amount, and date.
+              </li>
+              <li>
+                <span className="font-medium">Postmark</span> — delivers the emails you approve:
+                invoice reminders to your customers and your weekly digest.
+              </li>
+              <li>
+                <span className="font-medium">Stripe</span> — handles payments. We never see
+                card numbers.
+              </li>
+              <li>
+                <span className="font-medium">Exa &amp; Firecrawl</span> — used to look up public
+                HMRC guidance. Only pre-written generic search queries are sent — never your
+                questions, customer names, or amounts.
+              </li>
+            </ul>
           </section>
 
           <section>
@@ -100,20 +121,38 @@ export default function PrivacyPage() {
             <h3 className="text-base font-semibold text-stone-900 mb-2">Data retention &amp; your control</h3>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>
-                <span className="font-medium">Xero access tokens</span> are stored so the
-                assistant can read your data during your sessions. You can revoke access at any
-                time with the Disconnect button in the app, or from Xero&apos;s connected apps
-                settings — either immediately invalidates our access.
+                <span className="font-medium">Xero access tokens</span> are stored encrypted so
+                the assistant can read your data during your sessions. You can revoke access at
+                any time with the Disconnect button in the app, or from Xero&apos;s connected
+                apps settings — either immediately invalidates our access.
               </li>
               <li>
-                <span className="font-medium">Conversation history</span> is kept in your own
-                browser (localStorage). Starting a new session clears it from the interface.
+                <span className="font-medium">Conversation history, activity trail, and chase
+                schedules</span> are stored on our servers, scoped to your private session so no
+                other visitor can ever see them.
               </li>
               <li>
                 <span className="font-medium">Feedback</span> (ratings and comments) is stored on
                 our servers.
               </li>
+              <li>
+                <span className="font-medium">Delete everything, anytime:</span> the &quot;Delete
+                my data&quot; button on your Account page revokes the Xero connection AND
+                permanently erases your conversations, activity history, chase schedules, and
+                metrics from our servers.
+              </li>
             </ul>
+          </section>
+
+          <section>
+            <h3 className="text-base font-semibold text-stone-900 mb-2">Emails sent on your behalf</h3>
+            <p>
+              If you approve a chase sequence for an overdue invoice, reminder emails are sent to
+              that invoice&apos;s billing contact under your business name, with replies routed to
+              your own email address. Sequences stop automatically the moment the invoice is paid,
+              and you can cancel them at any time. We never email your customers without your
+              explicit approval of that specific invoice&apos;s sequence.
+            </p>
           </section>
 
           <section>
@@ -140,6 +179,10 @@ export default function PrivacyPage() {
               <a href="mailto:hello@sikizana.com" className="text-sky-600 hover:text-sky-700 underline">
                 hello@sikizana.com
               </a>
+              . For the plain-English version of all of this, see{" "}
+              <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
+                how your data is protected
+              </Link>
               .
             </p>
           </section>

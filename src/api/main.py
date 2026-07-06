@@ -185,13 +185,16 @@ _QUERY_INTENT_MAP = {
 }
 
 
-def _map_query_to_exa(q: str) -> str:
-    """Map a user query to a better Exa search query."""
+def _map_query_to_exa(q: str) -> str | None:
+    """Map a user query to a canonical Exa query, or None when no intent
+    matches. Only canonical queries ever leave the server — raw chat text
+    can contain customer names and amounts, and a third-party search API
+    must never receive a user's financial details."""
     q_lower = q.lower()
     for keyword, mapped in _QUERY_INTENT_MAP.items():
         if keyword in q_lower:
             return mapped
-    return f"UK HMRC guidance: {q}"
+    return None
 
 
 import re as _re
@@ -240,15 +243,20 @@ async def context_search(q: str = ""):
     exa_key = os.environ.get("EXA_API_KEY", "")
     firecrawl_key = os.environ.get("FIRECRAWL_API_KEY", "")
     exa_query = _map_query_to_exa(q)
-    cache_key = f"context:{exa_query.lower()}"
-
-    cached = await asyncio.to_thread(cache.get, cache_key)
-    if cached is not None:
-        return {"results": cached, "source": "exa_cached"}
+    if exa_query is None:
+        # No intent match — never ship raw user text to a third party;
+        # curated fallback below handles it.
+        exa_key = ""
+        cache_key = ""
+    else:
+        cache_key = f"context:{exa_query.lower()}"
+        cached = await asyncio.to_thread(cache.get, cache_key)
+        if cached is not None:
+            return {"results": cached, "source": "exa_cached"}
 
     results = []
 
-    # Step 1: Exa search — the intent-mapped query
+    # Step 1: Exa search — the canonical intent-mapped query only
     if exa_key:
         try:
             import httpx
@@ -1005,6 +1013,41 @@ async def xero_reverse_journal(
         else result["message"]
     )
     return result
+
+
+# ---- Data deletion (right to erasure — and a trust feature) ----
+
+
+@app.post("/api/data/delete")
+async def data_delete(request: Request, session_id: str = Depends(get_session_id)):
+    """
+    Disconnect Xero AND erase everything this session stored: OAuth
+    tokens, conversations, audit trail, chase sequences, metric
+    snapshots, and any account link. "You can leave completely, anytime"
+    — the plain-English promise on /security, made real.
+    """
+    from src.services.xero_oauth import disconnect
+    from src.services.payment_store import delete_session_data
+    from src.services import chase_store
+    from src.services.xero_service import _invalidate_session_reads
+
+    _check_rate_limit(request)
+
+    def _wipe():
+        revoked = disconnect(session_id)  # revokes + deletes Xero tokens
+        counts = delete_session_data(session_id)
+        counts["chase_sequences"] = chase_store.delete_for_session(session_id)
+        _invalidate_session_reads(session_id)
+        return revoked, counts
+
+    revoked, counts = await asyncio.to_thread(_wipe)
+    log.info("data_deleted", extra={"counts": counts, "xero_revoked": revoked})
+    return {
+        "deleted": True,
+        "xero_disconnected": revoked,
+        "counts": counts,
+        "message": "Your Xero connection is revoked and all stored data for this session is erased.",
+    }
 
 
 # ---- Chase sequences (the automated follow-up loop) ----

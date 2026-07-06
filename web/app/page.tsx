@@ -123,6 +123,12 @@ export default function LandingPage() {
         <p className="mt-3 text-xs text-stone-500 fade-in-up" style={{ animationDelay: "500ms" }}>
           Try the demo instantly — no signup needed. Or connect your Xero to see your real numbers.
         </p>
+        <p className="mt-1.5 text-xs text-stone-400 fade-in-up" style={{ animationDelay: "550ms" }}>
+          🔒 Read-only until you approve an action · never sold or shared ·{" "}
+          <Link href="/security" className="underline hover:text-stone-600 transition-colors">
+            how your data is protected
+          </Link>
+        </p>
       </section>
 
       {/* ── Trust signals ───────────────────────────────────────────── */}
@@ -290,6 +296,9 @@ export default function LandingPage() {
             <span className="text-sm font-bold text-stone-900">SIKIZANA</span>
           </div>
           <div className="flex items-center justify-center gap-4 mb-3">
+            <Link href="/security" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Security
+            </Link>
             <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Privacy Policy
             </Link>

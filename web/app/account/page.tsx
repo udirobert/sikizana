@@ -383,6 +383,36 @@ function AccountView() {
     }
   };
 
+  const [deleteState, setDeleteState] = useState<"idle" | "confirm" | "deleting" | "done">("idle");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  /**
+   * The /security page promises "one click erases everything we stored" —
+   * this is that click. Revokes the Xero connection, wipes conversations,
+   * audit trail, chase sequences, and snapshots server-side, then clears
+   * the browser's local copies too.
+   */
+  const handleDeleteData = async () => {
+    setDeleteState("deleting");
+    setDeleteError(null);
+    try {
+      await endpoints.data.delete();
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {
+        /* ignore */
+      }
+      setDeleteState("done");
+      await refresh();
+    } catch (e) {
+      setDeleteState("confirm");
+      setDeleteError(
+        e instanceof ApiError ? e.message : "Deletion failed — nothing was removed. Try again.",
+      );
+    }
+  };
+
   const handleSignOut = async () => {
     setSigningOut(true);
     setBillingError(null);
@@ -522,6 +552,69 @@ function AccountView() {
                 {signingOut ? "Signing out…" : "Sign out"}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Data deletion — available to EVERYONE, signed in or not: an
+            anonymous visitor who connected Xero has data worth erasing. */}
+        {!loading && (
+          <div className="w-full max-w-md mt-4 bg-white rounded-2xl shadow-sm border border-stone-200 p-5 fade-in-up">
+            <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wide mb-1">
+              Your data
+            </h3>
+            {deleteState === "done" ? (
+              <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2" role="status">
+                ✓ Done. Your Xero connection is revoked and everything Sikizana stored —
+                conversations, activity, chase schedules — is erased.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-stone-600 mb-3">
+                  Disconnect your Xero and permanently erase everything Sikizana has stored for
+                  you: conversations, activity history, chase schedules, and metrics.{" "}
+                  <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
+                    How your data is protected
+                  </Link>
+                </p>
+                {deleteState === "idle" && (
+                  <button
+                    onClick={() => setDeleteState("confirm")}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg bg-white text-red-600 border border-red-200 hover:bg-red-50 btn-press transition-colors"
+                  >
+                    Delete my data
+                  </button>
+                )}
+                {(deleteState === "confirm" || deleteState === "deleting") && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-stone-700 font-medium">
+                      This can&apos;t be undone. Erase everything?
+                    </span>
+                    <button
+                      onClick={() => void handleDeleteData()}
+                      disabled={deleteState === "deleting"}
+                      className="text-xs font-semibold px-3 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 btn-press transition-colors disabled:opacity-60 disabled:cursor-wait"
+                    >
+                      {deleteState === "deleting" ? "Erasing…" : "Yes, erase everything"}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteState("idle");
+                        setDeleteError(null);
+                      }}
+                      disabled={deleteState === "deleting"}
+                      className="text-xs font-medium px-3 py-2 rounded-lg bg-stone-100 text-stone-600 hover:bg-stone-200 btn-press transition-colors disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+                {deleteError && (
+                  <p className="text-xs text-red-600 mt-2" role="alert">
+                    {deleteError}
+                  </p>
+                )}
+              </>
+            )}
           </div>
         )}
 

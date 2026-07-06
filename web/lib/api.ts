@@ -321,6 +321,16 @@ export const endpoints = {
   /** This session's audit trail — journals posted/reversed, newest first. */
   activity: () => api.get<{ events: ActivityEvent[]; aggregate: AggregateActivity }>("/api/activity"),
 
+  data: {
+    /** Disconnect Xero AND erase everything stored for this session —
+     *  tokens, conversations, audit trail, chase sequences, snapshots. */
+    delete: () =>
+      api.post<{ deleted: boolean; xero_disconnected: boolean; message: string }>(
+        "/api/data/delete",
+        {},
+      ),
+  },
+
   chase: {
     /** Approve automatic follow-ups for one overdue invoice (server resolves
      *  amount/contact/dates from Xero; stops on payment). */

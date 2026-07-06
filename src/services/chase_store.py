@@ -237,6 +237,28 @@ def advance_sequence(sequence_id: int, due_date: str) -> None:
         conn.close()
 
 
+def delete_for_session(session_id: str) -> int:
+    """Erase a session's chase sequences and their send history (the
+    data-deletion path). Returns the number of sequences removed."""
+    init_db()
+    conn = _get_db()
+    try:
+        ids = [
+            r["id"]
+            for r in conn.execute(
+                "SELECT id FROM chase_sequences WHERE session_id = ?", (session_id,)
+            ).fetchall()
+        ]
+        if ids:
+            marks = ",".join("?" * len(ids))
+            conn.execute(f"DELETE FROM chase_events WHERE sequence_id IN ({marks})", ids)
+            conn.execute(f"DELETE FROM chase_sequences WHERE id IN ({marks})", ids)
+            conn.commit()
+        return len(ids)
+    finally:
+        conn.close()
+
+
 def complete_sequence(sequence_id: int, status: str = "completed") -> None:
     conn = _get_db()
     try:
