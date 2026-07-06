@@ -5,6 +5,8 @@ import Link from "next/link";
 import { endpoints, type ActivityEvent, type AggregateActivity } from "@/lib/api";
 import { SikiMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
+import { useXeroMode } from "@/hooks/useXeroMode";
+import { ModeBadge } from "@/components/ModeBadge";
 
 /**
  * Activity page — the audit trail for this session.
@@ -28,6 +30,7 @@ export default function ActivityPage() {
   const [aggregate, setAggregate] = useState<AggregateActivity | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { isDemo } = useXeroMode();
 
   useEffect(() => {
     void endpoints
@@ -61,9 +64,14 @@ export default function ActivityPage() {
       </nav>
 
       <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-8">
-        <h1 className="text-2xl font-bold text-stone-900 mb-1">Activity</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-stone-900">Activity</h1>
+          {isDemo && <ModeBadge isDemo={isDemo} />}
+        </div>
         <p className="text-sm text-stone-500 mb-6">
-          Everything Siki has done in this session — queries, tool calls, and journal entries.
+          {isDemo
+            ? "Activity from your demo session — these are sample actions on sample data."
+            : "Everything Siki has done in this session — queries, tool calls, and journal entries."}
         </p>
 
         {/* Aggregate activity banner — social proof for anonymous users.

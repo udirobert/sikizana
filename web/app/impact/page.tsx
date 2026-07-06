@@ -6,6 +6,7 @@ import { endpoints, type ImpactMetrics } from "@/lib/api";
 import { SikiMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
+import { ModeBadge } from "@/components/ModeBadge";
 
 /**
  * Impact — aggregate social proof: money found, issues caught, tax
@@ -42,6 +43,7 @@ export default function ImpactPage() {
   const feedbackUp = data?.feedback?.up ?? 0;
   const feedbackRatio =
     feedbackTotal > 0 ? Math.round((feedbackUp / feedbackTotal) * 100) : null;
+  const isDemo = data?.mode === "demo";
 
   const steps = [
     {
@@ -92,10 +94,14 @@ export default function ImpactPage() {
 
       <div className="flex-1 w-full max-w-4xl mx-auto px-5 py-8">
         <header className="mb-7 fade-in-up">
-          <h2 className="text-2xl font-bold text-stone-900">Siki&apos;s Impact</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold text-stone-900">Siki&apos;s Impact</h2>
+            {data && <ModeBadge isDemo={isDemo} />}
+          </div>
           <p className="text-sm text-stone-500 mt-1">
-            Live numbers from Sikizana&apos;s Xero reconciliation engine. Updated every 30
-            seconds.
+            {isDemo
+              ? "These numbers are from demo data — connect your Xero to see your real impact."
+              : "Live numbers from Sikizana's Xero reconciliation engine. Updated every 30 seconds."}
           </p>
         </header>
 

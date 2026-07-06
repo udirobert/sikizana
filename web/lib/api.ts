@@ -101,6 +101,7 @@ export interface FeedbackPayload {
 }
 
 export interface ImpactMetrics {
+  mode?: XeroMode;
   money_found: number;
   overdue_count: number;
   discrepancies_found: number;

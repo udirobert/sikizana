@@ -126,9 +126,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── Trust signals ───────────────────────────────────────────── */}
-      {/* Only shown when the impact fetch returns real numbers — a failed
-          fetch or all-zero metrics would just read as "£0 Money Found". */}
-      {(moneyFound > 0 || discrepanciesFound > 0) && (
+      {/* Only shown when the impact fetch returns real (non-demo) numbers.
+          In demo mode, showing "£1,250 Money Found" is misleading — it's
+          sample data, not real user impact. */}
+      {(moneyFound > 0 || discrepanciesFound > 0) && metrics?.mode !== "demo" && (
         <section className="max-w-4xl mx-auto px-6 pb-16">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[

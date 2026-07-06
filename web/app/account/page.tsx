@@ -8,7 +8,9 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";
 import type { MeResponse, PaidPlan } from "@/lib/api";
 import { useMe } from "@/hooks/useMe";
+import { useXeroMode } from "@/hooks/useXeroMode";
 import { PLAN_LABELS, PlanBadge } from "@/components/PlanBadge";
+import { ModeBadge } from "@/components/ModeBadge";
 
 /**
  * Account page — sign in / create account when logged out; plan, usage
@@ -272,6 +274,7 @@ function DigestToggle({ initial }: { initial: boolean }) {
 function YourImpact() {
   const [journals, setJournals] = useState<{ count: number; total: number } | null>(null);
   const [moneyFound, setMoneyFound] = useState<number | null>(null);
+  const { isDemo } = useXeroMode();
 
   useEffect(() => {
     void endpoints
@@ -295,9 +298,12 @@ function YourImpact() {
   return (
     <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
-          Your impact
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+            Your impact
+          </span>
+          {isDemo && <ModeBadge isDemo={isDemo} />}
+        </div>
         <Link href="/activity" className="text-[11px] font-medium text-sky-600 hover:text-sky-800">
           View activity →
         </Link>
@@ -308,7 +314,9 @@ function YourImpact() {
             <div className="text-sm font-bold text-stone-900">
               £{Math.round(moneyFound).toLocaleString()}
             </div>
-            <div className="text-[10px] text-stone-500">found in your books</div>
+            <div className="text-[10px] text-stone-500">
+              {isDemo ? "found in sample books" : "found in your books"}
+            </div>
           </div>
         )}
         {journals !== null && (

@@ -288,8 +288,9 @@ function BooksView() {
     setConnectStage(null);
     // Free plan + money on the table → frame the upgrade.
     if (findings && findings.money_found > 0 && (!me || me.plan === "free")) {
+      const label = xeroMode === "demo" ? "the sample books" : "your books";
       setUpgradeBanner(
-        `Siki found £${Math.round(findings.money_found).toLocaleString()} in your books — upgrade to Pro to let Siki fix these.`,
+        `Siki found £${Math.round(findings.money_found).toLocaleString()} in ${label} — upgrade to Pro to let Siki fix these.`,
       );
     }
   };
@@ -1381,21 +1382,21 @@ function BooksView() {
                       <AnimatedNumber prefix="£" value={Math.round(findings.money_found)} />
                     </div>
                     <p className="text-sm font-semibold text-stone-800">
-                      found in overdue invoices
+                      {xeroMode === "demo" ? "found in sample overdue invoices" : "found in overdue invoices"}
                     </p>
                     <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
                   </>
                 ) : findings && !findings.clean ? (
                   <>
                     <p className="text-sm font-semibold text-stone-800">
-                      Here&apos;s what I found in your books
+                      {xeroMode === "demo" ? "Here's what I found in the sample books" : "Here's what I found in your books"}
                     </p>
                     <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
                   </>
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-stone-800">
-                      Your books look clean ✓
+                      {xeroMode === "demo" ? "The sample books look clean ✓" : "Your books look clean ✓"}
                     </p>
                     <p className="text-xs text-stone-500">
                       Nothing overdue, nothing unreconciled.

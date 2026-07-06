@@ -1189,6 +1189,7 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
 
     def _metrics():
         svc = XeroService(session_id)
+        mode = svc.mode()
         feedback = get_feedback_summary()
 
         # Calculate real metrics from Xero data
@@ -1200,6 +1201,7 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
         estimated_tax_savings = total_overdue * 0.19 if total_overdue > 0 else 0
 
         return {
+            "mode": mode,
             "money_found": total_overdue,
             "overdue_count": len(overdue),
             "discrepancies_found": len(unreconciled),
