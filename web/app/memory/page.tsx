@@ -141,13 +141,24 @@ export default function MemoryPage() {
             </p>
             {memories.map((memory) => (
               <div
-                key={memory.id}
+                key={memory.id || `mem-${Math.random()}`}
                 className="bg-white border border-stone-200 rounded-xl p-4 fade-in-up group"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-stone-800 leading-relaxed">{memory.content}</p>
-                    {memory.score !== undefined && (
+                    {memory.content ? (
+                      <p className="text-sm text-stone-800 leading-relaxed">{memory.content}</p>
+                    ) : (
+                      <p className="text-sm text-stone-400 italic">
+                        {memory.status === "queued" ? "Indexing — content will appear shortly" : "No content"}
+                      </p>
+                    )}
+                    {memory.status === "queued" && memory.content && (
+                      <span className="inline-block mt-1 text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                        Indexing
+                      </span>
+                    )}
+                    {memory.score !== undefined && memory.score > 0 && (
                       <p className="text-[10px] text-stone-400 mt-2">
                         Relevance score: {(memory.score * 100).toFixed(0)}%
                       </p>

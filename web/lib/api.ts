@@ -124,6 +124,7 @@ export interface MemoryEntry {
   id: string;
   content: string;
   score?: number;
+  status?: string;
   metadata?: Record<string, unknown>;
 }
 

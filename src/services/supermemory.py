@@ -360,27 +360,28 @@ def search_tax_rules(query: str, region: str = "GB", limit: int = 3) -> list[dic
     """Search the shared multi-region tax RAG corpus.
 
     Searches the tax-rules container in hybrid mode (memories + document chunks).
-    Results are filtered to the requested region via metadata matching when
-    possible — if the metadata filter isn't supported by the API, all results
-    are returned and the caller's keyword fallback handles region routing.
+    The region name is prepended to the query to bias semantic search toward
+    the correct jurisdiction. Results are also filtered by region metadata.
 
     Args:
         query: Natural language tax question.
         region: Two-letter region code (GB, AU, US).
         limit: Max results to return.
     """
+    _REGION_NAMES = {"GB": "UK HMRC", "AU": "Australia ATO", "US": "US IRS"}
+    region_label = _REGION_NAMES.get(region, "UK HMRC")
+
+    # Prepend region to bias semantic search toward the right jurisdiction
     results = search(
-        query=query,
+        query=f"{region_label} {query}",
         container_tag=_TAX_CONTAINER_TAG,
-        limit=limit * 2,  # fetch extra so we have some after region filtering
+        limit=limit * 3,  # fetch more so we have enough after region filtering
         search_mode="hybrid",
     )
     if not results:
         return []
 
-    # Client-side region filter — prefer results with matching region metadata,
-    # but fall back to untagged results (embedded rules may not carry metadata
-    # through the search API).
+    # Client-side region filter — prefer results with matching region metadata
     region_lower = region.lower()
     matched = [r for r in results if r.get("metadata", {}).get("region", "").lower() == region_lower]
     if matched:
@@ -412,17 +413,20 @@ def list_memories(container_tag: str) -> list[dict[str, Any]]:
         resp.raise_for_status()
         data = resp.json()
         docs = data.get("documents", []) if isinstance(data, dict) else []
-        return [
-            {
+        result = []
+        for d in docs:
+            # API may return None for content/title — coerce to empty string
+            content = d.get("content") or d.get("title") or d.get("summary") or ""
+            metadata = d.get("metadata") or {}
+            result.append({
                 "id": d.get("id", ""),
-                "content": d.get("content", d.get("title", ""))[:200],
+                "content": content[:200] if isinstance(content, str) else str(content)[:200],
                 "status": d.get("status", "unknown"),
                 "createdAt": d.get("createdAt", ""),
-                "metadata": d.get("metadata", {}),
-                "containerTags": d.get("containerTags", []),
-            }
-            for d in docs
-        ]
+                "metadata": metadata,
+                "containerTags": d.get("containerTags") or [],
+            })
+        return result
     except Exception as exc:
         log.warning("supermemory_list_error", extra={"error": str(exc)})
         return []
@@ -431,24 +435,43 @@ def list_memories(container_tag: str) -> list[dict[str, Any]]:
 def search_memories_for_display(container_tag: str, limit: int = 20) -> list[dict[str, Any]]:
     """Search all memories for a session — used by the /memory page.
 
-    Performs a broad search to surface all indexed content for the session.
-    Falls back to listing documents if search returns nothing.
+    Performs a broad search to surface all indexed content for the session,
+    then merges with the document list to include items still being indexed.
+    De-duplicates by document ID.
     """
     if not is_available():
         return []
 
-    # Use a broad query to surface as much as possible
-    results = search(
+    # Broad search to surface indexed content
+    search_results = search(
         query="business customer invoice payment tax chasing preferences",
         container_tag=container_tag,
         limit=limit,
         search_mode="hybrid",
     )
-    if results:
-        return results
 
-    # Fallback: list documents
-    return list_memories(container_tag)
+    # Also list documents (includes items still being indexed)
+    listed = list_memories(container_tag)
+
+    # Merge, de-duplicating by id
+    seen_ids: set[str] = set()
+    merged: list[dict[str, Any]] = []
+
+    for r in search_results:
+        doc_id = r.get("id", "")
+        if doc_id and doc_id not in seen_ids:
+            seen_ids.add(doc_id)
+            merged.append(r)
+        elif not doc_id:
+            merged.append(r)
+
+    for r in listed:
+        doc_id = r.get("id", "")
+        if doc_id and doc_id not in seen_ids:
+            seen_ids.add(doc_id)
+            merged.append(r)
+
+    return merged[:limit]
 
 
 def delete_memory(document_id: str) -> bool:
