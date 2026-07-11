@@ -464,3 +464,111 @@ def test_get_region_info():
     # Unknown country defaults to UK
     unknown = get_region_info("ZZ")
     assert unknown["authority"] == "HMRC"
+
+
+# ---- Container tag resolution (user-scoped memory) ----
+
+
+def test_container_tag_anonymous():
+    """Anonymous sessions get session-scoped container tags."""
+    tag = sm.memory_container_tag("abc123session")
+    assert tag == "session:abc123session"
+
+
+def test_container_tag_authenticated():
+    """Authenticated users get user-scoped container tags."""
+    tag = sm.memory_container_tag("abc123session", user_id=42)
+    assert tag == "user:42"
+
+
+def test_container_tag_user_takes_precedence():
+    """When user_id is provided, it takes precedence over session_id."""
+    tag = sm.memory_container_tag("some_session", user_id=7)
+    assert tag == "user:7"
+    assert "session" not in tag
+
+
+def test_container_tag_no_collision():
+    """User ID 123 and session ID '123' get different tags (prefix prevents collision)."""
+    user_tag = sm.memory_container_tag("irrelevant", user_id=123)
+    session_tag = sm.memory_container_tag("123")
+    assert user_tag != session_tag
+    assert user_tag == "user:123"
+    assert session_tag == "session:123"
+
+
+# ---- Memory migration on auth ----
+
+
+def test_migrate_memories_noop_when_unavailable(monkeypatch):
+    """Migration is a no-op when Supermemory is not available."""
+    _bypass_health_check(monkeypatch, available=False)
+    count = sm.migrate_session_memories("test-session", 42)
+    assert count == 0
+
+
+def test_migrate_memories_noop_when_no_memories(monkeypatch):
+    """Migration returns 0 when there are no session memories to migrate."""
+    _bypass_health_check(monkeypatch, available=True)
+    monkeypatch.setattr(sm, "_BASE_URL", "http://localhost:6767")
+
+    # Mock list_memories to return empty
+    monkeypatch.setattr(sm, "list_memories", lambda tag: [])
+
+    count = sm.migrate_session_memories("test-session", 42)
+    assert count == 0
+
+
+def test_migrate_memories_copies_and_deletes(monkeypatch):
+    """Migration re-adds memories under user tag and deletes originals."""
+    _bypass_health_check(monkeypatch, available=True)
+    monkeypatch.setattr(sm, "_BASE_URL", "http://localhost:6767")
+
+    old_memories = [
+        {"id": "doc1", "content": "Acme Ltd is overdue on INV-0042", "metadata": {"topic": "chasing"}},
+        {"id": "doc2", "content": "User prefers concise emails", "metadata": {"topic": "preferences"}},
+    ]
+
+    added_containers = []
+    deleted_ids = []
+
+    def fake_add_document(content, container_tag, metadata=None, custom_id=None, task_type="memory"):
+        added_containers.append(container_tag)
+        return f"new-{custom_id}"
+
+    def fake_delete_memory(doc_id):
+        deleted_ids.append(doc_id)
+        return True
+
+    monkeypatch.setattr(sm, "list_memories", lambda tag: old_memories if tag == "session:test-session" else [])
+    monkeypatch.setattr(sm, "add_document", fake_add_document)
+    monkeypatch.setattr(sm, "delete_memory", fake_delete_memory)
+
+    count = sm.migrate_session_memories("test-session", 99)
+
+    assert count == 2
+    # Both memories should be added to the user container
+    assert all(c == "user:99" for c in added_containers)
+    # Both originals should be deleted
+    assert set(deleted_ids) == {"doc1", "doc2"}
+
+
+def test_migrate_memories_skips_empty_content(monkeypatch):
+    """Memories with empty content are skipped during migration."""
+    _bypass_health_check(monkeypatch, available=True)
+    monkeypatch.setattr(sm, "_BASE_URL", "http://localhost:6767")
+
+    old_memories = [
+        {"id": "doc1", "content": "Valid memory", "metadata": {}},
+        {"id": "doc2", "content": "", "metadata": {}},
+        {"id": "doc3", "content": None, "metadata": {}},
+    ]
+
+    added = []
+    monkeypatch.setattr(sm, "list_memories", lambda tag: old_memories if tag == "session:s1" else [])
+    monkeypatch.setattr(sm, "add_document", lambda content, container_tag, metadata=None, custom_id=None, task_type="memory": (added.append(content), "new-id")[1])
+    monkeypatch.setattr(sm, "delete_memory", lambda doc_id: True)
+
+    count = sm.migrate_session_memories("s1", 1)
+    assert count == 1  # only the one with valid content
+    assert added == ["Valid memory"]

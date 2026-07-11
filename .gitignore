@@ -52,3 +52,6 @@ data/*.db-shm
 
 # Supermemory Local — encrypted local storage + model weights (not for git)
 .supermemory/
+
+# HyperFrames demo video project (large binaries: MP4s, audio, node_modules)
+sikizana-demo/

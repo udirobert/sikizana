@@ -159,6 +159,39 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           {mode === "signin" ? "Create an account" : "Sign in"}
         </button>
       </p>
+
+      {/* Sign in with Xero — one click creates a Sikizana account AND
+          connects Xero. The OAuth callback auto-creates/links the account
+          from the Xero user's email (id_token). */}
+      <div className="mt-5 pt-4 border-t border-stone-100">
+        <p className="text-[11px] text-stone-400 text-center mb-3">
+          Or sign in with your accounting platform
+        </p>
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              const res = await endpoints.xero.auth();
+              if (res.auth_url) {
+                window.location.href = res.auth_url;
+              } else {
+                setError("Xero OAuth is not configured. Use email sign-in instead.");
+              }
+            } catch {
+              setError("Could not start Xero sign-in. Please try again.");
+            }
+          }}
+          className="w-full flex items-center justify-center gap-2 text-sm font-semibold py-2.5 rounded-lg bg-white border border-stone-300 text-stone-700 hover:bg-stone-50 btn-press transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="text-sky-500">
+            <path d="M3 3h7.5v7.5H3V3zm10.5 0H21v7.5h-7.5V3zM3 13.5h7.5V21H3v-7.5zm10.5 0H21V21h-7.5v-7.5z" />
+          </svg>
+          Sign in with Xero
+        </button>
+        <p className="text-[10px] text-stone-400 text-center mt-2">
+          Connects your Xero org and creates your Sikizana account in one step.
+        </p>
+      </div>
     </div>
   );
 }
@@ -484,7 +517,13 @@ function AccountView() {
           </div>
         ) : !authed ? (
           <>
-            <AuthCard onAuthed={() => void refresh()} />
+            <AuthCard onAuthed={() => {
+              void refresh();
+              const redirect = searchParams.get("redirect");
+              if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+                window.location.href = redirect;
+              }
+            }} />
             {intent && (
               <p className="text-[11px] text-stone-500 mt-3 fade-in-up">
                 Sign in or create an account to upgrade to{" "}

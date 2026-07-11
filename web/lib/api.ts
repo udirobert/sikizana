@@ -128,13 +128,35 @@ export interface MemoryEntry {
   metadata?: Record<string, unknown>;
 }
 
-/** How the backend is talking to Xero. "demo" means no real Xero write happens. */
+/** How the backend is talking to the accounting platform. "demo" means no real write happens. */
 export type XeroMode = "live-oauth" | "live-cli" | "demo";
+
+/** Platform-agnostic connection mode (same values, forward-compatible name). */
+export type ConnectionMode = XeroMode;
 
 export interface XeroStatus {
   live: boolean;
   mode: XeroMode;
   tenant_name: string | null;
+}
+
+/** Platform-agnostic connection status — works with any connector. */
+export interface ConnectionStatus {
+  connected: boolean;
+  platform: string;
+  platform_display_name: string;
+  mode: ConnectionMode;
+  tenant_id?: string;
+  tenant_name?: string | null;
+  available_platforms?: AvailablePlatform[];
+}
+
+export interface AvailablePlatform {
+  platform: string;
+  display_name: string;
+  auth_type: string;
+  supports_webhooks?: boolean;
+  supports_journal_write?: boolean;
 }
 
 export interface JournalPostPayload {
@@ -338,13 +360,29 @@ export const endpoints = {
   },
 
   data: {
-    /** Disconnect Xero AND erase everything stored for this session —
-     *  tokens, conversations, audit trail, chase sequences, snapshots. */
+    /** Disconnect the accounting platform but KEEP memories and conversations.
+     *  The user can reconnect later and Siki still remembers their business. */
+    disconnect: () =>
+      api.post<{ disconnected: boolean; memories_preserved: boolean; message: string }>(
+        "/api/data/disconnect",
+        {},
+      ),
+    /** Full erasure — disconnect platform AND delete everything including memories.
+     *  GDPR right-to-erasure. The nuclear option. */
     delete: () =>
-      api.post<{ deleted: boolean; xero_disconnected: boolean; message: string }>(
+      api.post<{ deleted: boolean; platform_disconnected: boolean; counts: Record<string, number>; message: string }>(
         "/api/data/delete",
         {},
       ),
+  },
+
+  connection: {
+    /** Get the active platform connection status — works with any connector. */
+    status: () =>
+      api.get<ConnectionStatus>("/api/connection/status"),
+    /** List all available accounting platform connectors. */
+    platforms: () =>
+      api.get<{ platforms: AvailablePlatform[] }>("/api/connection/platforms"),
   },
 
   memory: {

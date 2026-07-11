@@ -624,18 +624,24 @@ async def run_bookkeeper_streaming(
     # If Supermemory is unset or unreachable, this entire block is skipped
     # and the agent works identically — just without memory.
     from src.services.supermemory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
+    from src.services.supermemory import memory_container_tag as _sm_container_tag
+    from src.services.payment_store import get_user_for_session as _get_user
 
     _memory_facts: list[str] = []
     _memory_sources: list[dict[str, Any]] = []
     if _sm_available():
         try:
-            _profile = await asyncio.to_thread(_sm_profile, session_id, user_input)
+            # Resolve the container tag: user-scoped if logged in, session-scoped if anonymous
+            _user = await asyncio.to_thread(_get_user, session_id)
+            _container = _sm_container_tag(session_id, _user["id"] if _user else None)
+
+            _profile = await asyncio.to_thread(_sm_profile, _container, user_input)
             # Also do a hybrid search (memories + document chunks) — the
             # profile endpoint searches memories only, but the memory
             # extraction pipeline may not have processed recent ingested
             # conversations yet. Hybrid mode catches raw document chunks
             # that are indexed immediately.
-            _hybrid_hits = await asyncio.to_thread(_sm_search, user_input, session_id, 5, "hybrid")
+            _hybrid_hits = await asyncio.to_thread(_sm_search, user_input, _container, 5, "hybrid")
             if _profile:
                 _static = _profile.get("static", [])
                 _dynamic = _profile.get("dynamic", [])
@@ -976,13 +982,18 @@ async def run_bookkeeper_streaming(
                 if tool_name in ("get_xero_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
                     try:
                         from src.services.supermemory import is_available as _sm_avail, search as _sm_search
+                        from src.services.supermemory import memory_container_tag as _sm_ct
+                        from src.services.payment_store import get_user_for_session as _get_user3
 
                         if _sm_avail():
+                            # Resolve container tag (user-scoped if logged in)
+                            _user3 = _get_user3(session_id)
+                            _ct = _sm_ct(session_id, _user3["id"] if _user3 else None)
                             # Extract customer names from the tool result
                             _customer_names = _extract_customer_names(result)
                             _proactive_facts: list[str] = []
                             for _cname in _customer_names[:3]:  # limit to 3 customers
-                                _hits = await asyncio.to_thread(_sm_search, _cname, session_id, 2, "hybrid")
+                                _hits = await asyncio.to_thread(_sm_search, _cname, _ct, 2, "hybrid")
                                 for _h in _hits:
                                     if _h.get("score", 0) > 0.5 and _h.get("content"):
                                         _proactive_facts.append(_h["content"])
@@ -1029,9 +1040,13 @@ async def run_bookkeeper_streaming(
         # Fire-and-forget — never block the response on memory ingestion.
         # The conversation will be available for recall in future sessions.
         from src.services.supermemory import is_available as _sm_available2, ingest_conversation as _sm_ingest
+        from src.services.supermemory import memory_container_tag as _sm_container_tag2
+        from src.services.payment_store import get_user_for_session as _get_user2
 
         if _sm_available2():
-            asyncio.create_task(asyncio.to_thread(_sm_ingest, history, session_id, conv_key))
+            _user2 = _get_user2(session_id)
+            _container2 = _sm_container_tag2(session_id, _user2["id"] if _user2 else None)
+            asyncio.create_task(asyncio.to_thread(_sm_ingest, history, _container2, conv_key))
 
         yield {"type": "done"}
         return

@@ -16,10 +16,13 @@ Architecture:
   - All HTTP calls use httpx (already a dependency) with short timeouts.
   - Health is checked once and cached for 60 seconds to avoid per-request
     pings.
-  - containerTag = session_id for per-business memory isolation, matching
-    the existing session-scoped architecture.
+  - containerTag = "user:{user_id}" when authenticated, "session:{session_id}"
+    when anonymous. This ensures memories persist across browser sessions
+    for logged-in users — the core of the cross-session memory story.
+  - On login/register, anonymous session memories are migrated to the
+    user's container so nothing is lost.
   - A shared "tax-rules" container tag holds the RAG corpus, separate
-    from per-session memory. Region is stored as metadata for filtering.
+    from per-user memory. Region is stored as metadata for filtering.
 
 Install Supermemory Local:
   curl -fsSL https://supermemory.ai/install | bash
@@ -44,6 +47,26 @@ _TAX_CONTAINER_TAG = "tax-rules"
 
 # Backward compat — old seed function may still be referenced.
 _HMRC_CONTAINER_TAG = _TAX_CONTAINER_TAG
+
+
+# ---- Container tag resolution ----
+
+
+def memory_container_tag(session_id: str, user_id: int | None = None) -> str:
+    """Resolve the Supermemory container tag for memory isolation.
+
+    When a user is authenticated, memories are scoped to "user:{user_id}"
+    so they persist across browser sessions and devices — the core of the
+    cross-session memory story.
+
+    When anonymous, memories are scoped to "session:{session_id}" as before.
+
+    The prefix ("user:" / "session:") prevents collision between a user ID
+    and a session ID that happen to share a numeric prefix.
+    """
+    if user_id is not None:
+        return f"user:{user_id}"
+    return f"session:{session_id}"
 
 # Health-check cache — avoid pinging on every request.
 _health_checked_at: float = 0.0
@@ -496,6 +519,67 @@ def delete_memory(document_id: str) -> bool:
     except Exception as exc:
         log.warning("supermemory_delete_error", extra={"error": str(exc), "doc_id": document_id})
         return False
+
+
+def migrate_session_memories(session_id: str, user_id: int) -> int:
+    """Migrate anonymous session memories to the user's container on login.
+
+    Lists all memories stored under "session:{session_id}", re-adds each
+    one's content under "user:{user_id}", then deletes the originals.
+
+    This ensures that memories built up during an anonymous session are
+    not lost when the user logs in or registers — the cross-session
+    memory story depends on this.
+
+    Returns the number of memories successfully migrated.
+    """
+    if not is_available():
+        return 0
+
+    old_tag = memory_container_tag(session_id)
+    new_tag = memory_container_tag(session_id, user_id)
+
+    # List all memories in the old session container
+    old_memories = list_memories(old_tag)
+    if not old_memories:
+        return 0
+
+    migrated = 0
+    for mem in old_memories:
+        content = mem.get("content", "")
+        mem_id = mem.get("id", "")
+        metadata = mem.get("metadata") or {}
+        if not content:
+            continue
+
+        # Re-add under the user's container with a customId to prevent
+        # duplicates if migration runs more than once.
+        custom_id = f"migrated-{mem_id}"
+        new_id = add_document(
+            content=content,
+            container_tag=new_tag,
+            metadata={**metadata, "migrated_from": old_tag},
+            custom_id=custom_id,
+            task_type="memory",
+        )
+        if new_id is not None:
+            migrated += 1
+            # Delete the original from the session container
+            if mem_id:
+                delete_memory(mem_id)
+
+    if migrated:
+        log.info(
+            "supermemory_memories_migrated",
+            extra={
+                "session_id": session_id,
+                "user_id": user_id,
+                "count": migrated,
+                "old_tag": old_tag,
+                "new_tag": new_tag,
+            },
+        )
+    return migrated
 
 
 def verify_document_ownership(document_id: str, container_tag: str) -> bool:

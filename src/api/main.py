@@ -130,6 +130,26 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def require_authenticated_user(session_id: str = Depends(get_session_id)) -> dict:
+    """Dependency that requires an authenticated Sikizana account.
+
+    Returns the user dict. Raises 401 if the session has no linked user.
+
+    Used by endpoints that modify the user's business: journal posting,
+    chase sequences, and other write operations. Read-only demo access
+    remains available to anonymous sessions.
+    """
+    from src.services.payment_store import get_user_for_session
+
+    user = get_user_for_session(session_id)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Please sign in to your Sikizana account to use this feature.",
+        )
+    return user
+
+
 def _check_rate_limit(request: Request) -> None:
     if not chat_limiter.take(_client_ip(request)):
         raise HTTPException(
@@ -161,20 +181,35 @@ async def health():
 # ---- Memory inspection (Supermemory transparency) ----
 
 
+def _resolve_memory_container(session_id: str) -> str:
+    """Resolve the Supermemory container tag for the current session.
+
+    Returns "user:{user_id}" if authenticated, "session:{session_id}" if anonymous.
+    """
+    from src.services.payment_store import get_user_for_session
+    from src.services.supermemory import memory_container_tag
+
+    user = get_user_for_session(session_id)
+    return memory_container_tag(session_id, user["id"] if user else None)
+
+
 @app.get("/api/memory")
 async def list_session_memories(session_id: str = Depends(get_session_id)):
-    """List all memories Supermemory has stored for this session.
+    """List all memories Supermemory has stored for this user/session.
 
     Returns the recalled content so users can inspect what Siki remembers
     about their business — customer patterns, chasing outcomes, preferences.
     If Supermemory is unavailable, returns an empty list.
+
+    Memories are scoped to the user (when logged in) or the anonymous session.
     """
     from src.services.supermemory import is_available as _sm_available, search_memories_for_display
 
     if not _sm_available():
         return {"memories": [], "available": False}
 
-    memories = await asyncio.to_thread(search_memories_for_display, session_id, 20)
+    container = _resolve_memory_container(session_id)
+    memories = await asyncio.to_thread(search_memories_for_display, container, 20)
     return {"memories": memories, "available": True}
 
 
@@ -184,7 +219,7 @@ async def delete_session_memory(document_id: str = Path(..., min_length=1, max_l
 
     Users can remove memories they don't want Siki to remember — GDPR-aligned
     right to erasure at the individual memory level. Verifies that the memory
-    belongs to the caller's session before deleting.
+    belongs to the caller's container before deleting.
     """
     from src.services.supermemory import (
         is_available as _sm_available,
@@ -195,10 +230,12 @@ async def delete_session_memory(document_id: str = Path(..., min_length=1, max_l
     if not _sm_available():
         raise HTTPException(status_code=503, detail="Supermemory is not available")
 
-    # Verify the document belongs to this session before deleting
-    owns = await asyncio.to_thread(verify_document_ownership, document_id, session_id)
+    container = _resolve_memory_container(session_id)
+
+    # Verify the document belongs to this user's container before deleting
+    owns = await asyncio.to_thread(verify_document_ownership, document_id, container)
     if not owns:
-        raise HTTPException(status_code=404, detail="Memory not found in your session")
+        raise HTTPException(status_code=404, detail="Memory not found in your account")
 
     ok = await asyncio.to_thread(delete_memory, document_id)
     if not ok:
@@ -879,6 +916,32 @@ async def xero_callback(code: str, state: str, request: Request):
 
     try:
         result = await asyncio.to_thread(exchange_code, code, session_id, code_verifier)
+
+        # "Sign in with Xero": if we got the user's email from the id_token,
+        # auto-create or link a Sikizana account. This means connecting Xero
+        # also signs the user in — one click, no separate registration.
+        user_email = result.get("user_email")
+        if user_email:
+            from src.services.accounts import login_or_register_with_xero
+
+            user, err = await asyncio.to_thread(login_or_register_with_xero, user_email, session_id)
+            if err:
+                log.warning("xero_signin_failed", extra={"email": user_email, "error": err})
+                # Don't fail the connection — the user still gets Xero data access.
+                # They just won't have a Sikizana account (anonymous session with Xero).
+
+        # Record the platform connection for multi-connector support
+        from src.services.payment_store import record_platform_connection
+        from src.services.payment_store import get_user_for_session
+
+        _user = get_user_for_session(session_id)
+        record_platform_connection(
+            session_id=session_id,
+            platform="xero",
+            tenant_id=result.get("tenant_id", ""),
+            tenant_name=result.get("tenant_name", ""),
+            user_id=_user["id"] if _user else None,
+        )
         # Redirect back to the books page with a success indicator
         return RedirectResponse(
             url=f"/books?connected=true&org={result.get('tenant_name', '')}",
@@ -917,6 +980,53 @@ async def xero_disconnect(session_id: str = Depends(get_session_id)):
     return {"disconnected": success}
 
 
+# ---- Generic connection endpoints (platform-agnostic) ----
+
+
+@app.get("/api/connection/status")
+async def connection_status(session_id: str = Depends(get_session_id)):
+    """Check the active platform connection — works for any connector.
+
+    Returns the connected platform, tenant info, and available platforms.
+    This is the platform-agnostic replacement for /api/xero/connection.
+    """
+    from src.services.connectors import get_connector, list_available_platforms
+
+    connector = get_connector(session_id)
+    status = await asyncio.to_thread(connector.get_connection_status)
+    platforms = list_available_platforms()
+    return {
+        **status,
+        "platform": connector.info().platform,
+        "platform_display_name": connector.info().display_name,
+        "mode": connector.mode(),
+        "available_platforms": [
+            {"platform": p.platform, "display_name": p.display_name, "auth_type": p.auth_type}
+            for p in platforms
+        ],
+    }
+
+
+@app.get("/api/connection/platforms")
+async def connection_platforms():
+    """List all available accounting platform connectors."""
+    from src.services.connectors import list_available_platforms
+
+    platforms = list_available_platforms()
+    return {
+        "platforms": [
+            {
+                "platform": p.platform,
+                "display_name": p.display_name,
+                "auth_type": p.auth_type,
+                "supports_webhooks": p.supports_webhooks,
+                "supports_journal_write": p.supports_journal_write,
+            }
+            for p in platforms
+        ]
+    }
+
+
 @app.get("/api/xero/accounts")
 async def xero_accounts(session_id: str = Depends(get_session_id)):
     """Chart of accounts from Xero."""
@@ -952,12 +1062,16 @@ async def xero_post_journal(
     req: JournalEntryRequest,
     request: Request,
     session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
 ):
     """
     Post an approved journal entry to Xero. This is what the Approve
     button calls — the human-in-the-loop write-back. Validates the account
     codes against the chart of accounts, posts with an idempotency key
     (OAuth path), and records the action in the audit history.
+
+    Requires an authenticated Sikizana account — journal posting is a
+    write operation that affects the user's real books.
     """
     from src.services.xero_service import XeroService
     from src.services.xero_api import XeroApiError
@@ -1128,38 +1242,108 @@ async def get_prefs(session_id: str = Depends(get_session_id)):
     return {"sector": sector}
 
 
-# ---- Data deletion (right to erasure — and a trust feature) ----
+# ---- Data deletion (two-tier: disconnect vs full erasure) ----
+
+
+@app.post("/api/data/disconnect")
+async def data_disconnect(request: Request, session_id: str = Depends(get_session_id)):
+    """
+    Disconnect the accounting platform (Xero) but KEEP memories,
+    conversations, and account data.
+
+    This is the "I want to switch orgs" or "I'm pausing" path:
+      - Revokes OAuth tokens at the platform
+      - Deletes platform-derived data (audit history, metric snapshots,
+        chase sequences)
+      - KEEPS: memories, conversation history, user account, preferences
+
+    The user can reconnect the same platform or a different one later,
+    and Siki will still remember their business.
+    """
+    from src.services.connectors import get_connector
+    from src.services.payment_store import delete_session_data, disconnect_platform_connection
+    from src.services import chase_store
+
+    _check_rate_limit(request)
+
+    def _disconnect():
+        connector = get_connector(session_id)
+        revoked = connector.disconnect()
+        # Delete platform-derived data but keep user-owned data
+        counts = delete_session_data(session_id, keep_memories=True)
+        counts["chase_sequences"] = chase_store.delete_for_session(session_id)
+        disconnect_platform_connection(session_id)
+        # Clear the read cache
+        if hasattr(connector, "invalidate_reads"):
+            connector.invalidate_reads()
+        return revoked, counts
+
+    revoked, counts = await asyncio.to_thread(_disconnect)
+    log.info("platform_disconnected", extra={"counts": counts, "revoked": revoked})
+    return {
+        "disconnected": True,
+        "platform_disconnected": revoked,
+        "counts": counts,
+        "memories_preserved": True,
+        "message": "Your accounting platform is disconnected. Siki still remembers your business — reconnect anytime.",
+    }
 
 
 @app.post("/api/data/delete")
 async def data_delete(request: Request, session_id: str = Depends(get_session_id)):
     """
-    Disconnect Xero AND erase everything this session stored: OAuth
-    tokens, conversations, audit trail, chase sequences, metric
-    snapshots, and any account link. "You can leave completely, anytime"
-    — the plain-English promise on /security, made real.
+    Full erasure — the nuclear option. Disconnects the accounting platform
+    AND erases everything: OAuth tokens, conversations, audit trail, chase
+    sequences, metric snapshots, memories, and the account link.
+
+    This is the GDPR right-to-erasure path — "you can leave completely,
+    anytime" — the plain-English promise on /security, made real.
+
+    For most users, /api/data/disconnect is the better choice: it
+    disconnects the platform but preserves the memory layer so they
+    can return without starting fresh.
     """
-    from src.services.xero_oauth import disconnect
+    from src.services.connectors import get_connector
     from src.services.payment_store import delete_session_data
     from src.services import chase_store
-    from src.services.xero_service import _invalidate_session_reads
+    from src.services.supermemory import memory_container_tag
+    from src.services.payment_store import get_user_for_session
 
     _check_rate_limit(request)
 
     def _wipe():
-        revoked = disconnect(session_id)  # revokes + deletes Xero tokens
-        counts = delete_session_data(session_id)
+        connector = get_connector(session_id)
+        revoked = connector.disconnect()
+        counts = delete_session_data(session_id)  # full erasure
         counts["chase_sequences"] = chase_store.delete_for_session(session_id)
-        _invalidate_session_reads(session_id)
+        # Also delete memories from Supermemory
+        try:
+            from src.services.supermemory import is_available as _sm_available, list_memories, delete_memory
+
+            if _sm_available():
+                _user = get_user_for_session(session_id)
+                container = memory_container_tag(session_id, _user["id"] if _user else None)
+                memories = list_memories(container)
+                counts["memories"] = 0
+                for mem in memories:
+                    if mem.get("id") and delete_memory(mem["id"]):
+                        counts["memories"] += 1
+            else:
+                counts["memories"] = 0
+        except Exception:
+            counts["memories"] = 0
+        # Clear the read cache
+        if hasattr(connector, "invalidate_reads"):
+            connector.invalidate_reads()
         return revoked, counts
 
     revoked, counts = await asyncio.to_thread(_wipe)
-    log.info("data_deleted", extra={"counts": counts, "xero_revoked": revoked})
+    log.info("data_deleted", extra={"counts": counts, "platform_revoked": revoked})
     return {
         "deleted": True,
-        "xero_disconnected": revoked,
+        "platform_disconnected": revoked,
         "counts": counts,
-        "message": "Your Xero connection is revoked and all stored data for this session is erased.",
+        "message": "Your accounting connection is revoked and all stored data is erased, including memories.",
     }
 
 
@@ -1176,6 +1360,7 @@ async def chase_start(
     req: ChaseStartRequest,
     request: Request,
     session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
 ):
     """
     Approve automatic follow-ups for one overdue invoice. This button IS
@@ -1185,6 +1370,9 @@ async def chase_start(
     Everything about the invoice (amount, contact, due date, email) is
     resolved server-side from Xero — client-supplied figures are never
     trusted for emails that cite statutory interest.
+
+    Requires an authenticated Sikizana account — chase sequences send
+    emails on behalf of the user's business.
     """
     from src.services.xero_service import XeroService
     from src.services import chase_store
@@ -1270,7 +1458,11 @@ class ChaseCancelRequest(BaseModel):
 
 
 @app.post("/api/chase/cancel")
-async def chase_cancel(req: ChaseCancelRequest, session_id: str = Depends(get_session_id)):
+async def chase_cancel(
+    req: ChaseCancelRequest,
+    session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
+):
     from src.services import chase_store
 
     ok = await asyncio.to_thread(chase_store.cancel_sequence, session_id, req.sequence_id)

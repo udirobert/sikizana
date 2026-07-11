@@ -193,6 +193,24 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
     """,
     ),
+    (
+        9,
+        """
+        CREATE TABLE IF NOT EXISTS platform_connections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            user_id INTEGER,
+            platform TEXT NOT NULL DEFAULT 'xero',
+            tenant_id TEXT,
+            tenant_name TEXT,
+            connected_at TEXT NOT NULL,
+            disconnected_at TEXT,
+            UNIQUE(session_id, platform)
+        );
+        CREATE INDEX IF NOT EXISTS idx_platform_conn_session ON platform_connections(session_id);
+        CREATE INDEX IF NOT EXISTS idx_platform_conn_user ON platform_connections(user_id);
+    """,
+    ),
 ]
 
 
@@ -361,37 +379,125 @@ def get_session_pref(session_id: str, key: str) -> str | None:
         conn.close()
 
 
-def delete_session_data(session_id: str) -> dict:
+def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict:
     """
     Erase everything stored for a session: conversations, audit trail,
     metric snapshots, and the session→user link. The GDPR right-to-erasure
     path — and a trust feature: "you can leave completely, anytime."
     Xero tokens and chase sequences are deleted by their own modules.
+
+    Args:
+        keep_memories: If True, only delete platform-derived data (audit
+            history, metric snapshots, chase sequences) but keep
+            conversations, session prefs, and the auth session link.
+            Used for "disconnect my accounting platform" — the user keeps
+            their memories and can reconnect later.
+
     Returns per-table deletion counts.
     """
     init_db()
     conn = _get_db()
     try:
         counts = {}
-        counts["conversations"] = conn.execute(
-            "DELETE FROM conversations WHERE key LIKE ?", (f"{session_id}:%",)
-        ).rowcount
+        if not keep_memories:
+            # Full erasure — delete everything
+            counts["conversations"] = conn.execute(
+                "DELETE FROM conversations WHERE key LIKE ?", (f"{session_id}:%",)
+            ).rowcount
+            counts["auth_sessions"] = conn.execute(
+                "DELETE FROM auth_sessions WHERE session_id = ?", (session_id,)
+            ).rowcount
+            counts["session_prefs"] = conn.execute(
+                "DELETE FROM session_prefs WHERE session_id = ?", (session_id,)
+            ).rowcount
+        else:
+            # Platform disconnect — keep user-owned data
+            counts["conversations"] = 0
+            counts["auth_sessions"] = 0
+            counts["session_prefs"] = 0
+
+        # Always delete platform-derived data
         counts["audit_history"] = conn.execute(
             "DELETE FROM audit_history WHERE session_id = ?", (session_id,)
         ).rowcount
         counts["metric_snapshots"] = conn.execute(
             "DELETE FROM metric_snapshots WHERE session_id = ?", (session_id,)
         ).rowcount
-        counts["auth_sessions"] = conn.execute(
-            "DELETE FROM auth_sessions WHERE session_id = ?", (session_id,)
-        ).rowcount
-        counts["session_prefs"] = conn.execute(
-            "DELETE FROM session_prefs WHERE session_id = ?", (session_id,)
+        counts["platform_connections"] = conn.execute(
+            "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND disconnected_at IS NULL",
+            (datetime.now(timezone.utc).isoformat(), session_id),
         ).rowcount
         conn.commit()
         return counts
     finally:
         conn.close()
+
+
+# ---- Platform connections (multi-connector support) ----
+
+
+def record_platform_connection(
+    session_id: str,
+    platform: str,
+    tenant_id: str,
+    tenant_name: str,
+    user_id: int | None = None,
+) -> None:
+    """Record or update a platform connection for this session."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        """
+        INSERT INTO platform_connections (session_id, user_id, platform, tenant_id, tenant_name, connected_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(session_id, platform) DO UPDATE SET
+            tenant_id = excluded.tenant_id,
+            tenant_name = excluded.tenant_name,
+            connected_at = excluded.connected_at,
+            disconnected_at = NULL,
+            user_id = COALESCE(excluded.user_id, platform_connections.user_id)
+        """,
+        (session_id, user_id, platform, tenant_id, tenant_name, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_active_platform_connection(session_id: str) -> dict | None:
+    """Get the active platform connection for a session (most recent, not disconnected)."""
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        """
+        SELECT * FROM platform_connections
+        WHERE session_id = ? AND disconnected_at IS NULL
+        ORDER BY connected_at DESC LIMIT 1
+        """,
+        (session_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def disconnect_platform_connection(session_id: str, platform: str | None = None) -> int:
+    """Mark platform connection(s) as disconnected. Returns count of updated rows."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    if platform:
+        count = conn.execute(
+            "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND platform = ? AND disconnected_at IS NULL",
+            (now, session_id, platform),
+        ).rowcount
+    else:
+        count = conn.execute(
+            "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND disconnected_at IS NULL",
+            (now, session_id),
+        ).rowcount
+    conn.commit()
+    conn.close()
+    return count
 
 
 def get_recovered_total(session_id: str) -> dict:

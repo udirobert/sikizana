@@ -70,6 +70,7 @@ def register(email: str, password: str, session_id: str) -> tuple[dict | None, s
     if user is None:
         return None, "An account with that email already exists."
     store.link_session_to_user(session_id, user["id"])
+    _migrate_memories(session_id, user["id"])
     log.info("user_registered", extra={"user_id": user["id"]})
     return user, None
 
@@ -80,12 +81,59 @@ def login(email: str, password: str, session_id: str) -> tuple[dict | None, str 
     if not user or not verify_password(password, user["password_hash"]):
         return None, "Incorrect email or password."
     store.link_session_to_user(session_id, user["id"])
+    _migrate_memories(session_id, user["id"])
     log.info("user_logged_in", extra={"user_id": user["id"]})
     return user, None
 
 
 def logout(session_id: str) -> None:
     store.unlink_session(session_id)
+
+
+def login_or_register_with_xero(email: str, session_id: str) -> tuple[dict | None, str | None]:
+    """Sign in with Xero — auto-create or link a Sikizana account from
+    the Xero user's email.
+
+    Called from the Xero OAuth callback when we receive the user's email
+    from the id_token. If the email matches an existing account, we log
+    them in. If not, we create a new account with a random password (the
+    user will never need it — they sign in via Xero).
+
+    This is the "Sign in with Xero" convenience flow: one click gives the
+    user a Sikizana account AND a Xero connection, without a separate
+    registration step.
+
+    Returns (user, error).
+    """
+    email = email.strip().lower()
+    if not _EMAIL_RE.match(email):
+        return None, "Could not get a valid email from Xero."
+
+    # Check if the user already has an account
+    user = store.get_user_by_email(email)
+    if user:
+        # Existing user — log them in
+        store.link_session_to_user(session_id, user["id"])
+        _migrate_memories(session_id, user["id"])
+        log.info("xero_signin_existing_user", extra={"user_id": user["id"]})
+        return user, None
+
+    # New user — create an account with a random password.
+    # The user authenticates via Xero OAuth, not via password, so the
+    # password is a random string they'll never see or use. If they later
+    # want to set a password, they can use a password reset flow.
+    random_password = secrets.token_urlsafe(32)
+    user = store.create_user(email, hash_password(random_password))
+    if user is None:
+        # Race condition — account was created between our check and create.
+        # Fall back to logging in.
+        user = store.get_user_by_email(email)
+        if not user:
+            return None, "Could not create or find an account."
+    store.link_session_to_user(session_id, user["id"])
+    _migrate_memories(session_id, user["id"])
+    log.info("xero_signin_new_user", extra={"user_id": user["id"]})
+    return user, None
 
 
 # ---- Plans & enforcement ----
@@ -156,6 +204,23 @@ def _usage_scope(session_id: str, user: dict | None) -> str:
     # Metering follows the account when logged in (a new browser doesn't
     # reset the quota), and the session when anonymous
     return f"user:{user['id']}" if user else f"anon:{session_id}"
+
+
+def _migrate_memories(session_id: str, user_id: int) -> None:
+    """Migrate anonymous session memories to the user's container on login/register.
+
+    Fire-and-forget — if Supermemory is unavailable, this is a no-op.
+    Ensures memories built up during an anonymous session are not lost
+    when the user authenticates.
+    """
+    try:
+        from src.services.supermemory import migrate_session_memories
+
+        count = migrate_session_memories(session_id, user_id)
+        if count:
+            log.info("memories_migrated_on_auth", extra={"user_id": user_id, "count": count})
+    except Exception as exc:
+        log.warning("memory_migration_failed", extra={"error": str(exc), "user_id": user_id})
 
 
 def _current_month() -> str:

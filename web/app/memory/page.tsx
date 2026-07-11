@@ -5,18 +5,19 @@ import Link from "next/link";
 import { endpoints, type MemoryEntry } from "@/lib/api";
 import { MemoryBadge } from "@/components/MemoryBadge";
 import { SikiMascot } from "@/components/SikiMascot";
+import { RequireAuth } from "@/components/RequireAuth";
 
 /**
  * /memory — inspect what Siki remembers about your business.
  *
  * This page makes the Supermemory layer transparent and tangible:
  * - Shows whether Supermemory is connected (Memory: ON/OFF badge)
- * - Lists all memories stored for this session
+ * - Lists all memories stored for this user (user-scoped, cross-session)
  * - Each memory can be deleted (right-to-erasure at the individual level)
  *
- * For the hackathon demo, this is the "show, don't tell" page — judges
- * can see exactly what the memory layer has learned, not just trust that
- * it's working behind the scenes.
+ * Requires authentication — memories are scoped to the user account so
+ * they persist across browser sessions and devices. Anonymous users are
+ * redirected to sign in.
  */
 
 export default function MemoryPage() {
@@ -56,6 +57,7 @@ export default function MemoryPage() {
   };
 
   return (
+    <RequireAuth>
     <div className="min-h-screen bg-stone-50">
       {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10">
@@ -190,13 +192,15 @@ export default function MemoryPage() {
         {!loading && (
           <div className="mt-8 pt-6 border-t border-stone-200">
             <p className="text-xs text-stone-400 leading-relaxed">
-              Memories are stored locally by Supermemory Local on your machine.
-              They are never sent to a third party. You can delete individual memories
-              above, or erase everything by disconnecting your session from the Account page.
+              Memories are stored locally by Supermemory Local on your machine, scoped to your
+              account — they persist across browser sessions and devices. They are never sent to
+              a third party. You can delete individual memories above, or erase everything by
+              disconnecting your account.
             </p>
           </div>
         )}
       </main>
     </div>
+    </RequireAuth>
   );
 }

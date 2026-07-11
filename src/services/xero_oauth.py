@@ -32,6 +32,32 @@ from src.services.logging import get_logger
 
 log = get_logger("sikizana.xero_oauth")
 
+
+def _extract_email_from_id_token(id_token: str) -> str | None:
+    """Extract the user's email from a Xero OpenID Connect id_token.
+
+    The id_token is a JWT. We only need to decode the payload (middle
+    segment) — we don't verify the signature here because the token came
+    directly from Xero's token endpoint over TLS, not from a client.
+
+    Returns the email, or None if the token is missing/invalid.
+    """
+    if not id_token:
+        return None
+    try:
+        parts = id_token.split(".")
+        if len(parts) < 2:
+            return None
+        # JWT payload is base64url-encoded (no padding)
+        payload_b64 = parts[1] + "=" * (4 - len(parts[1]) % 4)
+        import json
+
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        email = payload.get("email") or payload.get("preferred_username")
+        return email if email else None
+    except Exception:
+        return None
+
 # ---- Configuration from environment ----
 
 _XERO_CLIENT_ID = os.environ.get("XERO_CLIENT_ID", "")
@@ -190,6 +216,9 @@ def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[s
     # Fetch connected tenant info
     tenant_id, tenant_name = _fetch_tenant_info(tokens["access_token"])
 
+    # Extract user identity from the id_token (JWT) for "Sign in with Xero"
+    user_email = _extract_email_from_id_token(tokens.get("id_token", ""))
+
     # Store tokens
     expires_at = time.time() + tokens.get("expires_in", 1800)
     _store_tokens(
@@ -207,6 +236,7 @@ def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[s
             "session_id": session_id,
             "tenant_id": tenant_id,
             "tenant_name": tenant_name,
+            "user_email": user_email,
         },
     )
 
@@ -214,6 +244,7 @@ def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[s
         "connected": True,
         "tenant_id": tenant_id,
         "tenant_name": tenant_name,
+        "user_email": user_email,
     }
 
 
