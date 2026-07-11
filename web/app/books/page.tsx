@@ -12,7 +12,7 @@ import {
   type FindingsResponse,
   type XeroMode,
 } from "@/lib/api";
-import type { AnalysisCardData } from "@/lib/types";
+import type { AnalysisCardData, MemoryRecallData } from "@/lib/types";
 import { MarkdownMessage } from "@/components/MarkdownMessage";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
@@ -27,6 +27,8 @@ import { AnalysisCard } from "@/components/AnalysisCard";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
+import { MemoryBadge } from "@/components/MemoryBadge";
+import { MemoryRecallTrace } from "@/components/MemoryRecallTrace";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
@@ -382,6 +384,7 @@ function BooksView() {
     // Track tool calls and response text for this message
     const toolCalls: ToolCallEvent[] = [];
     const analysisCards: AnalysisCardData[] = [];
+    let memoryRecall: MemoryRecallData | undefined;
     let responseText = "";
 
     // Add a placeholder agent message that we'll update as events stream in
@@ -393,6 +396,10 @@ function BooksView() {
       for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
+        } else if (event.type === "memory_recall") {
+          memoryRecall = { facts: event.facts, sources: event.sources };
+          setThinkingMessage("Recalling past conversations…");
+          updateLastAgentMessage({ memoryRecall });
         } else if (event.type === "tool_call") {
           toolCalls.push({ tool: event.tool, label: event.label, status: "calling" });
           setThinkingMessage(event.label + "…");
@@ -896,8 +903,11 @@ function BooksView() {
             />
           </div>
 
-          <div className="border-t border-stone-100 pt-3 mt-auto">
-            <Link href="/activity" className="text-[10px] text-stone-500 hover:text-stone-700 transition-colors">
+          <div className="border-t border-stone-100 pt-3 mt-auto space-y-1.5">
+            <Link href="/memory" className="block text-[10px] text-violet-500 hover:text-violet-700 transition-colors">
+              What Siki remembers →
+            </Link>
+            <Link href="/activity" className="block text-[10px] text-stone-500 hover:text-stone-700 transition-colors">
               View audit trail →
             </Link>
           </div>
@@ -926,7 +936,10 @@ function BooksView() {
                   </>
                 ) : (
                   /* Real backend + Xero status — no hardcoded "Connected" claims */
-                  <ApiHealthDot />
+                  <span className="flex items-center gap-2">
+                    <ApiHealthDot />
+                    <MemoryBadge />
+                  </span>
                 )}
               </p>
             </div>
@@ -1265,6 +1278,9 @@ function BooksView() {
                   </div>
                 )}
                 <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
+                  {msg.role === "agent" && msg.memoryRecall && (
+                    <MemoryRecallTrace data={msg.memoryRecall} />
+                  )}
                   {msg.role === "agent" && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <ToolCallTrace calls={msg.toolCalls} />
                   )}

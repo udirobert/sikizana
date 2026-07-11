@@ -87,6 +87,7 @@ export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>("GET", path, undefined, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("POST", path, body, options),
+  delete: <T>(path: string, options?: RequestOptions) => request<T>("DELETE", path, undefined, options),
 
   baseUrl: API_BASE,
 };
@@ -116,6 +117,14 @@ export interface ContextResult {
   snippet: string;
   /** Clean summary extracted by Firecrawl from the top result (if available). */
   summary?: string;
+}
+
+/** A memory entry from Supermemory — what Siki remembers about the business. */
+export interface MemoryEntry {
+  id: string;
+  content: string;
+  score?: number;
+  metadata?: Record<string, unknown>;
 }
 
 /** How the backend is talking to Xero. "demo" means no real Xero write happens. */
@@ -307,7 +316,7 @@ const STREAM_TIMEOUT_MS = 180_000;
 // ---- Endpoint functions (typed) ----
 
 export const endpoints = {
-  health: () => api.get<{ status: string }>("/api/health"),
+  health: () => api.get<{ status: string; supermemory?: boolean }>("/api/health"),
 
   feedback: (payload: FeedbackPayload) =>
     api.post<{ received: boolean }>("/api/feedback", payload),
@@ -335,6 +344,15 @@ export const endpoints = {
         "/api/data/delete",
         {},
       ),
+  },
+
+  memory: {
+    /** List all memories Supermemory has stored for this session. */
+    list: () =>
+      api.get<{ memories: MemoryEntry[]; available: boolean }>("/api/memory"),
+    /** Delete a specific memory by document ID (right-to-erasure). */
+    delete: (documentId: string) =>
+      api.delete<{ deleted: boolean; id: string }>(`/api/memory/${documentId}`),
   },
 
   chase: {

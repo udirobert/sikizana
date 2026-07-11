@@ -21,6 +21,8 @@ import os
 import secrets
 
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -48,7 +50,27 @@ log = get_logger("sikizana.api")
 _allowed = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 _cors_origins = ["*"] if _allowed == ["*"] else [o.strip() for o in _allowed if o.strip()]
 
-app = FastAPI(title="Sikizana API", description="AI finance assistant for Xero.")
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Startup: seed the HMRC rules corpus into Supermemory Local if available.
+
+    Idempotent — uses stable customIds so re-seeding on restart won't
+    create duplicates. If Supermemory is unset or unreachable, this is
+    a no-op. The corpus powers semantic RAG in lookup_tax_rule.
+    """
+    try:
+        from src.services.supermemory import is_available, seed_tax_corpus
+
+        if is_available():
+            count = await asyncio.to_thread(seed_tax_corpus)
+            if count > 0:
+                log.info("supermemory_corpus_seeded", extra={"count": count})
+    except Exception as exc:
+        log.warning("supermemory_seed_failed", extra={"error": str(exc)})
+    yield
+
+
+app = FastAPI(title="Sikizana API", description="AI finance assistant for Xero.", lifespan=_lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -126,11 +148,52 @@ async def root():
 
 @app.get("/api/health")
 async def health():
+    from src.services.supermemory import is_available as _sm_available
+
     return {
         "status": "healthy",
         "db_version": get_db_version(),
         "agent_available": True,
+        "supermemory": _sm_available(),
     }
+
+
+# ---- Memory inspection (Supermemory transparency) ----
+
+
+@app.get("/api/memory")
+async def list_session_memories(session_id: str = Depends(get_session_id)):
+    """List all memories Supermemory has stored for this session.
+
+    Returns the recalled content so users can inspect what Siki remembers
+    about their business — customer patterns, chasing outcomes, preferences.
+    If Supermemory is unavailable, returns an empty list.
+    """
+    from src.services.supermemory import is_available as _sm_available, search_memories_for_display
+
+    if not _sm_available():
+        return {"memories": [], "available": False}
+
+    memories = await asyncio.to_thread(search_memories_for_display, session_id, 20)
+    return {"memories": memories, "available": True}
+
+
+@app.delete("/api/memory/{document_id}")
+async def delete_session_memory(document_id: str, session_id: str = Depends(get_session_id)):
+    """Delete a specific memory by document ID.
+
+    Users can remove memories they don't want Siki to remember — GDPR-aligned
+    right to erasure at the individual memory level.
+    """
+    from src.services.supermemory import is_available as _sm_available, delete_memory
+
+    if not _sm_available():
+        raise HTTPException(status_code=503, detail="Supermemory is not available")
+
+    ok = await asyncio.to_thread(delete_memory, document_id)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Failed to delete memory")
+    return {"deleted": True, "id": document_id}
 
 
 # ---- Contextual content (while Siki is working) ----

@@ -49,3 +49,6 @@ venv_new/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+
+# Supermemory Local — encrypted local storage + model weights (not for git)
+.supermemory/

@@ -42,7 +42,7 @@ from src.tools.xero_tools import (
     score_customers,
     set_current_session,
 )
-from src.tools.rag_engine import lookup_tax_rule
+from src.tools.rag_engine import lookup_tax_rule, get_region_info, _normalize_region, set_current_region
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.bookkeeper")
@@ -181,6 +181,28 @@ def _generate_status_message(user_input: str) -> str:
         if any(kw in lower for kw in keywords):
             return message
     return "Looking into your books…"
+
+
+def _extract_customer_names(tool_result: str) -> list[str]:
+    """Extract customer/contact names from a tool result string.
+
+    Tool results like get_xero_invoices return lines like:
+      - INV-0042 | ACCREC | Acme Ltd | £4200.00 | Due: 2024-03-01 | AUTHORISED ⚠ OVERDUE
+    We extract the contact name (3rd pipe-separated field) from lines
+    that contain OVERDUE.
+    """
+    names: list[str] = []
+    for line in tool_result.split("\n"):
+        if "OVERDUE" not in line:
+            continue
+        # Split by pipe delimiter
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) >= 3:
+            name = parts[2]
+            # Filter out empty strings and obvious non-names
+            if name and len(name) > 1 and not name.startswith("£"):
+                names.append(name)
+    return names
 
 
 # ---- Tool definitions in OpenAI function-calling format ----
@@ -342,7 +364,7 @@ _TOOL_DEFS = [
         "type": "function",
         "function": {
             "name": "lookup_tax_rule",
-            "description": "Look up an HMRC tax rule by keyword. Returns the relevant UK tax rule text with source citation (e.g. HMRC BIM45010). Use this to cite official guidance when answering tax questions about deductibility, Corporation Tax rates, VAT, mileage, capital allowances, etc.",
+            "description": "Look up a tax rule by natural language query. Returns the relevant tax rule text with source citation from the user's regional tax authority (HMRC for UK, ATO for Australia, IRS for US). Use this to cite official guidance when answering tax questions about deductibility, tax rates, VAT/GST/sales tax, mileage, capital allowances, etc.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -551,6 +573,17 @@ async def run_bookkeeper_streaming(
     # Emit an immediate status event so the UI never appears frozen
     yield {"type": "status", "message": _generate_status_message(user_input)}
 
+    # Detect the user's tax region from their Xero organisation's country code.
+    # This routes tax queries to the correct jurisdiction (HMRC/ATO/IRS).
+    # Falls back to GB if the org can't be fetched (e.g. demo mode).
+    try:
+        from src.services.xero_service import XeroService
+        _org = await asyncio.to_thread(XeroService(session_id).get_organisation)
+        _country = _org.get("countryCode", "GB") if _org else "GB"
+        set_current_region(_country)
+    except Exception:
+        set_current_region("GB")
+
     # If NVIDIA isn't configured but Venice is, start with Venice directly
     using_venice = not _NVIDIA_API_KEY and _venice_available()
     client = _get_venice_client() if using_venice else _get_client()
@@ -583,6 +616,69 @@ async def run_bookkeeper_streaming(
     # Append a hard guardrail that works across all models (Venice's llama
     # models in particular tend to narrate tool calls and echo raw output).
     _system_prompt += "\n\n### CRITICAL OUTPUT RULES\n- Never mention which tool you are calling or just called. The UI shows tool activity automatically.\n- Never echo raw tool output (e.g. 'UNRECONCILED BANK TRANSACTIONS (4):'). Always rephrase in natural English.\n- Never say 'This response is the result of calling...' or similar meta-commentary.\n- Your text output must be the answer itself, written as if you already know the information.\n"
+
+    # --- Supermemory: inject recalled memory into the system prompt ---
+    # When Supermemory Local is available, the agent recalls past context
+    # about this business (customer payment patterns, chasing outcomes,
+    # user preferences, prior findings) instead of starting from zero.
+    # If Supermemory is unset or unreachable, this entire block is skipped
+    # and the agent works identically — just without memory.
+    from src.services.supermemory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
+
+    _memory_facts: list[str] = []
+    _memory_sources: list[dict[str, Any]] = []
+    if _sm_available():
+        try:
+            _profile = await asyncio.to_thread(_sm_profile, session_id, user_input)
+            # Also do a hybrid search (memories + document chunks) — the
+            # profile endpoint searches memories only, but the memory
+            # extraction pipeline may not have processed recent ingested
+            # conversations yet. Hybrid mode catches raw document chunks
+            # that are indexed immediately.
+            _hybrid_hits = await asyncio.to_thread(_sm_search, user_input, session_id, 5, "hybrid")
+            if _profile:
+                _static = _profile.get("static", [])
+                _dynamic = _profile.get("dynamic", [])
+                _search_hits = _profile.get("search_results", [])
+                _memory_parts: list[str] = []
+                if _static:
+                    _memory_parts.append("### WHAT YOU ALREADY KNOW ABOUT THIS BUSINESS\n" + "\n".join(f"- {s}" for s in _static))
+                    _memory_facts.extend(_static)
+                    _memory_sources.append({"type": "profile", "label": "Known facts", "items": _static})
+                if _dynamic:
+                    _memory_parts.append("### RECENT CONTEXT\n" + "\n".join(f"- {d}" for d in _dynamic))
+                    _memory_facts.extend(_dynamic)
+                    _memory_sources.append({"type": "profile", "label": "Recent context", "items": _dynamic})
+                # Merge profile search hits and hybrid hits, deduplicate
+                _all_hits = _search_hits + _hybrid_hits
+                _seen = set()
+                _relevant = []
+                for h in _all_hits:
+                    c = h.get("content", "")
+                    if c and h.get("score", 0) > 0.5 and c not in _seen:
+                        _seen.add(c)
+                        _relevant.append(h)
+                    if len(_relevant) >= 3:
+                        break
+                if _relevant:
+                    _recall_items = [h["content"] for h in _relevant]
+                    _memory_parts.append("### RELEVANT PAST MEMORIES\n" + "\n".join(f"- {h['content']}" for h in _relevant))
+                    _memory_facts.extend(_recall_items)
+                    _memory_sources.append({"type": "recall", "label": "Recalled memories", "items": _recall_items})
+                if _memory_parts:
+                    _system_prompt += "\n\n" + "\n\n".join(_memory_parts)
+                    _system_prompt += "\n\nUse this remembered context naturally. If it contradicts live Xero data, trust Xero. Never say 'from my memory' — speak as if you remember."
+        except Exception:
+            pass  # Memory is a bonus, never a failure
+
+    # Emit a memory_recall event so the UI can show what Siki remembered.
+    # This makes the invisible memory layer visible to the user and judges.
+    if _memory_facts:
+        yield {
+            "type": "memory_recall",
+            "facts": _memory_facts,
+            "sources": _memory_sources,
+        }
 
     # If the persona switched, inject a handoff system message so the new
     # persona knows the conversation context and who said what.
@@ -871,6 +967,43 @@ async def run_bookkeeper_streaming(
                     "summary": _summarize_tool_result(tool_name, result),
                 }
 
+                # --- Proactive memory alert ---
+                # When a tool returns overdue invoice data, search Supermemory
+                # for past context about the customers mentioned. If memories
+                # are found, inject them as a system hint so the agent can
+                # proactively reference past outcomes — "Acme was late last
+                # time too, you sent a final notice and they paid in 5 days."
+                if tool_name in ("get_xero_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
+                    try:
+                        from src.services.supermemory import is_available as _sm_avail, search as _sm_search
+
+                        if _sm_avail():
+                            # Extract customer names from the tool result
+                            _customer_names = _extract_customer_names(result)
+                            _proactive_facts: list[str] = []
+                            for _cname in _customer_names[:3]:  # limit to 3 customers
+                                _hits = await asyncio.to_thread(_sm_search, _cname, session_id, 2, "hybrid")
+                                for _h in _hits:
+                                    if _h.get("score", 0) > 0.5 and _h.get("content"):
+                                        _proactive_facts.append(_h["content"])
+
+                            if _proactive_facts:
+                                _proactive_text = "\n".join(f"- {f}" for f in _proactive_facts[:3])
+                                messages.append(
+                                    {
+                                        "role": "system",
+                                        "content": f"### PROACTIVE MEMORY ALERT\nYou have past memories about these overdue customers:\n{_proactive_text}\n\nReference this naturally in your response — e.g. 'Acme was late last time too, and a final notice got them to pay in 5 days.' If the memory contradicts live data, trust the live data.",
+                                    }
+                                )
+                                # Also emit a memory_recall event so the UI shows the alert
+                                yield {
+                                    "type": "memory_recall",
+                                    "facts": _proactive_facts[:3],
+                                    "sources": [{"type": "recall", "label": "Proactive memory alert", "items": _proactive_facts[:3]}],
+                                }
+                    except Exception:
+                        pass  # Proactive alerts are a bonus, never a failure
+
                 messages.append(
                     {
                         "role": "tool",
@@ -891,6 +1024,14 @@ async def run_bookkeeper_streaming(
         # Save to conversation history (tag with persona for handoff detection)
         history.append({"role": "assistant", "content": final_text, "persona": persona})
         await _persist_history()
+
+        # --- Supermemory: ingest conversation for future recall ---
+        # Fire-and-forget — never block the response on memory ingestion.
+        # The conversation will be available for recall in future sessions.
+        from src.services.supermemory import is_available as _sm_available2, ingest_conversation as _sm_ingest
+
+        if _sm_available2():
+            asyncio.create_task(asyncio.to_thread(_sm_ingest, history, session_id, conv_key))
 
         yield {"type": "done"}
         return
