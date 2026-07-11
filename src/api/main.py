@@ -23,7 +23,7 @@ import secrets
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, Path, Request, Response, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -179,7 +179,7 @@ async def list_session_memories(session_id: str = Depends(get_session_id)):
 
 
 @app.delete("/api/memory/{document_id}")
-async def delete_session_memory(document_id: str, session_id: str = Depends(get_session_id)):
+async def delete_session_memory(document_id: str = Path(..., min_length=1, max_length=128), session_id: str = Depends(get_session_id)):
     """Delete a specific memory by document ID.
 
     Users can remove memories they don't want Siki to remember — GDPR-aligned
@@ -474,9 +474,10 @@ class AuthRequest(BaseModel):
 
 
 @app.post("/api/auth/register")
-async def auth_register(req: AuthRequest, session_id: str = Depends(get_session_id)):
+async def auth_register(req: AuthRequest, request: Request, session_id: str = Depends(get_session_id)):
     from src.services import accounts
 
+    _check_rate_limit(request)
     user, error = await asyncio.to_thread(accounts.register, req.email, req.password, session_id)
     if error:
         status = 409 if "already exists" in error else 422
@@ -485,9 +486,10 @@ async def auth_register(req: AuthRequest, session_id: str = Depends(get_session_
 
 
 @app.post("/api/auth/login")
-async def auth_login(req: AuthRequest, session_id: str = Depends(get_session_id)):
+async def auth_login(req: AuthRequest, request: Request, session_id: str = Depends(get_session_id)):
     from src.services import accounts
 
+    _check_rate_limit(request)
     user, error = await asyncio.to_thread(accounts.login, req.email, req.password, session_id)
     if error:
         raise HTTPException(status_code=401, detail=error)
@@ -589,9 +591,9 @@ def _check_query_quota(session_id: str) -> None:
 
 
 class XeroChatRequest(BaseModel):
-    message: str
-    thread_id: str | None = None
-    persona: str = "siki"
+    message: str = Field(..., min_length=1, max_length=10000)
+    thread_id: str | None = Field(None, max_length=64)
+    persona: str = Field("siki", pattern="^(siki|zana)$")
 
 
 @app.post("/api/xero/chat")

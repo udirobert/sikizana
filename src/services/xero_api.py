@@ -260,11 +260,16 @@ def list_contacts(session_id: str) -> list[dict[str, Any]]:
     return [_norm_contact(c) for c in contacts]
 
 
+_VALID_INVOICE_STATUSES = {"AUTHORISED", "PAID", "DRAFT", "VOIDED", "DELETED", "SUBMITTED"}
+
+
 def list_invoices(session_id: str, status: str | None = None) -> list[dict[str, Any]]:
     params: dict[str, Any] = {"order": "Date DESC"}
     if status:
-        # Server-side filter — avoids fetching the whole ledger
-        params["where"] = f'Status=="{status.upper()}"'
+        status_upper = status.upper()
+        if status_upper not in _VALID_INVOICE_STATUSES:
+            raise ValueError(f"Invalid invoice status: {status}")
+        params["where"] = f'Status=="{status_upper}"'
     invoices = _get_paged("Invoices", session_id, "Invoices", params=params)
     return [_norm_invoice(i) for i in invoices]
 

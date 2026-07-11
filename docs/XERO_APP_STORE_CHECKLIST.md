@@ -49,11 +49,21 @@ Xero requires evidence of security best practices.
       completing browser holds the session that initiated the flow
 - [x] **No secrets in client code** — all API keys server-side only
 - [x] **Rate limiting** — per-IP limiter (`src/services/rate_limit.py`) on
-      chat and journal-write endpoints
-- [ ] **Input validation** — all user inputs validated server-side
-      (Pydantic models on most endpoints; audit remaining raw params)
-- [ ] **SQL injection protection** — using parameterized queries (verify all paths)
-- [ ] **XSS protection** — React escapes by default, verify no dangerouslySetInnerHTML
+      chat, journal-write, auth, and memory endpoints
+- [x] **Input validation** — Pydantic models with length/pattern constraints
+      on all request bodies (chat message max 10k chars, persona enum-validated,
+      email/password bounded, journal amounts bounded, receipt type+size checked).
+      Query params validated against allowlists (invoice status enum). Path
+      params length-bounded. Audited 2026-07-11.
+- [x] **SQL injection protection** — all 78 SQLite execute() calls use
+      parameterized `?` placeholders. One f-string in `chase_store.py` builds
+      `?,?,?` placeholder strings from controlled literals (not exploitable).
+      Audited 2026-07-11.
+- [x] **XSS protection** — React auto-escaping everywhere except
+      `MarkdownMessage.tsx` which uses `dangerouslySetInnerHTML` with a custom
+      `escapeHtml()` function that escapes before markdown processing. Links
+      restricted to `https://` protocol. No `eval()`, `innerHTML`, or
+      `javascript:` protocol anywhere. Audited 2026-07-11.
 - [x] **Data retention policy** — documented on `/privacy` and `/security`
       (session-scoped storage; conversations capped at 20 messages/thread)
 - [x] **Data deletion on disconnect** — `POST /api/data/delete` revokes
