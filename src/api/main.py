@@ -183,12 +183,22 @@ async def delete_session_memory(document_id: str, session_id: str = Depends(get_
     """Delete a specific memory by document ID.
 
     Users can remove memories they don't want Siki to remember — GDPR-aligned
-    right to erasure at the individual memory level.
+    right to erasure at the individual memory level. Verifies that the memory
+    belongs to the caller's session before deleting.
     """
-    from src.services.supermemory import is_available as _sm_available, delete_memory
+    from src.services.supermemory import (
+        is_available as _sm_available,
+        delete_memory,
+        verify_document_ownership,
+    )
 
     if not _sm_available():
         raise HTTPException(status_code=503, detail="Supermemory is not available")
+
+    # Verify the document belongs to this session before deleting
+    owns = await asyncio.to_thread(verify_document_ownership, document_id, session_id)
+    if not owns:
+        raise HTTPException(status_code=404, detail="Memory not found in your session")
 
     ok = await asyncio.to_thread(delete_memory, document_id)
     if not ok:

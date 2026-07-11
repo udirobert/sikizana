@@ -20,7 +20,6 @@ can reference them without external dependencies.
 from __future__ import annotations
 
 from contextvars import ContextVar
-from typing import Any
 
 # Region context — set per-request by the bookkeeper agent so that
 # lookup_tax_rule automatically routes to the correct jurisdiction.

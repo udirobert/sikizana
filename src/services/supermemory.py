@@ -473,3 +473,29 @@ def delete_memory(document_id: str) -> bool:
     except Exception as exc:
         log.warning("supermemory_delete_error", extra={"error": str(exc), "doc_id": document_id})
         return False
+
+
+def verify_document_ownership(document_id: str, container_tag: str) -> bool:
+    """Verify that a document belongs to the given container tag (session).
+
+    Security check before delete — prevents a user from deleting another
+    session's memory by guessing a document ID. Returns True if the document
+    exists and belongs to the container tag.
+    """
+    if not is_available():
+        return False
+
+    try:
+        import httpx
+
+        resp = httpx.get(
+            f"{_BASE_URL}/v3/documents/{document_id}",
+            headers=_headers(),
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        tags = data.get("containerTags", [])
+        return container_tag in tags
+    except Exception:
+        return False

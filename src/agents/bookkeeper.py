@@ -42,7 +42,7 @@ from src.tools.xero_tools import (
     score_customers,
     set_current_session,
 )
-from src.tools.rag_engine import lookup_tax_rule, get_region_info, _normalize_region, set_current_region
+from src.tools.rag_engine import lookup_tax_rule, set_current_region
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.bookkeeper")
