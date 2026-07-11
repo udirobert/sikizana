@@ -60,7 +60,11 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def register(email: str, password: str, session_id: str) -> tuple[dict | None, str | None]:
-    """Create an account and bind it to the session. Returns (user, error)."""
+    """Create an account and bind it to the session. Returns (user, error).
+
+    Also sends a verification email if SMTP is configured. The user can
+    use the app without verifying, but a banner reminds them.
+    """
     email = email.strip().lower()
     if not _EMAIL_RE.match(email):
         return None, "Please enter a valid email address."
@@ -71,15 +75,29 @@ def register(email: str, password: str, session_id: str) -> tuple[dict | None, s
         return None, "An account with that email already exists."
     store.link_session_to_user(session_id, user["id"])
     _migrate_memories(session_id, user["id"])
+
+    # Send verification email (best-effort — doesn't block registration)
+    _send_verification_email(user["id"], email)
+
     log.info("user_registered", extra={"user_id": user["id"]})
     return user, None
 
 
 def login(email: str, password: str, session_id: str) -> tuple[dict | None, str | None]:
     email = email.strip().lower()
+
+    # Brute-force protection: lock after 5 failed attempts in 15 minutes
+    if store.is_account_locked(email):
+        return None, "Too many failed attempts. Please try again in 15 minutes."
+
     user = store.get_user_by_email(email)
     if not user or not verify_password(password, user["password_hash"]):
+        store.record_login_attempt(email, success=False)
         return None, "Incorrect email or password."
+
+    # Success — clear failed attempts and link session
+    store.record_login_attempt(email, success=True)
+    store.clear_login_attempts(email)
     store.link_session_to_user(session_id, user["id"])
     _migrate_memories(session_id, user["id"])
     log.info("user_logged_in", extra={"user_id": user["id"]})
@@ -136,6 +154,101 @@ def login_or_register_with_xero(email: str, session_id: str) -> tuple[dict | Non
     return user, None
 
 
+# ---- Password reset ----
+
+_PASSWORD_RESET_URL = os.environ.get("PASSWORD_RESET_URL", "https://sikizana.persidian.com/reset-password")
+_EMAIL_VERIFY_URL = os.environ.get("EMAIL_VERIFY_URL", "https://sikizana.persidian.com/verify-email")
+
+
+def request_password_reset(email: str) -> tuple[bool, str | None]:
+    """Request a password reset. Always returns success (don't leak whether
+    the email exists). Sends an email with a reset link if the account exists.
+
+    Returns (success, error).
+    """
+    email = email.strip().lower()
+    user = store.get_user_by_email(email)
+    if not user:
+        # Don't reveal whether the email exists — return success
+        log.info("password_reset_unknown_email", extra={"email": email})
+        return True, None
+
+    token = store.create_password_reset_token(user["id"])
+    reset_url = f"{_PASSWORD_RESET_URL}?token={token}"
+
+    from src.services.digest import send_email
+
+    sent = send_email(
+        to=email,
+        subject="Reset your Sikizana password",
+        text=f"Reset your password: {reset_url}\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.",
+        html=f'<p>Reset your password:</p><p><a href="{reset_url}">{reset_url}</a></p><p style="color:#666;font-size:12px">This link expires in 1 hour. If you didn\'t request this, you can safely ignore this email.</p>',
+        from_name="Sikizana",
+    )
+    if not sent:
+        log.warning("password_reset_email_failed", extra={"email": email})
+        # Don't tell the user — they might not have SMTP configured
+    log.info("password_reset_requested", extra={"user_id": user["id"]})
+    return True, None
+
+
+def reset_password(token: str, new_password: str) -> tuple[bool, str | None]:
+    """Reset a password using a token. Returns (success, error)."""
+    if len(new_password) < 8:
+        return False, "Password must be at least 8 characters."
+
+    token_row = store.get_password_reset_token(token)
+    if not token_row:
+        return False, "This reset link is invalid or has expired."
+
+    store.update_user_password(token_row["user_id"], hash_password(new_password))
+    store.use_password_reset_token(token)
+    log.info("password_reset_completed", extra={"user_id": token_row["user_id"]})
+    return True, None
+
+
+# ---- Email verification ----
+
+
+def _send_verification_email(user_id: int, email: str) -> None:
+    """Send a verification email (best-effort, doesn't block on failure)."""
+    token = store.create_email_verification_token(user_id, email)
+    verify_url = f"{_EMAIL_VERIFY_URL}?token={token}"
+
+    from src.services.digest import send_email
+
+    sent = send_email(
+        to=email,
+        subject="Verify your Sikizana email",
+        text=f"Verify your email: {verify_url}\n\nThis link expires in 24 hours.",
+        html=f'<p>Welcome to Sikizana!</p><p>Verify your email:</p><p><a href="{verify_url}">{verify_url}</a></p><p style="color:#666;font-size:12px">This link expires in 24 hours.</p>',
+        from_name="Sikizana",
+    )
+    if not sent:
+        log.info("verification_email_not_sent", extra={"user_id": user_id, "email": email})
+
+
+def verify_email(token: str) -> tuple[bool, str | None]:
+    """Verify an email using a token. Returns (success, error)."""
+    token_row = store.verify_email_token(token)
+    if not token_row:
+        return False, "This verification link is invalid or has expired."
+    log.info("email_verified", extra={"user_id": token_row["user_id"]})
+    return True, None
+
+
+def resend_verification(email: str) -> tuple[bool, str | None]:
+    """Resend a verification email. Returns (success, error)."""
+    email = email.strip().lower()
+    user = store.get_user_by_email(email)
+    if not user:
+        return True, None  # Don't reveal whether the email exists
+    if store.is_email_verified(user["id"]):
+        return False, "Your email is already verified."
+    _send_verification_email(user["id"], email)
+    return True, None
+
+
 # ---- Plans & enforcement ----
 
 
@@ -157,6 +270,7 @@ def get_account(session_id: str) -> dict[str, Any]:
         "authenticated": user is not None,
         "email": user["email"] if user else None,
         "plan": plan,
+        "email_verified": bool(user.get("email_verified", 0)) if user else False,
         "usage": {
             "used": store.get_usage(scope, month),
             "limit": limit,

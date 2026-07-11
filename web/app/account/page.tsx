@@ -134,6 +134,18 @@ function AuthCard({ onAuthed }: { onAuthed: () => void }) {
           )}
         </div>
 
+        {/* Forgot password link — only on sign-in mode */}
+        {mode === "signin" && (
+          <div className="text-right">
+            <Link
+              href="/reset-password"
+              className="text-xs text-stone-500 hover:text-sky-600"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
         <button
           type="submit"
           disabled={submitting}
@@ -542,6 +554,11 @@ function AccountView() {
               <PlanBadge plan={me.plan} />
             </div>
 
+            {/* Email verification banner */}
+            {!me.email_verified && (
+              <EmailVerificationBanner email={me.email} />
+            )}
+
             <div className="mt-4 space-y-3">
               <UsageMeter usage={me.usage} />
               <YourImpact />
@@ -664,6 +681,55 @@ function AccountView() {
     </main>
   );
 }
+
+function EmailVerificationBanner({ email }: { email: string | null }) {
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleResend = async () => {
+    if (sending || !email) return;
+    setSending(true);
+    try {
+      await endpoints.auth.resendVerification(email);
+      setSent(true);
+    } catch {
+      // Silently fail — don't reveal whether the email exists
+      setSent(true);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-600 mt-0.5 flex-shrink-0">
+        <path d="M12 9v4M12 17h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0l-7.07 12a2 2 0 001.74 3z" />
+      </svg>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-amber-800 font-medium">
+          Please verify your email address
+        </p>
+        <p className="text-[11px] text-amber-700 mt-0.5">
+          {sent ? (
+            "Verification email sent. Check your inbox."
+          ) : (
+            <>
+              Didn&apos;t get the email?{" "}
+              <button
+                onClick={handleResend}
+                disabled={sending}
+                className="font-semibold underline hover:text-amber-900 disabled:opacity-50"
+              >
+                {sending ? "Sending…" : "Resend"}
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 
 export default function AccountPage() {
   return (

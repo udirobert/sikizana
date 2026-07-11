@@ -128,16 +128,17 @@ cd web && npx tsc --noEmit
 
 - Passwords hashed with scrypt (stdlib, no dependencies)
 - Xero tokens encrypted at rest with Fernet
-- Session cookies: HttpOnly, SameSite=lax, 90-day max-age
+- Session cookies: HttpOnly, SameSite=lax, 30-day sliding expiry
 - CSRF protection on OAuth callback via state parameter
 - Session fixation protection: query param session IDs never written to cookie
 - Rate limiting: per-IP token bucket on chat endpoints
 - Memory ownership verified before deletion
+- Brute-force protection: account locked after 5 failed logins in 15 minutes
+- Password reset: token-based, 1-hour expiry, single-use, email sent via SMTP
+- Email verification: token-based, 24-hour expiry, sent on registration
+- Password reset doesn't leak whether an email exists (always returns success)
 
 ### Known gaps (pre-production)
 
-- No password reset flow (Xero-created accounts have random passwords)
-- No session timeout (90 days is too long for production)
-- No brute-force protection on login
-- No email verification
 - Agent tools not yet wired through connector abstraction
+- Email verification is optional (users can use the app without verifying)

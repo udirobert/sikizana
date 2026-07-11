@@ -10,6 +10,7 @@ Schema migrations are tracked in schema_version.
 """
 
 import os
+import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
@@ -209,6 +210,37 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         CREATE INDEX IF NOT EXISTS idx_platform_conn_session ON platform_connections(session_id);
         CREATE INDEX IF NOT EXISTS idx_platform_conn_user ON platform_connections(user_id);
+    """,
+    ),
+    (
+        10,
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            created_at TEXT NOT NULL,
+            used_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_reset_user ON password_reset_tokens(user_id);
+
+        CREATE TABLE IF NOT EXISTS email_verification_tokens (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            email TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            verified_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_verify_user ON email_verification_tokens(user_id);
+
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            success INTEGER NOT NULL,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_login_attempts_email_time ON login_attempts(email, created_at);
+
+        ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;
     """,
     ),
 ]
@@ -709,6 +741,171 @@ def set_user_plan(user_id: int, plan: str) -> None:
     conn.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
     conn.commit()
     conn.close()
+
+
+# ---- Login attempts (brute-force protection) ----
+
+
+def record_login_attempt(email: str, success: bool) -> None:
+    """Record a login attempt for rate-limiting / brute-force detection."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO login_attempts (email, success, created_at) VALUES (?, ?, ?)",
+        (email.strip().lower(), 1 if success else 0, now),
+    )
+    conn.commit()
+    conn.close()
+
+
+def count_failed_logins(email: str, within_minutes: int = 15) -> int:
+    """Count failed login attempts for an email in the last N minutes."""
+    init_db()
+    conn = _get_db()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=within_minutes)).isoformat()
+    row = conn.execute(
+        "SELECT COUNT(*) as c FROM login_attempts WHERE email = ? AND success = 0 AND created_at > ?",
+        (email.strip().lower(), cutoff),
+    ).fetchone()
+    conn.close()
+    return row["c"] if row else 0
+
+
+def is_account_locked(email: str, max_attempts: int = 5, window_minutes: int = 15) -> bool:
+    """True if the account has too many recent failed login attempts."""
+    return count_failed_logins(email, window_minutes) >= max_attempts
+
+
+def clear_login_attempts(email: str) -> None:
+    """Clear failed login attempts after a successful login."""
+    init_db()
+    conn = _get_db()
+    conn.execute(
+        "DELETE FROM login_attempts WHERE email = ? AND success = 0",
+        (email.strip().lower(),),
+    )
+    conn.commit()
+    conn.close()
+
+
+# ---- Password reset tokens ----
+
+
+def create_password_reset_token(user_id: int) -> str:
+    """Create a password reset token. Returns the token string."""
+    init_db()
+    conn = _get_db()
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc).isoformat()
+    # Invalidate any existing unused tokens for this user
+    conn.execute(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE user_id = ? AND used_at IS NULL",
+        (now, user_id),
+    )
+    conn.execute(
+        "INSERT INTO password_reset_tokens (token, user_id, created_at) VALUES (?, ?, ?)",
+        (token, user_id, now),
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+
+def get_password_reset_token(token: str) -> dict | None:
+    """Get a password reset token if it's valid (exists and not used or expired)."""
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL",
+        (token,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return None
+    # Check expiry: tokens are valid for 1 hour
+    created = datetime.fromisoformat(row["created_at"])
+    if datetime.now(timezone.utc) - created > timedelta(hours=1):
+        return None
+    return dict(row)
+
+
+def use_password_reset_token(token: str) -> bool:
+    """Mark a password reset token as used. Returns True if successful."""
+    init_db()
+    conn = _get_db()
+    now = datetime.now(timezone.utc).isoformat()
+    cursor = conn.execute(
+        "UPDATE password_reset_tokens SET used_at = ? WHERE token = ? AND used_at IS NULL",
+        (now, token),
+    )
+    conn.commit()
+    conn.close()
+    return cursor.rowcount > 0
+
+
+def update_user_password(user_id: int, password_hash: str) -> None:
+    """Update a user's password hash."""
+    init_db()
+    conn = _get_db()
+    conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+    conn.commit()
+    conn.close()
+
+
+# ---- Email verification ----
+
+
+def create_email_verification_token(user_id: int, email: str) -> str:
+    """Create an email verification token. Returns the token string."""
+    init_db()
+    conn = _get_db()
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "INSERT INTO email_verification_tokens (token, user_id, email, created_at) VALUES (?, ?, ?, ?)",
+        (token, user_id, email, now),
+    )
+    conn.commit()
+    conn.close()
+    return token
+
+
+def verify_email_token(token: str) -> dict | None:
+    """Verify an email verification token. Returns the token record if valid."""
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        "SELECT * FROM email_verification_tokens WHERE token = ? AND verified_at IS NULL",
+        (token,),
+    ).fetchone()
+    if not row:
+        conn.close()
+        return None
+    # Check expiry: tokens are valid for 24 hours
+    created = datetime.fromisoformat(row["created_at"])
+    if datetime.now(timezone.utc) - created > timedelta(hours=24):
+        conn.close()
+        return None
+    # Mark as verified
+    now = datetime.now(timezone.utc).isoformat()
+    conn.execute(
+        "UPDATE email_verification_tokens SET verified_at = ? WHERE token = ?",
+        (now, token),
+    )
+    conn.execute("UPDATE users SET email_verified = 1 WHERE id = ?", (row["user_id"],))
+    conn.commit()
+    conn.close()
+    return dict(row)
+
+
+def is_email_verified(user_id: int) -> bool:
+    """Check if a user's email is verified."""
+    init_db()
+    conn = _get_db()
+    row = conn.execute("SELECT email_verified FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    return bool(row and row["email_verified"])
 
 
 def set_stripe_customer(user_id: int, customer_id: str) -> None:

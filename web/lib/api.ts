@@ -317,6 +317,7 @@ export interface MeResponse {
   authenticated: boolean;
   email: string | null;
   plan: Plan;
+  email_verified: boolean;
   usage: {
     used: number;
     /** null = unlimited */
@@ -425,6 +426,19 @@ export const endpoints = {
     login: (email: string, password: string) =>
       api.post<AuthResponse>("/api/auth/login", { email, password }),
     logout: () => api.post<{ ok: boolean }>("/api/auth/logout", {}),
+    /** Request a password reset email. Always returns success (doesn't leak
+     *  whether the email exists). */
+    requestPasswordReset: (email: string) =>
+      api.post<{ ok: boolean; message: string }>("/api/auth/password-reset/request", { email }),
+    /** Reset password using a token from the reset email. */
+    confirmPasswordReset: (token: string, password: string) =>
+      api.post<{ ok: boolean; message: string }>("/api/auth/password-reset/confirm", { token, password }),
+    /** Verify an email address using a token from the verification email. */
+    verifyEmail: (token: string) =>
+      api.post<{ ok: boolean; message: string }>("/api/auth/verify-email", { token }),
+    /** Resend the email verification link. */
+    resendVerification: (email: string) =>
+      api.post<{ ok: boolean; message: string }>("/api/auth/verify-email/resend", { email }),
   },
 
   /** Current session — works for anonymous sessions too (authenticated: false). */

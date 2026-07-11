@@ -92,6 +92,10 @@ app.add_middleware(
 
 _SESSION_COOKIE = "sikizana_session"
 _COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+# Session lifetime: 30 days sliding. Each request refreshes the expiry,
+# so active users never get logged out. Inactive users are dropped after
+# 30 days — appropriate for a finance app where stale sessions are a risk.
+_SESSION_MAX_AGE = 60 * 60 * 24 * 30
 # Generated IDs are token_urlsafe(24) = 32 chars; anything shorter (e.g.
 # "default", which collides with the agent's fallback session) is rejected.
 _MIN_PARAM_SESSION_LEN = 22
@@ -104,7 +108,7 @@ def _set_session_cookie(response: Response, sid: str) -> None:
         httponly=True,
         samesite="lax",
         secure=_COOKIE_SECURE,
-        max_age=60 * 60 * 24 * 90,
+        max_age=_SESSION_MAX_AGE,
     )
 
 
@@ -539,6 +543,76 @@ async def auth_logout(session_id: str = Depends(get_session_id)):
 
     await asyncio.to_thread(accounts.logout, session_id)
     return {"ok": True}
+
+
+# ---- Password reset ----
+
+
+class PasswordResetRequestRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254)
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    token: str = Field(..., min_length=10, max_length=128)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+@app.post("/api/auth/password-reset/request")
+async def password_reset_request(req: PasswordResetRequestRequest, request: Request):
+    """Request a password reset email. Always returns success (doesn't
+    leak whether the email exists)."""
+    from src.services import accounts
+
+    _check_rate_limit(request)
+    await asyncio.to_thread(accounts.request_password_reset, req.email)
+    return {"ok": True, "message": "If an account exists for that email, a reset link has been sent."}
+
+
+@app.post("/api/auth/password-reset/confirm")
+async def password_reset_confirm(req: PasswordResetConfirmRequest, request: Request):
+    """Reset a password using a token from the reset email."""
+    from src.services import accounts
+
+    _check_rate_limit(request)
+    success, error = await asyncio.to_thread(accounts.reset_password, req.token, req.password)
+    if not success:
+        raise HTTPException(status_code=422, detail=error)
+    return {"ok": True, "message": "Your password has been reset. You can now sign in."}
+
+
+# ---- Email verification ----
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(..., min_length=10, max_length=128)
+
+
+class ResendVerificationRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=254)
+
+
+@app.post("/api/auth/verify-email")
+async def verify_email_endpoint(req: VerifyEmailRequest, request: Request):
+    """Verify an email address using a token from the verification email."""
+    from src.services import accounts
+
+    _check_rate_limit(request)
+    success, error = await asyncio.to_thread(accounts.verify_email, req.token)
+    if not success:
+        raise HTTPException(status_code=422, detail=error)
+    return {"ok": True, "message": "Your email has been verified."}
+
+
+@app.post("/api/auth/verify-email/resend")
+async def resend_verification_endpoint(req: ResendVerificationRequest, request: Request):
+    """Resend the email verification link."""
+    from src.services import accounts
+
+    _check_rate_limit(request)
+    success, error = await asyncio.to_thread(accounts.resend_verification, req.email)
+    if not success:
+        raise HTTPException(status_code=422, detail=error)
+    return {"ok": True, "message": "If an unverified account exists for that email, a new verification link has been sent."}
 
 
 @app.get("/api/me")
