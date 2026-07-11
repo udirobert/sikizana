@@ -39,7 +39,7 @@ def test_stored_sector_beats_org_name_guess():
     """The onboarding sector answer must win over guessing from the org
     name — and must be erased with the rest of the session's data."""
     from src.services.payment_store import get_session_pref, set_session_pref
-    from src.tools.xero_tools import set_current_session, get_sector_benchmarks
+    from src.tools.accounting_tools import set_current_session, get_sector_benchmarks
 
     sid = "sector-test"
     set_session_pref(sid, "sector", "construction")

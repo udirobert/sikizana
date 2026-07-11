@@ -52,7 +52,7 @@ measures automatically.
 **Pipeline**: Exa finds → Firecrawl reads → backend extracts relevant
 paragraph → user sees the actual HMRC guidance text inline.
 
-**Also used for**: `_fetch_ons_benchmarks` in `src/tools/xero_tools.py`
+**Also used for**: `_fetch_ons_benchmarks` in `src/tools/accounting_tools.py`
 (sector benchmark comparison). Cached per sector for 7 days (the source
 data updates ~annually) — previously every "is this normal for my
 industry?" question paid for a fresh Exa search + Firecrawl scrape.
@@ -184,7 +184,7 @@ it needs careful safety design. Documented as a roadmap item.
 User asks a question
   ↓
 Bookkeeper Agent (NVIDIA NIM Llama 3.3 70B)
-  ├── Calls Xero tools (find_discrepancies, get_xero_invoices, etc.)
+  ├── Calls Xero tools (find_discrepancies, get_invoices, etc.)
   ├── Persona handoff: detects Siki ↔ Zana switch, injects context
   ↓
 WhileAgentWorks (parallel to agent execution)

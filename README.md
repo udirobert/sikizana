@@ -87,7 +87,7 @@ session-scoped read-through cache sits over every Xero fetch, invalidated
 immediately on write.
 
 **Writes are approval-gated at the tool layer, not just the prompt
-layer**: `create_xero_journal_entry` is not in the LLM's tool list at
+layer**: `create_journal_entry` is not in the LLM's tool list at
 all — the model can only `propose_journal_entry` (renders a card); the
 only path that ever posts to Xero is the user clicking Approve, which
 calls `/api/xero/journal` directly. Same principle for chasing: the
@@ -95,8 +95,8 @@ agent can `draft_invoice_reminder` for a one-off email, but scheduled
 follow-ups only start when the user clicks ⚡ Auto-chase.
 
 ### Backend (Python / FastAPI)
-- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM (Llama 3.3 70B), Venice fallback, real token streaming. `create_xero_journal_entry` is deliberately NOT in the LLM's tool list (see Architecture above)
-- **Tools**: `src/tools/xero_tools.py` — 19 tools (discrepancies, aged receivables, invoices, P&L, tax, journal proposals, chasing, benchmarks, customer scoring, trend analysis)
+- **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM (Llama 3.3 70B), Venice fallback, real token streaming. `create_journal_entry` is deliberately NOT in the LLM's tool list (see Architecture above)
+- **Tools**: `src/tools/accounting_tools.py` — 19 tools (discrepancies, aged receivables, invoices, P&L, tax, journal proposals, chasing, benchmarks, customer scoring, trend analysis)
 - **Tax rules**: `src/tools/rag_engine.py` — multi-region embedded rules (UK HMRC, AU ATO, US IRS) with citations, enhanced by Supermemory semantic RAG when available. Region auto-detected from the Xero org's country code. Falls back to region-specific keyword lookup when Supermemory is unavailable.
 - **Memory + RAG**: `src/services/supermemory.py` — optional Supermemory Local integration. When `SUPERMEMORY_URL` is set, the agent gains persistent cross-session memory (recalls customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and semantic RAG over multi-region tax rules. When unset or unreachable, the app works identically — just without memory. Health-checked with 60s cache; every call gracefully degrades.
 - **Memory inspection**: `GET /api/memory` + `DELETE /api/memory/{id}` — list and delete individual memories. The `/memory` page makes the memory layer transparent and user-controllable (GDPR-aligned right-to-erasure at the individual memory level).
@@ -155,7 +155,7 @@ gov.uk via Exa + Firecrawl, showing the actual HMRC text inline.
 
 ### 5. Journal Entry Write-Back
 The agent can `propose_journal_entry` (renders an approval card) but has
-no tool to post it — `create_xero_journal_entry` isn't in its tool list
+no tool to post it — `create_journal_entry` isn't in its tool list
 at all. The ONLY path that writes to Xero is the user clicking Approve
 on the card, which calls `/api/xero/journal` directly, validates the
 account codes server-side, and posts with a client-supplied idempotency

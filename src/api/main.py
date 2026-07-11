@@ -1619,7 +1619,7 @@ async def xero_upload_receipt(
 
         # Try the real vision tool first
         try:
-            from src.tools.xero_tools import match_receipt_to_transaction
+            from src.tools.accounting_tools import match_receipt_to_transaction
 
             result = await asyncio.to_thread(match_receipt_to_transaction, tmp_path)
             agent_available = True

@@ -18,21 +18,21 @@ export const TOOL_TIPS: Record<string, EduTip[]> = {
     { text: "A trial balance that doesn't balance means a journal entry is wrong or missing. Siki checks this automatically." },
     { text: "The average UK small business has 4-6 unreconciled transactions at any given time. Regular reconciliation keeps it under 2." },
   ],
-  get_xero_profit_and_loss: [
+  get_profit_and_loss: [
     { text: "Your P&L (Profit & Loss) shows income minus expenses over a period. Lenders use it to assess loan applications." },
     { text: "Net profit ≠ cash in bank. Profit is an accounting measure; cash flow tracks actual money moving in and out." },
     { text: "UK companies must file a P&L with Companies House annually. Keeping it accurate year-round saves £200+ in accountant fees." },
   ],
-  get_xero_balance_sheet: [
+  get_balance_sheet: [
     { text: "Your balance sheet is a snapshot of what you own and owe at a point in time. It's the 'health check' lenders and investors look at." },
     { text: "Equity = Assets - Liabilities. If this number is negative, the business is technically insolvent." },
   ],
-  get_xero_invoices: [
+  get_invoices: [
     { text: "After 60 days overdue, the probability of collecting an invoice drops to 50%. Chasing early is critical." },
     { text: "UK businesses can charge statutory interest (8% + Bank Rate) on late payments under the Late Payment of Commercial Debts Act 1998." },
     { text: "The average overdue B2B invoice in the UK is paid 18 days late. The sooner you chase, the sooner you get paid." },
   ],
-  get_xero_transactions: [
+  get_bank_transactions: [
     { text: "Bank reconciliation matches your Xero records to your actual bank statements. It's how you catch missing or duplicate transactions." },
     { text: "Common reconciliation issues: standing orders not coded, card payments with vague references, and duplicate imports." },
   ],
@@ -46,7 +46,7 @@ export const TOOL_TIPS: Record<string, EduTip[]> = {
     { text: "The average small business spends 15-20% more than necessary on software subscriptions. Auditing them quarterly saves £100s." },
     { text: "Switching from monthly to annual billing on common tools (Xero, QuickBooks, Adobe) typically saves 15-20%." },
   ],
-  get_xero_chart_of_accounts: [
+  get_chart_of_accounts: [
     { text: "Your chart of accounts is the backbone of your bookkeeping. Each account code maps to a box on your tax return." },
     { text: "Misclassifying expenses (e.g. putting travel under 'office costs') can trigger HMRC inquiries. Siki checks this before posting." },
   ],

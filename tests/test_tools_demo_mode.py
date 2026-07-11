@@ -4,8 +4,8 @@ forced by conftest, so these never touch a real Xero org).
 """
 
 from src.services.xero_service import XeroService
-from src.tools.xero_tools import (
-    create_xero_journal_entry,
+from src.tools.accounting_tools import (
+    create_journal_entry,
     find_discrepancies,
     get_savings_opportunities,
     get_tax_insights,
@@ -44,7 +44,7 @@ def test_propose_journal_entry_requires_valid_accounts():
 
 
 def test_demo_journal_write_is_honest():
-    result = create_xero_journal_entry("Test entry", "600", "090", 50.0)
+    result = create_journal_entry("Test entry", "600", "090", 50.0)
     assert "SIMULATED" in result
     assert "nothing was written" in result
     assert "✓ Journal entry posted" not in result
@@ -59,13 +59,13 @@ def test_service_demo_journal_flags_not_posted():
 
 def test_tools_coerce_string_amounts():
     """LLMs pass numeric args as strings — tools must coerce, not crash."""
-    from src.tools.xero_tools import draft_invoice_reminder
+    from src.tools.accounting_tools import draft_invoice_reminder
 
     proposed = propose_journal_entry("Fix rent", "600", "090", "1200")
     assert "PROPOSED JOURNAL ENTRY" in proposed
     assert "1,200.00" in proposed
 
-    simulated = create_xero_journal_entry("Fix rent", "600", "090", "50.5")
+    simulated = create_journal_entry("Fix rent", "600", "090", "50.5")
     assert "SIMULATED" in simulated
 
     email = draft_invoice_reminder(

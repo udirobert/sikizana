@@ -51,8 +51,8 @@ Today only Xero is registered. Adding QuickBooks/Sage means:
 2. Add one entry to `_REGISTRY` in `registry.py`
 3. Nothing else changes
 
-**Note:** The agent tools (`xero_tools.py`), findings, receivables, chase jobs,
-and all API endpoints now call through `get_connector(session_id)` instead of
+**Note:** The agent tools (`accounting_tools.py`), findings, receivables, chase
+jobs, and all API endpoints call through `get_connector(session_id)` instead of
 instantiating `XeroService` directly. The only file that imports `XeroService`
 is `src/services/connectors/xero.py` (the adapter itself). Adding a second
 connector requires no changes to the agent, tools, findings, or API layer.

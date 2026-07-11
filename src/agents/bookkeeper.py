@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.tools.xero_tools import (
+from src.tools.accounting_tools import (
     draft_invoice_reminder,
     find_discrepancies,
     get_chasing_strategy,
@@ -30,13 +30,13 @@ from src.tools.xero_tools import (
     get_sector_benchmarks,
     get_tax_insights,
     get_trend_analysis,
-    get_xero_balance_sheet,
-    get_xero_chart_of_accounts,
-    get_xero_contacts,
-    get_xero_invoices,
-    get_xero_organisation,
-    get_xero_profit_and_loss,
-    get_xero_transactions,
+    get_balance_sheet,
+    get_chart_of_accounts,
+    get_contacts,
+    get_invoices,
+    get_organisation,
+    get_profit_and_loss,
+    get_bank_transactions,
     match_receipt_to_transaction,
     propose_journal_entry,
     score_customers,
@@ -186,7 +186,7 @@ def _generate_status_message(user_input: str) -> str:
 def _extract_customer_names(tool_result: str) -> list[str]:
     """Extract customer/contact names from a tool result string.
 
-    Tool results like get_xero_invoices return lines like:
+    Tool results like get_invoices return lines like:
       - INV-0042 | ACCREC | Acme Ltd | £4200.00 | Due: 2024-03-01 | AUTHORISED ⚠ OVERDUE
     We extract the contact name (3rd pipe-separated field) from lines
     that contain OVERDUE.
@@ -219,7 +219,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_organisation",
+            "name": "get_organisation",
             "description": "Get the connected Xero organisation's details (name, currency, country, tax number).",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -227,7 +227,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_transactions",
+            "name": "get_bank_transactions",
             "description": "List bank transactions from Xero. Returns date, contact, amount, reference, and reconciliation status for each.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -235,7 +235,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_invoices",
+            "name": "get_invoices",
             "description": "List invoices from Xero with status, amount due, and due date. Optionally filter by status (e.g. AUTHORISED, PAID, OVERDUE).",
             "parameters": {
                 "type": "object",
@@ -260,7 +260,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_chart_of_accounts",
+            "name": "get_chart_of_accounts",
             "description": "List the chart of accounts from Xero — account codes, names, and types. Useful for proposing journal entries.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -268,7 +268,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_profit_and_loss",
+            "name": "get_profit_and_loss",
             "description": "Get the profit and loss report from Xero. Returns revenue, expenses, and net profit for the current period.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -276,7 +276,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_balance_sheet",
+            "name": "get_balance_sheet",
             "description": "Get the balance sheet report from Xero. Returns total assets, liabilities, and equity.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -284,7 +284,7 @@ _TOOL_DEFS = [
     {
         "type": "function",
         "function": {
-            "name": "get_xero_contacts",
+            "name": "get_contacts",
             "description": "List contacts (customers/suppliers) from Xero. Optionally filter by name.",
             "parameters": {
                 "type": "object",
@@ -348,7 +348,7 @@ _TOOL_DEFS = [
             },
         },
     },
-    # NOTE: create_xero_journal_entry is deliberately NOT exposed to the
+    # NOTE: create_journal_entry is deliberately NOT exposed to the
     # LLM. Posting to Xero is a real-money write; the only path is the
     # /api/xero/journal endpoint behind the Approve button, so a model
     # that misreads "sounds right" as approval can never move money.
@@ -483,13 +483,13 @@ _TOOL_DEFS = [
 _TOOL_FUNCS = {
     "find_discrepancies": find_discrepancies,
     "get_receivables_aging": get_receivables_aging,
-    "get_xero_organisation": get_xero_organisation,
-    "get_xero_transactions": get_xero_transactions,
-    "get_xero_invoices": get_xero_invoices,
-    "get_xero_chart_of_accounts": get_xero_chart_of_accounts,
-    "get_xero_profit_and_loss": get_xero_profit_and_loss,
-    "get_xero_balance_sheet": get_xero_balance_sheet,
-    "get_xero_contacts": get_xero_contacts,
+    "get_organisation": get_organisation,
+    "get_bank_transactions": get_bank_transactions,
+    "get_invoices": get_invoices,
+    "get_chart_of_accounts": get_chart_of_accounts,
+    "get_profit_and_loss": get_profit_and_loss,
+    "get_balance_sheet": get_balance_sheet,
+    "get_contacts": get_contacts,
     "match_receipt_to_transaction": match_receipt_to_transaction,
     "propose_journal_entry": propose_journal_entry,
     "get_tax_insights": get_tax_insights,
@@ -704,16 +704,16 @@ async def run_bookkeeper_streaming(
     tool_labels = {
         "find_discrepancies": "Auditing books for discrepancies",
         "get_receivables_aging": "Building aged receivables report",
-        "get_xero_organisation": "Reading organisation details",
-        "get_xero_transactions": "Fetching bank transactions",
-        "get_xero_invoices": "Fetching invoices",
-        "get_xero_chart_of_accounts": "Loading chart of accounts",
-        "get_xero_profit_and_loss": "Pulling P&L report",
-        "get_xero_balance_sheet": "Pulling balance sheet",
-        "get_xero_contacts": "Searching contacts",
+        "get_organisation": "Reading organisation details",
+        "get_bank_transactions": "Fetching bank transactions",
+        "get_invoices": "Fetching invoices",
+        "get_chart_of_accounts": "Loading chart of accounts",
+        "get_profit_and_loss": "Pulling P&L report",
+        "get_balance_sheet": "Pulling balance sheet",
+        "get_contacts": "Searching contacts",
         "match_receipt_to_transaction": "Reading receipt with vision AI",
         "propose_journal_entry": "Preparing journal entry",
-        "create_xero_journal_entry": "Posting journal entry to Xero",
+        "create_journal_entry": "Posting journal entry to Xero",
         "get_tax_insights": "Analyzing tax insights",
         "lookup_tax_rule": "Looking up HMRC tax rules",
         "draft_invoice_reminder": "Drafting invoice reminder email",
@@ -915,7 +915,7 @@ async def run_bookkeeper_streaming(
                 # model can still hallucinate a call to it (or replay one from
                 # an old conversation). Never execute it — posting to Xero
                 # only happens via the Approve button's endpoint.
-                if tool_name == "create_xero_journal_entry":
+                if tool_name == "create_journal_entry":
                     result = (
                         "BLOCKED: You cannot post journal entries to Xero. The entry you proposed "
                         "is shown to the user as a card with an Approve button — posting happens "
@@ -979,7 +979,7 @@ async def run_bookkeeper_streaming(
                 # are found, inject them as a system hint so the agent can
                 # proactively reference past outcomes — "Acme was late last
                 # time too, you sent a final notice and they paid in 5 days."
-                if tool_name in ("get_xero_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
+                if tool_name in ("get_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
                     try:
                         from src.services.supermemory import is_available as _sm_avail, search as _sm_search
                         from src.services.supermemory import memory_container_tag as _sm_ct
@@ -1127,36 +1127,36 @@ def _summarize_tool_result(tool_name: str, result: str) -> str:
                 parts.append(overdue_line.strip())
             return " · ".join(parts) if parts else result[:80]
         return result[:80]
-    elif tool_name == "get_xero_profit_and_loss":
+    elif tool_name == "get_profit_and_loss":
         # Extract key numbers
         for line in result.split("\n"):
             if "Net Profit" in line or "Revenue" in line or "Total Income" in line:
                 return line.strip()
         return result[:80]
-    elif tool_name == "get_xero_balance_sheet":
+    elif tool_name == "get_balance_sheet":
         for line in result.split("\n"):
             if "Total" in line:
                 return line.strip()
         return result[:80]
-    elif tool_name == "get_xero_transactions":
+    elif tool_name == "get_bank_transactions":
         if "Found" in result:
             return result.split("\n")[0].strip()
         return result[:80]
-    elif tool_name == "get_xero_invoices":
+    elif tool_name == "get_invoices":
         if "Found" in result:
             return result.split("\n")[0].strip()
         return result[:80]
-    elif tool_name == "get_xero_chart_of_accounts":
+    elif tool_name == "get_chart_of_accounts":
         if "Chart of Accounts" in result:
             return result.split("\n")[0].strip()
         return result[:80]
-    elif tool_name == "get_xero_contacts":
+    elif tool_name == "get_contacts":
         if "Found" in result:
             return result.split("\n")[0].strip()
         return result[:80]
     elif tool_name == "propose_journal_entry":
         return "Journal entry prepared — awaiting approval"
-    elif tool_name == "create_xero_journal_entry":
+    elif tool_name == "create_journal_entry":
         if "✓" in result:
             return "Journal entry posted to Xero ✓"
         return result[:80]

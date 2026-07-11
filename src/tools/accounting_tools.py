@@ -1,27 +1,28 @@
 """
-Xero agent tools — the tool surface the Bookkeeper Agent calls.
+Accounting agent tools — the tool surface the Bookkeeper Agent calls.
 
-These wrap XeroService into the function-calling format that the
-NVIDIA NIM API expects. Each tool returns a string (LLM-friendly
-summary) or structured data that the agent reasons over.
+These wrap the accounting connector (Xero today, QuickBooks/Sage tomorrow)
+into the function-calling format that the NVIDIA NIM API expects. Each tool
+returns a string (LLM-friendly summary) or structured data that the agent
+reasons over.
 
 Tools:
-  - get_xero_transactions   →  list bank transactions
-  - get_xero_invoices       →  list invoices (filter by status)
-  - get_xero_chart_of_accounts →  account codes for journal entries
-  - get_xero_profit_and_loss →  P&L report
-  - get_xero_balance_sheet  →  balance sheet report
-  - get_xero_contacts       →  customers/suppliers
-  - find_discrepancies      →  unreconciled transactions + overdue invoices
-  - get_tax_insights        →  Corporation Tax estimate, deductions, HMRC flags
+  - get_bank_transactions    →  list bank transactions
+  - get_invoices             →  list invoices (filter by status)
+  - get_chart_of_accounts    →  account codes for journal entries
+  - get_profit_and_loss      →  P&L report
+  - get_balance_sheet        →  balance sheet report
+  - get_contacts             →  customers/suppliers
+  - find_discrepancies       →  unreconciled transactions + overdue invoices
+  - get_tax_insights         →  Corporation Tax estimate, deductions, HMRC flags
   - match_receipt_to_transaction →  Gemini Vision receipt matching
-  - propose_journal_entry   →  propose a fix (await user approval)
-  - create_xero_journal_entry →  post journal to Xero (write-back)
-  - draft_invoice_reminder  →  negotiation-tactic-based chasing email
+  - propose_journal_entry    →  propose a fix (await user approval)
+  - create_journal_entry     →  post journal to the platform (write-back)
+  - draft_invoice_reminder   →  negotiation-tactic-based chasing email
   - get_savings_opportunities →  margin/expense/waste analysis
-  - get_sector_benchmarks   →  compare receivables/margins vs sector averages
-  - score_customers         →  payment reliability + cost-to-serve per customer
-  - get_chasing_strategy    →  multi-stage negotiation plan per overdue invoice
+  - get_sector_benchmarks    →  compare receivables/margins vs sector averages
+  - score_customers          →  payment reliability + cost-to-serve per customer
+  - get_chasing_strategy     →  multi-stage negotiation plan per overdue invoice
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ from src.services.connectors import get_connector
 from src.services.connectors.base import AccountingConnector
 from src.services.logging import get_logger
 
-log = get_logger("sikizana.xero_tools")
+log = get_logger("sikizana.accounting_tools")
 
 # UK Corporation Tax rates — set by HMRC, not Xero. Configurable via env
 # so they can be updated without a code change. Xero's TaxRates API returns
@@ -61,7 +62,7 @@ def _svc() -> AccountingConnector:
     return get_connector(_current_session.get())
 
 
-def get_xero_organisation() -> str:
+def get_organisation() -> str:
     """Get the connected Xero organisation's details (name, currency, tax number)."""
     org = _svc().get_organisation()
     return (
@@ -72,7 +73,7 @@ def get_xero_organisation() -> str:
     )
 
 
-def get_xero_transactions(
+def get_bank_transactions(
     query: str = "",
     txn_type: str = "",
 ) -> str:
@@ -106,7 +107,7 @@ def get_xero_transactions(
     return summary
 
 
-def get_xero_invoices(
+def get_invoices(
     status: str = "",
     invoice_type: str = "",
 ) -> str:
@@ -143,7 +144,7 @@ def get_xero_invoices(
     return summary
 
 
-def get_xero_chart_of_accounts() -> str:
+def get_chart_of_accounts() -> str:
     """
     Retrieve the chart of accounts from Xero. The agent uses this to
     propose correct journal entry accounts when fixing discrepancies.
@@ -155,7 +156,7 @@ def get_xero_chart_of_accounts() -> str:
     return summary
 
 
-def get_xero_profit_and_loss(
+def get_profit_and_loss(
     from_date: str = "",
     to_date: str = "",
 ) -> str:
@@ -184,7 +185,7 @@ def get_xero_profit_and_loss(
     return summary
 
 
-def get_xero_balance_sheet(as_of: str = "") -> str:
+def get_balance_sheet(as_of: str = "") -> str:
     """Retrieve the Balance Sheet as of a date. Empty = today."""
     bs = _svc().get_balance_sheet(as_of=as_of or None)
     # Handle both live (parsed report) and mock formats
@@ -413,7 +414,7 @@ def match_receipt_to_transaction(
     return match_summary
 
 
-def get_xero_contacts(query: str = "") -> str:
+def get_contacts(query: str = "") -> str:
     """List contacts (customers/suppliers) from Xero. Optionally filter by name."""
     contacts = _svc().list_contacts()
     if query:
@@ -437,7 +438,7 @@ def get_xero_contacts(query: str = "") -> str:
     return summary
 
 
-def create_xero_journal_entry(
+def create_journal_entry(
     description: str,
     debit_account_code: str,
     credit_account_code: str,
