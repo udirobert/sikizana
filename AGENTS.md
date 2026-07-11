@@ -51,10 +51,11 @@ Today only Xero is registered. Adding QuickBooks/Sage means:
 2. Add one entry to `_REGISTRY` in `registry.py`
 3. Nothing else changes
 
-**Note:** The agent tools (`xero_tools.py`) and most API endpoints still call
-`XeroService` directly. The abstraction is wired into `/api/connection/*`,
-`/api/data/*`, and the platform_connections table. Full wiring into the agent
-layer is a post-hackathon task.
+**Note:** The agent tools (`xero_tools.py`), findings, receivables, chase jobs,
+and all API endpoints now call through `get_connector(session_id)` instead of
+instantiating `XeroService` directly. The only file that imports `XeroService`
+is `src/services/connectors/xero.py` (the adapter itself). Adding a second
+connector requires no changes to the agent, tools, findings, or API layer.
 
 ### Two-tier data deletion
 
@@ -140,5 +141,4 @@ cd web && npx tsc --noEmit
 
 ### Known gaps (pre-production)
 
-- Agent tools not yet wired through connector abstraction
 - Email verification is optional (users can use the app without verifying)

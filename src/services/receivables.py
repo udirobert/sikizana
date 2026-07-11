@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from src.services.xero_service import XeroService
+from src.services.connectors.base import AccountingConnector
 
 BUCKETS = [
     ("current", "Not yet due", 0, 0),
@@ -42,7 +42,7 @@ def _bucket_key(days_overdue: int) -> str:
     return "b_90_plus"
 
 
-def build_aging(svc: XeroService) -> dict[str, Any]:
+def build_aging(svc: AccountingConnector) -> dict[str, Any]:
     """
     Aged receivables for a session's books.
 

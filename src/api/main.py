@@ -824,18 +824,18 @@ async def xero_chat_stream(
 
 @app.get("/api/xero/organisation")
 async def xero_organisation(session_id: str = Depends(get_session_id)):
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
-    return await asyncio.to_thread(XeroService(session_id).get_organisation)
+    return await asyncio.to_thread(get_connector(session_id).get_organisation)
 
 
 @app.get("/api/xero/discrepancies")
 async def xero_discrepancies(session_id: str = Depends(get_session_id)):
     """Quick audit — unreconciled transactions + overdue invoices."""
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
     def _audit():
-        svc = XeroService(session_id)
+        svc = get_connector(session_id)
         return {
             "unreconciled": svc.find_unreconciled_transactions(),
             "overdue": svc.find_overdue_invoices(),
@@ -876,19 +876,19 @@ async def xero_invoices(
     invoice_type: str | None = None,
     session_id: str = Depends(get_session_id),
 ):
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
     return await asyncio.to_thread(
-        lambda: XeroService(session_id).list_invoices(status=status, invoice_type=invoice_type)
+        lambda: get_connector(session_id).list_invoices(status=status, invoice_type=invoice_type)
     )
 
 
 @app.get("/api/xero/bank-transactions")
 async def xero_bank_txns(txn_type: str | None = None, session_id: str = Depends(get_session_id)):
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
     return await asyncio.to_thread(
-        lambda: XeroService(session_id).list_bank_transactions(txn_type=txn_type)
+        lambda: get_connector(session_id).list_bank_transactions(txn_type=txn_type)
     )
 
 
@@ -898,28 +898,28 @@ async def xero_pl(
     to_date: str | None = None,
     session_id: str = Depends(get_session_id),
 ):
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
     return await asyncio.to_thread(
-        lambda: XeroService(session_id).get_profit_and_loss(from_date=from_date, to_date=to_date)
+        lambda: get_connector(session_id).get_profit_and_loss(from_date=from_date, to_date=to_date)
     )
 
 
 @app.get("/api/xero/balance-sheet")
 async def xero_bs(as_of: str | None = None, session_id: str = Depends(get_session_id)):
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
-    return await asyncio.to_thread(lambda: XeroService(session_id).get_balance_sheet(as_of=as_of))
+    return await asyncio.to_thread(lambda: get_connector(session_id).get_balance_sheet(as_of=as_of))
 
 
 @app.get("/api/xero/status")
 async def xero_status(session_id: str = Depends(get_session_id)):
     """Data provenance for this session: live-oauth | live-cli | demo."""
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
     from src.services.xero_oauth import get_connection_status
 
     def _status():
-        mode = XeroService(session_id).mode()
+        mode = get_connector(session_id).mode()
         tenant_name = None
         if mode == "live-oauth":
             tenant_name = get_connection_status(session_id).get("tenant_name")
@@ -1104,17 +1104,17 @@ async def connection_platforms():
 @app.get("/api/xero/accounts")
 async def xero_accounts(session_id: str = Depends(get_session_id)):
     """Chart of accounts from Xero."""
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
-    return await asyncio.to_thread(XeroService(session_id).list_accounts)
+    return await asyncio.to_thread(get_connector(session_id).list_accounts)
 
 
 @app.get("/api/xero/contacts")
 async def xero_contacts(session_id: str = Depends(get_session_id)):
     """Contacts (customers/suppliers) from Xero."""
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
-    return await asyncio.to_thread(XeroService(session_id).list_contacts)
+    return await asyncio.to_thread(get_connector(session_id).list_contacts)
 
 
 # ---- Journal write-back (the approve flow) ----
@@ -1147,7 +1147,7 @@ async def xero_post_journal(
     Requires an authenticated Sikizana account — journal posting is a
     write operation that affects the user's real books.
     """
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
     from src.services.xero_api import XeroApiError
     from src.services.accounts import require_paid_plan
 
@@ -1160,7 +1160,7 @@ async def xero_post_journal(
         )
 
     def _post():
-        svc = XeroService(session_id)
+        svc = get_connector(session_id)
         accounts = svc.list_accounts()
         codes = {a.get("code") for a in accounts}
         for code in (req.debit_account_code, req.credit_account_code):
@@ -1228,7 +1228,7 @@ async def xero_reverse_journal(
     (debit and credit swapped). The one-tap undo that makes the
     write-back safe to trust. Pass the ORIGINAL entry's fields.
     """
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
     from src.services.xero_api import XeroApiError
     from src.services.accounts import require_paid_plan
 
@@ -1243,7 +1243,7 @@ async def xero_reverse_journal(
     reversal_description = f"Reversal: {req.description}"[:500]
 
     def _post():
-        svc = XeroService(session_id)
+        svc = get_connector(session_id)
         # Mirror entry: swap debit and credit
         return svc.create_manual_journal(
             description=reversal_description,
@@ -1448,14 +1448,14 @@ async def chase_start(
     Requires an authenticated Sikizana account — chase sequences send
     emails on behalf of the user's business.
     """
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
     from src.services import chase_store
     from src.services.chasing import STAGE_LABELS
 
     _check_rate_limit(request)
 
     def _resolve_and_create():
-        svc = XeroService(session_id)
+        svc = get_connector(session_id)
         mode = svc.mode()
         invoices = svc.list_invoices(invoice_type="ACCREC")
         inv = next(
@@ -1797,10 +1797,10 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
     fixed, tax estimated. Aggregated from Xero data + feedback + the
     recorded impact events (journals actually posted).
     """
-    from src.services.xero_service import XeroService
+    from src.services.connectors import get_connector
 
     def _metrics():
-        svc = XeroService(session_id)
+        svc = get_connector(session_id)
         mode = svc.mode()
         feedback = get_feedback_summary()
 

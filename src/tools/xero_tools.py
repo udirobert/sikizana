@@ -29,7 +29,8 @@ from __future__ import annotations
 import os
 from contextvars import ContextVar
 
-from src.services.xero_service import XeroService
+from src.services.connectors import get_connector
+from src.services.connectors.base import AccountingConnector
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.xero_tools")
@@ -56,8 +57,8 @@ def set_current_session(session_id: str) -> None:
     _current_session.set(session_id)
 
 
-def _svc() -> XeroService:
-    return XeroService(_current_session.get())
+def _svc() -> AccountingConnector:
+    return get_connector(_current_session.get())
 
 
 def get_xero_organisation() -> str:

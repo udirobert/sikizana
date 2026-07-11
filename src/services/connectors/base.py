@@ -42,6 +42,9 @@ class AccountingConnector(ABC):
       - Future: QuickBooksConnector, SageConnector, etc.
     """
 
+    # The session ID this connector is serving. Set by __init__.
+    session_id: str
+
     @staticmethod
     @abstractmethod
     def info() -> ConnectorInfo:
@@ -91,15 +94,34 @@ class AccountingConnector(ABC):
     def list_invoices(
         self,
         status: str | None = None,
+        invoice_type: str | None = None,
         contact_id: str | None = None,
-        limit: int = 500,
+        limit: int = 0,
     ) -> list[dict[str, Any]]:
-        """Invoices: number, contact, amount, due date, status."""
+        """Invoices: number, contact, amount, due date, status.
+
+        Args:
+            status: Filter by invoice status (e.g. "AUTHORISED", "PAID").
+                None = all statuses.
+            invoice_type: Filter by type (e.g. "ACCREC" for sales invoices,
+                "ACCPAY" for bills). None = all types.
+            contact_id: Filter by contact. None = all contacts.
+            limit: Max results. 0 = no limit.
+        """
         ...
 
     @abstractmethod
-    def list_bank_transactions(self, limit: int = 500) -> list[dict[str, Any]]:
-        """Bank transactions: date, amount, account, reference."""
+    def list_bank_transactions(
+        self,
+        txn_type: str | None = None,
+        limit: int = 0,
+    ) -> list[dict[str, Any]]:
+        """Bank transactions: date, amount, account, reference.
+
+        Args:
+            txn_type: Filter by type (e.g. "RECEIVE", "SPEND"). None = all.
+            limit: Max results. 0 = no limit.
+        """
         ...
 
     @abstractmethod
@@ -115,6 +137,24 @@ class AccountingConnector(ABC):
     @abstractmethod
     def get_trial_balance(self, as_of: str | None = None) -> dict[str, Any]:
         """Trial balance: account codes with debit/credit balances."""
+        ...
+
+    @abstractmethod
+    def find_unreconciled_transactions(self) -> list[dict[str, Any]]:
+        """Bank transactions that haven't been reconciled yet."""
+        ...
+
+    @abstractmethod
+    def find_overdue_invoices(self) -> list[dict[str, Any]]:
+        """Authorised invoices past their due date."""
+        ...
+
+    @abstractmethod
+    def match_bank_to_invoice(self, bank_txn_id: str, invoice_number: str) -> dict[str, Any]:
+        """Attempt to match a bank transaction to an invoice by reference.
+
+        Returns {'matched': bool, 'reason': str, ...}.
+        """
         ...
 
     # ---- Accounting data (write) ----

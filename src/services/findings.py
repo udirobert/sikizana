@@ -13,7 +13,8 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from src.services.xero_service import XeroService
+from src.services.connectors import get_connector
+from src.services.connectors.base import AccountingConnector
 from src.services.rates import daily_statutory_interest
 from src.services.logging import get_logger
 
@@ -22,7 +23,7 @@ log = get_logger("sikizana.findings")
 
 def build_findings(session_id: str) -> dict[str, Any]:
     """Assemble the structured findings for a session's books."""
-    svc = XeroService(session_id)
+    svc = get_connector(session_id)
     mode = svc.mode()
     today = date.today()
 
@@ -153,7 +154,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
     }
 
 
-def _tax_flags(svc: XeroService) -> list[dict[str, Any]]:
+def _tax_flags(svc: AccountingConnector) -> list[dict[str, Any]]:
     """Expense categories worth a tax conversation (mirrors get_tax_insights)."""
     try:
         pl = svc.get_profit_and_loss()

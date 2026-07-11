@@ -27,13 +27,14 @@ from src.services import chase_store  # noqa: E402
 from src.services.chasing import build_chase_email, escalation_checklist  # noqa: E402
 from src.services.digest import send_email, smtp_configured  # noqa: E402
 from src.services.payment_store import record_audit, record_impact_event  # noqa: E402
-from src.services.xero_service import XeroService  # noqa: E402
+from src.services.connectors import get_connector  # noqa: E402
+from src.services.connectors.base import AccountingConnector  # noqa: E402
 from src.services.logging import get_logger  # noqa: E402
 
 log = get_logger("sikizana.jobs.chase")
 
 
-def _fetch_invoices(svc: XeroService) -> list | None:
+def _fetch_invoices(svc: AccountingConnector) -> list | None:
     """The session's sales invoices, or None on a transient Xero error."""
     try:
         return svc.list_invoices(invoice_type="ACCREC")
@@ -88,7 +89,7 @@ def settle_paid_sequences(session_ids: list[str]) -> int:
         seqs = chase_store.active_sequences(sid)
         if not seqs:
             continue
-        invoices = _fetch_invoices(XeroService(sid))
+        invoices = _fetch_invoices(get_connector(sid))
         if invoices is None:
             continue
         for seq in seqs:
@@ -100,7 +101,7 @@ def settle_paid_sequences(session_ids: list[str]) -> int:
     return settled
 
 
-def _org_name(svc: XeroService) -> str:
+def _org_name(svc: AccountingConnector) -> str:
     try:
         org = svc.get_organisation()
         return org.get("name", "") if isinstance(org, dict) else ""
@@ -120,7 +121,7 @@ def run(today: date | None = None) -> dict[str, int]:
 
         # 1. Stop on payment — the whole point of a chase loop with brakes.
         if sid not in invoice_cache:
-            invoice_cache[sid] = _fetch_invoices(XeroService(sid))
+            invoice_cache[sid] = _fetch_invoices(get_connector(sid))
         invoices = invoice_cache[sid]
         if invoices is None:
             continue  # transient Xero error — retry next run, never guess
@@ -133,7 +134,7 @@ def run(today: date | None = None) -> dict[str, int]:
         # the user's BUSINESS name — a debtor must see who they owe, not a
         # third-party robot (and never a "[Your name]" placeholder).
         if sid not in org_cache:
-            org_cache[sid] = _org_name(XeroService(sid))
+            org_cache[sid] = _org_name(get_connector(sid))
         business = org_cache[sid]
         try:
             due = date.fromisoformat(str(seq["due_date"])[:10])

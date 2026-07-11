@@ -59,18 +59,26 @@ class XeroConnector(AccountingConnector):
     def list_invoices(
         self,
         status: str | None = None,
+        invoice_type: str | None = None,
         contact_id: str | None = None,
-        limit: int = 500,
+        limit: int = 0,
     ) -> list[dict[str, Any]]:
-        # XeroService doesn't support contact_id/limit filtering natively;
-        # filter client-side if provided.
-        result = self._svc.list_invoices(status=status)
+        # XeroService.list_invoices takes status and invoice_type natively.
+        result = self._svc.list_invoices(status=status, invoice_type=invoice_type)
+        # Filter by contact_id client-side (XeroService doesn't support it)
         if contact_id:
-            result = [i for i in result if i.get("contactId") == contact_id or i.get("contact_id") == contact_id]
+            result = [
+                i for i in result
+                if i.get("contactId") == contact_id or i.get("contact_id") == contact_id
+            ]
         return result[:limit] if limit else result
 
-    def list_bank_transactions(self, limit: int = 500) -> list[dict[str, Any]]:
-        result = self._svc.list_bank_transactions()
+    def list_bank_transactions(
+        self,
+        txn_type: str | None = None,
+        limit: int = 0,
+    ) -> list[dict[str, Any]]:
+        result = self._svc.list_bank_transactions(txn_type=txn_type)
         return result[:limit] if limit else result
 
     def get_profit_and_loss(self, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
@@ -81,6 +89,15 @@ class XeroConnector(AccountingConnector):
 
     def get_trial_balance(self, as_of: str | None = None) -> dict[str, Any]:
         return self._svc.get_trial_balance(as_of=as_of)
+
+    def find_unreconciled_transactions(self) -> list[dict[str, Any]]:
+        return self._svc.find_unreconciled_transactions()
+
+    def find_overdue_invoices(self) -> list[dict[str, Any]]:
+        return self._svc.find_overdue_invoices()
+
+    def match_bank_to_invoice(self, bank_txn_id: str, invoice_number: str) -> dict[str, Any]:
+        return self._svc.match_bank_to_invoice(bank_txn_id, invoice_number)
 
     # ---- Accounting data (write) ----
 

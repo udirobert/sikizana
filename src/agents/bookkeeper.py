@@ -577,8 +577,8 @@ async def run_bookkeeper_streaming(
     # This routes tax queries to the correct jurisdiction (HMRC/ATO/IRS).
     # Falls back to GB if the org can't be fetched (e.g. demo mode).
     try:
-        from src.services.xero_service import XeroService
-        _org = await asyncio.to_thread(XeroService(session_id).get_organisation)
+        from src.services.connectors import get_connector
+        _org = await asyncio.to_thread(get_connector(session_id).get_organisation)
         _country = _org.get("countryCode", "GB") if _org else "GB"
         set_current_region(_country)
     except Exception:
