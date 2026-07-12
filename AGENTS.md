@@ -1,11 +1,12 @@
-# Sikizana — AI Finance Assistant for Xero
+# Sikizana — AI Finance Assistant
 
 ## What this is
 
-Sikizana is an AI finance assistant that connects to Xero (and eventually other
-accounting platforms) with persistent memory via Supermemory Local. The agent
-(Siki) reads invoices, finds discrepancies, estimates tax savings, and chases
-overdue payments — all read-only by design, human-in-the-loop by default.
+Sikizana is an AI finance assistant that connects to accounting platforms
+(Xero today, QuickBooks/Sage tomorrow) with persistent memory via Supermemory
+Local. The agent (Siki) reads invoices, finds discrepancies, estimates tax
+savings, and chases overdue payments — all read-only by design,
+human-in-the-loop by default.
 
 ## Architecture
 
@@ -81,17 +82,24 @@ connector requires no changes to the agent, tools, findings, or API layer.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 9 (see `MIGRATIONS` list).
+Current schema version: 11 (see `MIGRATIONS` list).
 
 Key tables:
 - `users`, `auth_sessions` — accounts and session→user links
+  - User profile columns (migration 11): `name`, `business_name`, `timezone`,
+    `language`, `industry` — user-scoped, persists across sessions
+  - `email_verified` (migration 10) — tracks email verification status
 - `xero_tokens`, `oauth_states` — Xero OAuth (encrypted at rest)
 - `platform_connections` — multi-connector connection tracking (migration 9)
+- `password_reset_tokens` — token-based password reset, 1h expiry (migration 10)
+- `email_verification_tokens` — token-based email verification, 24h expiry (migration 10)
+- `login_attempts` — brute-force protection tracking (migration 10)
 - `conversations` — chat history, keyed `{session_id}:{thread_id}`
 - `audit_history` — journal posts, discrepancy fixes
 - `chase_sequences`, `chase_events` — invoice chasing automation
 - `metric_snapshots` — periodic financial metrics
-- `session_prefs` — user preferences (e.g. sector)
+- `session_prefs` — legacy session-scoped preferences (sector); user profile
+  is now the primary source, session_prefs is a fallback
 
 ## Commands
 
@@ -115,15 +123,33 @@ cd web && npx tsc --noEmit
 |------|---------|
 | `src/api/main.py` | FastAPI backend — all endpoints |
 | `src/agents/bookkeeper.py` | AI agent with tool calling |
+| `src/tools/accounting_tools.py` | Agent tool functions (platform-agnostic) |
 | `src/services/connectors/` | Multi-platform abstraction layer |
 | `src/services/supermemory.py` | Supermemory client + memory migration |
-| `src/services/accounts.py` | Auth, registration, "Sign in with Xero" |
+| `src/services/accounts.py` | Auth, registration, profile, "Sign in with Xero" |
 | `src/services/xero_oauth.py` | Xero OAuth 2.0 + PKCE |
 | `src/services/xero_service.py` | Xero data service (OAuth → CLI → demo) |
 | `src/services/payment_store.py` | SQLite schema, migrations, all DB ops |
 | `web/components/RequireAuth.tsx` | Client-side route guard |
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
+
+### Personalization
+
+Three layers are injected into the agent system prompt before every response:
+
+1. **User profile** (user-scoped, persists across sessions): name, business
+   name, industry, timezone, language. The agent addresses the user by name,
+   references their business, and adapts language to their industry.
+2. **Supermemory** (user-scoped when authenticated): customer payment
+   patterns, chasing outcomes, prior findings, business context learned
+   from conversations.
+3. **Tax region** (detected from accounting platform org country): routes
+   tax queries to HMRC (GB), ATO (AU), or IRS (US).
+
+Profile is managed via `GET/PUT /api/profile` and shown on the account page.
+Sector benchmarks check the user profile's `industry` field first, then
+fall back to `session_prefs` (legacy), then org-name guess.
 
 ## Security notes
 

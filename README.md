@@ -105,13 +105,15 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Xero API client**: `src/services/xero_api.py` — direct Accounting API (tenant header, client-supplied idempotency key, rate-limit retry)
 - **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow (SQLite state store, locked token refresh, session-bound callback to prevent login-CSRF)
 - **Vision**: `src/tools/vision_audit.py` — Gemini Vision receipt matching
-- **Storage**: `src/services/payment_store.py` — feedback, audit history, impact + webhook events, session prefs, and `delete_session_data` (right-to-erasure)
+- **Storage**: `src/services/payment_store.py` — feedback, audit history, impact + webhook events, session prefs, user profiles, and `delete_session_data` (right-to-erasure)
 - **Chase loop**: `src/services/chasing.py` (5-stage ladder incl. Letter Before Action + post-ladder MCOL/DCA checklist), `src/services/chase_store.py` (sequences), `src/jobs/run_chases.py` (daily cron: re-checks payment in Xero, sends the due stage under the user's business name, stops on payment, settles instantly on the Xero payment webhook too)
 - **Rates**: `src/services/rates.py` — single source of truth for statutory interest (8% + Bank Rate) and £40/£70/£100 fixed-sum compensation
 - **Receivables**: `src/services/receivables.py` — aged 30/60/90 buckets by debtor + true days-to-get-paid (from payment history, not just overdue invoices)
 - **API cache**: `src/services/cache.py` — SQLite TTL cache for Exa/Firecrawl results (bounded, survives deploys, shared across workers)
-- **Data deletion**: `POST /api/data/delete` — revokes Xero + erases conversations, audit trail, chase sequences, snapshots, and prefs for the session
-- **Tests**: `tests/` — 101 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US)
+- **Data deletion**: `POST /api/data/disconnect` (disconnect platform, keep memories) + `POST /api/data/delete` (full erasure — revokes Xero + erases conversations, audit trail, chase sequences, snapshots, prefs, and memories)
+- **User profiles**: `GET/PUT /api/profile` — name, business name, industry, timezone, language. User-scoped (persists across sessions). Injected into agent system prompt for personalization. Industry feeds sector benchmarks.
+- **Security**: Brute-force protection (5 failed logins → 15min lockout), password reset (token-based, 1h expiry), email verification (token-based, 24h expiry), 30-day sliding session timeout
+- **Tests**: `tests/` — 156 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration
