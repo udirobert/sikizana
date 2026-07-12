@@ -1093,7 +1093,7 @@ async def run_bookkeeper_streaming(
         from src.services.supermemory import memory_container_tag as _sm_container_tag2
         from src.services.payment_store import get_user_for_session as _get_user2
 
-        if _sm_available2():
+        if _sm_available2() and not disable_memory:
             _user2 = _get_user2(session_id)
             _container2 = _sm_container_tag2(session_id, _user2["id"] if _user2 else None)
             asyncio.create_task(asyncio.to_thread(_sm_ingest, history, _container2, conv_key))
