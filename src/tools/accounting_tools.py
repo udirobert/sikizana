@@ -1287,10 +1287,23 @@ def get_sector_benchmarks(sector: str = "") -> str:
     svc = _svc()
 
     # Sector resolution, most-trusted first: explicit argument → the
-    # sector the user told us during onboarding → a guess from the org
-    # name (honestly disclosed as a guess).
+    # user's industry from their profile → the sector stored in session_prefs
+    # → a guess from the org name (honestly disclosed as a guess).
     sector_guessed = False
     if not sector or sector not in _SECTOR_BENCHMARKS:
+        # 1. Check user profile (user-scoped, persists across sessions)
+        try:
+            from src.services.accounts import get_profile_for_agent
+            profile = get_profile_for_agent(_current_session.get())
+            if profile and profile.get("industry"):
+                profile_industry = profile["industry"].lower().replace(" ", "_")
+                if profile_industry in _SECTOR_BENCHMARKS:
+                    sector = profile_industry
+        except Exception:  # noqa: BLE001
+            pass
+
+    if not sector or sector not in _SECTOR_BENCHMARKS:
+        # 2. Check session_prefs (legacy fallback, session-scoped)
         try:
             from src.services.payment_store import get_session_pref
 
@@ -1300,6 +1313,7 @@ def get_sector_benchmarks(sector: str = "") -> str:
         if stored and stored in _SECTOR_BENCHMARKS:
             sector = stored
         else:
+            # 3. Guess from org name
             try:
                 org = svc.get_organisation()
                 org_name = org.get("name", "") if isinstance(org, dict) else ""

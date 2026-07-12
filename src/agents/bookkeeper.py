@@ -686,6 +686,38 @@ async def run_bookkeeper_streaming(
             "sources": _memory_sources,
         }
 
+    # --- User profile: personalize the agent's context ---
+    # The user's name, business name, industry, and timezone are injected
+    # so the agent addresses them personally and adapts its language.
+    from src.services.accounts import get_profile_for_agent as _get_profile
+
+    _profile = await asyncio.to_thread(_get_profile, session_id)
+    if _profile:
+        _profile_parts: list[str] = []
+        _name = _profile.get("name")
+        _business = _profile.get("business_name")
+        _industry = _profile.get("industry")
+        _tz = _profile.get("timezone")
+        _lang = _profile.get("language")
+
+        if _name or _business:
+            _who = []
+            if _name:
+                _who.append(_name)
+            if _business:
+                _who.append(f"runs {_business}")
+            _profile_parts.append(f"You are talking to {' '.join(_who)}.")
+        if _industry:
+            _profile_parts.append(f"Their industry is {_industry}. Use industry-appropriate language and examples.")
+        if _tz:
+            _profile_parts.append(f"Their timezone is {_tz}. Use it for any time references.")
+        if _lang and _lang != "en":
+            _profile_parts.append(f"Their preferred language is {_lang}. If you can, respond in that language.")
+
+        if _profile_parts:
+            _system_prompt += "\n\n### USER CONTEXT\n" + "\n".join(f"- {p}" for p in _profile_parts)
+            _system_prompt += "\n\nUse this context naturally. Address the user by name when greeting. Reference their business and industry where relevant. Never say 'according to your profile' — speak as if you already know."
+
     # If the persona switched, inject a handoff system message so the new
     # persona knows the conversation context and who said what.
     if persona_switched:

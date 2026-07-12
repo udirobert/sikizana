@@ -559,6 +559,9 @@ function AccountView() {
               <EmailVerificationBanner email={me.email} />
             )}
 
+            {/* Profile section */}
+            <ProfileSection initialProfile={me.profile} />
+
             <div className="mt-4 space-y-3">
               <UsageMeter usage={me.usage} />
               <YourImpact />
@@ -681,6 +684,192 @@ function AccountView() {
     </main>
   );
 }
+
+function ProfileSection({ initialProfile }: { initialProfile: import("@/lib/api").UserProfile }) {
+  const [profile, setProfile] = useState(initialProfile);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Sync if the profile data changes (e.g. after refresh)
+  useEffect(() => {
+    setProfile(initialProfile);
+  }, [initialProfile]);
+
+  const hasProfile = profile.name || profile.business_name || profile.industry || profile.timezone;
+
+  const handleSave = async (fields: Partial<import("@/lib/api").UserProfile>) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await endpoints.profile.update(fields);
+      setProfile(res.profile);
+      setEditing(false);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (editing) {
+    return <ProfileEditForm initial={profile} onSave={handleSave} onCancel={() => setEditing(false)} saving={saving} error={error} />;
+  }
+
+  return (
+    <div className="mt-3 border border-stone-200 rounded-lg p-3">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold text-stone-700 uppercase tracking-wide">Your Profile</h3>
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs text-sky-600 hover:text-sky-800 font-semibold"
+        >
+          {hasProfile ? "Edit" : "Set up"}
+        </button>
+      </div>
+      {hasProfile ? (
+        <dl className="space-y-1.5">
+          {profile.name && (
+            <div className="flex justify-between text-xs">
+              <dt className="text-stone-500">Name</dt>
+              <dd className="text-stone-900 font-medium">{profile.name}</dd>
+            </div>
+          )}
+          {profile.business_name && (
+            <div className="flex justify-between text-xs">
+              <dt className="text-stone-500">Business</dt>
+              <dd className="text-stone-900 font-medium">{profile.business_name}</dd>
+            </div>
+          )}
+          {profile.industry && (
+            <div className="flex justify-between text-xs">
+              <dt className="text-stone-500">Industry</dt>
+              <dd className="text-stone-900 font-medium capitalize">{profile.industry.replace("_", " ")}</dd>
+            </div>
+          )}
+          {profile.timezone && (
+            <div className="flex justify-between text-xs">
+              <dt className="text-stone-500">Timezone</dt>
+              <dd className="text-stone-900 font-medium">{profile.timezone}</dd>
+            </div>
+          )}
+          {profile.language && profile.language !== "en" && (
+            <div className="flex justify-between text-xs">
+              <dt className="text-stone-500">Language</dt>
+              <dd className="text-stone-900 font-medium">{profile.language}</dd>
+            </div>
+          )}
+        </dl>
+      ) : (
+        <p className="text-xs text-stone-500">
+          Tell Siki your name and business so it can personalize responses and benchmarks.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ProfileEditForm({
+  initial,
+  onSave,
+  onCancel,
+  saving,
+  error,
+}: {
+  initial: import("@/lib/api").UserProfile;
+  onSave: (fields: Partial<import("@/lib/api").UserProfile>) => void;
+  onCancel: () => void;
+  saving: boolean;
+  error: string | null;
+}) {
+  const [name, setName] = useState(initial.name || "");
+  const [businessName, setBusinessName] = useState(initial.business_name || "");
+  const [industry, setIndustry] = useState(initial.industry || "");
+  const [timezone, setTimezone] = useState(initial.timezone || "");
+  const [language, setLanguage] = useState(initial.language || "en");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      name: name.trim() || undefined,
+      business_name: businessName.trim() || undefined,
+      industry: industry.trim() || undefined,
+      timezone: timezone.trim() || undefined,
+      language: language.trim() || undefined,
+    });
+  };
+
+  const inputClass = "w-full px-2.5 py-1.5 border border-stone-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500";
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-3 border border-stone-200 rounded-lg p-3 space-y-2.5">
+      <h3 className="text-xs font-semibold text-stone-700 uppercase tracking-wide">Edit Profile</h3>
+      <div>
+        <label className="text-[11px] text-stone-500 block mb-0.5">Your name</label>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Rishi Patel" className={inputClass} />
+      </div>
+      <div>
+        <label className="text-[11px] text-stone-500 block mb-0.5">Business name</label>
+        <input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="Patel & Co Ltd" className={inputClass} />
+      </div>
+      <div>
+        <label className="text-[11px] text-stone-500 block mb-0.5">Industry</label>
+        <select value={industry} onChange={(e) => setIndustry(e.target.value)} className={inputClass}>
+          <option value="">Auto-detect from org name</option>
+          <option value="retail">Retail</option>
+          <option value="construction">Construction</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="professional_services">Professional Services</option>
+          <option value="transport">Transport & Logistics</option>
+          <option value="hospitality">Hospitality</option>
+          <option value="healthcare">Healthcare</option>
+          <option value="technology">Technology</option>
+          <option value="agriculture">Agriculture</option>
+          <option value="real_estate">Real Estate</option>
+          <option value="education">Education</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label className="text-[11px] text-stone-500 block mb-0.5">Timezone</label>
+        <input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Europe/London" className={inputClass} />
+      </div>
+      <div>
+        <label className="text-[11px] text-stone-500 block mb-0.5">Preferred language</label>
+        <select value={language} onChange={(e) => setLanguage(e.target.value)} className={inputClass}>
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="hi">Hindi</option>
+          <option value="zh">Chinese</option>
+          <option value="ar">Arabic</option>
+          <option value="pt">Portuguese</option>
+        </select>
+      </div>
+      {error && (
+        <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">{error}</p>
+      )}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={saving}
+          className="flex-1 text-xs font-semibold py-1.5 rounded-md bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-3 text-xs font-semibold py-1.5 rounded-md border border-stone-300 text-stone-600 hover:bg-stone-100"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 
 function EmailVerificationBanner({ email }: { email: string | null }) {
   const [sending, setSending] = useState(false);

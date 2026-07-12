@@ -87,6 +87,8 @@ export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>("GET", path, undefined, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     request<T>("POST", path, body, options),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    request<T>("PUT", path, body, options),
   delete: <T>(path: string, options?: RequestOptions) => request<T>("DELETE", path, undefined, options),
 
   baseUrl: API_BASE,
@@ -313,11 +315,20 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
+export interface UserProfile {
+  name: string | null;
+  business_name: string | null;
+  timezone: string | null;
+  language: string | null;
+  industry: string | null;
+}
+
 export interface MeResponse {
   authenticated: boolean;
   email: string | null;
   plan: Plan;
   email_verified: boolean;
+  profile: UserProfile;
   usage: {
     used: number;
     /** null = unlimited */
@@ -443,6 +454,14 @@ export const endpoints = {
 
   /** Current session — works for anonymous sessions too (authenticated: false). */
   me: () => api.get<MeResponse>("/api/me"),
+
+  profile: {
+    /** Get the current user's profile. 401 if not authenticated. */
+    get: () => api.get<{ profile: UserProfile }>("/api/profile"),
+    /** Update one or more profile fields. Only sent fields are updated. */
+    update: (fields: Partial<UserProfile>) =>
+      api.put<{ ok: boolean; profile: UserProfile }>("/api/profile", fields),
+  },
 
   billing: {
     /** Start a Stripe Checkout session. 401 if not logged in, 503 if Stripe not configured. */

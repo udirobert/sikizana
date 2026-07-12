@@ -243,6 +243,16 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;
     """,
     ),
+    (
+        11,
+        """
+        ALTER TABLE users ADD COLUMN name TEXT;
+        ALTER TABLE users ADD COLUMN business_name TEXT;
+        ALTER TABLE users ADD COLUMN timezone TEXT;
+        ALTER TABLE users ADD COLUMN language TEXT;
+        ALTER TABLE users ADD COLUMN industry TEXT;
+    """,
+    ),
 ]
 
 
@@ -741,6 +751,48 @@ def set_user_plan(user_id: int, plan: str) -> None:
     conn.execute("UPDATE users SET plan = ? WHERE id = ?", (plan, user_id))
     conn.commit()
     conn.close()
+
+
+# ---- User profile ----
+
+_PROFILE_FIELDS = ("name", "business_name", "timezone", "language", "industry")
+
+
+def update_user_profile(user_id: int, **fields) -> None:
+    """Update one or more profile fields for a user. Only known fields are
+    accepted; unknown keys are silently ignored (defensive against bad input)."""
+    init_db()
+    conn = _get_db()
+    updates = []
+    values = []
+    for key in _PROFILE_FIELDS:
+        if key in fields and fields[key] is not None:
+            # Strip whitespace; empty string becomes NULL (no preference set)
+            val = fields[key].strip() if isinstance(fields[key], str) else fields[key]
+            if val == "":
+                val = None
+            updates.append(f"{key} = ?")
+            values.append(val)
+    if updates:
+        values.append(user_id)
+        conn.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", values)
+        conn.commit()
+    conn.close()
+
+
+def get_user_profile(user_id: int) -> dict[str, str | None]:
+    """Return the user's profile fields (name, business_name, timezone,
+    language, industry). Missing fields are None."""
+    init_db()
+    conn = _get_db()
+    row = conn.execute(
+        f"SELECT {', '.join(_PROFILE_FIELDS)} FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    if not row:
+        return {f: None for f in _PROFILE_FIELDS}
+    return {f: row[f] for f in _PROFILE_FIELDS}
 
 
 # ---- Login attempts (brute-force protection) ----

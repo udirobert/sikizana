@@ -260,17 +260,22 @@ def billing_enforced() -> bool:
 
 
 def get_account(session_id: str) -> dict[str, Any]:
-    """The /api/me payload: identity, plan, and this month's usage."""
+    """The /api/me payload: identity, plan, profile, and this month's usage."""
     user = store.get_user_for_session(session_id)
     plan = user["plan"] if user else "free"
     scope = _usage_scope(session_id, user)
     month = _current_month()
     limit = None if plan in PAID_PLANS else FREE_TIER_MONTHLY_QUERIES
+    profile = store.get_user_profile(user["id"]) if user else {
+        "name": None, "business_name": None, "timezone": None,
+        "language": None, "industry": None,
+    }
     return {
         "authenticated": user is not None,
         "email": user["email"] if user else None,
         "plan": plan,
         "email_verified": bool(user.get("email_verified", 0)) if user else False,
+        "profile": profile,
         "usage": {
             "used": store.get_usage(scope, month),
             "limit": limit,
@@ -280,6 +285,25 @@ def get_account(session_id: str) -> dict[str, Any]:
         "stripe_configured": bool(os.environ.get("STRIPE_SECRET_KEY")),
         "digest_opt_in": bool(user.get("digest_opt_in", 1)) if user else False,
     }
+
+
+def update_profile(session_id: str, **fields) -> tuple[bool, str | None]:
+    """Update the authenticated user's profile. Returns (success, error)."""
+    user = store.get_user_for_session(session_id)
+    if not user:
+        return False, "You must be signed in to update your profile."
+    store.update_user_profile(user["id"], **fields)
+    log.info("profile_updated", extra={"user_id": user["id"], "fields": list(fields.keys())})
+    return True, None
+
+
+def get_profile_for_agent(session_id: str) -> dict[str, str | None] | None:
+    """Get the user's profile for agent system prompt injection.
+    Returns None if not authenticated or no profile data."""
+    user = store.get_user_for_session(session_id)
+    if not user:
+        return None
+    return store.get_user_profile(user["id"])
 
 
 def count_query(session_id: str) -> tuple[bool, int, int | None]:

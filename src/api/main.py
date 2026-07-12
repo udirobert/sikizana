@@ -617,10 +617,53 @@ async def resend_verification_endpoint(req: ResendVerificationRequest, request: 
 
 @app.get("/api/me")
 async def me(session_id: str = Depends(get_session_id)):
-    """Identity, plan, and this month's AI-query usage for the session."""
+    """Identity, plan, profile, and this month's AI-query usage for the session."""
     from src.services import accounts
 
     return await asyncio.to_thread(accounts.get_account, session_id)
+
+
+# ---- User profile ----
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str | None = Field(None, max_length=100)
+    business_name: str | None = Field(None, max_length=200)
+    timezone: str | None = Field(None, max_length=50)
+    language: str | None = Field(None, max_length=10)
+    industry: str | None = Field(None, max_length=100)
+
+
+@app.get("/api/profile")
+async def get_profile(session_id: str = Depends(get_session_id)):
+    """Get the current user's profile."""
+    from src.services import accounts
+
+    profile = await asyncio.to_thread(accounts.get_profile_for_agent, session_id)
+    if profile is None:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return {"profile": profile}
+
+
+@app.put("/api/profile")
+async def update_profile(req: UpdateProfileRequest, session_id: str = Depends(get_session_id)):
+    """Update the current user's profile."""
+    from src.services import accounts
+
+    # Convert None to "not provided" — Pydantic sends None for omitted fields,
+    # but we only want to update fields the user actually sent.
+    fields = {}
+    for k, v in req.model_dump().items():
+        if v is not None:
+            fields[k] = v
+    if not fields:
+        return {"ok": True, "profile": await asyncio.to_thread(accounts.get_profile_for_agent, session_id)}
+
+    success, error = await asyncio.to_thread(accounts.update_profile, session_id, **fields)
+    if not success:
+        raise HTTPException(status_code=401, detail=error)
+    profile = await asyncio.to_thread(accounts.get_profile_for_agent, session_id)
+    return {"ok": True, "profile": profile}
 
 
 # ---- Billing (Stripe) ----
