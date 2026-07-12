@@ -79,6 +79,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--border);
+  --color-popover: var(--surface);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -139,6 +142,28 @@ body {
 }
 .fade-in-up {
   animation: fade-in-up var(--duration-fast) var(--ease-smooth-out);
+}
+.fade-in-up-delay-1 { animation-delay: 100ms; }
+.fade-in-up-delay-2 { animation-delay: 200ms; }
+.fade-in-up-delay-3 { animation-delay: 300ms; }
+.fade-in-up-delay-4 { animation-delay: 400ms; }
+.fade-in-up-delay-5 { animation-delay: 500ms; }
+.fade-in-up-delay-6 { animation-delay: 550ms; }
+
+/* Tokenized opacity/color transitions (avoid transition-all) */
+.transition-opacity-quick {
+  transition: opacity var(--duration-quick) var(--ease-out);
+}
+.transition-colors-quick {
+  transition: color var(--duration-quick) var(--ease-out),
+    background-color var(--duration-quick) var(--ease-out),
+    border-color var(--duration-quick) var(--ease-out);
+}
+.transition-width-fast {
+  transition: width var(--duration-fast) var(--ease-smooth-out);
+}
+.transition-position-quick {
+  transition: left var(--duration-quick) var(--ease-out);
 }
 
 /* ── Button press feedback (Emil: scale 0.97 on :active) ──────── */
@@ -269,7 +294,7 @@ body {
   transform: translateY(0);
   filter: blur(0);
   transition:
-    opacity 200ms ease,
+    opacity var(--duration-quick) var(--ease-out),
     transform 0s linear,
     filter 0s linear;
   transition-delay: 0s;

@@ -110,6 +110,12 @@ export interface ImpactMetrics {
   discrepancies_found: number;
   estimated_tax_savings: number;
   feedback: { up: number; down: number; total: number };
+  snapshots?: Array<{
+    captured_at: string;
+    total_overdue: number;
+    net_margin: number;
+    total_revenue: number;
+  }>;
 }
 
 /** Contextual HMRC/tax content from /api/context/search (Exa-powered). */
@@ -546,6 +552,19 @@ export const endpoints = {
       const q = search.toString();
       return api.get<Record<string, unknown>>(`/api/xero/profit-and-loss${q ? "?" + q : ""}`);
     },
+    /** Daily metric snapshots for sidebar trend charts. */
+    metricSnapshots: () =>
+      api.get<{
+        snapshots: Array<{
+          captured_at: string;
+          total_revenue: number;
+          net_margin: number;
+          total_overdue: number;
+          overdue_count: number;
+          avg_receivables_days: number;
+          overdue_rate: number;
+        }>;
+      }>("/api/metrics/snapshots"),
     /** Post an approved journal entry. In "demo" mode the write is simulated. */
     journal: (payload: JournalPostPayload) =>
       api.post<JournalPostResponse>("/api/xero/journal", payload),

@@ -4,23 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { endpoints, type MemoryEntry } from "@/lib/api";
 import { MemoryBadge } from "@/components/MemoryBadge";
-import { SikiMascot } from "@/components/SikiMascot";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 import { RequireAuth } from "@/components/RequireAuth";
-
-/**
- * /memory — inspect what Siki remembers about your business.
- *
- * This page makes the Supermemory layer transparent and tangible:
- * - Shows whether Supermemory is connected (Memory: ON/OFF badge)
- * - Lists all memories stored for this user (user-scoped, cross-session)
- * - Each memory can be deleted (right-to-erasure at the individual level)
- *
- * Requires authentication — memories are scoped to the user account so
- * they persist across browser sessions and devices. Anonymous users are
- * redirected to sign in.
- */
+import { usePersona } from "@/hooks/usePersona";
+import { getPersonaCopy } from "@/lib/persona-theme";
 
 export default function MemoryPage() {
+  const persona = usePersona();
+  const copy = getPersonaCopy(persona);
   const [memories, setMemories] = useState<MemoryEntry[]>([]);
   const [available, setAvailable] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
@@ -59,7 +50,6 @@ export default function MemoryPage() {
   return (
     <RequireAuth>
     <div className="min-h-screen bg-stone-50">
-      {/* Header */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/books" className="flex items-center gap-2 text-sm text-stone-500 hover:text-stone-800 transition-colors">
@@ -73,22 +63,20 @@ export default function MemoryPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        {/* Title section */}
         <div className="flex items-start gap-4 mb-8">
           <div className="shrink-0">
-            <SikiMascot size={48} mood="idle" />
+            {persona === "zana" ? (
+              <ZanaMascot size={48} mood="idle" />
+            ) : (
+              <SikiMascot size={48} mood="idle" />
+            )}
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-stone-800">What Siki Remembers</h1>
-            <p className="text-sm text-stone-500 mt-1">
-              Siki uses Supermemory Local to recall past conversations, customer payment patterns,
-              and your preferences across sessions. Everything here is stored on your machine —
-              you can inspect and delete any memory at any time.
-            </p>
+            <h1 className="text-xl font-semibold text-stone-800">{copy.memoryPageTitle}</h1>
+            <p className="text-sm text-stone-500 mt-1">{copy.memoryPageIntro}</p>
           </div>
         </div>
 
-        {/* Status banner */}
         {!available && !loading && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
@@ -99,16 +87,12 @@ export default function MemoryPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-amber-900">Supermemory is not connected</p>
-                <p className="text-xs text-amber-700 mt-1">
-                  Siki is working without memory — every session starts fresh. Start Supermemory Local
-                  to enable persistent memory and semantic tax RAG.
-                </p>
+                <p className="text-xs text-amber-700 mt-1">{copy.memoryUnavailable}</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Loading state */}
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
@@ -120,19 +104,17 @@ export default function MemoryPage() {
           </div>
         )}
 
-        {/* Memories list */}
         {!loading && available && memories.length === 0 && (
           <div className="text-center py-12">
-            <div className="mb-3">
-              <svg className="w-12 h-12 text-stone-300 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
+            <div className="mb-3 flex justify-center">
+              {persona === "zana" ? (
+                <ZanaMascot size={48} mood="look" />
+              ) : (
+                <SikiMascot size={48} mood="look" />
+              )}
             </div>
             <p className="text-sm text-stone-500">No memories yet</p>
-            <p className="text-xs text-stone-400 mt-1">
-              Have a conversation with Siki and check back — memories are extracted and indexed
-              after each session.
-            </p>
+            <p className="text-xs text-stone-400 mt-1">{copy.memoryEmpty}</p>
           </div>
         )}
 
@@ -188,7 +170,6 @@ export default function MemoryPage() {
           </div>
         )}
 
-        {/* Footer — privacy note */}
         {!loading && (
           <div className="mt-8 pt-6 border-t border-stone-200">
             <p className="text-xs text-stone-400 leading-relaxed">

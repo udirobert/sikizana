@@ -24,6 +24,7 @@ import { WhileAgentWorks } from "@/components/WhileAgentWorks";
 import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
 import { NegotiationEmailCard, parseNegotiationEmail } from "@/components/NegotiationEmailCard";
 import { AnalysisCard } from "@/components/AnalysisCard";
+import { AutoChaseNotice, type AutoChaseNoticeState } from "@/components/AutoChaseNotice";
 import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
@@ -35,8 +36,10 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
+import { getPersonaCopy, getPersonaTheme, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
+import { ProfitTrendChart } from "@/components/ProfitTrendChart";
 
 interface OrgData {
   name: string;
@@ -90,7 +93,7 @@ function BooksView() {
   // this session's clicks).
   const [chasedFindingIds, setChasedFindingIds] = useState<ReadonlySet<string>>(new Set());
   // Confirmation banner for non-error notices (e.g. chase scheduled).
-  const [noticeBanner, setNoticeBanner] = useState<string | null>(null);
+  const [chaseNotice, setChaseNotice] = useState<AutoChaseNoticeState | null>(null);
   // The payment moment: amount newly recovered since the user's last visit.
   const [recoveredCelebration, setRecoveredCelebration] = useState<number | null>(null);
   // Saved findings (commitment ladder) — persists in localStorage so
@@ -116,6 +119,9 @@ function BooksView() {
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
   const [pnLoading, setPnLoading] = useState(true);
+  const [metricSnapshots, setMetricSnapshots] = useState<
+    Array<{ captured_at: string; total_revenue: number; net_margin: number; total_overdue: number }>
+  >([]);
   const [staggerShown, setStaggerShown] = useState(false);
   const [showSuccessCheck, setShowSuccessCheck] = useState(false);
   // One-line mode description, shown briefly after switching personas.
@@ -150,11 +156,13 @@ function BooksView() {
   const [persona, setPersona] = useState<"siki" | "zana">(() => {
     // Persist persona in localStorage so it survives page refreshes
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sikizana.persona");
+      const saved = localStorage.getItem(PERSONA_STORAGE_KEY);
       if (saved === "siki" || saved === "zana") return saved;
     }
     return "siki";
   });
+  const theme = getPersonaTheme(persona);
+  const copy = getPersonaCopy(persona);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -242,6 +250,10 @@ function BooksView() {
         setPnLoading(false);
       })
       .catch(() => setPnLoading(false));
+    void endpoints.xero
+      .metricSnapshots()
+      .then((r) => setMetricSnapshots(r.snapshots))
+      .catch(() => {});
 
     // Check if Xero OAuth is configured + if user has connected their own org
     void endpoints.xero
@@ -307,7 +319,10 @@ function BooksView() {
     if (findings && findings.money_found > 0 && (!me || me.plan === "free")) {
       const label = xeroMode === "demo" ? "the sample books" : "your books";
       setUpgradeBanner(
-        `Siki found £${Math.round(findings.money_found).toLocaleString()} in ${label} — upgrade to Pro to let Siki fix these.`,
+        copy.upgradeBanner(
+          Math.round(findings.money_found).toLocaleString(),
+          label,
+        ),
       );
     }
   };
@@ -535,7 +550,11 @@ function BooksView() {
     setChasedFindingIds((prev) => new Set(prev).add(finding.id));
     try {
       const res = await endpoints.chase.start(finding.invoice_number, finding.invoice_id);
-      setNoticeBanner(res.message);
+      setChaseNotice({
+        message: res.message,
+        invoiceNumber: finding.invoice_number ?? undefined,
+        findingTitle: finding.title,
+      });
     } catch (e) {
       setChasedFindingIds((prev) => {
         const next = new Set(prev);
@@ -591,7 +610,7 @@ function BooksView() {
   const handlePersonaChange = (next: "siki" | "zana") => {
     setPersona(next);
     setModeHintShown(true);
-    try { localStorage.setItem("sikizana.persona", next); } catch { /* ignore */ }
+    try { localStorage.setItem(PERSONA_STORAGE_KEY, next); } catch { /* ignore */ }
   };
 
   // Auto-hide the mode description a few seconds after switching.
@@ -650,13 +669,13 @@ function BooksView() {
               <button
                 onClick={handleConnectXero}
                 disabled={connecting}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
               >
                 {connecting ? "Connecting…" : "Connect Your Xero →"}
               </button>
             ) : (
               <span
-                className={`text-xs font-medium px-2 py-1 rounded-lg transition-opacity duration-200 ${
+                className={`text-xs font-medium px-2 py-1 rounded-lg transition-opacity-quick ${
                   xeroMode === "live-oauth" || xeroMode === "live-cli"
                     ? "bg-emerald-50 text-emerald-700"
                     : xeroMode === "demo"
@@ -757,7 +776,7 @@ function BooksView() {
               <button
                 onClick={handleConnectXero}
                 disabled={connecting}
-                className="text-xs font-semibold px-4 py-2 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50 whitespace-nowrap"
+                className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50 whitespace-nowrap`}
               >
                 {connecting ? "Connecting…" : "Connect My Xero →"}
               </button>
@@ -788,6 +807,7 @@ function BooksView() {
             }}
             suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
             compact
+            persona={persona}
           />
         </div>
 
@@ -831,7 +851,7 @@ function BooksView() {
                 Profit &amp; Loss
               </span>
               {showWelcome && (
-                <span className="text-[9px] text-sky-500 font-medium">← your money at a glance</span>
+                <span className={`text-[9px] ${theme.hintText} font-medium`}>← your money at a glance</span>
               )}
             </div>
             <SkeletonReveal
@@ -867,6 +887,7 @@ function BooksView() {
                       £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                     </div>
                   </div>
+                  <ProfitTrendChart snapshots={metricSnapshots} className="pt-2 mt-2" />
                 </div>
               )}
             </SkeletonReveal>
@@ -881,7 +902,7 @@ function BooksView() {
                 Findings
               </span>
               {showWelcome && (
-                <span className="text-[9px] text-sky-500 font-medium">← things to fix</span>
+                <span className={`text-[9px] ${theme.hintText} font-medium`}>← things to fix</span>
               )}
             </div>
             <FindingsPanel
@@ -900,15 +921,16 @@ function BooksView() {
               }}
               suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
               compact
+              persona={persona}
             />
           </div>
 
           <div className="border-t border-stone-100 pt-3 mt-auto space-y-1.5">
-            <Link href="/memory" className="block text-[10px] text-violet-500 hover:text-violet-700 transition-colors">
-              What Siki remembers →
+            <Link href="/memory" className={`block text-[10px] text-violet-500 hover:text-violet-700 transition-colors`}>
+              {copy.memoryLink}
             </Link>
-            <Link href="/activity" className="block text-[10px] text-stone-500 hover:text-stone-700 transition-colors">
-              View audit trail →
+            <Link href="/activity" className={`block text-[10px] text-stone-500 hover:text-stone-700 transition-colors`}>
+              {copy.activityLink}
             </Link>
           </div>
         </aside>
@@ -922,7 +944,7 @@ function BooksView() {
               ) : (
                 <ZanaMascot size={40} mood={isLoading ? "look" : "idle"} />
               )}
-              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${persona === "siki" ? "bg-sky-400" : "bg-rose-500"}`} />
+              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${theme.statusDot}`} />
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-stone-800">
@@ -931,7 +953,7 @@ function BooksView() {
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 {isLoading ? (
                   <>
-                    <span className={`w-1.5 h-1.5 rounded-full ${persona === "siki" ? "bg-sky-500" : "bg-rose-500"}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${theme.statusPulse}`} />
                     <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
                   </>
                 ) : (
@@ -948,7 +970,7 @@ function BooksView() {
             <div className="flex items-center gap-1 bg-stone-100 rounded-full p-0.5">
               <button
                 onClick={() => handlePersonaChange("siki")}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors-quick btn-press ${
                   persona === "siki"
                     ? "bg-orange-400 text-white shadow-sm"
                     : "text-stone-500 hover:text-stone-700"
@@ -962,15 +984,15 @@ function BooksView() {
               </button>
               <button
                 onClick={() => handlePersonaChange("zana")}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-all btn-press ${
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors-quick btn-press ${
                   persona === "zana"
-                    ? "bg-stone-800 text-white shadow-sm"
+                    ? `${getPersonaTheme("zana").toggleActive} shadow-sm`
                     : "text-stone-500 hover:text-stone-700"
                 }`}
                 title="Zana — direct, chases payments, flags uncomfortable truths"
               >
                 Zana
-                <span className={`block text-[8px] font-normal leading-none ${persona === "zana" ? "text-stone-300" : "text-stone-400"}`}>
+                <span className={`block text-[8px] font-normal leading-none ${persona === "zana" ? getPersonaTheme("zana").toggleActiveSub : "text-stone-400"}`}>
                   chase
                 </span>
               </button>
@@ -1010,7 +1032,7 @@ function BooksView() {
           {/* Mode description — appears briefly after switching personas */}
           {modeHintShown && (
             <div
-              className="px-5 py-1.5 bg-stone-50 border-b border-stone-100 text-[11px] text-stone-600 fade-in-up"
+              className={`px-5 py-1.5 border-b text-[11px] fade-in-up ${theme.modeHintBar}`}
               role="status"
             >
               {persona === "siki"
@@ -1054,18 +1076,12 @@ function BooksView() {
             </div>
           )}
 
-          {/* Confirmation notice (e.g. auto-chase scheduled) — not an error */}
-          {noticeBanner && (
-            <div className="bg-emerald-50 border-b border-emerald-200 px-4 py-2 text-xs text-emerald-800 flex items-center justify-between fade-in-up" role="status">
-              <span>{noticeBanner}</span>
-              <button
-                onClick={() => setNoticeBanner(null)}
-                className="text-emerald-500 hover:text-emerald-700 btn-press"
-                aria-label="Dismiss notice"
-              >
-                ×
-              </button>
-            </div>
+          {chaseNotice && (
+            <AutoChaseNotice
+              persona={persona}
+              notice={chaseNotice}
+              onDismiss={() => setChaseNotice(null)}
+            />
           )}
 
           {/* Sign-in nudge — contextual, dismissible, once per session.
@@ -1136,7 +1152,7 @@ function BooksView() {
 
                 {/* First-time welcome banner with value prop */}
                 {showWelcome && (
-                  <div className="mt-4 w-full max-w-sm bg-sky-50 border border-sky-200 rounded-xl p-4 fade-in-up text-left">
+                  <div className={`mt-4 w-full max-w-sm border rounded-xl p-4 fade-in-up text-left ${theme.hintBg}`}>
                     <div className="flex items-start gap-3">
                       <div className="shrink-0 mt-0.5">
                         <span className="text-lg">✨</span>
@@ -1235,7 +1251,7 @@ function BooksView() {
                         {sample.hint && (
                           <span className={`text-[9px] transition-colors ${
                             persona === "siki"
-                              ? "text-stone-400 group-hover:text-sky-500"
+                              ? `text-stone-400 ${theme.sampleHover}`
                               : "text-stone-400 group-hover:text-rose-500"
                           }`}>
                             {sample.hint}
@@ -1279,7 +1295,7 @@ function BooksView() {
                 )}
                 <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
                   {msg.role === "agent" && msg.memoryRecall && (
-                    <MemoryRecallTrace data={msg.memoryRecall} />
+                    <MemoryRecallTrace data={msg.memoryRecall} persona={msg.persona ?? persona} />
                   )}
                   {msg.role === "agent" && msg.toolCalls && msg.toolCalls.length > 0 && (
                     <ToolCallTrace calls={msg.toolCalls} />
@@ -1287,7 +1303,7 @@ function BooksView() {
                   <div
                     className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-sky-600 text-white rounded-tr-sm"
+                        ? theme.userBubble
                         : "bg-stone-100 text-stone-800 rounded-tl-sm"
                     }`}
                   >
@@ -1330,7 +1346,11 @@ function BooksView() {
                     <NegotiationEmailCard email={negotiationEmail} />
                   )}
                   {cards.map((card, ci) => (
-                    <AnalysisCard key={ci} data={card} />
+                    <AnalysisCard
+                      key={ci}
+                      data={card}
+                      persona={msg.persona ?? persona}
+                    />
                   ))}
                   {/* Feedback on completed agent answers (not while streaming) */}
                   {msg.role === "agent" && msg.content && threadId &&
@@ -1405,19 +1425,15 @@ function BooksView() {
             })}
 
             {isLoading && (
-              <div className="flex gap-2.5 fade-in-up">
-                <div className="shrink-0">
-                  {persona === "siki" ? <SikiMascot size={32} mood="look" /> : <ZanaMascot size={32} mood="look" />}
-                </div>
-                <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm flex-1">
-                  <WhileAgentWorks
-                    userQuery={lastQuery}
-                    currentTool={currentTool}
-                    thinkingMessage={thinkingMessage}
-                    findings={findings}
-                    onContextResults={setLastContextResults}
-                  />
-                </div>
+              <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm fade-in-up">
+                <WhileAgentWorks
+                  persona={persona}
+                  userQuery={lastQuery}
+                  currentTool={currentTool}
+                  thinkingMessage={thinkingMessage}
+                  findings={findings}
+                  onContextResults={setLastContextResults}
+                />
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -1445,7 +1461,7 @@ function BooksView() {
                     : "Tell Zana — chase this invoice, score my customers, what's my plan?"
                 }
                 disabled={isLoading}
-                className="flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-white disabled:opacity-50"
+                className={`flex-1 px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 bg-white disabled:opacity-50 ${theme.focusInput}`}
               />
               {isLoading ? (
                 <button
@@ -1462,7 +1478,7 @@ function BooksView() {
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className="p-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed btn-press"
+                  className={`p-2.5 ${theme.btnPrimary} rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed btn-press`}
                   title="Send"
                   aria-label="Send"
                 >
@@ -1566,7 +1582,7 @@ function BooksView() {
                 )}
                 <button
                   onClick={dismissConnectMoment}
-                  className="mt-2 text-sm font-semibold bg-sky-600 text-white px-5 py-2 rounded-lg hover:bg-sky-700 btn-press transition-colors"
+                  className={`mt-2 text-sm font-semibold ${theme.btnPrimary} px-5 py-2 rounded-lg btn-press transition-colors`}
                 >
                   Show me →
                 </button>
@@ -1641,7 +1657,7 @@ function BooksView() {
               <button
                 onClick={() => void startXeroOAuth()}
                 disabled={connecting}
-                className="flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50"
+                className={`flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
               >
                 {connecting ? "Connecting…" : "Continue to Xero →"}
               </button>
@@ -1655,7 +1671,7 @@ function BooksView() {
             </div>
             <p className="text-[10px] text-stone-400 mt-3 text-center">
               Full details:{" "}
-              <Link href="/security" className="text-sky-600 hover:text-sky-700 underline">
+              <Link href="/security" className={`${theme.link} underline`}>
                 how your data is protected
               </Link>
             </p>
@@ -1696,7 +1712,7 @@ function BooksView() {
       )}
 
       {/* Proactive webhook alerts */}
-      <ProactiveAlert />
+      <ProactiveAlert persona={persona} />
     </main>
   );
 }

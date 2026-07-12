@@ -247,7 +247,7 @@ function UsageMeter({ usage }: { usage: MeResponse["usage"] }) {
         aria-label="AI queries used this month"
       >
         <div
-          className={`h-full rounded-full transition-all ${exhausted ? "bg-amber-500" : "bg-sky-500"}`}
+          className={`h-full rounded-full transition-width-fast ${exhausted ? "bg-amber-500" : "bg-sky-500"}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -301,7 +301,7 @@ function DigestToggle({ initial }: { initial: boolean }) {
           }`}
         >
           <span
-            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${
+            className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-position-quick ${
               enabled ? "left-[18px]" : "left-0.5"
             }`}
           />

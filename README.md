@@ -203,7 +203,9 @@ The product applies behavioral psychology principles throughout:
 Siki ↔ Zana switching includes context handoff — the new persona gets
 a system prompt section explaining it's taking over from the other,
 with persona markers in conversation history so past messages show
-the correct mascot. Persona persists across page refreshes.
+the correct mascot. Persona persists across page refreshes. UI chrome,
+analysis card headers, and chase confirmation copy follow the active
+persona — see `web/DESIGN.md` for guardrails.
 
 ### 12. Conversion-Aware UX
 Contextual sign-in nudges at key moments (after first answer, at 3/5

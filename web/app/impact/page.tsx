@@ -7,6 +7,7 @@ import { SikiMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { ModeBadge } from "@/components/ModeBadge";
+import { ImpactHeroChart } from "@/components/ImpactHeroChart";
 
 /**
  * Impact — aggregate social proof: money found, issues caught, tax
@@ -110,6 +111,12 @@ export default function ImpactPage() {
             Could not reach the backend right now — showing the last values.
           </div>
         )}
+
+        <ImpactHeroChart
+          snapshots={data?.snapshots ?? []}
+          isDemo={isDemo}
+          currentOverdue={moneyFound}
+        />
 
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
           <StatCard

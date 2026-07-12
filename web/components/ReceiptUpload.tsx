@@ -74,7 +74,7 @@ export function ReceiptUpload({
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         disabled={isUploading}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all btn-press ${
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors-quick btn-press ${
           isDragging
             ? "bg-sky-100 border-2 border-dashed border-sky-400 text-sky-700"
             : "bg-stone-100 hover:bg-stone-200 border border-stone-200 text-stone-600"

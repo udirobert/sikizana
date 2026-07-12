@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { SikiMascot } from "@/components/SikiMascot";
+import {
+  cleanFindingsCopy,
+  findingActionLabel,
+  getPersonaTheme,
+  type Persona,
+} from "@/lib/persona-theme";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 import type { Finding, FindingKind, FindingsResponse } from "@/lib/api";
 
 /**
@@ -91,6 +97,8 @@ interface FindingsPanelProps {
   /** Compact mode for sidebars: collapsed rows, no inline action buttons,
    *  max 3 visible with a "show more" toggle. */
   compact?: boolean;
+  /** Active chat persona — drives accent colour and action labels. */
+  persona?: Persona;
   className?: string;
 }
 
@@ -107,8 +115,10 @@ export function FindingsPanel({
   onSuggest,
   suggestions,
   compact = false,
+  persona = "siki",
   className = "",
 }: FindingsPanelProps) {
+  const theme = getPersonaTheme(persona);
   const [expanded, setExpanded] = useState(false);
   const visibleFindings = compact
     ? expanded
@@ -121,7 +131,7 @@ export function FindingsPanel({
     <section className={className} aria-label="Audit findings">
       <div className="flex items-center gap-1 mb-2">
         <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
-          What Siki Found
+          {theme.findingsTitle}
         </h3>
         {data && (
           <span
@@ -158,8 +168,9 @@ export function FindingsPanel({
               {/* The win tally — money the chase loop actually got paid. */}
               {data.recovered && data.recovered.total > 0 && (
                 <p className="text-[11px] font-medium text-emerald-700 mt-1">
-                  🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s
-                  chasing ({data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
+                  🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by{" "}
+                  {persona === "zana" ? "Zana's" : "Siki's"} chasing (
+                  {data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
                 </p>
               )}
               {/* Aged-receivables strip — the standard 30/60/90 view of
@@ -204,11 +215,15 @@ export function FindingsPanel({
           )}
           {data?.clean && (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex items-center gap-3">
-              <SikiMascot size={40} mood="celebrate" />
+              {persona === "zana" ? (
+                <ZanaMascot size={40} mood="idle" />
+              ) : (
+                <SikiMascot size={40} mood="celebrate" />
+              )}
               <div>
                 <p className="text-xs font-semibold text-emerald-800">Your books are clean ✓</p>
                 <p className="text-[10px] text-emerald-700 mt-0.5">
-                  Nothing overdue, nothing unreconciled.
+                  {cleanFindingsCopy(persona)}
                 </p>
                 {data.recovered && data.recovered.total > 0 && (
                   <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
@@ -330,10 +345,12 @@ export function FindingsPanel({
                     className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
                       asked
                         ? "bg-stone-100 text-stone-400"
-                        : "bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50"
+                        : `${theme.btnPrimary} disabled:opacity-50`
                     }`}
                   >
-                    {asked ? "✓ Asked" : finding.action.label}
+                    {asked
+                      ? "✓ Asked"
+                      : findingActionLabel(persona, finding.action.label, finding.kind)}
                   </button>
                   {chaseable && (
                     <button
@@ -374,7 +391,7 @@ export function FindingsPanel({
             <li>
               <button
                 onClick={() => setExpanded(true)}
-                className="w-full text-center text-[10px] font-medium text-sky-600 hover:text-sky-700 py-1 transition-colors"
+                className={`w-full text-center text-[10px] font-medium py-1 transition-colors ${theme.findingsExpand}`}
               >
                 + {hiddenCount} more finding{hiddenCount > 1 ? "s" : ""}
               </button>

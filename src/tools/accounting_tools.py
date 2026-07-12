@@ -58,6 +58,11 @@ def set_current_session(session_id: str) -> None:
     _current_session.set(session_id)
 
 
+def capture_metric_snapshot() -> None:
+    """Public wrapper — capture today's metrics snapshot for the active session."""
+    _capture_snapshot()
+
+
 def _svc() -> AccountingConnector:
     return get_connector(_current_session.get())
 

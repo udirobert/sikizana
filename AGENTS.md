@@ -133,6 +133,13 @@ cd web && npx tsc --noEmit
 | `web/components/RequireAuth.tsx` | Client-side route guard |
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
+| `web/lib/persona-theme.ts` | Siki/Zana copy, theme tokens, analysis-card + chase labels |
+| `web/hooks/usePersona.ts` | Reads persisted persona from localStorage |
+| `web/DESIGN.md` | Three-zone UI guardrails (signature / proof / delight) |
+| `web/components/dither-kit/` | Selective dither charts (impact hero, sidebar sparkline) |
+| `web/components/ImpactHeroChart.tsx` | Dither area chart + Siki trend caption on `/impact` |
+| `web/components/ProfitTrendChart.tsx` | Dither sparkline in `/books` sidebar P&L |
+| `web/components/AutoChaseNotice.tsx` | Signature moment when a chase sequence is armed |
 
 ### Personalization
 
@@ -150,6 +157,18 @@ Three layers are injected into the agent system prompt before every response:
 Profile is managed via `GET/PUT /api/profile` and shown on the account page.
 Sector benchmarks check the user profile's `industry` field first, then
 fall back to `session_prefs` (legacy), then org-name guess.
+
+**Dual persona UI (Siki / Zana):** The books page lets users switch between
+Siki (explain) and Zana (chase). Persona persists in localStorage and drives
+Tailwind accent classes via `getPersonaTheme()`, first-person copy via
+`getPersonaCopy()`, and component-level voice (findings actions, analysis
+card headers, auto-chase confirmation). Agent messages include a `persona`
+field so historical bubbles and cards show the correct mascot. See
+`web/DESIGN.md` for where dither, motion, and mascot delight are allowed.
+
+**Metric snapshots:** `GET /api/metrics/snapshots` returns periodic financial
+metrics for trend charts. Snapshots are captured via `capture_metric_snapshot()`
+when the agent runs relevant tools.
 
 ## Security notes
 

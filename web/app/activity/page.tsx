@@ -3,17 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { endpoints, type ActivityEvent, type AggregateActivity } from "@/lib/api";
-import { SikiMascot } from "@/components/SikiMascot";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { useXeroMode } from "@/hooks/useXeroMode";
+import { usePersona } from "@/hooks/usePersona";
+import { getPersonaCopy, getPersonaTheme } from "@/lib/persona-theme";
 import { ModeBadge } from "@/components/ModeBadge";
-
-/**
- * Activity page — the audit trail for this session.
- * Shows everything Siki has done: queries asked, tools called,
- * journals posted or reversed. Plus an aggregate banner showing
- * platform-wide activity (social proof for anonymous users).
- */
 
 const EVENT_STYLES: Record<
   ActivityEvent["action"],
@@ -29,6 +24,9 @@ const EVENT_STYLES: Record<
 };
 
 export default function ActivityPage() {
+  const persona = usePersona();
+  const copy = getPersonaCopy(persona);
+  const theme = getPersonaTheme(persona);
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [aggregate, setAggregate] = useState<AggregateActivity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -52,15 +50,16 @@ export default function ActivityPage() {
       <nav className="bg-white border-b border-stone-200 px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
           <Link href="/books" className="flex items-center gap-2 group">
-            <SikiMascot size={28} mood="idle" />
-            <span className="font-bold text-stone-900 group-hover:text-sky-600 transition-colors">
+            {persona === "zana" ? (
+              <ZanaMascot size={28} mood="idle" />
+            ) : (
+              <SikiMascot size={28} mood="idle" />
+            )}
+            <span className={`font-bold text-stone-900 transition-colors ${persona === "zana" ? "group-hover:text-rose-600" : "group-hover:text-sky-600"}`}>
               Sikizana
             </span>
           </Link>
-          <Link
-            href="/books"
-            className="text-xs font-medium text-sky-600 hover:text-sky-700"
-          >
+          <Link href="/books" className={`text-xs font-medium ${theme.link}`}>
             ← Back to Books
           </Link>
         </div>
@@ -72,13 +71,9 @@ export default function ActivityPage() {
           {isDemo && <ModeBadge isDemo={isDemo} />}
         </div>
         <p className="text-sm text-stone-500 mb-6">
-          {isDemo
-            ? "Activity from your demo session — these are sample actions on sample data."
-            : "Everything Siki has done in this session — queries, tool calls, and journal entries."}
+          {isDemo ? copy.activityIntroDemo : copy.activityIntroLive}
         </p>
 
-        {/* Aggregate activity banner — social proof for anonymous users.
-            Shows platform-wide activity in the last 7 days. */}
         {aggregate && (aggregate.queries > 0 || aggregate.journals_posted > 0) && (
           <div className="bg-gradient-to-br from-sky-50 to-violet-50 border border-sky-100 rounded-xl p-4 mb-6 fade-in-up">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-500 mb-1.5">
@@ -131,15 +126,13 @@ export default function ActivityPage() {
 
         {!loading && !error && events.length === 0 && (
           <div className="bg-white rounded-xl border border-stone-200 p-8 text-center">
-            <SikiMascot size={48} mood="look" />
-            <p className="text-sm text-stone-500 mt-3">
-              No activity yet. When you ask Siki questions and approve journal entries,
-              they&apos;ll appear here.
-            </p>
-            <Link
-              href="/books"
-              className="inline-block mt-4 text-xs font-semibold text-sky-600 hover:text-sky-700"
-            >
+            {persona === "zana" ? (
+              <ZanaMascot size={48} mood="look" />
+            ) : (
+              <SikiMascot size={48} mood="look" />
+            )}
+            <p className="text-sm text-stone-500 mt-3">{copy.activityEmpty}</p>
+            <Link href="/books" className={`inline-block mt-4 text-xs font-semibold ${theme.link}`}>
               Go to Books →
             </Link>
           </div>
@@ -186,7 +179,7 @@ export default function ActivityPage() {
                           )}`}
                           className="inline-block mt-1.5 text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
                         >
-                          ↩ Reverse with Siki
+                          {copy.activityReverse}
                         </Link>
                       )}
                     </div>

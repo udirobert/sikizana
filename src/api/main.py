@@ -948,6 +948,20 @@ async def xero_pl(
     )
 
 
+@app.get("/api/metrics/snapshots")
+async def metrics_snapshots(session_id: str = Depends(get_session_id)):
+    """Historical metric snapshots for sidebar trend charts (captures today if needed)."""
+    from src.services.payment_store import get_metric_snapshots
+    from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
+
+    def _fetch():
+        set_current_session(session_id)
+        capture_metric_snapshot()
+        return {"snapshots": get_metric_snapshots(session_id, limit=12)}
+
+    return await asyncio.to_thread(_fetch)
+
+
 @app.get("/api/xero/balance-sheet")
 async def xero_bs(as_of: str | None = None, session_id: str = Depends(get_session_id)):
     from src.services.connectors import get_connector
@@ -1843,9 +1857,16 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
     from src.services.connectors import get_connector
 
     def _metrics():
+        from src.services.payment_store import get_metric_snapshots
+        from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
+
+        set_current_session(session_id)
+        capture_metric_snapshot()
+
         svc = get_connector(session_id)
         mode = svc.mode()
         feedback = get_feedback_summary()
+        snapshots = get_metric_snapshots(session_id, limit=12)
 
         # Calculate real metrics from Xero data
         overdue = svc.find_overdue_invoices()
@@ -1863,6 +1884,7 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
             "estimated_tax_savings": estimated_tax_savings,
             "feedback": feedback,
             "events": get_impact_summary(),
+            "snapshots": snapshots,
         }
 
     return await asyncio.to_thread(_metrics)

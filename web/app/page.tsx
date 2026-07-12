@@ -88,11 +88,11 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="inline-block bg-sky-50 text-sky-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up" style={{ animationDelay: "100ms" }}>
+        <div className="inline-block bg-sky-50 text-sky-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
           Get Paid Faster · Works with Xero
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up" style={{ animationDelay: "200ms" }}>
+        <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up fade-in-up-delay-2">
           Stop money slipping away.
           <br />
           <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
@@ -100,13 +100,13 @@ export default function LandingPage() {
           </span>
         </h1>
 
-        <p className="mt-6 text-lg text-stone-600 max-w-xl mx-auto fade-in-up" style={{ animationDelay: "300ms" }}>
+        <p className="mt-6 text-lg text-stone-600 max-w-xl mx-auto fade-in-up fade-in-up-delay-3">
           Siki reads your Xero data, shows exactly who owes you what and for how long,
           tells you what&apos;s normal for your industry, and drafts the chasing emails that
           actually get you paid — plus tax estimates and a plain-English P&amp;L on the side.
         </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap fade-in-up" style={{ animationDelay: "400ms" }}>
+        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap fade-in-up fade-in-up-delay-4">
           <Link
             href="/books"
             className="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-7 py-3.5 rounded-xl transition shadow-lg shadow-sky-600/20 btn-press text-base"
@@ -120,10 +120,10 @@ export default function LandingPage() {
             Connect My Xero
           </Link>
         </div>
-        <p className="mt-3 text-xs text-stone-500 fade-in-up" style={{ animationDelay: "500ms" }}>
+        <p className="mt-3 text-xs text-stone-500 fade-in-up fade-in-up-delay-5">
           Try the demo instantly — no signup needed. Or connect your Xero to see your real numbers.
         </p>
-        <p className="mt-1.5 text-xs text-stone-400 fade-in-up" style={{ animationDelay: "550ms" }}>
+        <p className="mt-1.5 text-xs text-stone-400 fade-in-up fade-in-up-delay-6">
           🔒 Read-only until you approve an action · never sold or shared ·{" "}
           <Link href="/security" className="underline hover:text-stone-600 transition-colors">
             how your data is protected
@@ -262,7 +262,7 @@ export default function LandingPage() {
               &quot;You&apos;re owed £4,200. Here&apos;s who, and for how long. Want me to help?&quot;
             </p>
           </div>
-          <div className="bg-white border border-stone-300 rounded-2xl p-6 fade-in-up hover:shadow-md transition-shadow" style={{ animationDelay: "100ms" }}>
+          <div className="bg-white border border-stone-300 rounded-2xl p-6 fade-in-up fade-in-up-delay-1 hover:shadow-md transition-shadow">
             <div className="flex items-center gap-4 mb-3">
               <ZanaMascot size={64} mood="look" />
               <div>

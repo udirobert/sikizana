@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 /**
  * AnalysisCard — renders structured analysis data from three tools:
  * - get_sector_benchmarks → BenchmarkCard (comparison bars)
@@ -9,6 +11,13 @@
  * Parses the ANALYSIS_DATA...END_ANALYSIS_DATA block from the agent's
  * response, same pattern as JournalEntryCard and NegotiationEmailCard.
  */
+
+import {
+  getAnalysisCardMeta,
+  type AnalysisCardType,
+  type Persona,
+} from "@/lib/persona-theme";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 
 interface BenchmarkMetric {
   label: string;
@@ -123,25 +132,52 @@ function fmtMoney2(v: number): string {
   return "£" + v.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function AnalysisCardHeader({
+  persona,
+  type,
+  subtitle,
+}: {
+  persona: Persona;
+  type: AnalysisCardType;
+  subtitle?: ReactNode;
+}) {
+  const meta = getAnalysisCardMeta(persona, type);
+  return (
+    <div className={`px-3 py-2.5 border-b ${meta.headerBorder}`}>
+      <div className="flex items-center gap-2 flex-wrap">
+        {persona === "zana" ? (
+          <ZanaMascot size={20} mood="idle" className="shrink-0" />
+        ) : (
+          <SikiMascot size={20} mood="idle" className="shrink-0" />
+        )}
+        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${meta.badgeClass}`}>
+          {meta.title}
+        </span>
+        {subtitle}
+      </div>
+    </div>
+  );
+}
+
 // ─── Benchmark Card ──────────────────────────────────────────────────
 
-function BenchmarkCard({ data }: { data: BenchmarkData }) {
+function BenchmarkCard({ data, persona }: { data: BenchmarkData; persona: Persona }) {
   return (
     <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
-      <div className="px-3 py-2.5 border-b border-stone-100 bg-stone-50/50">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-sky-100 text-sky-700">
-            📊 Sector Benchmark
-          </span>
-          <span className="text-[10px] font-medium text-stone-600">{data.sector}</span>
-          {/* Honest sourcing: these are typical ranges, not live statistics. */}
-          <span className="text-[9px] text-stone-400">
-            {data.source === "live_ons"
-              ? "auto-extracted from gov.uk — verify"
-              : "typical UK ranges · indicative"}
-          </span>
-        </div>
-      </div>
+      <AnalysisCardHeader
+        persona={persona}
+        type="sector_benchmark"
+        subtitle={
+          <>
+            <span className="text-[10px] font-medium text-stone-600">{data.sector}</span>
+            <span className="text-[9px] text-stone-400">
+              {data.source === "live_ons"
+                ? "auto-extracted from gov.uk — verify"
+                : "typical UK ranges · indicative"}
+            </span>
+          </>
+        }
+      />
       <div className="px-3 py-2.5 space-y-2.5">
         {data.metrics.map((m) => {
           const verdictKey = m.verdict.replace(/ /g, "_").toUpperCase();
@@ -206,19 +242,19 @@ const RATING_STYLES: Record<string, { dot: string; bg: string; text: string }> =
   GREEN: { dot: "bg-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700" },
 };
 
-function CustomerScorecard({ data }: { data: ScorecardData }) {
+function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Persona }) {
+  const meta = getAnalysisCardMeta(persona, "customer_scorecard");
   return (
     <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
-      <div className="px-3 py-2.5 border-b border-stone-100 bg-stone-50/50">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-violet-100 text-violet-700">
-            👥 Customer Scorecard
-          </span>
+      <AnalysisCardHeader
+        persona={persona}
+        type="customer_scorecard"
+        subtitle={
           <span className="text-[10px] text-stone-500">
-            {data.portfolio.red_count} red · {data.portfolio.fire_count} firing candidates
+            {meta.portfolioSubtitle(data.portfolio.red_count, data.portfolio.fire_count)}
           </span>
-        </div>
-      </div>
+        }
+      />
       <div className="divide-y divide-stone-100">
         {data.customers.map((c) => {
           const style = RATING_STYLES[c.rating] || RATING_STYLES.GREEN;
@@ -253,7 +289,7 @@ function CustomerScorecard({ data }: { data: ScorecardData }) {
               </div>
               {c.fire_recommendation && (
                 <p className="text-[10px] text-rose-600 mt-1.5 font-medium">
-                  ⚠️ Firing candidate — cost exceeds 10% of revenue
+                  ⚠️ {meta.fireWarning}
                 </p>
               )}
             </div>
@@ -298,20 +334,20 @@ const BUCKET_COLORS: Record<string, string> = {
   b_90_plus: "bg-rose-600",
 };
 
-function AgingCard({ data }: { data: AgingData }) {
+function AgingCard({ data, persona }: { data: AgingData; persona: Persona }) {
+  const meta = getAnalysisCardMeta(persona, "receivables_aging");
   const maxBucket = Math.max(...data.buckets.map((b) => b.amount), 0.001);
   return (
     <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
-      <div className="px-3 py-2.5 border-b border-stone-100 bg-stone-50/50">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
-            ⏳ Aged Receivables
-          </span>
+      <AnalysisCardHeader
+        persona={persona}
+        type="receivables_aging"
+        subtitle={
           <span className="text-[10px] text-stone-500">
             {fmtMoney(data.total_outstanding)} outstanding · {fmtMoney(data.total_overdue)} past due
           </span>
-        </div>
-      </div>
+        }
+      />
       <div className="px-3 py-2.5 space-y-1.5">
         {data.buckets.filter((b) => b.count > 0).map((b) => (
           <div key={b.key} className="flex items-center gap-2 text-[10px]">
@@ -334,7 +370,7 @@ function AgingCard({ data }: { data: AgingData }) {
       {data.debtors.length > 0 && (
         <div className="px-3 py-2.5 border-t border-stone-100">
           <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
-            Who owes you (largest first)
+            {meta.debtorsHeading}
           </p>
           <div className="space-y-1">
             {data.debtors.map((d) => (
@@ -401,19 +437,18 @@ function Sparkline({ values, trend }: { values: number[]; trend: string }) {
   );
 }
 
-function TrendChart({ data }: { data: TrendData }) {
+function TrendChart({ data, persona }: { data: TrendData; persona: Persona }) {
   return (
     <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
-      <div className="px-3 py-2.5 border-b border-stone-100 bg-stone-50/50">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-indigo-100 text-indigo-700">
-            📈 Trend Analysis
-          </span>
+      <AnalysisCardHeader
+        persona={persona}
+        type="trend_analysis"
+        subtitle={
           <span className="text-[10px] text-stone-500">
             {data.snapshot_count} snapshots over time
           </span>
-        </div>
-      </div>
+        }
+      />
       <div className="divide-y divide-stone-100">
         {data.metrics.map((m) => {
           const style = TREND_STYLES[m.trend] || TREND_STYLES.STABLE;
@@ -449,20 +484,21 @@ function TrendChart({ data }: { data: TrendData }) {
 
 interface AnalysisCardProps {
   data: { type: string; [key: string]: unknown };
+  persona?: Persona;
 }
 
-export function AnalysisCard({ data }: AnalysisCardProps) {
+export function AnalysisCard({ data, persona = "siki" }: AnalysisCardProps) {
   if (data.type === "sector_benchmark") {
-    return <BenchmarkCard data={data as unknown as BenchmarkData} />;
+    return <BenchmarkCard data={data as unknown as BenchmarkData} persona={persona} />;
   }
   if (data.type === "customer_scorecard") {
-    return <CustomerScorecard data={data as unknown as ScorecardData} />;
+    return <CustomerScorecard data={data as unknown as ScorecardData} persona={persona} />;
   }
   if (data.type === "trend_analysis") {
-    return <TrendChart data={data as unknown as TrendData} />;
+    return <TrendChart data={data as unknown as TrendData} persona={persona} />;
   }
   if (data.type === "receivables_aging") {
-    return <AgingCard data={data as unknown as AgingData} />;
+    return <AgingCard data={data as unknown as AgingData} persona={persona} />;
   }
   return null;
 }
