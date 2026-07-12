@@ -49,6 +49,9 @@ services:
       - CORP_TAX_MAIN_LIMIT=250000
       - CORP_TAX_MARGINAL_RELIEF=0.015
       - BANK_RATE=5.25
+      # Supermemory (persistent memory + RAG)
+      - SUPERMEMORY_URL=${SUPERMEMORY_URL:-}
+      - SUPERMEMORY_API_KEY=${SUPERMEMORY_API_KEY:-}
     volumes:
       # Container runs as non-root `app` (uid 1001) — CLI profile mounts
       # into its home, not /root
