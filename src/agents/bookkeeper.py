@@ -687,6 +687,27 @@ async def run_bookkeeper_streaming(
                 if _memory_parts:
                     _system_prompt += "\n\n" + "\n\n".join(_memory_parts)
                     _system_prompt += "\n\nUse this remembered context naturally. If it contradicts live Xero data, trust Xero. Never say 'from my memory' — speak as if you remember."
+
+            # --- Preference signals: rules learned from user actions ---
+            # These are different from recalled facts — they are behaviour-shaping
+            # rules (e.g. "do not propose journal entries" or "do not auto-chase
+            # this customer"). They are stored when the user rejects a journal,
+            # cancels a chase, etc.
+            try:
+                from src.services.supermemory import get_preference_signals
+
+                _preference_signals = await asyncio.to_thread(get_preference_signals, session_id)
+                if _preference_signals:
+                    _preference_text = "\n".join(f"- {s.get('content', '')}" for s in _preference_signals)
+                    _system_prompt += (
+                        "\n\n### USER PREFERENCE SIGNALS (learned from past actions)\n"
+                        f"{_preference_text}\n\n"
+                        "These are rules learned from user actions. Apply them automatically. "
+                        "Do not ask the user to confirm a preference that is already stored."
+                    )
+            except Exception:
+                pass  # Preference signals are a bonus, never a failure
+
         except Exception:
             pass  # Memory is a bonus, never a failure
 

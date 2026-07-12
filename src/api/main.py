@@ -1713,6 +1713,26 @@ async def chase_start(
 
     seq, mode, contact_email = await asyncio.to_thread(_resolve_and_create)
 
+    # Learn from the user's approval: store a chase policy signal for this customer.
+    # Future overdue invoices for this customer will surface a memory-driven action.
+    try:
+        from src.services.supermemory import is_available as sm_available, save_signal, memory_container_tag
+        from src.services.payment_store import get_user_for_session
+
+        if sm_available():
+            user = get_user_for_session(session_id)
+            container = memory_container_tag(session_id, user["id"] if user else None)
+            await asyncio.to_thread(
+                save_signal,
+                container,
+                "chase_policy",
+                contact_name,
+                f"For {contact_name}, approve the 4-stage chase sequence for overdue invoices. Start at stage {seq.get('next_stage', 1)} and escalate automatically.",
+                {"invoice_number": req.invoice_number, "source": "user_approval"},
+            )
+    except Exception:
+        pass
+
     from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
 
     await asyncio.to_thread(
@@ -1754,9 +1774,32 @@ async def chase_cancel(
 ):
     from src.services import chase_store
 
+    seq = await asyncio.to_thread(chase_store.get_sequence, session_id, req.sequence_id)
     ok = await asyncio.to_thread(chase_store.cancel_sequence, session_id, req.sequence_id)
     if not ok:
         raise HTTPException(status_code=404, detail="No active sequence with that id.")
+
+    # Learn from the cancellation: store a signal that this customer should not
+    # be auto-chased without explicit approval.
+    try:
+        from src.services.supermemory import is_available as sm_available, save_signal, memory_container_tag
+        from src.services.payment_store import get_user_for_session as get_user
+
+        if sm_available() and seq:
+            contact_name = seq.get("contact_name", "this customer")
+            user = get_user(session_id)
+            container = memory_container_tag(session_id, user["id"] if user else None)
+            await asyncio.to_thread(
+                save_signal,
+                container,
+                "chase_avoid",
+                contact_name,
+                f"For {contact_name}, do NOT auto-chase overdue invoices. Ask the user for explicit approval before chasing.",
+                {"sequence_id": req.sequence_id, "source": "user_cancellation"},
+            )
+    except Exception:
+        pass
+
     return {"cancelled": True}
 
 

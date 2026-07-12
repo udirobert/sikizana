@@ -755,3 +755,29 @@ def _resolve_session_container(session_id: str) -> str:
 def get_chase_policy_for_session(session_id: str, customer: str) -> dict[str, Any] | None:
     """Convenience wrapper that resolves the session container automatically."""
     return get_chase_policy(_resolve_session_container(session_id), customer)
+
+
+_PREFERENCE_SIGNAL_TYPES = {"user_preference", "chase_avoid", "journal_rejection"}
+
+
+def get_preference_signals(session_id: str) -> list[dict[str, Any]]:
+    """Return stored user preference / rule signals for the session.
+
+    These are different from recalled facts: they are behaviour-shaping rules
+    learned from user actions (rejecting a journal, cancelling a chase, etc).
+    """
+    if not is_available():
+        return []
+
+    container = _resolve_session_container(session_id)
+    # list_memories returns all documents for the container with metadata,
+    # so we can filter by type. Signals are kept short, so the 200-char
+    # content truncation in list_memories is enough for the rule text.
+    try:
+        return [
+            m
+            for m in list_memories(container)
+            if (m.get("metadata") or {}).get("type") in _PREFERENCE_SIGNAL_TYPES
+        ]
+    except Exception:
+        return []

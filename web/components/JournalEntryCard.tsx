@@ -99,6 +99,15 @@ export function JournalEntryCard({
 
   const handleReject = () => {
     setStatus("rejected");
+    // Learn from the rejection: write a signal so the agent stops proposing
+    // journal entries without explicit approval. Keep the rule first so the
+    // 200-char truncation in list_memories still captures the instruction.
+    void endpoints.memory.signal({
+      signal_type: "journal_rejection",
+      entity: "journal proposals",
+      content: `Do not propose journal entries without explicit user approval. User rejected: "${description}".`,
+      metadata: { debit_account: debitAccount, credit_account: creditAccount, amount },
+    });
     onReject?.();
   };
 
