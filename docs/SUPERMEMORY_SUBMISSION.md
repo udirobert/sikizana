@@ -3,10 +3,10 @@
 ## What we built
 
 Sikizana is an AI credit controller and bookkeeper for Xero, powered by
-Supermemory Local. The persistent memory layer is what makes the agent useful
-session after session: it gives the agent four load-bearing capabilities —
-cross-session memory, multi-region semantic tax RAG, proactive memory alerts,
-and a transparency page for user control.
+Supermemory Local. The persistent memory layer is the infrastructure that makes
+the agent useful session after session: it gives the agent five load-bearing
+capabilities — cross-session memory, multi-region semantic tax RAG, proactive
+memory alerts, user-action learning, and a transparency page for user control.
 
 ## How Supermemory is used
 
@@ -64,20 +64,53 @@ response when memory was recalled.
 it visible, inspectable, and controllable. Users can see exactly what the
 agent remembers and delete anything they don't want it to remember.
 
+### 5. User-action learning (memory that changes behaviour)
+Memory stops being a feature and starts becoming infrastructure when it learns
+from what the user does and feeds back into the agent's next action.
+
+- **Approve a chase** (`POST /api/chase/start`) → writes a `chase_policy` signal
+  for that customer. Future overdue invoices for that customer show a
+  `Chase from memory` action in the findings panel.
+- **Cancel a chase** (`POST /api/chase/cancel`) → writes a `chase_avoid` signal
+  so the agent asks for explicit approval before chasing that customer again.
+- **Reject a journal entry** (`JournalEntryCard` `Reject` button) → writes a
+  `journal_rejection` signal. The agent is then told, in the system prompt, not
+  to propose journal entries without explicit user approval.
+
+These are structured Supermemory signals (`/api/memory/signal`), not just
+conversation text. The agent recalls them via `get_preference_signals()` and
+injects them as `USER PREFERENCE SIGNALS (learned from past actions)` in the
+system prompt.
+
+**Why this matters**: most memory systems are read-only. Sikizana writes
+memory signals back from user actions, so the agent stops repeating the same
+mistakes and stops asking for confirmation on things the user already
+approved.
+
 ## Architecture
 
 - **Supermemory Local** running on the same machine as the backend
 - `SUPERMEMORY_URL` and `SUPERMEMORY_API_KEY` in `.env` (gitignored)
 - `src/services/supermemory.py` — client wrapper with health-check caching
-  (60s), graceful degradation on every call, and session-scoped container
-  tags for per-business isolation
+  (60s), graceful degradation on every call, session-scoped container tags
+  for per-business isolation, and `get_preference_signals()` for behaviour
+  rules learned from user actions
 - `src/tools/rag_engine.py` — multi-region rules with ContextVar-based
   region routing, Supermemory semantic search with keyword fallback
 - `src/agents/bookkeeper.py` — memory injection into system prompt,
-  proactive alerts on overdue invoice detection, conversation ingest
+  proactive alerts on overdue invoice detection, conversation ingest,
+  `MEMORY POLICY DIRECTIVE` to apply stored rules, and `USER PREFERENCE SIGNALS`
+  recall from user actions
+- `src/api/main.py` — `POST /api/memory/signal` stores structured behaviour
+  signals; `POST /api/chase/start` and `POST /api/chase/cancel` write signals
+  from chase approvals/cancellations
 - `web/app/memory/page.tsx` — transparency UI with list + delete
 - `web/components/MemoryBadge.tsx` — ON/OFF status indicator
 - `web/components/MemoryRecallTrace.tsx` — recall visualisation panel
+- `web/components/FindingsPanel.tsx` — surfaces `Chase from memory` when a
+  stored chase policy exists
+- `web/components/JournalEntryCard.tsx` — writes a `journal_rejection` signal
+  when the user rejects a proposed journal entry
 
 ## Graceful degradation
 
@@ -95,7 +128,7 @@ kill Supermemory mid-conversation and Siki keeps working.
 
 ## Testing
 
-101 tests pass, including 24 Supermemory-specific tests covering:
+159 tests pass, including 24 Supermemory-specific tests covering:
 - Health check caching and availability detection
 - Search with results and empty results
 - Profile retrieval
@@ -106,6 +139,9 @@ kill Supermemory mid-conversation and Siki keeps working.
 - ContextVar region routing
 - Corpus seeding (62 documents, idempotent customIds)
 - Region info metadata
+- Memory signal storage and retrieval (`chase_policy`, `chase_avoid`, `journal_rejection`)
+- `FindingsPanel` memory-driven action enrichment
+- `bookkeeper.py` memory policy directive injection
 
 ## Tech stack
 
