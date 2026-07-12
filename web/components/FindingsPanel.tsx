@@ -281,6 +281,11 @@ export function FindingsPanel({
                       <p className="text-[10px] text-stone-500 mt-0.5 truncate">
                         {KIND_LABELS[finding.kind]} · {finding.detail}
                       </p>
+                      {finding.memory_action && !asked && (
+                        <p className="text-[10px] text-violet-600 mt-0.5 truncate">
+                          {finding.memory_action.label}: {finding.memory_action.policy}
+                        </p>
+                      )}
                       {asked && (
                         <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
                       )}
@@ -337,7 +342,7 @@ export function FindingsPanel({
                     )}
                   </div>
                 </div>
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2 flex-wrap">
                   <button
                     onClick={() => onAct(finding)}
                     disabled={asked || disabled}
@@ -352,6 +357,17 @@ export function FindingsPanel({
                       ? "✓ Asked"
                       : findingActionLabel(persona, finding.action.label, finding.kind)}
                   </button>
+                  {finding.memory_action && (
+                    <button
+                      onClick={() => onAct(finding)}
+                      disabled={asked || disabled}
+                      title={finding.memory_action.policy || finding.memory_action.label}
+                      aria-label={`${finding.memory_action.label} — ${finding.title}`}
+                      className="text-[11px] font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed text-violet-700 bg-violet-50 hover:bg-violet-100"
+                    >
+                      {finding.memory_action.label}
+                    </button>
+                  )}
                   {chaseable && (
                     <button
                       onClick={() => onAutoChase!(finding)}

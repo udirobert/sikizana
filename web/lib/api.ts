@@ -194,6 +194,8 @@ export interface FindingAction {
   label: string;
   /** Ready to send to the chat verbatim. */
   prompt: string;
+  /** Optional rule text from a stored memory signal. */
+  policy?: string;
 }
 
 export interface Finding {
@@ -205,6 +207,8 @@ export interface Finding {
   detail: string;
   days_overdue?: number;
   action: FindingAction;
+  /** Memory-driven action, e.g. a stored chase policy for this customer. */
+  memory_action?: FindingAction;
   /** Present on overdue_invoice findings — enables one-click auto-chase. */
   invoice_number?: string;
   invoice_id?: string;
@@ -425,6 +429,9 @@ export const endpoints = {
     /** Explicitly remember a fact from the chat. */
     remember: (content: string) =>
       api.post<{ remembered: boolean; id: string }>("/api/memory/remember", { content }),
+    /** Store a structured memory signal (e.g. a chase policy for a customer). */
+    signal: (payload: { signal_type: string; entity: string; content: string; metadata?: Record<string, unknown> }) =>
+      api.post<{ saved: boolean; id: string }>("/api/memory/signal", payload),
   },
 
   chase: {

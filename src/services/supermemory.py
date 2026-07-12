@@ -632,6 +632,13 @@ _DEMO_MEMORIES = [
         "id": "demo-chase",
         "content": "The user has historically approved the chase ladder for Catering Co Ltd after invoices pass 30 days overdue. The ladder stages are friendly, firm, final notice, recovery warning, and letter before action.",
     },
+    # This is a structured memory signal, not just a recalled fact. It tells the
+    # agent to actually apply a chase policy instead of just mentioning it.
+    {
+        "id": "demo-chase-policy",
+        "content": "For Catering Co Ltd, approve the 4-stage chase ladder as soon as an invoice passes 30 days overdue. Use a firm final notice with statutory interest and the Late Payment Act. Do not ask the user to confirm each stage.",
+        "metadata": {"type": "chase_policy", "entity": "Catering Co Ltd"},
+    },
 ]
 
 
@@ -654,10 +661,13 @@ def seed_demo_memories(session_id: str, user_id: int | None = None) -> int:
 
     count = 0
     for demo in _DEMO_MEMORIES:
+        meta = {"source": "demo", "topic": "demo-memory"}
+        if demo.get("metadata"):
+            meta.update(demo["metadata"])
         doc_id = add_document(
             content=demo["content"],
             container_tag=container,
-            metadata={"source": "demo", "topic": "demo-memory"},
+            metadata=meta,
             custom_id=demo["id"],
             task_type="memory",
         )
@@ -665,3 +675,83 @@ def seed_demo_memories(session_id: str, user_id: int | None = None) -> int:
             count += 1
     log.info("supermemory_demo_memories_seeded", extra={"count": count, "container": container})
     return count
+
+
+def _slugify(text: str) -> str:
+    """A compact, URL-safe slug for stable custom IDs."""
+    import re
+
+    return re.sub(r"[^a-z0-9-]", "", text.lower().replace(" ", "-"))[:48]
+
+
+def save_signal(
+    container_tag: str,
+    signal_type: str,
+    entity: str,
+    content: str,
+    metadata: dict[str, Any] | None = None,
+) -> str | None:
+    """Store a structured memory signal that drives future behavior.
+
+    A signal is a concise rule or outcome attached to an entity (e.g. a
+    customer). Example: a chase policy for "Catering Co Ltd" — "approve a
+    4-stage chase after 30 days overdue, use final notice + statutory interest".
+    """
+    if not is_available():
+        return None
+
+    meta = {"type": signal_type, "entity": entity}
+    if metadata:
+        meta.update(metadata)
+    custom_id = f"{signal_type}-{_slugify(entity)}"
+    return add_document(
+        content=content,
+        container_tag=container_tag,
+        metadata=meta,
+        custom_id=custom_id,
+        task_type="memory",
+    )
+
+
+def get_signal(container_tag: str, entity: str, signal_type: str) -> dict[str, Any] | None:
+    """Look for a stored signal for a given entity and type.
+
+    Returns the best matching signal with its content, metadata, and id, or
+    None if no signal is found. Falls back to keyword search if no semantic
+    match scores above the threshold.
+    """
+    if not is_available():
+        return None
+
+    query = f"{signal_type} {entity}"
+    results = search(query, container_tag, limit=10, search_mode="hybrid")
+    for r in results:
+        meta = r.get("metadata") or {}
+        if (
+            meta.get("type") == signal_type
+            and meta.get("entity", "").lower() == entity.lower()
+            and r.get("score", 0) > 0.3
+        ):
+            return r
+        # Fallback: if no metadata match, accept a strong content match
+        if r.get("score", 0) > 0.7 and entity.lower() in r.get("content", "").lower():
+            return r
+    return None
+
+
+def get_chase_policy(container_tag: str, customer: str) -> dict[str, Any] | None:
+    """Return the stored chase policy for a customer, if any."""
+    return get_signal(container_tag, customer, "chase_policy")
+
+
+def _resolve_session_container(session_id: str) -> str:
+    """Resolve the Supermemory container for a session (user or anonymous)."""
+    from src.services.payment_store import get_user_for_session
+
+    user = get_user_for_session(session_id)
+    return memory_container_tag(session_id, user["id"] if user else None)
+
+
+def get_chase_policy_for_session(session_id: str, customer: str) -> dict[str, Any] | None:
+    """Convenience wrapper that resolves the session container automatically."""
+    return get_chase_policy(_resolve_session_container(session_id), customer)

@@ -251,6 +251,13 @@ class RememberRequest(BaseModel):
     content: str = Field(..., min_length=1, max_length=5000)
 
 
+class SignalRequest(BaseModel):
+    signal_type: str = Field(..., min_length=1, max_length=64)
+    entity: str = Field(..., min_length=1, max_length=128)
+    content: str = Field(..., min_length=1, max_length=5000)
+    metadata: dict[str, Any] | None = None
+
+
 @app.post("/api/memory/remember")
 async def remember_something(req: RememberRequest, session_id: str = Depends(get_session_id)):
     """Explicitly remember a fact for the current session.
@@ -277,6 +284,35 @@ async def remember_something(req: RememberRequest, session_id: str = Depends(get
     if doc_id is None:
         raise HTTPException(status_code=500, detail="Failed to save memory")
     return {"remembered": True, "id": doc_id}
+
+
+@app.post("/api/memory/signal")
+async def remember_signal(req: SignalRequest, session_id: str = Depends(get_session_id)):
+    """Store a structured memory signal that drives future behavior.
+
+    Signals are rules or outcomes attached to an entity (e.g. a customer).
+    They are recalled by the agent and the UI to change behavior, not just
+    to add flavour to a response.
+    """
+    from src.services.supermemory import is_available, save_signal, memory_container_tag
+    from src.services.payment_store import get_user_for_session
+
+    if not is_available():
+        raise HTTPException(status_code=503, detail="Supermemory is not available")
+
+    user = get_user_for_session(session_id)
+    container = memory_container_tag(session_id, user["id"] if user else None)
+    doc_id = await asyncio.to_thread(
+        save_signal,
+        container,
+        req.signal_type,
+        req.entity,
+        req.content,
+        req.metadata,
+    )
+    if doc_id is None:
+        raise HTTPException(status_code=500, detail="Failed to save signal")
+    return {"saved": True, "id": doc_id}
 
 
 @app.post("/api/memory/seed-demo")

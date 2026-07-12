@@ -17,6 +17,7 @@ from src.services.connectors import get_connector
 from src.services.connectors.base import AccountingConnector
 from src.services.rates import daily_statutory_interest
 from src.services.logging import get_logger
+from src.services.supermemory import get_chase_policy_for_session, is_available as sm_available
 
 log = get_logger("sikizana.findings")
 
@@ -60,6 +61,26 @@ def build_findings(session_id: str) -> dict[str, Any]:
             "invoice_number": number,
             "invoice_id": inv.get("id", ""),
         }
+
+        # --- Memory-driven action: if we have a chase policy for this customer, surface it ---
+        memory_action = None
+        if kind == "overdue_invoice" and sm_available():
+            try:
+                policy = get_chase_policy_for_session(session_id, contact)
+                if policy:
+                    memory_action = {
+                        "type": "chase",
+                        "label": "Chase from memory",
+                        "prompt": (
+                            f"{policy['content']} Apply this policy to invoice {number} "
+                            f"for {contact}, which is {days} days overdue for £{amount:,.2f}. "
+                            f"Draft the next appropriate chasing message and explain what step this is."
+                        ),
+                        "policy": policy["content"],
+                    }
+            except Exception:
+                pass
+
         if kind == "overdue_invoice":
             finding["action"] = {
                 "type": "chase",
@@ -70,6 +91,8 @@ def build_findings(session_id: str) -> dict[str, Any]:
                     f"I'm losing £{daily_interest}/day in statutory interest."
                 ),
             }
+            if memory_action:
+                finding["memory_action"] = memory_action
         else:
             finding["action"] = {
                 "type": "explain",

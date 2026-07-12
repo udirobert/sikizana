@@ -588,8 +588,9 @@ function BooksView() {
   const handleFindingAct = (finding: Finding) => {
     if (isLoading) return;
     setAskedFindingIds((prev) => new Set(prev).add(finding.id));
-    addMessage({ role: "user", content: finding.action.prompt });
-    void sendToAgent(finding.action.prompt);
+    const prompt = finding.memory_action?.prompt ?? finding.action.prompt;
+    addMessage({ role: "user", content: prompt });
+    void sendToAgent(prompt);
   };
 
   /**

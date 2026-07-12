@@ -743,6 +743,17 @@ async def run_bookkeeper_streaming(
             f"the user asks. Pick up where the conversation left off naturally.\n"
         )
 
+    # Behavioral directive: if a memory contains a policy for a customer or
+    # a business rule, apply it. The user is treating Supermemory as
+    # infrastructure, not just a fact dump.
+    _system_prompt += (
+        "\n\n### MEMORY POLICY DIRECTIVE\n"
+        "If a recalled memory contains a policy or rule (e.g. 'for Catering Co Ltd, approve a 4-stage chase at 30 days overdue'), "
+        "apply that policy immediately by calling the appropriate tool. "
+        "Do not ask the user to confirm the policy itself. "
+        "Only ask for final approval if the action is irreversible (posting a journal, starting a chase)."
+    )
+
     messages = [{"role": "system", "content": _system_prompt}] + history
 
     # Human-readable tool name mapping
@@ -1053,7 +1064,7 @@ async def run_bookkeeper_streaming(
                                 messages.append(
                                     {
                                         "role": "system",
-                                        "content": f"### PROACTIVE MEMORY ALERT\nYou have past memories about these overdue customers:\n{_proactive_text}\n\nReference this naturally in your response — e.g. 'Acme was late last time too, and a final notice got them to pay in 5 days.' If the memory contradicts live data, trust the live data.",
+                                        "content": f"### PROACTIVE MEMORY ALERT\nYou have past memories about these overdue customers:\n{_proactive_text}\n\nIf a memory contains a chase policy, APPLY IT: call the right tool to draft the next chasing message for the right stage. Do not ask the user to confirm the policy itself. If the memory contradicts live data, trust the live data.",
                                     }
                                 )
                                 # Also emit a memory_recall event so the UI shows the alert
