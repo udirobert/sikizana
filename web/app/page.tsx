@@ -82,8 +82,8 @@ export default function LandingPage() {
           <ZanaMascot size={56} mood="look" />
         </div>
 
-        <div className="inline-block bg-stone-100 text-stone-600 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
-          Two owls · One Xero connection · Your money
+        <div className="inline-block bg-violet-100 text-violet-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
+          Powered by Supermemory Local · Your business memory stays on your machine
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up fade-in-up-delay-2">
@@ -97,6 +97,8 @@ export default function LandingPage() {
         <p className="mt-5 text-lg text-stone-600 max-w-2xl mx-auto fade-in-up fade-in-up-delay-3">
           Sikizana reads your Xero data with two AI personas — Siki explains your books in plain
           English; Zana drafts the chasing emails and escalates until overdue invoices get paid.
+          And with Supermemory Local, Siki remembers every conversation, customer pattern, and tax
+          rule across sessions — so you never start from zero.
         </p>
 
         <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto text-left fade-in-up fade-in-up-delay-4">
@@ -232,6 +234,12 @@ export default function LandingPage() {
               title: "You approve every action",
               body: "Chase emails, journal fixes, and auto-escalation only run after you click — human-in-the-loop by design.",
             },
+            {
+              step: "4",
+              icon: "memory",
+              title: "Siki remembers",
+              body: "Every conversation, customer pattern, and tax question is stored in Supermemory Local on your own machine. Come back tomorrow and pick up where you left off.",
+            },
           ].map((item, i) => (
             <div
               key={item.step}
@@ -247,6 +255,7 @@ export default function LandingPage() {
                   {item.icon === "ask" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z" />}
                   {item.icon === "analyze" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />}
                   {item.icon === "approve" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />}
+                  {item.icon === "memory" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />}
                 </svg>
               </div>
               <h3 className="text-sm font-semibold text-stone-900 mb-1">
@@ -301,7 +310,7 @@ export default function LandingPage() {
             What Sikizana can do
           </h2>
           <p className="text-sm text-stone-500 text-center mb-12">
-            Everything an accountant would do — in seconds, not days.
+            Everything an accountant would do — with a persistent local memory that learns your business.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {[
@@ -311,6 +320,7 @@ export default function LandingPage() {
               { title: "Spot bad customers", desc: "Scores every customer's payment reliability (red/amber/green) and flags the ones who cost more to chase than they're worth.", emoji: "🚦" },
               { title: "Estimate your tax bill", desc: "Calculates your UK Corporation Tax, flags non-deductible expenses — and reminds you that you pay tax on invoiced money even before it's paid.", emoji: "🏛️" },
               { title: "Explain your P&L", desc: "Translates your profit & loss into plain English. No more guessing what the numbers mean.", emoji: "📈" },
+              { title: "Remembers across sessions", desc: "Siki recalls your customers, past conversations, and tax rules from Supermemory Local — so every answer is personal.", emoji: "🧠" },
             ].map((feat, i) => (
               <div
                 key={feat.title}
@@ -375,6 +385,9 @@ export default function LandingPage() {
             </Link>
             <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Terms of Service
+            </Link>
+            <Link href="/tax" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Tax Assistant
             </Link>
             <Link href="/pricing" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Pricing

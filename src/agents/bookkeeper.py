@@ -526,6 +526,7 @@ async def run_bookkeeper(
     thread_id: str | None = None,
     persona: str = "siki",
     session_id: str = "default",
+    disable_memory: bool = False,
 ) -> str:
     """
     Run the bookkeeper agent on user input with conversation persistence.
@@ -535,7 +536,11 @@ async def run_bookkeeper(
     """
     events: list[dict[str, Any]] = []
     async for event in run_bookkeeper_streaming(
-        user_input, thread_id, persona=persona, session_id=session_id
+        user_input,
+        thread_id,
+        persona=persona,
+        session_id=session_id,
+        disable_memory=disable_memory,
     ):
         events.append(event)
     # Extract the final text from the events
@@ -548,6 +553,7 @@ async def run_bookkeeper_streaming(
     thread_id: str | None = None,
     persona: str = "siki",
     session_id: str = "default",
+    disable_memory: bool = False,
 ) -> Any:
     """
     Streaming version of run_bookkeeper.
@@ -618,18 +624,19 @@ async def run_bookkeeper_streaming(
     _system_prompt += "\n\n### CRITICAL OUTPUT RULES\n- Never mention which tool you are calling or just called. The UI shows tool activity automatically.\n- Never echo raw tool output (e.g. 'UNRECONCILED BANK TRANSACTIONS (4):'). Always rephrase in natural English.\n- Never say 'This response is the result of calling...' or similar meta-commentary.\n- Your text output must be the answer itself, written as if you already know the information.\n"
 
     # --- Supermemory: inject recalled memory into the system prompt ---
-    # When Supermemory Local is available, the agent recalls past context
-    # about this business (customer payment patterns, chasing outcomes,
-    # user preferences, prior findings) instead of starting from zero.
-    # If Supermemory is unset or unreachable, this entire block is skipped
-    # and the agent works identically — just without memory.
+    # When Supermemory Local is available and the user hasn't toggled memory
+    # off, the agent recalls past context about this business (customer payment
+    # patterns, chasing outcomes, user preferences, prior findings) instead of
+    # starting from zero. If Supermemory is unset or unreachable, this entire
+    # block is skipped and the agent works identically — just without memory.
     from src.services.supermemory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
     from src.services.supermemory import memory_container_tag as _sm_container_tag
     from src.services.payment_store import get_user_for_session as _get_user
 
+    _memory_enabled = _sm_available() and not disable_memory
     _memory_facts: list[str] = []
     _memory_sources: list[dict[str, Any]] = []
-    if _sm_available():
+    if _memory_enabled:
         try:
             # Resolve the container tag: user-scoped if logged in, session-scoped if anonymous
             _user = await asyncio.to_thread(_get_user, session_id)
@@ -668,9 +675,15 @@ async def run_bookkeeper_streaming(
                         break
                 if _relevant:
                     _recall_items = [h["content"] for h in _relevant]
+                    _recall_ids = [h.get("id", "") for h in _relevant]
                     _memory_parts.append("### RELEVANT PAST MEMORIES\n" + "\n".join(f"- {h['content']}" for h in _relevant))
                     _memory_facts.extend(_recall_items)
-                    _memory_sources.append({"type": "recall", "label": "Recalled memories", "items": _recall_items})
+                    _memory_sources.append({
+                        "type": "recall",
+                        "label": "Recalled memories",
+                        "items": _recall_items,
+                        "ids": _recall_ids,
+                    })
                 if _memory_parts:
                     _system_prompt += "\n\n" + "\n\n".join(_memory_parts)
                     _system_prompt += "\n\nUse this remembered context naturally. If it contradicts live Xero data, trust Xero. Never say 'from my memory' — speak as if you remember."
@@ -1017,21 +1030,26 @@ async def run_bookkeeper_streaming(
                         from src.services.supermemory import memory_container_tag as _sm_ct
                         from src.services.payment_store import get_user_for_session as _get_user3
 
-                        if _sm_avail():
+                        if _sm_avail() and not disable_memory:
                             # Resolve container tag (user-scoped if logged in)
                             _user3 = _get_user3(session_id)
                             _ct = _sm_ct(session_id, _user3["id"] if _user3 else None)
                             # Extract customer names from the tool result
                             _customer_names = _extract_customer_names(result)
-                            _proactive_facts: list[str] = []
+                            _proactive_hits: list[dict[str, Any]] = []
+                            _proactive_seen: set[str] = set()
                             for _cname in _customer_names[:3]:  # limit to 3 customers
                                 _hits = await asyncio.to_thread(_sm_search, _cname, _ct, 2, "hybrid")
                                 for _h in _hits:
-                                    if _h.get("score", 0) > 0.5 and _h.get("content"):
-                                        _proactive_facts.append(_h["content"])
+                                    _c = _h.get("content", "")
+                                    if _h.get("score", 0) > 0.5 and _c and _c not in _proactive_seen:
+                                        _proactive_seen.add(_c)
+                                        _proactive_hits.append(_h)
 
-                            if _proactive_facts:
-                                _proactive_text = "\n".join(f"- {f}" for f in _proactive_facts[:3])
+                            if _proactive_hits:
+                                _proactive_facts = [h["content"] for h in _proactive_hits[:3]]
+                                _proactive_ids = [h.get("id", "") for h in _proactive_hits[:3]]
+                                _proactive_text = "\n".join(f"- {f}" for f in _proactive_facts)
                                 messages.append(
                                     {
                                         "role": "system",
@@ -1041,8 +1059,8 @@ async def run_bookkeeper_streaming(
                                 # Also emit a memory_recall event so the UI shows the alert
                                 yield {
                                     "type": "memory_recall",
-                                    "facts": _proactive_facts[:3],
-                                    "sources": [{"type": "recall", "label": "Proactive memory alert", "items": _proactive_facts[:3]}],
+                                    "facts": _proactive_facts,
+                                    "sources": [{"type": "recall", "label": "Proactive memory alert", "items": _proactive_facts, "ids": _proactive_ids}],
                                 }
                     except Exception:
                         pass  # Proactive alerts are a bonus, never a failure

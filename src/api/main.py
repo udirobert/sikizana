@@ -247,6 +247,96 @@ async def delete_session_memory(document_id: str = Path(..., min_length=1, max_l
     return {"deleted": True, "id": document_id}
 
 
+class RememberRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=5000)
+
+
+@app.post("/api/memory/remember")
+async def remember_something(req: RememberRequest, session_id: str = Depends(get_session_id)):
+    """Explicitly remember a fact for the current session.
+
+    The user can click "Remember this" on any message to save it to their
+    Supermemory container. This makes the memory layer interactive and gives
+    the user control over what Siki remembers.
+    """
+    from src.services.supermemory import is_available, add_document, memory_container_tag
+    from src.services.payment_store import get_user_for_session
+
+    if not is_available():
+        raise HTTPException(status_code=503, detail="Supermemory is not available")
+
+    user = get_user_for_session(session_id)
+    container = memory_container_tag(session_id, user["id"] if user else None)
+    doc_id = await asyncio.to_thread(
+        add_document,
+        content=req.content,
+        container_tag=container,
+        metadata={"source": "user", "topic": "remembered"},
+        task_type="memory",
+    )
+    if doc_id is None:
+        raise HTTPException(status_code=500, detail="Failed to save memory")
+    return {"remembered": True, "id": doc_id}
+
+
+@app.post("/api/memory/seed-demo")
+async def seed_demo_memories(session_id: str = Depends(get_session_id)):
+    """Seed demo memories for the current session if it is in demo mode.
+
+    This lets first-time hackathon judges see proactive memory alerts and
+    cross-session recall without first having a real conversation. It is
+    idempotent and only runs when the session is using demo data.
+    """
+    from src.services.xero_service import XeroService
+    from src.services.supermemory import seed_demo_memories
+    from src.services.payment_store import get_user_for_session
+
+    mode = XeroService(session_id).mode()
+    if mode != "demo":
+        raise HTTPException(status_code=403, detail="Demo memory seeding is only available in demo mode")
+
+    user = get_user_for_session(session_id)
+    count = await asyncio.to_thread(seed_demo_memories, session_id, user["id"] if user else None)
+    return {"seeded": count, "mode": mode}
+
+
+@app.get("/api/tax/rag")
+async def search_tax_rag(q: str, region: str = "GB", session_id: str = Depends(get_session_id)):
+    """Semantic search over the multi-region tax corpus.
+
+    Returns the raw Supermemory search results so the Tax RAG showcase can
+    display which documents and chunks influenced the answer, with region and
+    relevance scores. Falls back to the embedded keyword rules if Supermemory
+    is unavailable.
+    """
+    from src.tools.rag_engine import _get_rules_for_region, _REGION_INFO, _normalize_region
+    from src.services.supermemory import is_available, search_tax_rules
+
+    region = _normalize_region(region)
+    if is_available():
+        results = await asyncio.to_thread(search_tax_rules, q, region, 5)
+    else:
+        # Fallback: surface the embedded keyword rules for the region.
+        rules = _get_rules_for_region(region)
+        results = [
+            {
+                "content": text,
+                "score": 1.0,
+                "metadata": {"source": "embedded", "region": region, "topic": topic},
+                "id": f"tax-{region}-embedded-{topic}",
+            }
+            for topic, text in rules.items()
+        ]
+
+    return {
+        "query": q,
+        "region": region,
+        "region_info": _REGION_INFO.get(region, _REGION_INFO["GB"]),
+        "supermemory": is_available(),
+        "results": results,
+    }
+
+
 # ---- Contextual content (while Siki is working) ----
 #
 # Results are cached in SQLite (services/cache.py) for 24h, keyed on the
@@ -748,6 +838,7 @@ class XeroChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=10000)
     thread_id: str | None = Field(None, max_length=64)
     persona: str = Field("siki", pattern="^(siki|zana)$")
+    disable_memory: bool = Field(False, description="If true, the agent will not recall or ingest Supermemory for this turn")
 
 
 @app.post("/api/xero/chat")
@@ -766,7 +857,11 @@ async def xero_chat(
         from src.agents.bookkeeper import run_bookkeeper
 
         response = await run_bookkeeper(
-            req.message, req.thread_id, persona=req.persona, session_id=session_id
+            req.message,
+            req.thread_id,
+            persona=req.persona,
+            session_id=session_id,
+            disable_memory=req.disable_memory,
         )
         agent_available = True
     except ImportError as exc:
@@ -837,7 +932,11 @@ async def xero_chat_stream(
             )
 
             async for event in run_bookkeeper_streaming(
-                req.message, req.thread_id, persona=req.persona, session_id=session_id
+                req.message,
+                req.thread_id,
+                persona=req.persona,
+                session_id=session_id,
+                disable_memory=req.disable_memory,
             ):
                 # Intercept events to build the audit trail
                 if event.get("type") == "tool_result":

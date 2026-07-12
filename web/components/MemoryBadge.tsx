@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useBackendHealth } from "@/hooks/useBackendHealth";
 
 /**
@@ -17,16 +18,17 @@ export function MemoryBadge({ className = "" }: { className?: string }) {
   const { supermemory } = useBackendHealth();
 
   return (
-    <span
+    <Link
+      href="/memory"
       className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full transition-colors ${
         supermemory
-          ? "bg-violet-100 text-violet-700"
-          : "bg-stone-100 text-stone-400"
-      } ${className}`}
+          ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
+          : "bg-stone-100 text-stone-400 hover:bg-stone-200"
+      } ${supermemory ? "ring-2 ring-violet-200/50" : ""} ${className}`}
       title={
         supermemory
-          ? "Supermemory Local is connected — the agent remembers across sessions"
-          : "Supermemory is not connected — the agent works without memory"
+          ? "Supermemory Local is connected — click to see what Siki remembers"
+          : "Supermemory is not connected — click to learn more"
       }
     >
       {/* Brain icon */}
@@ -44,6 +46,6 @@ export function MemoryBadge({ className = "" }: { className?: string }) {
         />
       </svg>
       <span>{supermemory ? "Memory: ON" : "Memory: OFF"}</span>
-    </span>
+    </Link>
   );
 }

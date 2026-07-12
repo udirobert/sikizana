@@ -2,10 +2,11 @@
 
 ## What we built
 
-Sikizana is an AI credit controller and bookkeeper for Xero. We integrated
-Supermemory Local as an **optional enhancement layer** that gives the agent
-four capabilities it didn't have before — memory, multi-region semantic tax
-RAG, proactive alerts, and a transparency page for user control.
+Sikizana is an AI credit controller and bookkeeper for Xero, powered by
+Supermemory Local. The persistent memory layer is what makes the agent useful
+session after session: it gives the agent four load-bearing capabilities —
+cross-session memory, multi-region semantic tax RAG, proactive memory alerts,
+and a transparency page for user control.
 
 ## How Supermemory is used
 
@@ -19,7 +20,7 @@ user.
 
 **Why this matters**: without memory, every session starts from zero. The
 user has to re-explain their business, their customers, and their
-preferences. With Supermemory, the agent picks up where it left off —
+preferences. With Supermemory Local, the agent picks up where it left off —
 "Acme was late last time too, and a final notice got them to pay in 5 days."
 
 ### 2. Multi-region semantic tax RAG

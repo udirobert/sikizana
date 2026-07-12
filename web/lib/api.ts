@@ -366,6 +366,16 @@ export const endpoints = {
   contextSearch: (q: string) =>
     api.get<{ results: ContextResult[]; source: string }>(`/api/context/search?q=${encodeURIComponent(q)}`),
 
+  /** Multi-region semantic tax RAG search (Supermemory Local). */
+  taxRag: (q: string, region: string) =>
+    api.get<{
+      query: string;
+      region: string;
+      region_info: { name: string; authority: string; currency: string; symbol: string };
+      supermemory: boolean;
+      results: MemoryEntry[];
+    }>(`/api/tax/rag?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`),
+
   impact: () => api.get<ImpactMetrics>("/api/impact"),
 
   /** This session's audit trail — journals posted/reversed, newest first. */
@@ -410,6 +420,11 @@ export const endpoints = {
     /** Delete a specific memory by document ID (right-to-erasure). */
     delete: (documentId: string) =>
       api.delete<{ deleted: boolean; id: string }>(`/api/memory/${documentId}`),
+    /** Seed demo memories for the current session. */
+    seedDemo: () => api.post<{ seeded: number; mode: string }>("/api/memory/seed-demo"),
+    /** Explicitly remember a fact from the chat. */
+    remember: (content: string) =>
+      api.post<{ remembered: boolean; id: string }>("/api/memory/remember", { content }),
   },
 
   chase: {
@@ -492,6 +507,7 @@ export const endpoints = {
       thread_id?: string,
       persona?: string,
       signal?: AbortSignal,
+      disableMemory?: boolean,
     ): AsyncGenerator<AgentEvent> {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
@@ -506,7 +522,7 @@ export const endpoints = {
         const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, thread_id, persona }),
+          body: JSON.stringify({ message, thread_id, persona, disable_memory: disableMemory }),
           signal: controller.signal,
           credentials: "include",
         });

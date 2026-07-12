@@ -1,5 +1,5 @@
 """
-Supermemory Local client — optional enhancement layer for Sikizana.
+Supermemory Local client — the persistent memory layer for Sikizana.
 
 When SUPERMEMORY_URL is set and the server is reachable, the agent gains:
   - Persistent memory across sessions (recalls past findings, customer
@@ -9,8 +9,8 @@ When SUPERMEMORY_URL is set and the server is reachable, the agent gains:
     search over ingested official content
 
 When SUPERMEMORY_URL is unset or the server is unreachable, every call
-gracefully no-ops or falls back. The app works identically without
-Supermemory — just without memory.
+gracefully no-ops or falls back. The app never breaks, but the product is
+at its best with Supermemory Local running.
 
 Architecture:
   - All HTTP calls use httpx (already a dependency) with short timeouts.
@@ -606,3 +606,62 @@ def verify_document_ownership(document_id: str, container_tag: str) -> bool:
         return container_tag in tags
     except Exception:
         return False
+
+
+# Pre-written demo memories that make the first-time hackathon demo immediately
+# compelling. They are scoped to the session/user container, so a real user only
+# sees them if they explicitly start the demo.
+_DEMO_MEMORIES = [
+    {
+        "id": "demo-catering",
+        "content": "Catering Co Ltd was 45 days late on invoice INV-0001 last quarter. A firm final notice citing statutory interest and the Late Payment Act got them to pay in full within 5 days.",
+    },
+    {
+        "id": "demo-preference",
+        "content": "The user prefers short, plain English answers and wants to be warned about non-deductible expenses such as client entertainment.",
+    },
+    {
+        "id": "demo-business",
+        "content": "The Daily Grind Ltd is a UK-based café. Typical days-to-get-paid are around 40 days, and the biggest repeat late payer is Catering Co Ltd.",
+    },
+    {
+        "id": "demo-tax",
+        "content": "The user previously asked about business mileage allowance. The answer for this UK business is 45p per mile for the first 10,000 business miles, then 25p per mile.",
+    },
+    {
+        "id": "demo-chase",
+        "content": "The user has historically approved the chase ladder for Catering Co Ltd after invoices pass 30 days overdue. The ladder stages are friendly, firm, final notice, recovery warning, and letter before action.",
+    },
+]
+
+
+def seed_demo_memories(session_id: str, user_id: int | None = None) -> int:
+    """Seed demo memories for the current session if the container is empty.
+
+    This makes the first-time hackathon demo immediately show proactive memory
+    alerts and cross-session recall. It is idempotent — demo memories are
+    skipped if any already exist for the container.
+
+    Returns the number of memories seeded.
+    """
+    if not is_available():
+        return 0
+
+    container = memory_container_tag(session_id, user_id)
+    existing = list_memories(container)
+    if any(d.get("id", "").startswith("demo-") for d in existing):
+        return 0
+
+    count = 0
+    for demo in _DEMO_MEMORIES:
+        doc_id = add_document(
+            content=demo["content"],
+            container_tag=container,
+            metadata={"source": "demo", "topic": "demo-memory"},
+            custom_id=demo["id"],
+            task_type="memory",
+        )
+        if doc_id is not None:
+            count += 1
+    log.info("supermemory_demo_memories_seeded", extra={"count": count, "container": container})
+    return count

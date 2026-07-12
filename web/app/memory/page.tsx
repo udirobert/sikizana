@@ -5,7 +5,6 @@ import Link from "next/link";
 import { endpoints, type MemoryEntry } from "@/lib/api";
 import { MemoryBadge } from "@/components/MemoryBadge";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
-import { RequireAuth } from "@/components/RequireAuth";
 import { usePersona } from "@/hooks/usePersona";
 import { getPersonaCopy } from "@/lib/persona-theme";
 
@@ -48,7 +47,6 @@ export default function MemoryPage() {
   };
 
   return (
-    <RequireAuth>
     <div className="min-h-screen bg-stone-50">
       <header className="bg-white border-b border-stone-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -125,7 +123,7 @@ export default function MemoryPage() {
             </p>
             {memories.map((memory) => (
               <div
-                key={memory.id || `mem-${Math.random()}`}
+                key={memory.id}
                 className="bg-white border border-stone-200 rounded-xl p-4 fade-in-up group"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -182,6 +180,5 @@ export default function MemoryPage() {
         )}
       </main>
     </div>
-    </RequireAuth>
   );
 }

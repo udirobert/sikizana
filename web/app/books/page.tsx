@@ -29,6 +29,7 @@ import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
 import { ResponseSummary } from "@/components/ResponseSummary";
 import { ApiHealthDot } from "@/components/ApiHealthDot";
 import { MemoryBadge } from "@/components/MemoryBadge";
+import { useBackendHealth } from "@/hooks/useBackendHealth";
 import { MemoryRecallTrace } from "@/components/MemoryRecallTrace";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
@@ -132,6 +133,8 @@ function BooksView() {
   const [navOpen, setNavOpen] = useState(false);
   const [oauthConfigured, setOauthConfigured] = useState(false);
   const [userConnection, setUserConnection] = useState<{ connected: boolean; tenant_name?: string } | null>(null);
+  const [memoryEnabled, setMemoryEnabled] = useState(true);
+  const [rememberedMessages, setRememberedMessages] = useState<Set<number>>(new Set());
   const [connecting, setConnecting] = useState(false);
   // Pre-OAuth consent screen — what Siki reads, what it can't do, how to leave.
   const [showConnectConfirm, setShowConnectConfirm] = useState(false);
@@ -166,6 +169,7 @@ function BooksView() {
   const copy = getPersonaCopy(persona);
   const recoveredCopy = getRecoveredCelebrationCopy(persona);
   const connectCopy = getConnectMomentCopy(persona, xeroMode === "demo");
+  const { supermemory } = useBackendHealth();
 
   const refreshMetricSnapshots = useCallback((force = false) => {
     void endpoints.xero
@@ -178,6 +182,7 @@ function BooksView() {
   const inputRef = useRef<HTMLInputElement>(null);
   const successDialogRef = useRef<HTMLDivElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  const demoSeededRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -217,6 +222,15 @@ function BooksView() {
   const dismissWelcome = () => {
     localStore.set(StorageKeys.BOOKS_VISITED, true);
     setShowWelcome(false);
+  };
+
+  const handleRemember = async (index: number, content: string) => {
+    try {
+      await endpoints.memory.remember(content);
+      setRememberedMessages((prev) => new Set(prev).add(index));
+    } catch {
+      // best-effort — user can still see the chat
+    }
   };
 
   /** Fetch the structured audit findings — the heart of the page. */
@@ -278,6 +292,14 @@ function BooksView() {
       })
       .catch(() => {});
   }, [loadFindings, refreshMetricSnapshots, searchParams]);
+
+  // Seed demo memories when running in demo mode so first-time judges see
+  // proactive memory alerts and cross-session recall without a warm-up chat.
+  useEffect(() => {
+    if (xeroMode !== "demo" || demoSeededRef.current) return;
+    demoSeededRef.current = true;
+    void endpoints.memory.seedDemo().catch(() => {});
+  }, [xeroMode]);
 
   // Landing page paths: /books?persona=siki|zana sets the active owl once.
   const personaFromUrlRef = useRef(false);
@@ -438,7 +460,7 @@ function BooksView() {
     try {
       setLastQuery(message);
       setLastContextResults([]);
-      for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal)) {
+      for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal, !memoryEnabled)) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
         } else if (event.type === "memory_recall") {
@@ -1029,6 +1051,19 @@ function BooksView() {
               </button>
             </div>
 
+            {/* Memory toggle — lets the user compare answers with and without Supermemory */}
+            <button
+              onClick={() => setMemoryEnabled((m) => !m)}
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-colors btn-press ${
+                memoryEnabled
+                  ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                  : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+              }`}
+              title={memoryEnabled ? "Memory is ON — Siki will recall and remember" : "Memory is OFF — compare what Siki would say without memory"}
+            >
+              {memoryEnabled ? "Memory: ON" : "Memory: OFF"}
+            </button>
+
             {messages.length > 0 && (
               confirmClear ? (
                 <div className="flex items-center gap-1">
@@ -1069,6 +1104,21 @@ function BooksView() {
               {persona === "siki"
                 ? "Siki explains — who owes you, what your numbers mean, what's normal for your industry. No jargon."
                 : "Zana enforces — chasing emails, escalation plans, customer scoring, hard truths. Let's get you paid."}
+            </div>
+          )}
+
+          {/* Memory off nudge — when Supermemory Local is not running, the agent works without memory. */}
+          {!supermemory && (
+            <div className="bg-stone-50 border-b border-stone-200 px-5 py-2 text-[11px] text-stone-500 flex items-center justify-between gap-3 fade-in-up">
+              <span>
+                Supermemory Local is not running. Siki still works, but will not remember across sessions or use multi-region tax RAG.
+              </span>
+              <Link
+                href="/memory"
+                className="shrink-0 text-violet-600 hover:text-violet-700 font-medium"
+              >
+                Start it →
+              </Link>
             </div>
           )}
 
@@ -1324,7 +1374,7 @@ function BooksView() {
                     {(msg.persona ?? persona) === "siki" ? <SikiMascot size={32} mood="idle" /> : <ZanaMascot size={32} mood="idle" />}
                   </div>
                 )}
-                <div className={`max-w-[80%] ${msg.role === "user" ? "" : "flex flex-col gap-2"}`}>
+                <div className={`max-w-[80%] flex flex-col gap-1 ${msg.role === "user" ? "items-end" : ""}`}>
                   {msg.role === "agent" && msg.memoryRecall && (
                     <MemoryRecallTrace data={msg.memoryRecall} persona={msg.persona ?? persona} />
                   )}
@@ -1348,6 +1398,20 @@ function BooksView() {
                       msg.content
                     )}
                   </div>
+                  {msg.role === "user" && (
+                    <button
+                      onClick={() => handleRemember(i, msg.content)}
+                      disabled={rememberedMessages.has(i)}
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors btn-press ${
+                        rememberedMessages.has(i)
+                          ? "text-emerald-600 bg-emerald-50 cursor-default"
+                          : "text-stone-400 hover:text-violet-600 hover:bg-violet-50"
+                      }`}
+                      title={rememberedMessages.has(i) ? "Saved to memory" : "Remember this for next time"}
+                    >
+                      {rememberedMessages.has(i) ? "Remembered" : "Remember"}
+                    </button>
+                  )}
                   {journal && (
                     <JournalEntryCard
                       description={journal.description}

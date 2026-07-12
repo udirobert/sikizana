@@ -51,6 +51,8 @@ export interface MemoryRecallSource {
   type: "profile" | "recall";
   label: string;
   items: string[];
+  /** Optional document IDs for each item, used for forget actions in the UI. */
+  ids?: string[];
 }
 
 /** Events streamed from the agent during a chat */

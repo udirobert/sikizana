@@ -3,7 +3,7 @@
 **Stop money slipping away. See who owes you what, learn what's normal for your industry, and chase effectively.**
 
 Sikizana is an AI credit controller (and bookkeeper) that connects to
-Xero. It builds an aged receivables view (30/60/90 days by debtor),
+Xero and remembers every conversation in Supermemory Local. It builds an aged receivables view (30/60/90 days by debtor),
 scores customers' payment reliability, compares your numbers against
 typical UK sector ranges, drafts escalating chasing emails with
 statutory interest and fixed-sum compensation calculated, and lays out
@@ -98,7 +98,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM (Llama 3.3 70B), Venice fallback, real token streaming. `create_journal_entry` is deliberately NOT in the LLM's tool list (see Architecture above)
 - **Tools**: `src/tools/accounting_tools.py` — 19 tools (discrepancies, aged receivables, invoices, P&L, tax, journal proposals, chasing, benchmarks, customer scoring, trend analysis)
 - **Tax rules**: `src/tools/rag_engine.py` — multi-region embedded rules (UK HMRC, AU ATO, US IRS) with citations, enhanced by Supermemory semantic RAG when available. Region auto-detected from the Xero org's country code. Falls back to region-specific keyword lookup when Supermemory is unavailable.
-- **Memory + RAG**: `src/services/supermemory.py` — optional Supermemory Local integration. When `SUPERMEMORY_URL` is set, the agent gains persistent cross-session memory (recalls customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and semantic RAG over multi-region tax rules. When unset or unreachable, the app works identically — just without memory. Health-checked with 60s cache; every call gracefully degrades.
+- **Memory + RAG**: `src/services/supermemory.py` — Supermemory Local is the persistent memory layer. It gives the agent persistent cross-session memory (recalls customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and semantic RAG over multi-region tax rules. When unset or unreachable, the app falls back to keyword tax rules and no recall — a graceful degradation that is itself a demo moment.
 - **Memory inspection**: `GET /api/memory` + `DELETE /api/memory/{id}` — list and delete individual memories. The `/memory` page makes the memory layer transparent and user-controllable (GDPR-aligned right-to-erasure at the individual memory level).
 - **Context search**: `src/api/main.py` — `/api/context/search`, Exa + Firecrawl, 24h SQLite cache keyed on the intent-mapped query (never the raw user text — chat can contain customer names/amounts)
 - **Xero service**: `src/services/xero_service.py` — session-scoped OAuth → allowlisted CLI → mock resolution, with a 45s read-through cache
@@ -254,9 +254,8 @@ from the org name — and says so either way. Figures are labelled
 statistics.
 
 ### 18. Persistent Memory + Multi-Region Semantic RAG (Supermemory Local)
-Sikizana integrates [Supermemory Local](https://supermemory.ai) as an
-**optional enhancement layer**. When `SUPERMEMORY_URL` is set, the agent
-gains four capabilities that are otherwise absent:
+Sikizana is built on [Supermemory Local](https://supermemory.ai). The agent
+relies on its persistent memory layer to be useful across sessions:
 
 - **Cross-session memory**: Siki recalls past conversations, customer
   payment patterns, chasing outcomes, and user preferences across sessions.
@@ -284,14 +283,14 @@ gains four capabilities that are otherwise absent:
   Supermemory state visible at a glance. The "What Siki remembered" panel
   appears above each response when memory was recalled.
 
-**When Supermemory is unset or unreachable, the app works identically —
-just without memory.** Every call is wrapped with graceful fallback:
+**When Supermemory is unset or unreachable, the app gracefully degrades —
+but it is not the same product.** Every call is wrapped with fallback:
 `is_available()` health-checks with a 60s cache, `search()` returns `[]`,
 `get_profile()` returns `None`, `lookup_tax_rule` falls back to the
 region-specific keyword system, and conversation ingestion is silently
-skipped. The badge flips to "Memory: OFF". This is both good architecture
-(no single point of failure) and a demo moment: kill Supermemory
-mid-conversation and Siki keeps working — just dumber.
+skipped. The badge flips to "Memory: OFF". This is production-grade
+architecture: the demo can show memory ON vs OFF side-by-side, and the
+product never breaks.
 
 ---
 
