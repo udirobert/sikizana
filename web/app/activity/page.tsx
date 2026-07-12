@@ -7,21 +7,8 @@ import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { useXeroMode } from "@/hooks/useXeroMode";
 import { usePersona } from "@/hooks/usePersona";
-import { getPersonaCopy, getPersonaTheme } from "@/lib/persona-theme";
+import { getPersonaCopy, getPersonaTheme, getActivityEventStyle, type ActivityAction } from "@/lib/persona-theme";
 import { ModeBadge } from "@/components/ModeBadge";
-
-const EVENT_STYLES: Record<
-  ActivityEvent["action"],
-  { label: string; badge: string; icon: string }
-> = {
-  journal_posted: { label: "Journal Posted", badge: "bg-sky-100 text-sky-700", icon: "📝" },
-  journal_reversed: { label: "Journal Reversed", badge: "bg-amber-100 text-amber-700", icon: "↩" },
-  query_asked: { label: "Query", badge: "bg-stone-100 text-stone-600", icon: "💬" },
-  tool_called: { label: "Tool Call", badge: "bg-violet-100 text-violet-700", icon: "🔧" },
-  chase_sent: { label: "Chase Email Sent", badge: "bg-amber-100 text-amber-700", icon: "✉️" },
-  chase_recovered: { label: "Invoice Paid", badge: "bg-emerald-100 text-emerald-700", icon: "💰" },
-  chase_exhausted: { label: "Chase Ladder Finished", badge: "bg-rose-100 text-rose-700", icon: "⚠️" },
-};
 
 export default function ActivityPage() {
   const persona = usePersona();
@@ -75,9 +62,19 @@ export default function ActivityPage() {
         </p>
 
         {aggregate && (aggregate.queries > 0 || aggregate.journals_posted > 0) && (
-          <div className="bg-gradient-to-br from-sky-50 to-violet-50 border border-sky-100 rounded-xl p-4 mb-6 fade-in-up">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-500 mb-1.5">
-              This week on Sikizana
+          <div
+            className={`border rounded-xl p-4 mb-6 fade-in-up ${
+              persona === "zana"
+                ? "bg-gradient-to-br from-rose-50 to-stone-50 border-rose-100"
+                : "bg-gradient-to-br from-sky-50 to-violet-50 border-sky-100"
+            }`}
+          >
+            <p
+              className={`text-[10px] font-semibold uppercase tracking-wide mb-1.5 ${
+                persona === "zana" ? "text-rose-500" : "text-sky-500"
+              }`}
+            >
+              {persona === "zana" ? "What Zana's been up to" : "This week on Sikizana"}
             </p>
             <div className="flex flex-wrap gap-x-5 gap-y-1.5">
               {aggregate.queries > 0 && (
@@ -141,7 +138,11 @@ export default function ActivityPage() {
         {!loading && !error && events.length > 0 && (
           <div className="space-y-2">
             {events.map((event) => {
-              const style = EVENT_STYLES[event.action] ?? EVENT_STYLES.query_asked;
+              const style = getActivityEventStyle(
+                persona,
+                event.action as ActivityAction,
+                event.description,
+              );
               return (
                 <div
                   key={event.id}

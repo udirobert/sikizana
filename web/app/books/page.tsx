@@ -36,7 +36,7 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
-import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
+import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnectMomentCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
 import { ProfitTrendChart } from "@/components/ProfitTrendChart";
@@ -165,6 +165,7 @@ function BooksView() {
   const theme = getPersonaTheme(persona);
   const copy = getPersonaCopy(persona);
   const recoveredCopy = getRecoveredCelebrationCopy(persona);
+  const connectCopy = getConnectMomentCopy(persona, xeroMode === "demo");
 
   const refreshMetricSnapshots = useCallback((force = false) => {
     void endpoints.xero
@@ -1073,18 +1074,18 @@ function BooksView() {
 
           {/* Quota / plan-gate banner — an upgrade prompt, deliberately not styled as an error */}
           {upgradeBanner && (
-            <div className="bg-sky-50 border-b border-sky-200 px-4 py-2.5 text-xs text-sky-900 flex items-center justify-between gap-3 fade-in-up">
+            <div className={`border-b px-4 py-2.5 text-xs flex items-center justify-between gap-3 fade-in-up ${theme.hintBg} ${theme.toastBorder} ${theme.hintTextOnBg}`}>
               <span>{upgradeBanner}</span>
               <div className="flex items-center gap-2 shrink-0">
                 <Link
                   href="/account?intent=pro"
-                  className="font-semibold text-white bg-sky-600 hover:bg-sky-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
+                  className={`font-semibold text-white px-2.5 py-1 rounded-lg btn-press transition-colors ${theme.btnPrimary}`}
                 >
                   Upgrade
                 </Link>
                 <button
                   onClick={() => setUpgradeBanner(null)}
-                  className="text-sky-500 hover:text-sky-700 btn-press"
+                  className={`btn-press ${theme.hintTextStrong}`}
                   aria-label="Dismiss upgrade prompt"
                 >
                   ×
@@ -1571,57 +1572,66 @@ function BooksView() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm"
           role="dialog"
           aria-modal="true"
-          aria-label="Analysing your books"
+          aria-label={connectCopy.ariaLabel}
         >
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center gap-3 text-center fade-in-up">
             {connectStage === "analyzing" ? (
               <>
-                <SikiMascot size={80} mood="look" />
+                {persona === "zana" ? (
+                  <ZanaMascot size={80} mood="look" />
+                ) : (
+                  <SikiMascot size={80} mood="look" />
+                )}
                 <p className="text-sm font-semibold text-stone-800">
-                  Connected ✓ Give me a moment with your books…
+                  {connectCopy.analyzingTitle}
                 </p>
                 <p className="text-xs text-stone-500 t-shimmer">
-                  Scanning invoices, bank transactions, and your P&amp;L
+                  {connectCopy.analyzingSub}
                 </p>
               </>
             ) : (
               <>
-                <SikiMascot
-                  size={80}
-                  mood={findings && !findings.clean ? "look" : "celebrate"}
-                />
+                {persona === "zana" ? (
+                  <ZanaMascot
+                    size={80}
+                    mood={findings && !findings.clean ? "look" : "celebrate"}
+                  />
+                ) : (
+                  <SikiMascot
+                    size={80}
+                    mood={findings && !findings.clean ? "look" : "celebrate"}
+                  />
+                )}
                 {findings && findings.money_found > 0 ? (
                   <>
-                    <div className="text-4xl font-bold text-stone-900 leading-none">
+                    <div className={`text-4xl font-bold leading-none ${persona === "zana" ? "text-rose-700" : "text-stone-900"}`}>
                       <AnimatedNumber prefix="£" value={Math.round(findings.money_found)} />
                     </div>
                     <p className="text-sm font-semibold text-stone-800">
-                      {xeroMode === "demo" ? "found in sample overdue invoices" : "found in overdue invoices"}
+                      {connectCopy.revealMoneySub}
                     </p>
                     <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
                   </>
                 ) : findings && !findings.clean ? (
                   <>
                     <p className="text-sm font-semibold text-stone-800">
-                      {xeroMode === "demo" ? "Here's what I found in the sample books" : "Here's what I found in your books"}
+                      {connectCopy.revealIssuesTitle}
                     </p>
                     <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
                   </>
                 ) : (
                   <>
                     <p className="text-sm font-semibold text-stone-800">
-                      {xeroMode === "demo" ? "The sample books look clean ✓" : "Your books look clean ✓"}
+                      {connectCopy.revealCleanTitle}
                     </p>
-                    <p className="text-xs text-stone-500">
-                      Nothing overdue, nothing unreconciled.
-                    </p>
+                    <p className="text-xs text-stone-500">{connectCopy.revealCleanSub}</p>
                   </>
                 )}
                 <button
                   onClick={dismissConnectMoment}
                   className={`mt-2 text-sm font-semibold ${theme.btnPrimary} px-5 py-2 rounded-lg btn-press transition-colors`}
                 >
-                  Show me →
+                  {connectCopy.showMe}
                 </button>
               </>
             )}
@@ -1648,7 +1658,11 @@ function BooksView() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3 mb-4">
-              <SikiMascot size={40} mood="idle" />
+              {persona === "zana" ? (
+                <ZanaMascot size={40} mood="look" />
+              ) : (
+                <SikiMascot size={40} mood="idle" />
+              )}
               <div>
                 <h2 className="text-sm font-bold text-stone-900">Before you connect</h2>
                 <p className="text-xs text-stone-600 mt-0.5">

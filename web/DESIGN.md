@@ -47,6 +47,9 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 | `getJournalCardCopy()` | `JournalEntryCard` approve/post voice |
 | `getResponseSummaryCopy()` | Peak-end `ResponseSummary` after agent answers |
 | `getLandingPersonaPaths()` | Landing page dual entry cards + bottom CTA |
+| `getPricingTryLinks()` | Pricing page Siki/Zana demo + connect URLs |
+| `getConnectMomentCopy()` | Post-OAuth connect overlay on `/books` |
+| `getActivityEventStyle()` | Persona-aware labels on `/activity` |
 | `getTrendBuildingCopy()` | Sidebar + impact chart empty states |
 | `findingActionLabel()` | Findings panel primary actions |
 | `cleanFindingsCopy()` | Clean-audit empty state |

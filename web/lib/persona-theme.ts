@@ -473,3 +473,137 @@ export function getTrendBuildingCopy(snapshotCount: number): {
     body: "Not enough history yet for a chart — keep using Sikizana and snapshots will fill in.",
   };
 }
+
+/** Post-OAuth connect overlay on /books. */
+export function getConnectMomentCopy(
+  persona: Persona,
+  isDemo: boolean,
+): {
+  analyzingTitle: string;
+  analyzingSub: string;
+  revealMoneySub: string;
+  revealIssuesTitle: string;
+  revealCleanTitle: string;
+  revealCleanSub: string;
+  showMe: string;
+  ariaLabel: string;
+} {
+  if (persona === "zana") {
+    return {
+      analyzingTitle: "Connected ✓ Scanning who owes you…",
+      analyzingSub: "Pulling overdue invoices, debtors, and chase targets",
+      revealMoneySub: isDemo
+        ? "found in sample overdue invoices"
+        : "overdue — ready to chase",
+      revealIssuesTitle: isDemo
+        ? "Targets in the sample books"
+        : "Here's who to chase first",
+      revealCleanTitle: isDemo
+        ? "Sample books are clean ✓"
+        : "Nothing overdue right now ✓",
+      revealCleanSub: "I'll flag it the moment something slips.",
+      showMe: "Let's go →",
+      ariaLabel: "Analysing your books for overdue invoices",
+    };
+  }
+  return {
+    analyzingTitle: "Connected ✓ Give me a moment with your books…",
+    analyzingSub: "Scanning invoices, bank transactions, and your P&L",
+    revealMoneySub: isDemo
+      ? "found in sample overdue invoices"
+      : "found in overdue invoices",
+    revealIssuesTitle: isDemo
+      ? "Here's what I found in the sample books"
+      : "Here's what I found in your books",
+    revealCleanTitle: isDemo
+      ? "The sample books look clean ✓"
+      : "Your books look clean ✓",
+    revealCleanSub: "Nothing overdue, nothing unreconciled.",
+    showMe: "Show me →",
+    ariaLabel: "Analysing your books",
+  };
+}
+
+export type ActivityAction =
+  | "journal_posted"
+  | "journal_reversed"
+  | "query_asked"
+  | "tool_called"
+  | "chase_sent"
+  | "chase_recovered"
+  | "chase_exhausted";
+
+/** Persona-aware badge label for /activity event rows. */
+export function getActivityEventStyle(
+  persona: Persona,
+  action: ActivityAction,
+  description: string,
+): { label: string; badge: string; icon: string } {
+  const sikiDefaults: Record<ActivityAction, { label: string; badge: string; icon: string }> = {
+    journal_posted: { label: "Journal Posted", badge: "bg-sky-100 text-sky-700", icon: "📝" },
+    journal_reversed: { label: "Journal Reversed", badge: "bg-amber-100 text-amber-700", icon: "↩" },
+    query_asked: { label: "Query", badge: "bg-stone-100 text-stone-600", icon: "💬" },
+    tool_called: { label: "Tool Call", badge: "bg-violet-100 text-violet-700", icon: "🔧" },
+    chase_sent: { label: "Chase Email Sent", badge: "bg-amber-100 text-amber-700", icon: "✉️" },
+    chase_recovered: { label: "Invoice Paid", badge: "bg-emerald-100 text-emerald-700", icon: "💰" },
+    chase_exhausted: { label: "Chase Ladder Finished", badge: "bg-rose-100 text-rose-700", icon: "⚠️" },
+  };
+
+  if (persona !== "zana") {
+    return sikiDefaults[action];
+  }
+
+  const roseChase = "bg-rose-100 text-rose-700";
+  const stageMatch = description.match(/Stage (\d+) chase for ([^\s→]+)/);
+  const paidMatch = description.match(/^([^\s—]+)/);
+
+  switch (action) {
+    case "chase_sent":
+      return {
+        label: stageMatch
+          ? `Zana sent stage ${stageMatch[1]} · ${stageMatch[2]}`
+          : "Zana sent a chase",
+        badge: roseChase,
+        icon: "✉️",
+      };
+    case "chase_recovered":
+      return {
+        label: paidMatch ? `Zana got paid · ${paidMatch[1]}` : "Zana got paid",
+        badge: "bg-emerald-100 text-emerald-700",
+        icon: "💰",
+      };
+    case "chase_exhausted":
+      return {
+        label: paidMatch
+          ? `Zana finished ladder · ${paidMatch[1]}`
+          : "Zana finished the ladder",
+        badge: "bg-rose-100 text-rose-800",
+        icon: "⚠️",
+      };
+    case "journal_posted":
+      return { label: "Zana posted journal", badge: roseChase, icon: "📝" };
+    case "journal_reversed":
+      return { label: "Zana reversed entry", badge: "bg-amber-100 text-amber-700", icon: "↩" };
+    case "query_asked":
+      return { label: "Zana query", badge: "bg-stone-100 text-stone-600", icon: "💬" };
+    case "tool_called":
+      return { label: "Zana tool call", badge: "bg-violet-100 text-violet-700", icon: "🔧" };
+    default:
+      return sikiDefaults[action];
+  }
+}
+
+/** Short pricing-page try links aligned with landing paths. */
+export function getPricingTryLinks(): {
+  sikiDemo: string;
+  zanaDemo: string;
+  sikiConnect: string;
+  zanaConnect: string;
+} {
+  return {
+    sikiDemo: "/books?persona=siki",
+    zanaDemo: "/books?persona=zana",
+    sikiConnect: "/books?persona=siki&connect=1",
+    zanaConnect: "/books?persona=zana&connect=1",
+  };
+}
