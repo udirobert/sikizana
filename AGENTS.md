@@ -140,6 +140,7 @@ cd web && npx tsc --noEmit
 | `web/components/ImpactHeroChart.tsx` | Dither area chart + Siki trend caption on `/impact` |
 | `web/components/ProfitTrendChart.tsx` | Dither sparkline in `/books` sidebar P&L |
 | `web/components/AutoChaseNotice.tsx` | Signature moment when a chase sequence is armed |
+| `web/app/page.tsx` | Landing — dual Siki/Zana entry paths via `getLandingPersonaPaths()` |
 
 ### Personalization
 
@@ -171,6 +172,8 @@ metrics for trend charts. Passive capture is throttled to once per day;
 `?force=true` and event hooks (connect, chase, journal post) always record
 a new point. Connect bootstraps a week-ago baseline so day-one users see
 a flat sidebar sparkline. See `web/DESIGN.md` metric cadence table.
+
+Daily cron: `python -m src.jobs.capture_metrics` (06:00 UTC recommended).
 
 ## Security notes
 

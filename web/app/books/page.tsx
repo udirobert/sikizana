@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { useXeroThread } from "@/hooks/useXeroThread";
 import {
   ApiError,
@@ -64,6 +64,7 @@ interface ProfitAndLossData {
 
 function BooksView() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { threadId, messages, addMessage, updateLastAgentMessage, flush, ensureThread, newSession } = useXeroThread();
 
   // Session/plan info — fetched once on mount (cached in useMe), no polling.
@@ -276,6 +277,26 @@ function BooksView() {
       })
       .catch(() => {});
   }, [loadFindings, refreshMetricSnapshots, searchParams]);
+
+  // Landing page paths: /books?persona=siki|zana sets the active owl once.
+  const personaFromUrlRef = useRef(false);
+  useEffect(() => {
+    if (personaFromUrlRef.current) return;
+    const p = searchParams.get("persona");
+    if (p !== "siki" && p !== "zana") return;
+    personaFromUrlRef.current = true;
+    setPersona(p);
+    setModeHintShown(true);
+    try {
+      localStorage.setItem(PERSONA_STORAGE_KEY, p);
+    } catch {
+      /* ignore */
+    }
+    const cleaned = new URLSearchParams(searchParams.toString());
+    cleaned.delete("persona");
+    const qs = cleaned.toString();
+    window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+  }, [searchParams, pathname]);
 
   // Handle OAuth callback redirect (?connected=true&org=...) — once. The
   // param is stripped from the URL immediately so a refresh doesn't

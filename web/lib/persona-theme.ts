@@ -388,3 +388,88 @@ export function getResponseSummaryCopy(persona: Persona): {
     panelClass: "border-stone-200 bg-gradient-to-br from-stone-50 to-white",
   };
 }
+
+export type LandingPersonaPath = {
+  persona: Persona;
+  name: string;
+  role: string;
+  headline: string;
+  description: string;
+  bullets: string[];
+  cta: string;
+  demoHref: string;
+  connectHref: string;
+  cardClass: string;
+  badgeClass: string;
+  btnClass: string;
+  quote: string;
+};
+
+/** Dual entry paths on the landing page — Siki explain vs Zana chase. */
+export function getLandingPersonaPaths(): LandingPersonaPath[] {
+  return [
+    {
+      persona: "siki",
+      name: "Siki",
+      role: "The Explainer",
+      headline: "Explain my books",
+      description:
+        "Plain-English P&L, tax estimates, sector benchmarks, and a calm read on what's normal for your industry.",
+      bullets: [
+        "P&L and balance sheet in plain English",
+        "Tax flags and sector benchmarks",
+        "Customer scorecards and trend analysis",
+      ],
+      cta: "Start with Siki",
+      demoHref: "/books?persona=siki",
+      connectHref: "/books?persona=siki&connect=1",
+      cardClass: "border-sky-200 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/50",
+      badgeClass: "bg-sky-100 text-sky-700",
+      btnClass: "bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/20",
+      quote: "You're owed £4,200 — here's who, for how long, and what's normal for your sector.",
+    },
+    {
+      persona: "zana",
+      name: "Zana",
+      role: "The Enforcer",
+      headline: "Chase what's owed",
+      description:
+        "Aged receivables, negotiation-tactic chase emails, auto-escalation until they pay — with statutory interest built in.",
+      bullets: [
+        "Aged receivables — who to chase first",
+        "Draft emails with negotiation psychology",
+        "One-click auto-chase escalation ladder",
+      ],
+      cta: "Start with Zana",
+      demoHref: "/books?persona=zana",
+      connectHref: "/books?persona=zana&connect=1",
+      cardClass: "border-rose-200 hover:border-rose-300 hover:shadow-lg hover:shadow-rose-100/50",
+      badgeClass: "bg-rose-100 text-rose-700",
+      btnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20",
+      quote: "45 days late. Here's the email. You're also owed £70 compensation — I added it.",
+    },
+  ];
+}
+
+/** Neutral Sikizana voice for public aggregate pages (impact charts). */
+export function getTrendBuildingCopy(snapshotCount: number): {
+  title: string;
+  body: string;
+} {
+  if (snapshotCount === 0) {
+    return {
+      title: "Trend building",
+      body: "Daily snapshots start when you connect Xero or open your books. Check back after a few days to see movement.",
+    };
+  }
+  if (snapshotCount === 1) {
+    return {
+      title: "First snapshot captured",
+      body: "One data point so far — trends appear after your next daily snapshot or when you chase, post, or reconnect.",
+    };
+  }
+  return {
+    title: "Trend building",
+    body: "Not enough history yet for a chart — keep using Sikizana and snapshots will fill in.",
+  };
+}

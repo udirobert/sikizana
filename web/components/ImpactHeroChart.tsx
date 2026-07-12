@@ -9,6 +9,7 @@ import { Tooltip } from "@/components/dither-kit/tooltip";
 import type { DitherColor } from "@/components/dither-kit/palette";
 import type { MetricSnapshot } from "@/components/ProfitTrendChart";
 import { SikiMascot, type MascotMood } from "@/components/SikiMascot";
+import { getTrendBuildingCopy } from "@/lib/persona-theme";
 
 type ChartRow = { label: string; overdue: number };
 
@@ -98,15 +99,20 @@ export function ImpactHeroChart({ snapshots, isDemo, currentOverdue }: ImpactHer
   const color = trendColor(rows);
 
   if (rows.length < 2) {
+    const building = getTrendBuildingCopy(fromSnapshots.length);
     return (
       <section className="mb-8 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm fade-in-up">
         <div className="flex items-start gap-3">
           <SikiMascot size={48} mood="wave" />
           <div>
             <h3 className="text-sm font-bold text-stone-900">Overdue exposure trend</h3>
+            <p className="text-xs text-stone-500 mt-1">
+              {fromSnapshots.length > 0
+                ? `${fromSnapshots.length} snapshot${fromSnapshots.length === 1 ? "" : "s"} captured`
+                : "No snapshots yet"}
+            </p>
             <p className="text-sm text-stone-500 mt-2 leading-relaxed">
-              I capture a daily snapshot of your books. Check back after a few days to see how
-              overdue exposure moves — connect Xero to start building your trend.
+              {building.body}
             </p>
           </div>
         </div>

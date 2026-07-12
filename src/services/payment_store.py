@@ -1122,23 +1122,73 @@ def save_metric_snapshot(
     firing_candidates: int = 0,
     captured_at: str | None = None,
 ) -> None:
-    """Save a periodic snapshot of key financial metrics for trend analysis."""
+    """Save or update a snapshot for the session's calendar day (UTC date)."""
     init_db()
     conn = _get_db()
     now = captured_at or datetime.now(timezone.utc).isoformat()
-    conn.execute(
+    day = now[:10]
+    existing = conn.execute(
         """
-        INSERT INTO metric_snapshots
-            (session_id, captured_at, total_overdue, overdue_count,
-             avg_receivables_days, overdue_rate, total_revenue,
-             net_margin, red_customers, firing_candidates)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        SELECT id FROM metric_snapshots
+        WHERE session_id = ? AND substr(captured_at, 1, 10) = ?
+        LIMIT 1
         """,
-        (session_id, now, total_overdue, overdue_count, avg_receivables_days,
-         overdue_rate, total_revenue, net_margin, red_customers, firing_candidates),
+        (session_id, day),
+    ).fetchone()
+    values = (
+        now,
+        total_overdue,
+        overdue_count,
+        avg_receivables_days,
+        overdue_rate,
+        total_revenue,
+        net_margin,
+        red_customers,
+        firing_candidates,
     )
+    if existing:
+        conn.execute(
+            """
+            UPDATE metric_snapshots SET
+                captured_at = ?, total_overdue = ?, overdue_count = ?,
+                avg_receivables_days = ?, overdue_rate = ?, total_revenue = ?,
+                net_margin = ?, red_customers = ?, firing_candidates = ?
+            WHERE id = ?
+            """,
+            (*values, existing["id"]),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO metric_snapshots
+                (session_id, captured_at, total_overdue, overdue_count,
+                 avg_receivables_days, overdue_rate, total_revenue,
+                 net_margin, red_customers, firing_candidates)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (session_id, *values),
+        )
     conn.commit()
     conn.close()
+
+
+def list_sessions_for_metric_capture() -> list[str]:
+    """Sessions eligible for the daily metric capture cron job."""
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT session_id FROM (
+            SELECT session_id FROM platform_connections
+            WHERE disconnected_at IS NULL
+            UNION
+            SELECT DISTINCT session_id FROM metric_snapshots
+            WHERE captured_at >= datetime('now', '-14 days')
+        )
+        """
+    ).fetchall()
+    conn.close()
+    return [r["session_id"] for r in rows]
 
 
 def get_metric_snapshots(session_id: str, limit: int = 12) -> list[dict]:

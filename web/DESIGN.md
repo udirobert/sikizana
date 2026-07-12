@@ -46,6 +46,8 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 | `getNegotiationCardCopy()` | `NegotiationEmailCard` header + chase draft chrome |
 | `getJournalCardCopy()` | `JournalEntryCard` approve/post voice |
 | `getResponseSummaryCopy()` | Peak-end `ResponseSummary` after agent answers |
+| `getLandingPersonaPaths()` | Landing page dual entry cards + bottom CTA |
+| `getTrendBuildingCopy()` | Sidebar + impact chart empty states |
 | `findingActionLabel()` | Findings panel primary actions |
 | `cleanFindingsCopy()` | Clean-audit empty state |
 
@@ -66,13 +68,14 @@ Sidebar sparkline and impact hero need **2+ snapshots** to render.
 
 | Trigger | Capture mode |
 |---------|----------------|
-| `/books` load | Passive — max once per day |
+| `/books` load | Passive — max once per day (upsert) |
 | Xero OAuth connect | Bootstrap — today + week-ago baseline (flat line, honest values) |
-| Auto-chase armed | Force — new data point |
-| Journal posted to Xero | Force — new data point |
+| Auto-chase armed | Force — upserts today's row |
+| Journal posted to Xero | Force — upserts today's row |
+| Daily cron (`src/jobs/capture_metrics.py`) | Passive per connected / recently active session |
 | `GET /api/metrics/snapshots?force=true` | Force — bypasses daily throttle |
 
-Passive captures stay throttled; event-driven captures always insert so the trend builds from real actions, not just calendar days.
+Same calendar day (UTC) upserts one row — repeated captures refresh today's numbers instead of duplicating. Sidebar and impact show an honest **trend building** empty state when fewer than two points exist.
 
 ## Before shipping UI polish
 

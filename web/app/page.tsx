@@ -6,6 +6,7 @@ import { SikiMascot, ZanaMascot, type MascotMood } from "@/components/SikiMascot
 import { useImpactMetrics } from "@/hooks/useRevenue";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
+import { getLandingPersonaPaths } from "@/lib/persona-theme";
 
 /**
  * Public landing page — mascot-driven, English-only, polished.
@@ -17,8 +18,8 @@ export default function LandingPage() {
   const { me } = useMe();
   const moneyFound = metrics?.money_found ?? 0;
   const discrepanciesFound = metrics?.discrepancies_found ?? 0;
+  const personaPaths = getLandingPersonaPaths();
 
-  // Cycle the mascot mood for a living feel
   const [mood, setMood] = useState<MascotMood>("wave");
   useEffect(() => {
     const cycle: MascotMood[] = ["wave", "idle", "look", "idle", "wave"];
@@ -70,61 +71,89 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="relative max-w-5xl mx-auto px-6 pt-20 pb-24 text-center">
-        {/* Decorative gradient blob behind mascot */}
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 w-72 h-72 bg-gradient-to-br from-sky-200/40 to-emerald-200/30 rounded-full blur-3xl pointer-events-none" />
+      {/* ── Hero — dual persona paths ───────────────────────────────── */}
+      <section className="relative max-w-5xl mx-auto px-6 pt-16 pb-20 text-center">
+        <div className="absolute top-8 left-1/4 w-48 h-48 bg-sky-200/30 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-16 right-1/4 w-48 h-48 bg-rose-200/25 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Mascot greeting */}
-        <div className="relative inline-block mb-6 fade-in-up">
-          <SikiMascot size={140} mood={mood} />
-          {/* Speech bubble */}
-          <div className="absolute -right-20 top-2 bg-white rounded-2xl shadow-lg px-4 py-2 border border-stone-100 hidden sm:block">
-            <p className="text-xs font-medium text-stone-700 whitespace-nowrap">
-              {mood === "wave" ? "Hi! I'm Siki." : mood === "look" ? "Let me check your books..." : "I watch your books!"}
-            </p>
-            {/* Bubble tail */}
-            <div className="absolute -left-1.5 top-4 w-3 h-3 bg-white border-l border-b border-stone-100 rotate-45" />
-          </div>
+        <div className="relative flex items-center justify-center gap-3 mb-6 fade-in-up">
+          <SikiMascot size={56} mood={mood} />
+          <span className="text-stone-300 text-sm font-medium">+</span>
+          <ZanaMascot size={56} mood="look" />
         </div>
 
-        <div className="inline-block bg-sky-50 text-sky-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
-          Get Paid Faster · Works with Xero
+        <div className="inline-block bg-stone-100 text-stone-600 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
+          Two owls · One Xero connection · Your money
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up fade-in-up-delay-2">
+        <h1 className="text-4xl sm:text-5xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up fade-in-up-delay-2">
           Stop money slipping away.
           <br />
-          <span className="bg-gradient-to-r from-sky-600 to-blue-700 bg-clip-text text-transparent">
-            Get your invoices paid.
+          <span className="bg-gradient-to-r from-sky-600 via-stone-700 to-rose-600 bg-clip-text text-transparent">
+            Explain it or chase it.
           </span>
         </h1>
 
-        <p className="mt-6 text-lg text-stone-600 max-w-xl mx-auto fade-in-up fade-in-up-delay-3">
-          Siki reads your Xero data, shows exactly who owes you what and for how long,
-          tells you what&apos;s normal for your industry, and drafts the chasing emails that
-          actually get you paid — plus tax estimates and a plain-English P&amp;L on the side.
+        <p className="mt-5 text-lg text-stone-600 max-w-2xl mx-auto fade-in-up fade-in-up-delay-3">
+          Sikizana reads your Xero data with two AI personas — Siki explains your books in plain
+          English; Zana drafts the chasing emails and escalates until overdue invoices get paid.
         </p>
 
-        <div className="mt-8 flex items-center justify-center gap-3 flex-wrap fade-in-up fade-in-up-delay-4">
-          <Link
-            href="/books"
-            className="bg-sky-600 hover:bg-sky-700 text-white font-semibold px-7 py-3.5 rounded-xl transition shadow-lg shadow-sky-600/20 btn-press text-base"
-          >
-            Try with Sample Data
-          </Link>
-          <Link
-            href="/books?connect=1"
-            className="bg-white hover:bg-stone-50 text-stone-700 font-medium px-7 py-3.5 rounded-xl transition border border-stone-200 btn-press text-base"
-          >
-            Connect My Xero
-          </Link>
+        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto text-left fade-in-up fade-in-up-delay-4">
+          {personaPaths.map((path, i) => (
+            <div
+              key={path.persona}
+              className={`bg-white border-2 rounded-2xl p-6 transition-shadow ${path.cardClass} fade-in-up`}
+              style={{ animationDelay: `${400 + i * 80}ms` }}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                {path.persona === "siki" ? (
+                  <SikiMascot size={52} mood="wave" />
+                ) : (
+                  <ZanaMascot size={52} mood="look" />
+                )}
+                <div>
+                  <h2 className="text-lg font-bold text-stone-900">{path.headline}</h2>
+                  <p className={`text-[10px] font-bold uppercase tracking-wide ${path.badgeClass.split(" ")[1]}`}>
+                    {path.name} · {path.role}
+                  </p>
+                </div>
+              </div>
+              <p className="text-sm text-stone-600 leading-relaxed mb-4">{path.description}</p>
+              <ul className="space-y-1.5 mb-4">
+                {path.bullets.map((b) => (
+                  <li key={b} className="text-xs text-stone-500 flex items-start gap-2">
+                    <span className={`mt-0.5 shrink-0 ${path.persona === "zana" ? "text-rose-400" : "text-sky-400"}`}>•</span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-[11px] text-stone-400 italic mb-4 leading-relaxed">
+                &quot;{path.quote}&quot;
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Link
+                  href={path.demoHref}
+                  className={`flex-1 text-center font-semibold px-4 py-2.5 rounded-xl transition shadow-lg btn-press text-sm ${path.btnClass}`}
+                >
+                  {path.cta} — demo
+                </Link>
+                <Link
+                  href={path.connectHref}
+                  className="flex-1 text-center font-medium px-4 py-2.5 rounded-xl transition border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 btn-press text-sm"
+                >
+                  Connect Xero
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
-        <p className="mt-3 text-xs text-stone-500 fade-in-up fade-in-up-delay-5">
-          Try the demo instantly — no signup needed. Or connect your Xero to see your real numbers.
+
+        <p className="mt-6 text-xs text-stone-500 fade-in-up fade-in-up-delay-5">
+          Try sample data instantly — no signup. Or connect Xero to see your real numbers in under 30 seconds.
         </p>
         <p className="mt-1.5 text-xs text-stone-400 fade-in-up fade-in-up-delay-6">
-          🔒 Read-only until you approve an action · never sold or shared ·{" "}
+          Read-only until you approve an action · never sold or shared ·{" "}
           <Link href="/security" className="underline hover:text-stone-600 transition-colors">
             how your data is protected
           </Link>
@@ -178,30 +207,30 @@ export default function LandingPage() {
       {/* ── How it works ────────────────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
         <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-          How Siki works
+          How it works
         </h2>
         <p className="text-sm text-stone-500 text-center mb-10">
-          Three steps. No accounting degree required.
+          Pick your owl. Switch any time. Nothing sends without your OK.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             {
               step: "1",
               icon: "ask",
-              title: "Ask in plain English",
-              body: "Type a question like \"What's my net profit?\" or \"Who owes me money?\" No accounting jargon needed.",
+              title: "Choose Siki or Zana",
+              body: "Start with the explainer or the enforcer — the landing page remembers your choice. Toggle freely in the chat.",
             },
             {
               step: "2",
               icon: "analyze",
-              title: "Siki investigates",
-              body: "The AI reads your live Xero data — transactions, invoices, bank feeds — and traces every number back to its source.",
+              title: "They read your Xero",
+              body: "Live invoices, bank feeds, and P&L — traced back to source. Daily snapshots build your trend charts over time.",
             },
             {
               step: "3",
               icon: "approve",
-              title: "You approve",
-              body: "Siki drafts the chasing email or the bookkeeping fix. You review and approve — nothing is sent or posted without you.",
+              title: "You approve every action",
+              body: "Chase emails, journal fixes, and auto-escalation only run after you click — human-in-the-loop by design.",
             },
           ].map((item, i) => (
             <div
@@ -231,57 +260,37 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Meet the duo ────────────────────────────────────────────── */}
-      {/* The two-mascot device IS the product story: understanding your
-          money (Siki) and getting it back (Zana). Users otherwise discover
-          the persona toggle by accident. */}
+      {/* ── Meet the duo (compact) ──────────────────────────────────── */}
       <section className="max-w-4xl mx-auto px-6 pb-20">
         <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-          Two owls, one job: your money
+          Good cop, firm cop
         </h2>
-        <p className="text-sm text-stone-500 text-center mb-10">
-          Good cop, firm cop. Switch between them any time in the chat.
+        <p className="text-sm text-stone-500 text-center mb-8">
+          Same Xero data. Different voice. One product.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white border border-stone-200 rounded-2xl p-6 fade-in-up hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4 mb-3">
-              <SikiMascot size={64} mood="wave" />
-              <div>
-                <h3 className="text-base font-bold text-stone-900">Siki</h3>
-                <p className="text-[11px] font-semibold text-sky-600 uppercase tracking-wide">
-                  The Explainer
-                </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {personaPaths.map((path) => (
+            <Link
+              key={path.persona}
+              href={path.demoHref}
+              className={`block bg-white border rounded-2xl p-5 fade-in-up hover:shadow-md transition-shadow ${path.cardClass}`}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                {path.persona === "siki" ? (
+                  <SikiMascot size={48} mood="wave" />
+                ) : (
+                  <ZanaMascot size={48} mood="look" />
+                )}
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">{path.name}</h3>
+                  <p className={`text-[10px] font-semibold uppercase tracking-wide ${path.badgeClass.split(" ")[1]}`}>
+                    {path.role}
+                  </p>
+                </div>
               </div>
-            </div>
-            <p className="text-sm text-stone-600 leading-relaxed">
-              Gentle, patient, allergic to jargon. Siki reads your books, shows you who owes
-              what, explains your P&amp;L like a friend would, and flags what needs attention —
-              before you ask.
-            </p>
-            <p className="text-xs text-stone-400 mt-3 italic">
-              &quot;You&apos;re owed £4,200. Here&apos;s who, and for how long. Want me to help?&quot;
-            </p>
-          </div>
-          <div className="bg-white border border-stone-300 rounded-2xl p-6 fade-in-up fade-in-up-delay-1 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-4 mb-3">
-              <ZanaMascot size={64} mood="look" />
-              <div>
-                <h3 className="text-base font-bold text-stone-900">Zana</h3>
-                <p className="text-[11px] font-semibold text-rose-600 uppercase tracking-wide">
-                  The Enforcer
-                </p>
-              </div>
-            </div>
-            <p className="text-sm text-stone-600 leading-relaxed">
-              Direct, unbothered, gets you paid. Zana drafts the chasing emails you&apos;ve been
-              putting off — negotiation psychology built in — calculates the statutory interest
-              you&apos;re owed, and escalates until the invoice is settled.
-            </p>
-            <p className="text-xs text-stone-400 mt-3 italic">
-              &quot;It&apos;s been 45 days. Here&apos;s the email to send. You&apos;re also owed
-              £70 in compensation — I added it.&quot;
-            </p>
-          </div>
+              <p className="text-sm text-stone-600 leading-relaxed">{path.description}</p>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -289,7 +298,7 @@ export default function LandingPage() {
       <section className="bg-white border-y border-stone-200 py-20">
         <div className="max-w-4xl mx-auto px-6">
           <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-            What Siki can do
+            What Sikizana can do
           </h2>
           <p className="text-sm text-stone-500 text-center mb-12">
             Everything an accountant would do — in seconds, not days.
@@ -321,24 +330,32 @@ export default function LandingPage() {
 
       {/* ── CTA ─────────────────────────────────────────────────────── */}
       <section className="max-w-3xl mx-auto px-6 py-20 text-center">
-        <div className="relative bg-gradient-to-br from-sky-600 to-blue-700 rounded-3xl p-12 overflow-hidden">
-          {/* Decorative mascot in corner */}
-          <div className="absolute -right-4 -bottom-4 opacity-20">
-            <SikiMascot size={120} mood="celebrate" />
+        <div className="relative bg-gradient-to-br from-stone-800 via-stone-900 to-stone-950 rounded-3xl p-12 overflow-hidden">
+          <div className="absolute -right-2 -bottom-2 opacity-15 flex gap-1">
+            <SikiMascot size={100} mood="celebrate" />
+            <ZanaMascot size={100} mood="look" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 relative">
-            Ready to get paid?
+            Pick your owl. Connect Xero.
           </h2>
-          <p className="text-sky-100 mb-8 relative">
-            Connect your Xero account and see who owes you what — aged by 30/60/90 days,
-            with a chasing plan for each debtor — in under 30 seconds.
+          <p className="text-stone-300 mb-8 relative max-w-lg mx-auto">
+            See who owes you what — aged 30/60/90 days — with a chasing plan for each debtor,
+            or a plain-English read on your P&amp;L and tax.
           </p>
-          <Link
-            href="/books?connect=1"
-            className="inline-block bg-white text-sky-700 font-semibold px-8 py-3.5 rounded-xl transition hover:bg-stone-50 btn-press text-base relative shadow-lg"
-          >
-            Connect Your Xero
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 relative">
+            <Link
+              href="/books?persona=siki&connect=1"
+              className="inline-block bg-sky-600 hover:bg-sky-500 text-white font-semibold px-7 py-3 rounded-xl transition btn-press text-base shadow-lg"
+            >
+              Connect with Siki
+            </Link>
+            <Link
+              href="/books?persona=zana&connect=1"
+              className="inline-block bg-rose-600 hover:bg-rose-500 text-white font-semibold px-7 py-3 rounded-xl transition btn-press text-base shadow-lg"
+            >
+              Connect with Zana
+            </Link>
+          </div>
         </div>
       </section>
 
