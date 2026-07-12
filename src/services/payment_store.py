@@ -1120,11 +1120,12 @@ def save_metric_snapshot(
     net_margin: float = 0,
     red_customers: int = 0,
     firing_candidates: int = 0,
+    captured_at: str | None = None,
 ) -> None:
     """Save a periodic snapshot of key financial metrics for trend analysis."""
     init_db()
     conn = _get_db()
-    now = datetime.now(timezone.utc).isoformat()
+    now = captured_at or datetime.now(timezone.utc).isoformat()
     conn.execute(
         """
         INSERT INTO metric_snapshots

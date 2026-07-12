@@ -42,6 +42,10 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 | `getPersonaTheme()` | `/books` chrome — buttons, bubbles, findings, toggles |
 | `getAnalysisCardMeta()` | Inline chat `AnalysisCard` headers + chase-specific body copy |
 | `getAutoChaseCopy()` | `AutoChaseNotice` headline + tagline after arming a chase |
+| `getRecoveredCelebrationCopy()` | Payment moment modal when a chased invoice is paid |
+| `getNegotiationCardCopy()` | `NegotiationEmailCard` header + chase draft chrome |
+| `getJournalCardCopy()` | `JournalEntryCard` approve/post voice |
+| `getResponseSummaryCopy()` | Peak-end `ResponseSummary` after agent answers |
 | `findingActionLabel()` | Findings panel primary actions |
 | `cleanFindingsCopy()` | Clean-audit empty state |
 
@@ -55,6 +59,20 @@ Persisted persona: `PERSONA_STORAGE_KEY` / `usePersona()`. Chat messages carry o
 | `/books` sidebar | dither Sparkline (margin trend) |
 | Chat `AnalysisCard`s | HTML bars / SVG sparklines (persona header in Zone A) |
 | Benchmarks / scorecards | No dither |
+
+## Metric snapshot cadence
+
+Sidebar sparkline and impact hero need **2+ snapshots** to render.
+
+| Trigger | Capture mode |
+|---------|----------------|
+| `/books` load | Passive — max once per day |
+| Xero OAuth connect | Bootstrap — today + week-ago baseline (flat line, honest values) |
+| Auto-chase armed | Force — new data point |
+| Journal posted to Xero | Force — new data point |
+| `GET /api/metrics/snapshots?force=true` | Force — bypasses daily throttle |
+
+Passive captures stay throttled; event-driven captures always insert so the trend builds from real actions, not just calendar days.
 
 ## Before shipping UI polish
 

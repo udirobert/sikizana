@@ -258,3 +258,133 @@ export function getAutoChaseCopy(
     tagline: "Logged to your audit trail — see Activity for details.",
   };
 }
+
+/** Full-screen modal when a chased invoice gets paid. */
+export function getRecoveredCelebrationCopy(persona: Persona): {
+  headline: string;
+  subline: string;
+  button: string;
+  panelClass: string;
+  amountClass: string;
+  buttonClass: string;
+} {
+  if (persona === "zana") {
+    return {
+      headline: "recovered since your last visit",
+      subline: "They paid. I stopped the chase sequence automatically.",
+      button: "Nice →",
+      panelClass: "bg-white",
+      amountClass: "text-rose-700",
+      buttonClass: "bg-rose-600 text-white hover:bg-rose-700",
+    };
+  }
+  return {
+    headline: "recovered since your last visit 🎉",
+    subline: "A chased invoice got paid. Siki's follow-ups stopped automatically.",
+    button: "Brilliant →",
+    panelClass: "bg-white",
+    amountClass: "text-emerald-700",
+    buttonClass: "bg-emerald-600 text-white hover:bg-emerald-700",
+  };
+}
+
+/** NegotiationEmailCard — chase drafts are Zana-native; Siki stays softer. */
+export function getNegotiationCardCopy(persona: Persona): {
+  headerTitle: string;
+  psychologyToggle: string;
+  copyButton: string;
+  mailtoButton: string;
+  noEmailHint: string;
+  headerBorder: string;
+  headerBadgeClass: string;
+  psychologyLinkClass: string;
+  psychologyPanelClass: string;
+  mailtoClass: string;
+  footerClass: string;
+} {
+  if (persona === "zana") {
+    return {
+      headerTitle: "Zana's chase draft",
+      psychologyToggle: "Why this lands",
+      copyButton: "Copy email",
+      mailtoButton: "Send from your inbox →",
+      noEmailHint: "No email on file — copy and send manually",
+      headerBorder: "border-rose-100 bg-rose-50/40",
+      headerBadgeClass: "bg-rose-100 text-rose-700",
+      psychologyLinkClass: "text-rose-600 hover:text-rose-700",
+      psychologyPanelClass: "bg-rose-50/50 border-rose-100",
+      mailtoClass: "bg-rose-600 text-white hover:bg-rose-700",
+      footerClass: "border-rose-100 bg-rose-50/30",
+    };
+  }
+  return {
+    headerTitle: "Siki's reminder draft",
+    psychologyToggle: "Why this works",
+    copyButton: "Copy email",
+    mailtoButton: "Open in email client →",
+    noEmailHint: "No email on file — copy and send manually",
+    headerBorder: "border-stone-100 bg-stone-50/50",
+    headerBadgeClass: "bg-sky-100 text-sky-700",
+    psychologyLinkClass: "text-violet-600 hover:text-violet-700",
+    psychologyPanelClass: "bg-violet-50/50 border-violet-100",
+    mailtoClass: "bg-sky-600 text-white hover:bg-sky-700",
+    footerClass: "border-stone-100 bg-stone-50/50",
+  };
+}
+
+/** JournalEntryCard — approve/post moment voice. */
+export function getJournalCardCopy(persona: Persona): {
+  headerTitle: string;
+  awaitingApproval: string;
+  postedLive: string;
+  postedDemo: string;
+  approveButton: string;
+  headerBorder: string;
+  approveClass: string;
+} {
+  if (persona === "zana") {
+    return {
+      headerTitle: "Journal entry — needs your OK",
+      awaitingApproval: "Awaiting approval",
+      postedLive: "✓ Posted to Xero",
+      postedDemo: "Simulated — demo mode",
+      approveButton: "Approve & post",
+      headerBorder: "border-stone-200 bg-stone-50",
+      approveClass: "bg-rose-600 hover:bg-rose-700",
+    };
+  }
+  return {
+    headerTitle: "Proposed journal entry",
+    awaitingApproval: "Awaiting approval",
+    postedLive: "✓ Posted to Xero",
+    postedDemo: "Simulated — demo mode",
+    approveButton: "Approve & Post",
+    headerBorder: "border-stone-200 bg-stone-50",
+    approveClass: "bg-emerald-600 hover:bg-emerald-700",
+  };
+}
+
+/** ResponseSummary — peak-end card after agent answers. */
+export function getResponseSummaryCopy(persona: Persona): {
+  label: string;
+  atStake: string;
+  urgentLine: (count: number) => string;
+  panelClass: string;
+} {
+  if (persona === "zana") {
+    return {
+      label: "What Zana sees in your books",
+      atStake: "slipping away",
+      urgentLine: (n) =>
+        `${n} need${n === 1 ? "s" : ""} chasing now`,
+      panelClass: "border-rose-200/60 bg-gradient-to-br from-rose-50/40 to-white",
+    };
+  }
+  return {
+    label: "Books status",
+    atStake: "at stake",
+    urgentLine: (n) =>
+      `${n} need${n === 1 ? "s" : ""} urgent attention`,
+    panelClass: "border-stone-200 bg-gradient-to-br from-stone-50 to-white",
+  };
+}

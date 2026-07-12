@@ -58,9 +58,27 @@ def set_current_session(session_id: str) -> None:
     _current_session.set(session_id)
 
 
-def capture_metric_snapshot() -> None:
+def capture_metric_snapshot(*, force: bool = False) -> None:
     """Public wrapper — capture today's metrics snapshot for the active session."""
-    _capture_snapshot()
+    _capture_snapshot(force=force)
+
+
+def bootstrap_metric_snapshots_on_connect() -> None:
+    """
+    Record metrics when Xero connects. First-time sessions also get a
+    week-ago baseline (same values, flat line) so sidebar charts render
+    on day one without inventing different numbers.
+    """
+    from src.services.payment_store import get_metric_snapshots
+
+    session_id = _current_session.get()
+    prior_len = len(get_metric_snapshots(session_id, limit=12))
+    _capture_snapshot(force=True)
+    if prior_len == 0:
+        from datetime import datetime, timedelta, timezone
+
+        baseline = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        _capture_snapshot(force=True, captured_at=baseline)
 
 
 def _svc() -> AccountingConnector:
@@ -1916,28 +1934,8 @@ def get_chasing_strategy(contact_name: str = "") -> str:
 # Trend analysis — track financial metrics over time
 # ---------------------------------------------------------------------------
 
-def _capture_snapshot() -> None:
-    """
-    Capture a snapshot of the current financial metrics and save to DB.
-    Called automatically when the user opens the books page or asks
-    about trends. Throttled to one snapshot per session per day.
-    """
-    from src.services.payment_store import save_metric_snapshot, get_metric_snapshots
-
-    session_id = _current_session.get()
-
-    # Throttle: skip if we already have a snapshot from today
-    existing = get_metric_snapshots(session_id, limit=1)
-    if existing:
-        try:
-            from datetime import datetime as _dt
-            last = _dt.fromisoformat(existing[-1]["captured_at"]).date()
-            today_date = _dt.now().astimezone().date()
-            if last == today_date:
-                return  # Already captured today
-        except Exception:  # noqa: BLE001
-            pass
-
+def _gather_current_metrics() -> dict[str, float | int] | None:
+    """Read live books metrics for snapshot storage. Returns None on failure."""
     svc = _svc()
     try:
         invoices = svc.list_invoices(invoice_type="ACCREC")
@@ -1945,7 +1943,7 @@ def _capture_snapshot() -> None:
         all_accrec = [i for i in invoices if i.get("type") == "ACCREC"]
         overdue_accrec = [i for i in overdue if i.get("type") != "ACCPAY"]
     except Exception:  # noqa: BLE001
-        return
+        return None
 
     from datetime import date as _date
     today = _date.today()
@@ -1955,7 +1953,6 @@ def _capture_snapshot() -> None:
     total_revenue = sum(float(i.get("total", 0)) for i in all_accrec)
     overdue_rate = overdue_count / len(all_accrec) if all_accrec else 0
 
-    # Average receivables days
     recv_days = []
     for inv in overdue_accrec:
         try:
@@ -1967,11 +1964,9 @@ def _capture_snapshot() -> None:
             pass
     avg_recv = sum(recv_days) / len(recv_days) if recv_days else 0
 
-    # Net margin from P&L (best effort)
     net_margin = 0.0
     try:
         pnl = svc.get_profit_and_loss()
-        # Try to extract net profit and revenue
         if isinstance(pnl, dict):
             totals = pnl.get("totals", {})
             revenue = float(totals.get("Revenue", 0) or 0)
@@ -1981,14 +1976,48 @@ def _capture_snapshot() -> None:
     except Exception:  # noqa: BLE001
         pass
 
+    return {
+        "total_overdue": total_overdue,
+        "overdue_count": overdue_count,
+        "avg_receivables_days": avg_recv,
+        "overdue_rate": overdue_rate,
+        "total_revenue": total_revenue,
+        "net_margin": net_margin,
+    }
+
+
+def _capture_snapshot(*, force: bool = False, captured_at: str | None = None) -> None:
+    """
+    Capture a snapshot of the current financial metrics and save to DB.
+    Called automatically when the user opens the books page or asks
+    about trends. Throttled to one snapshot per session per day unless
+    force=True (chase armed, journal posted, first Xero connect).
+    """
+    from src.services.payment_store import save_metric_snapshot, get_metric_snapshots
+
+    session_id = _current_session.get()
+
+    # Throttle passive captures: skip if we already have a snapshot from today
+    if not force:
+        existing = get_metric_snapshots(session_id, limit=1)
+        if existing:
+            try:
+                from datetime import datetime as _dt
+                last = _dt.fromisoformat(existing[-1]["captured_at"]).date()
+                today_date = _dt.now().astimezone().date()
+                if last == today_date:
+                    return  # Already captured today
+            except Exception:  # noqa: BLE001
+                pass
+
+    metrics = _gather_current_metrics()
+    if not metrics:
+        return
+
     save_metric_snapshot(
         session_id=session_id,
-        total_overdue=total_overdue,
-        overdue_count=overdue_count,
-        avg_receivables_days=avg_recv,
-        overdue_rate=overdue_rate,
-        total_revenue=total_revenue,
-        net_margin=net_margin,
+        captured_at=captured_at,
+        **metrics,
     )
 
 

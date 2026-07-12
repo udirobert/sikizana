@@ -36,7 +36,7 @@ import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
-import { getPersonaCopy, getPersonaTheme, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
+import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
 import { ProfitTrendChart } from "@/components/ProfitTrendChart";
@@ -163,6 +163,14 @@ function BooksView() {
   });
   const theme = getPersonaTheme(persona);
   const copy = getPersonaCopy(persona);
+  const recoveredCopy = getRecoveredCelebrationCopy(persona);
+
+  const refreshMetricSnapshots = useCallback((force = false) => {
+    void endpoints.xero
+      .metricSnapshots({ force })
+      .then((r) => setMetricSnapshots(r.snapshots))
+      .catch(() => {});
+  }, []);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -250,10 +258,7 @@ function BooksView() {
         setPnLoading(false);
       })
       .catch(() => setPnLoading(false));
-    void endpoints.xero
-      .metricSnapshots()
-      .then((r) => setMetricSnapshots(r.snapshots))
-      .catch(() => {});
+    refreshMetricSnapshots();
 
     // Check if Xero OAuth is configured + if user has connected their own org
     void endpoints.xero
@@ -270,7 +275,7 @@ function BooksView() {
         }
       })
       .catch(() => {});
-  }, [loadFindings, searchParams]);
+  }, [loadFindings, refreshMetricSnapshots, searchParams]);
 
   // Handle OAuth callback redirect (?connected=true&org=...) — once. The
   // param is stripped from the URL immediately so a refresh doesn't
@@ -309,9 +314,12 @@ function BooksView() {
     void loadFindings().then(() => {
       // Let the moment breathe — reveal after at least 1.6s.
       const wait = Math.max(0, 1600 - (Date.now() - startedAt));
-      setTimeout(() => setConnectStage("reveal"), wait);
+      setTimeout(() => {
+        setConnectStage("reveal");
+        refreshMetricSnapshots(true);
+      }, wait);
     });
-  }, [searchParams, loadFindings]);
+  }, [searchParams, loadFindings, refreshMetricSnapshots]);
 
   const dismissConnectMoment = () => {
     setConnectStage(null);
@@ -555,6 +563,7 @@ function BooksView() {
         invoiceNumber: finding.invoice_number ?? undefined,
         findingTitle: finding.title,
       });
+      refreshMetricSnapshots(true);
     } catch (e) {
       setChasedFindingIds((prev) => {
         const next = new Set(prev);
@@ -1327,12 +1336,12 @@ function BooksView() {
                       amount={journal.amount}
                       incomplete={journal.incomplete}
                       threadId={threadId}
+                      persona={msg.persona ?? persona}
                       onPosted={(result) => {
-                        // Full celebration only for a real Xero write —
-                        // demo mode shows its own "Simulated" note on the card.
                         if (result.posted && result.mode !== "demo") {
                           setShowSuccessCheck(true);
                           setTimeout(() => setShowSuccessCheck(false), 3000);
+                          refreshMetricSnapshots(true);
                         }
                       }}
                       onReject={() => {
@@ -1343,7 +1352,10 @@ function BooksView() {
                     />
                   )}
                   {negotiationEmail && (
-                    <NegotiationEmailCard email={negotiationEmail} />
+                    <NegotiationEmailCard
+                      email={negotiationEmail}
+                      persona={msg.persona ?? persona}
+                    />
                   )}
                   {cards.map((card, ci) => (
                     <AnalysisCard
@@ -1417,7 +1429,11 @@ function BooksView() {
                       at stake, and urgent count. Only on the last message. */}
                   {msg.role === "agent" && msg.content &&
                     !isLoading && i === messages.length - 1 && (
-                    <ResponseSummary findings={findings} isStreaming={isLoading} />
+                    <ResponseSummary
+                      findings={findings}
+                      isStreaming={isLoading}
+                      persona={persona}
+                    />
                   )}
                 </div>
               </div>
@@ -1690,22 +1706,24 @@ function BooksView() {
           aria-modal="true"
           aria-label="Money recovered"
         >
-          <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-3 text-center max-w-sm mx-4">
-            <SikiMascot size={90} mood="celebrate" />
-            <div className="text-4xl font-bold text-emerald-700 leading-none">
+          <div className={`rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-3 text-center max-w-sm mx-4 ${recoveredCopy.panelClass}`}>
+            {persona === "zana" ? (
+              <ZanaMascot size={90} mood="celebrate" />
+            ) : (
+              <SikiMascot size={90} mood="celebrate" />
+            )}
+            <div className={`text-4xl font-bold leading-none ${recoveredCopy.amountClass}`}>
               <AnimatedNumber prefix="£" value={Math.round(recoveredCelebration)} />
             </div>
             <p className="text-sm font-semibold text-stone-800">
-              recovered since your last visit 🎉
+              {recoveredCopy.headline}
             </p>
-            <p className="text-xs text-stone-500">
-              A chased invoice got paid. Siki&apos;s follow-ups stopped automatically.
-            </p>
+            <p className="text-xs text-stone-500">{recoveredCopy.subline}</p>
             <button
               onClick={() => setRecoveredCelebration(null)}
-              className="mt-2 text-sm font-semibold bg-emerald-600 text-white px-5 py-2 rounded-lg hover:bg-emerald-700 btn-press transition-colors"
+              className={`mt-2 text-sm font-semibold px-5 py-2 rounded-lg btn-press transition-colors ${recoveredCopy.buttonClass}`}
             >
-              Brilliant →
+              {recoveredCopy.button}
             </button>
           </div>
         </div>

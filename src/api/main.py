@@ -949,14 +949,17 @@ async def xero_pl(
 
 
 @app.get("/api/metrics/snapshots")
-async def metrics_snapshots(session_id: str = Depends(get_session_id)):
+async def metrics_snapshots(
+    force: bool = False,
+    session_id: str = Depends(get_session_id),
+):
     """Historical metric snapshots for sidebar trend charts (captures today if needed)."""
     from src.services.payment_store import get_metric_snapshots
     from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
 
     def _fetch():
         set_current_session(session_id)
-        capture_metric_snapshot()
+        capture_metric_snapshot(force=force)
         return {"snapshots": get_metric_snapshots(session_id, limit=12)}
 
     return await asyncio.to_thread(_fetch)
@@ -1072,6 +1075,15 @@ async def xero_callback(code: str, state: str, request: Request):
             tenant_id=result.get("tenant_id", ""),
             tenant_name=result.get("tenant_name", ""),
             user_id=_user["id"] if _user else None,
+        )
+        # Seed metric history so sidebar trend charts can render after connect.
+        from src.tools.accounting_tools import bootstrap_metric_snapshots_on_connect, set_current_session
+
+        await asyncio.to_thread(
+            lambda: (
+                set_current_session(session_id),
+                bootstrap_metric_snapshots_on_connect(),
+            )[1]
         )
         # Redirect back to the books page with a success indicator
         return RedirectResponse(
@@ -1261,6 +1273,11 @@ async def xero_post_journal(
             amount=req.amount,
             description=req.description,
             thread_id=req.thread_id or "",
+        )
+        from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
+
+        await asyncio.to_thread(
+            lambda: (set_current_session(session_id), capture_metric_snapshot(force=True))[1]
         )
     log.info(
         "journal_post_completed",
@@ -1560,6 +1577,12 @@ async def chase_start(
         return seq, mode, contact_email
 
     seq, mode, contact_email = await asyncio.to_thread(_resolve_and_create)
+
+    from src.tools.accounting_tools import capture_metric_snapshot, set_current_session
+
+    await asyncio.to_thread(
+        lambda: (set_current_session(session_id), capture_metric_snapshot(force=True))[1]
+    )
 
     stage = seq.get("next_stage", 1)
     message = (

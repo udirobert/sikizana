@@ -167,8 +167,10 @@ field so historical bubbles and cards show the correct mascot. See
 `web/DESIGN.md` for where dither, motion, and mascot delight are allowed.
 
 **Metric snapshots:** `GET /api/metrics/snapshots` returns periodic financial
-metrics for trend charts. Snapshots are captured via `capture_metric_snapshot()`
-when the agent runs relevant tools.
+metrics for trend charts. Passive capture is throttled to once per day;
+`?force=true` and event hooks (connect, chase, journal post) always record
+a new point. Connect bootstraps a week-ago baseline so day-one users see
+a flat sidebar sparkline. See `web/DESIGN.md` metric cadence table.
 
 ## Security notes
 

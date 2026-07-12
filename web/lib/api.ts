@@ -553,8 +553,9 @@ export const endpoints = {
       return api.get<Record<string, unknown>>(`/api/xero/profit-and-loss${q ? "?" + q : ""}`);
     },
     /** Daily metric snapshots for sidebar trend charts. */
-    metricSnapshots: () =>
-      api.get<{
+    metricSnapshots: (opts?: { force?: boolean }) => {
+      const q = opts?.force ? "?force=true" : "";
+      return api.get<{
         snapshots: Array<{
           captured_at: string;
           total_revenue: number;
@@ -564,7 +565,8 @@ export const endpoints = {
           avg_receivables_days: number;
           overdue_rate: number;
         }>;
-      }>("/api/metrics/snapshots"),
+      }>(`/api/metrics/snapshots${q}`);
+    },
     /** Post an approved journal entry. In "demo" mode the write is simulated. */
     journal: (payload: JournalPostPayload) =>
       api.post<JournalPostResponse>("/api/xero/journal", payload),

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { ApiError, endpoints, type JournalPostResponse } from "@/lib/api";
+import { getJournalCardCopy, type Persona } from "@/lib/persona-theme";
+import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 
 /** Stable per-card keys so a retried or double-submitted post/reversal can
  * never create a duplicate journal in Xero (backend passes them through as
@@ -35,6 +37,7 @@ export interface ParsedJournalEntry {
 
 interface JournalEntryCardProps extends ParsedJournalEntry {
   threadId?: string;
+  persona?: Persona;
   onPosted?: (result: JournalPostResponse) => void;
   onReject?: () => void;
 }
@@ -48,6 +51,7 @@ export function JournalEntryCard({
   amount,
   incomplete,
   threadId,
+  persona = "siki",
   onPosted,
   onReject,
 }: JournalEntryCardProps) {
@@ -63,6 +67,8 @@ export function JournalEntryCard({
   // Fixed for the card's lifetime — retries reuse the same key.
   const [postKey] = useState(newIdempotencyKey);
   const [reverseKey] = useState(newIdempotencyKey);
+  const copy = getJournalCardCopy(persona);
+  const isZana = persona === "zana";
 
   const handleApprove = async () => {
     if (status === "posting") return;
@@ -129,23 +135,29 @@ export function JournalEntryCard({
 
   return (
     <div className="border border-stone-200 rounded-xl overflow-hidden bg-white fade-in-up">
-      {/* Header */}
-      <div className="bg-stone-50 border-b border-stone-200 px-4 py-2.5 flex items-center justify-between">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-stone-600">
-          Proposed Journal Entry
-        </span>
+      <div className={`border-b px-4 py-2.5 flex items-center justify-between ${copy.headerBorder}`}>
+        <div className="flex items-center gap-2 min-w-0">
+          {isZana ? (
+            <ZanaMascot size={20} mood="idle" className="shrink-0" />
+          ) : (
+            <SikiMascot size={20} mood="idle" className="shrink-0" />
+          )}
+          <span className="text-[11px] font-bold uppercase tracking-wide text-stone-600 truncate">
+            {copy.headerTitle}
+          </span>
+        </div>
         {(status === "pending" || status === "posting") && (
-          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium">
-            Awaiting approval
+          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium shrink-0">
+            {copy.awaitingApproval}
           </span>
         )}
         {status === "posted" && (
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-              isDemo ? "text-amber-700 bg-amber-50" : "text-emerald-600 bg-emerald-50"
+            className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+              isDemo ? "text-amber-700 bg-amber-50" : isZana ? "text-rose-600 bg-rose-50" : "text-emerald-600 bg-emerald-50"
             }`}
           >
-            {isDemo ? "Simulated — demo mode" : "✓ Posted to Xero"}
+            {isDemo ? copy.postedDemo : copy.postedLive}
           </span>
         )}
         {status === "rejected" && (
@@ -211,7 +223,7 @@ export function JournalEntryCard({
 
         {/* Backend confirmation, verbatim */}
         {status === "posted" && result && (
-          <p className={`mt-2 text-xs fade-in-up ${isDemo ? "text-amber-700" : "text-emerald-700"}`}>
+          <p className={`mt-2 text-xs fade-in-up ${isDemo ? "text-amber-700" : isZana ? "text-rose-700" : "text-emerald-700"}`}>
             {result.message}
           </p>
         )}
@@ -283,9 +295,9 @@ export function JournalEntryCard({
             <button
               onClick={handleApprove}
               disabled={status === "posting"}
-              className="flex-1 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors btn-press disabled:opacity-60 disabled:cursor-wait"
+              className={`flex-1 px-3 py-2 text-white text-xs font-semibold rounded-lg transition-colors btn-press disabled:opacity-60 disabled:cursor-wait ${copy.approveClass}`}
             >
-              {status === "posting" ? "Posting…" : "Approve & Post"}
+              {status === "posting" ? "Posting…" : copy.approveButton}
             </button>
             <button
               onClick={handleReject}
