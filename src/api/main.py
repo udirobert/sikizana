@@ -52,19 +52,25 @@ _cors_origins = ["*"] if _allowed == ["*"] else [o.strip() for o in _allowed if 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    """Startup: seed the HMRC rules corpus into Supermemory Local if available.
+    """Startup: seed the HMRC rules corpus into Supermemory if available.
 
     Idempotent — uses stable customIds so re-seeding on restart won't
     create duplicates. If Supermemory is unset or unreachable, this is
     a no-op. The corpus powers semantic RAG in lookup_tax_rule.
+
+    Seeding is run as a background task so a slow Supermemory instance or
+    a large corpus upload never blocks the API from accepting requests.
     """
     try:
         from src.services.supermemory import is_available, seed_tax_corpus
 
         if is_available():
-            count = await asyncio.to_thread(seed_tax_corpus)
-            if count > 0:
-                log.info("supermemory_corpus_seeded", extra={"count": count})
+            async def _seed_in_background():
+                count = await asyncio.to_thread(seed_tax_corpus)
+                if count > 0:
+                    log.info("supermemory_corpus_seeded", extra={"count": count})
+
+            asyncio.create_task(_seed_in_background())
     except Exception as exc:
         log.warning("supermemory_seed_failed", extra={"error": str(exc)})
     yield
