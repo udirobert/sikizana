@@ -116,7 +116,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Data deletion**: `POST /api/data/disconnect` (disconnect platform, keep memories) + `POST /api/data/delete` (full erasure — revokes Xero + erases conversations, audit trail, chase sequences, snapshots, prefs, and memories)
 - **User profiles**: `GET/PUT /api/profile` — name, business name, industry, timezone, language. User-scoped (persists across sessions). Injected into agent system prompt for personalization. Industry feeds sector benchmarks.
 - **Security**: Brute-force protection (5 failed logins → 15min lockout), password reset (token-based, 1h expiry), email verification (token-based, 24h expiry), 30-day sliding session timeout
-- **Tests**: `tests/` — 163 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
+- **Tests**: `tests/` — 166 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration

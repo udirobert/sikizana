@@ -104,7 +104,7 @@ platform-specific detection paths.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 12 (see `MIGRATIONS` list).
+Current schema version: 13 (see `MIGRATIONS` list).
 
 Key tables:
 - `users`, `auth_sessions` — accounts and session→user links
@@ -120,6 +120,8 @@ Key tables:
 - `audit_history` — journal posts, discrepancy fixes
 - `chase_sequences`, `chase_events` — invoice chasing automation
 - `metric_snapshots` — periodic financial metrics
+- `ap_supplier_fingerprints`, `ap_finding_reviews` — AP Integrity baselines,
+  review states, confirmed values, and dismissal reasons
 - `session_prefs` — legacy session-scoped preferences (sector); user profile
   is now the primary source, session_prefs is a fallback
 

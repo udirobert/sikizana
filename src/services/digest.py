@@ -84,6 +84,7 @@ def build_digest(session_id: str) -> dict[str, Any]:
     data = build_findings(session_id)
     findings = data["findings"]
     recovered = data.get("recovered") or {}
+    ap_reviewed = data.get("ap_reviewed") or {}
 
     # Recovered money leads when there is any — it's the win, and the
     # reason to keep the digest coming.
@@ -114,6 +115,12 @@ def build_digest(session_id: str) -> dict[str, Any]:
         extras.append(
             f"🦉 Recovered so far: £{recovered['total']:,.2f} across "
             f"{recovered['count']} chased invoice{'s' if recovered['count'] != 1 else ''}."
+        )
+    if ap_reviewed.get("confirmed_value", 0) > 0:
+        extras.append(
+            f"AP Integrity confirmed £{ap_reviewed['confirmed_value']:,.2f} across "
+            f"{ap_reviewed['confirmed_count']} reviewed exception"
+            f"{'s' if ap_reviewed['confirmed_count'] != 1 else ''}."
         )
     delta_line = _week_delta(session_id)
     if delta_line:

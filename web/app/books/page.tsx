@@ -598,6 +598,7 @@ function BooksView() {
   const handleFindingReview = async (
     finding: Finding,
     state: Exclude<FindingReviewState, "open">,
+    outcome?: { confirmed_amount?: number; dismissal_reason?: string },
   ) => {
     if (!me?.authenticated) {
       setErrorBanner("Sign in to save an AP review decision.");
@@ -605,7 +606,7 @@ function BooksView() {
     }
     setReviewingFindingIds((prev) => new Set(prev).add(finding.id));
     try {
-      await endpoints.xero.reviewFinding(finding.id, state);
+      await endpoints.xero.reviewFinding(finding.id, { state, ...outcome });
       await loadFindings();
     } catch (e) {
       setErrorBanner(e instanceof ApiError ? e.message : "Couldn't save the AP review. Try again.");

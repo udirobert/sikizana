@@ -1043,6 +1043,8 @@ async def xero_findings(session_id: str = Depends(get_session_id)):
 
 class ApFindingReviewRequest(BaseModel):
     state: Literal["safe", "investigating", "confirmed", "dismissed"]
+    confirmed_amount: float | None = None
+    dismissal_reason: str | None = None
 
 
 @app.put("/api/ap-integrity/findings/{finding_id}/review")
@@ -1058,15 +1060,38 @@ async def review_ap_finding(
     The ID format is deterministic and opaque, so the endpoint stores no raw
     accounting identifiers beyond the session-scoped review record.
     """
-    from src.services.ap_integrity.store import set_review_state
+    from src.services.ap_integrity.store import set_review_outcome
 
-    await asyncio.to_thread(set_review_state, session_id, finding_id, req.state)
+    confirmed_amount = req.confirmed_amount
+    if confirmed_amount is not None and confirmed_amount < 0:
+        raise HTTPException(status_code=400, detail="Confirmed amount must be zero or more.")
+    dismissal_reason = (req.dismissal_reason or "").strip()[:240] or None
+
+    await asyncio.to_thread(
+        set_review_outcome,
+        session_id,
+        finding_id,
+        req.state,
+        confirmed_amount=confirmed_amount,
+        dismissal_reason=dismissal_reason,
+    )
+    outcome = f"{finding_id} marked {req.state}"
+    if req.state == "confirmed" and confirmed_amount is not None:
+        outcome += f" with £{confirmed_amount:,.2f} confirmed"
+    if req.state == "dismissed" and dismissal_reason:
+        outcome += f" because {dismissal_reason}"
     record_audit(
         action="ap_finding_reviewed",
-        description=f"{finding_id} marked {req.state}",
+        description=outcome,
+        amount=confirmed_amount if req.state == "confirmed" else None,
         session_id=session_id,
     )
-    return {"finding_id": finding_id, "state": req.state}
+    return {
+        "finding_id": finding_id,
+        "state": req.state,
+        "confirmed_amount": confirmed_amount if req.state == "confirmed" else None,
+        "dismissal_reason": dismissal_reason if req.state == "dismissed" else None,
+    }
 
 
 @app.get("/api/activity")

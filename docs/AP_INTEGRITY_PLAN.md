@@ -158,11 +158,11 @@ exceptions in their existing workflow.
 
 **Implemented:** normalized payment access, deterministic duplicate bill and
 payment checks, supplier-detail fingerprint changes, conservative first-payment
-checks, evidence-bearing findings, authenticated review dispositions, digest
-integration, audit events, session deletion coverage, and regression tests
-across the AP domain and Xero normalization layer. The feature is not yet
-behind a per-user flag; keep thresholds conservative while Phase 0 calibration
-continues.
+checks, evidence-bearing findings, authenticated review dispositions, confirmed
+value and dismissal-reason capture, digest integration, audit events, session
+deletion coverage, release controls, and regression tests across the AP domain
+and Xero normalization layer. Keep thresholds conservative while Phase 0
+calibration continues.
 
 **Exit gate:** a customer can identify the source records, make a disposition,
 and see the same state in chat, findings, and the digest.
@@ -238,8 +238,9 @@ document lifecycle, OCR cost, and vertical support burden.
   -> API disposition -> digest payload.
 - Add migration, authorization, data deletion, and raw-bank-detail redaction
   tests before a live rollout.
-- Before broad rollout, add a per-user feature flag and a kill switch that
-  disables evaluation while preserving reviewed records.
+- Before broad rollout, configure `AP_INTEGRITY_USER_IDS` for design partners
+  and keep `AP_INTEGRITY_DISABLED` available as the global kill switch. Both
+  controls disable evaluation while preserving reviewed records.
 
 ## Documentation ownership
 

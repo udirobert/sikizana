@@ -198,6 +198,12 @@ export type FindingKind =
 export type FindingSeverity = "high" | "medium" | "low";
 export type FindingReviewState = "open" | "safe" | "investigating" | "confirmed" | "dismissed";
 
+export interface FindingReviewPayload {
+  state: Exclude<FindingReviewState, "open">;
+  confirmed_amount?: number;
+  dismissal_reason?: string;
+}
+
 export interface FindingAction {
   type: "chase" | "fix" | "explain" | "review";
   label: string;
@@ -223,7 +229,12 @@ export interface Finding {
   invoice_id?: string;
   /** Evidence supplied by a deterministic AP rule; no raw bank details appear here. */
   evidence?: Array<{ source_id: string; label: string; detail: string }>;
-  review?: { state: FindingReviewState };
+  review?: {
+    state: FindingReviewState;
+    confirmed_amount?: number;
+    dismissal_reason?: string;
+    updated_at?: string;
+  };
 }
 
 export interface AgingBucketSummary {
@@ -251,6 +262,12 @@ export interface FindingsResponse {
   aging?: AgingSummary | null;
   /** Money recovered by the chase loop for this session (paid after ≥1 chase). */
   recovered?: { total: number; count: number } | null;
+  /** Human-confirmed AP Integrity outcomes for this session. */
+  ap_reviewed?: {
+    confirmed_value: number;
+    confirmed_count: number;
+    dismissed_count: number;
+  } | null;
 }
 
 // ---- Chase sequences (automated follow-ups) ----
@@ -581,10 +598,15 @@ export const endpoints = {
     /** Structured audit findings — the books-page findings panel. */
     findings: () => api.get<FindingsResponse>("/api/xero/findings"),
     /** Human review only; this never changes bills, suppliers, or payments. */
-    reviewFinding: (findingId: string, state: Exclude<FindingReviewState, "open">) =>
-      api.put<{ finding_id: string; state: FindingReviewState }>(
+    reviewFinding: (findingId: string, review: FindingReviewPayload) =>
+      api.put<{
+        finding_id: string;
+        state: FindingReviewState;
+        confirmed_amount?: number | null;
+        dismissal_reason?: string | null;
+      }>(
         `/api/ap-integrity/findings/${encodeURIComponent(findingId)}/review`,
-        { state },
+        review,
       ),
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();

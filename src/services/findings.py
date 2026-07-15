@@ -136,8 +136,10 @@ def build_findings(session_id: str) -> dict[str, Any]:
     # domain, not in this presentation-oriented service.
     try:
         from src.services.ap_integrity import build_ap_findings
+        from src.services.payment_store import get_user_for_session
 
-        findings.extend(build_ap_findings(session_id, svc))
+        user = get_user_for_session(session_id)
+        findings.extend(build_ap_findings(session_id, svc, user_id=user["id"] if user else None))
     except Exception as exc:  # noqa: BLE001 — AP checks are best-effort
         log.warning("ap_integrity_unavailable", extra={"error": str(exc)})
 
@@ -177,6 +179,14 @@ def build_findings(session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         log.warning("recovered_total_unavailable", extra={"error": str(exc)})
 
+    ap_reviewed = None
+    try:
+        from src.services.ap_integrity.store import get_review_summary
+
+        ap_reviewed = get_review_summary(session_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ap_review_summary_unavailable", extra={"error": str(exc)})
+
     return {
         "mode": mode,
         "money_found": round(money_found, 2),
@@ -185,6 +195,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "findings": findings,
         "aging": aging,
         "recovered": recovered,
+        "ap_reviewed": ap_reviewed,
     }
 
 

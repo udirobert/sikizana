@@ -274,6 +274,13 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_ap_reviews_session ON ap_finding_reviews(session_id);
         """,
     ),
+    (
+        13,
+        """
+        ALTER TABLE ap_finding_reviews ADD COLUMN confirmed_amount REAL;
+        ALTER TABLE ap_finding_reviews ADD COLUMN dismissal_reason TEXT;
+        """,
+    ),
 ]
 
 

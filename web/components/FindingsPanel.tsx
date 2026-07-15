@@ -10,7 +10,13 @@ import {
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
-import type { Finding, FindingKind, FindingReviewState, FindingsResponse } from "@/lib/api";
+import type {
+  Finding,
+  FindingKind,
+  FindingReviewPayload,
+  FindingReviewState,
+  FindingsResponse,
+} from "@/lib/api";
 
 /**
  * FindingsPanel — the structured audit at the heart of the books page.
@@ -106,7 +112,11 @@ interface FindingsPanelProps {
   /** Findings with a chase sequence already scheduled. */
   chasedIds?: ReadonlySet<string>;
   /** Persist a human AP review state; never changes the accounting source. */
-  onReview?: (finding: Finding, state: Exclude<FindingReviewState, "open">) => void;
+  onReview?: (
+    finding: Finding,
+    state: Exclude<FindingReviewState, "open">,
+    outcome?: Omit<FindingReviewPayload, "state">,
+  ) => void;
   reviewingIds?: ReadonlySet<string>;
   /** Pre-fill the chat input with a suggested prompt (clean state). */
   onSuggest: (prompt: string) => void;
@@ -140,6 +150,8 @@ export function FindingsPanel({
 }: FindingsPanelProps) {
   const theme = getPersonaTheme(persona);
   const [expanded, setExpanded] = useState(false);
+  const [confirmedAmounts, setConfirmedAmounts] = useState<Record<string, string>>({});
+  const [dismissalReasons, setDismissalReasons] = useState<Record<string, string>>({});
   const visibleFindings = compact
     ? expanded
       ? data?.findings ?? []
@@ -191,6 +203,13 @@ export function FindingsPanel({
                   🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by{" "}
                   {persona === "zana" ? "Zana's" : "Siki's"} chasing (
                   {data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
+                </p>
+              )}
+              {data.ap_reviewed && data.ap_reviewed.confirmed_value > 0 && (
+                <p className="text-[11px] font-medium text-emerald-700 mt-1">
+                  £{formatMoney(Math.round(data.ap_reviewed.confirmed_value))} confirmed by AP
+                  review ({data.ap_reviewed.confirmed_count} exception
+                  {data.ap_reviewed.confirmed_count === 1 ? "" : "s"})
                 </p>
               )}
               {/* Aged-receivables strip — the standard 30/60/90 view of
@@ -250,6 +269,11 @@ export function FindingsPanel({
                     🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s chasing
                   </p>
                 )}
+                {data.ap_reviewed && data.ap_reviewed.confirmed_value > 0 && (
+                  <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
+                    £{formatMoney(Math.round(data.ap_reviewed.confirmed_value))} confirmed by AP review
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -274,6 +298,12 @@ export function FindingsPanel({
             const reviewable = finding.kind.startsWith("ap_") && !!onReview;
             const reviewing = reviewingIds?.has(finding.id) ?? false;
             const reviewState = finding.review?.state ?? "open";
+            const confirmedAmount = confirmedAmounts[finding.id] ?? String(finding.amount || "");
+            const dismissalReason = dismissalReasons[finding.id] ?? "";
+            const sendReview = (
+              state: Exclude<FindingReviewState, "open">,
+              outcome?: Omit<FindingReviewPayload, "state">,
+            ) => onReview?.(finding, state, outcome);
             if (compact) {
               return (
                 <li key={finding.id}>
@@ -315,6 +345,12 @@ export function FindingsPanel({
                       {reviewState !== "open" && (
                         <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">
                           Review: {reviewState}
+                          {finding.review?.confirmed_amount !== undefined
+                            ? ` · £${formatMoney(finding.review.confirmed_amount)} confirmed`
+                            : ""}
+                          {finding.review?.dismissal_reason
+                            ? ` · ${finding.review.dismissal_reason}`
+                            : ""}
                         </p>
                       )}
                       {finding.evidence?.slice(0, 2).map((evidence) => (
@@ -341,14 +377,14 @@ export function FindingsPanel({
                     {reviewable && (
                       <div className="mt-1 flex items-center gap-1">
                         <button
-                          onClick={() => onReview!(finding, "safe")}
+                          onClick={() => sendReview("safe")}
                           disabled={reviewing || disabled || reviewState === "safe"}
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
                         >
                           {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
                         </button>
                         <button
-                          onClick={() => onReview!(finding, "investigating")}
+                          onClick={() => sendReview("investigating")}
                           disabled={reviewing || disabled || reviewState === "investigating"}
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
                         >
@@ -397,7 +433,15 @@ export function FindingsPanel({
                       </p>
                     )}
                     {reviewState !== "open" && (
-                      <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">Review: {reviewState}</p>
+                      <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">
+                        Review: {reviewState}
+                        {finding.review?.confirmed_amount !== undefined
+                          ? ` · £${formatMoney(finding.review.confirmed_amount)} confirmed`
+                          : ""}
+                        {finding.review?.dismissal_reason
+                          ? ` · ${finding.review.dismissal_reason}`
+                          : ""}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -445,19 +489,71 @@ export function FindingsPanel({
                   {reviewable && (
                     <>
                       <button
-                        onClick={() => onReview!(finding, "safe")}
+                        onClick={() => sendReview("safe")}
                         disabled={reviewing || disabled || reviewState === "safe"}
                         className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
                       >
                         {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
                       </button>
                       <button
-                        onClick={() => onReview!(finding, "investigating")}
+                        onClick={() => sendReview("investigating")}
                         disabled={reviewing || disabled || reviewState === "investigating"}
                         className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
                       >
                         {reviewState === "investigating" ? "✓ Investigating" : "Investigate"}
                       </button>
+                      <div className="flex items-center gap-1 rounded-lg bg-white/70 border border-stone-200 p-1">
+                        <input
+                          value={confirmedAmount}
+                          onChange={(event) =>
+                            setConfirmedAmounts((prev) => ({
+                              ...prev,
+                              [finding.id]: event.target.value,
+                            }))
+                          }
+                          inputMode="decimal"
+                          aria-label={`Confirmed value for ${finding.title}`}
+                          className="w-20 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-[10px] text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                        />
+                        <button
+                          onClick={() => {
+                            const amount = Number.parseFloat(confirmedAmount);
+                            sendReview("confirmed", {
+                              confirmed_amount: Number.isFinite(amount) ? amount : finding.amount,
+                            });
+                          }}
+                          disabled={reviewing || disabled || reviewState === "confirmed"}
+                          className="text-[10px] font-medium px-2 py-1 rounded-md text-emerald-800 bg-emerald-100 hover:bg-emerald-200 disabled:cursor-not-allowed"
+                        >
+                          {reviewState === "confirmed" ? "✓ Confirmed" : "Confirm"}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1 rounded-lg bg-white/70 border border-stone-200 p-1">
+                        <input
+                          value={dismissalReason}
+                          onChange={(event) =>
+                            setDismissalReasons((prev) => ({
+                              ...prev,
+                              [finding.id]: event.target.value,
+                            }))
+                          }
+                          maxLength={120}
+                          aria-label={`Dismissal reason for ${finding.title}`}
+                          placeholder="Reason"
+                          className="w-24 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-[10px] text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
+                        />
+                        <button
+                          onClick={() =>
+                            sendReview("dismissed", {
+                              dismissal_reason: dismissalReason.trim() || "Reviewed and dismissed",
+                            })
+                          }
+                          disabled={reviewing || disabled || reviewState === "dismissed"}
+                          className="text-[10px] font-medium px-2 py-1 rounded-md text-stone-700 bg-stone-100 hover:bg-stone-200 disabled:cursor-not-allowed"
+                        >
+                          {reviewState === "dismissed" ? "✓ Dismissed" : "Dismiss"}
+                        </button>
+                      </div>
                     </>
                   )}
                   {asked && (
