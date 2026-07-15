@@ -1280,9 +1280,11 @@ async def xero_callback(code: str, state: str, request: Request):
                 bootstrap_metric_snapshots_on_connect(),
             )[1]
         )
-        # Redirect back to the books page with a success indicator
+        # A fresh connection should always land on the first finance check,
+        # not an empty workspace. The page still keeps the user in control of
+        # any follow-up action after the read-only scan completes.
         return RedirectResponse(
-            url=f"/books?connected=true&org={result.get('tenant_name', '')}",
+            url=f"/books?connected=true&flow=check&org={result.get('tenant_name', '')}",
             status_code=302,
         )
     except Exception as exc:

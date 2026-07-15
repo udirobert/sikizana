@@ -20,25 +20,35 @@ const geistMono = Geist_Mono({
 // WhatsApp/X require.
 export const metadata: Metadata = {
   metadataBase: new URL("https://sikizana.persidian.com"),
-  title: "Sikizana — Get Paid Faster, with Xero",
+  title: "Sikizana - Find Money Hiding in Xero",
   description:
-    "See who owes you what (aged 30/60/90 days), learn what's normal for your industry, and chase overdue invoices with escalating emails that stop the moment you're paid.",
+    "Check Xero for overdue invoices, duplicate supplier payments, tax flags, and plain-English explanations before money slips away.",
   applicationName: "Sikizana",
   authors: [{ name: "Sikizana" }],
-  keywords: ["Xero", "invoices", "late payment", "receivables", "credit control", "AI", "bookkeeping", "accounting"],
+  keywords: [
+    "Xero",
+    "duplicate payments",
+    "invoices",
+    "late payment",
+    "receivables",
+    "credit control",
+    "AI",
+    "bookkeeping",
+    "accounting",
+  ],
   openGraph: {
-    title: "Sikizana — Get Paid Faster, with Xero",
+    title: "Sikizana - Find Money Hiding in Xero",
     description:
-      "See who owes you what, learn your industry's payment norms, and chase overdue invoices with escalating emails that stop the moment you're paid.",
+      "Check Xero for overdue invoices, duplicate supplier payments, tax flags, and plain-English explanations before money slips away.",
     type: "website",
     siteName: "Sikizana",
     url: "https://sikizana.persidian.com",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sikizana — Get Paid Faster, with Xero",
+    title: "Sikizana - Find Money Hiding in Xero",
     description:
-      "See who owes you what, learn your industry's payment norms, and chase overdue invoices with escalating emails that stop the moment you're paid.",
+      "Check Xero for overdue invoices, duplicate supplier payments, tax flags, and plain-English explanations before money slips away.",
   },
 };
 

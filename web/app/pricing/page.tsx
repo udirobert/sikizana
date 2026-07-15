@@ -195,27 +195,27 @@ export default function PricingPage() {
       <RotatedReveal />
       <nav className="bg-white border-b border-stone-200 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <Link href="/" aria-label="Sikizana home" className="flex items-center gap-3 group">
             <SikiMascot size={36} mood="idle" />
             <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
+              <h1 className="text-base font-bold text-stone-900 leading-none transition-colors group-hover:text-sky-600">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">
                 Get paid faster · Works with Xero
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
             <Link
-              href={tryLinks.sikiDemo}
-              className="text-[10px] text-stone-500 hover:text-sky-600 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              href="/"
+              className="text-[10px] font-medium text-stone-500 hover:text-stone-800 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Siki demo
+              Home
             </Link>
             <Link
-              href={tryLinks.zanaDemo}
-              className="text-[10px] text-stone-500 hover:text-rose-600 px-2 py-1 rounded hover:bg-stone-100 btn-press"
+              href="/books?flow=check"
+              className="text-[10px] font-medium text-stone-500 hover:text-sky-600 px-2 py-1 rounded hover:bg-stone-100 btn-press"
             >
-              Zana demo
+              Open check
             </Link>
             <Link
               href="/account"
@@ -341,7 +341,7 @@ export default function PricingPage() {
             </Link>
           </div>
           <p className="text-[10px] text-stone-300 mt-2">
-            Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
+            Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
           </p>
         </div>
       </div>

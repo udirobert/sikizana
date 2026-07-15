@@ -69,13 +69,13 @@ export default function ImpactPage() {
       <RotatedReveal />
       <nav className="bg-white border-b border-stone-200 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <Link href="/" aria-label="Sikizana home" className="flex items-center gap-3 group">
             <SikiMascot size={36} mood="idle" />
             <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
+              <h1 className="text-base font-bold text-stone-900 leading-none transition-colors group-hover:text-sky-600">SIKIZANA</h1>
               <p className="text-[10px] text-stone-500 leading-none mt-0.5">Impact</p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             <Link
               href="/pricing"
@@ -174,7 +174,7 @@ export default function ImpactPage() {
 
       <footer className="text-center py-3">
         <p className="text-xs text-stone-400">
-          Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
+          Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
         </p>
       </footer>
     </main>

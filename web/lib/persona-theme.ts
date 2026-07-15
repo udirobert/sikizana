@@ -419,11 +419,11 @@ export function getLandingPersonaPaths(): LandingPersonaPath[] {
         "P&L and balance sheet in plain English",
         "Tax flags and sector benchmarks",
         "Customer scorecards and trend analysis",
-        "Remembers every chat with Supermemory Local",
+        "Remembers customer patterns across sessions",
       ],
       cta: "Start with Siki",
-      demoHref: "/books?persona=siki",
-      connectHref: "/books?persona=siki&connect=1",
+      demoHref: "/books?flow=check&persona=siki",
+      connectHref: "/books?flow=check&persona=siki&connect=1",
       cardClass: "border-sky-200 hover:border-sky-300 hover:shadow-lg hover:shadow-sky-100/50",
       badgeClass: "bg-sky-100 text-sky-700",
       btnClass: "bg-sky-600 hover:bg-sky-700 text-white shadow-sky-600/20",
@@ -432,7 +432,7 @@ export function getLandingPersonaPaths(): LandingPersonaPath[] {
     {
       persona: "zana",
       name: "Zana",
-      role: "The Enforcer",
+      role: "Collections assistant",
       headline: "Chase what's owed",
       description:
         "Aged receivables, negotiation-tactic chase emails, auto-escalation until they pay — with statutory interest built in.",
@@ -443,8 +443,8 @@ export function getLandingPersonaPaths(): LandingPersonaPath[] {
         "Recalls past chasing outcomes from memory",
       ],
       cta: "Start with Zana",
-      demoHref: "/books?persona=zana",
-      connectHref: "/books?persona=zana&connect=1",
+      demoHref: "/books?flow=check&persona=zana",
+      connectHref: "/books?flow=check&persona=zana&connect=1",
       cardClass: "border-rose-200 hover:border-rose-300 hover:shadow-lg hover:shadow-rose-100/50",
       badgeClass: "bg-rose-100 text-rose-700",
       btnClass: "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-600/20",
@@ -603,9 +603,9 @@ export function getPricingTryLinks(): {
   zanaConnect: string;
 } {
   return {
-    sikiDemo: "/books?persona=siki",
-    zanaDemo: "/books?persona=zana",
-    sikiConnect: "/books?persona=siki&connect=1",
-    zanaConnect: "/books?persona=zana&connect=1",
+    sikiDemo: "/books?flow=check&persona=siki",
+    zanaDemo: "/books?flow=check&persona=zana",
+    sikiConnect: "/books?flow=check&persona=siki&connect=1",
+    zanaConnect: "/books?flow=check&persona=zana&connect=1",
   };
 }

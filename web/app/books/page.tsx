@@ -42,6 +42,7 @@ import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnec
 import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
 import { ProfitTrendChart } from "@/components/ProfitTrendChart";
+import { TodaySummary } from "@/components/TodaySummary";
 
 interface OrgData {
   name: string;
@@ -90,6 +91,9 @@ function BooksView() {
   const signInNudgeDismissed = typeof window !== "undefined" && sessionStorage.getItem("siki_signin_nudged") === "1";
   const [findings, setFindings] = useState<FindingsResponse | null>(null);
   const [findingsLoading, setFindingsLoading] = useState(true);
+  // A landing-page entry is not a generic chat session. It opens the first
+  // finance check, backed by the same structured findings used everywhere else.
+  const [financeCheckOpen, setFinanceCheckOpen] = useState(false);
   // Findings the user already acted on — "asked" state on the cards.
   const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
   const [reviewingFindingIds, setReviewingFindingIds] = useState<ReadonlySet<string>>(new Set());
@@ -185,6 +189,7 @@ function BooksView() {
   const successDialogRef = useRef<HTMLDivElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
   const demoSeededRef = useRef(false);
+  const financeCheckHandledRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -303,6 +308,22 @@ function BooksView() {
     void endpoints.memory.seedDemo().catch(() => {});
   }, [xeroMode]);
 
+  // Preserve the intent of the landing-page CTA through the workspace handoff.
+  // We do not auto-send an agent prompt: the user sees the evidence first and
+  // explicitly chooses the next action.
+  useEffect(() => {
+    if (
+      financeCheckHandledRef.current ||
+      searchParams.get("flow") !== "check" ||
+      searchParams.get("connected") === "true" ||
+      findingsLoading
+    ) return;
+    financeCheckHandledRef.current = true;
+    if (findings && !findings.clean && findings.findings.length > 0) {
+      setFinanceCheckOpen(true);
+    }
+  }, [findings, findingsLoading, searchParams]);
+
   // Landing page paths: /books?persona=siki|zana sets the active owl once.
   const personaFromUrlRef = useRef(false);
   useEffect(() => {
@@ -369,6 +390,12 @@ function BooksView() {
 
   const dismissConnectMoment = () => {
     setConnectStage(null);
+    // The post-connect scan is the live equivalent of the sample-book
+    // handoff. Once its reveal has been acknowledged, keep the user on the
+    // same evidence-first path instead of dropping them into generic chat.
+    if (findings && !findings.clean && findings.findings.length > 0) {
+      setFinanceCheckOpen(true);
+    }
     // Free plan + money on the table → frame the upgrade.
     if (findings && findings.money_found > 0 && (!me || me.plan === "free")) {
       const label = xeroMode === "demo" ? "the sample books" : "your books";
@@ -715,6 +742,12 @@ function BooksView() {
     inputRef.current?.focus();
   };
 
+  const highlightedFinding = findings?.findings[0];
+  const highlightedEvidence = highlightedFinding?.evidence?.slice(0, 2) ?? [];
+  const highlightedAmount = highlightedFinding?.amount
+    ? `£${highlightedFinding.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+    : null;
+
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
       {/* Rotated reveal transition — slides away on page load */}
@@ -865,12 +898,93 @@ function BooksView() {
         </div>
       )}
 
+      {/* Landing-page handoff: a focused first check rather than an empty
+          conversation. It deliberately reuses the canonical finding and its
+          server-supplied action, so demo and live books follow one lifecycle. */}
+      {financeCheckOpen && highlightedFinding && (
+        <section className="w-full border-b border-stone-200 bg-white px-4 py-5">
+          <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                {xeroMode === "demo" ? "Your sample finance check" : "Your finance check"}
+              </p>
+              <h2 className="mt-1 text-2xl font-bold tracking-tight text-stone-950">
+                Start with the issue that needs attention.
+              </h2>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-600">
+                Sikizana has ranked this first because it is material, actionable, and linked to the records behind it.
+              </p>
+            </div>
+
+            <div className="border-y border-stone-200 py-4 lg:border-l lg:border-y-0 lg:pl-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Detected</p>
+                  <p className="mt-1 text-sm font-bold text-stone-950">{highlightedFinding.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{highlightedFinding.detail}</p>
+                </div>
+                {highlightedAmount && (
+                  <p className="text-xl font-bold text-stone-950">{highlightedAmount}</p>
+                )}
+              </div>
+
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="border-l-2 border-sky-300 pl-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Evidence</p>
+                  {highlightedEvidence.length > 0 ? (
+                    highlightedEvidence.map((evidence) => (
+                      <p key={evidence.source_id} className="mt-1 text-xs leading-relaxed text-stone-700">
+                        <span className="font-semibold">{evidence.label}</span> · {evidence.detail}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="mt-1 text-xs leading-relaxed text-stone-700">
+                      The source record is available in the findings panel and chat review.
+                    </p>
+                  )}
+                </div>
+                <div className="border-l-2 border-emerald-300 pl-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Next step</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-700">Review the evidence, then decide whether to chase, investigate, or dismiss it.</p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => {
+                    handleFindingAct(highlightedFinding);
+                    setFinanceCheckOpen(false);
+                  }}
+                  disabled={isLoading}
+                  className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
+                >
+                  Review this finding
+                </button>
+                <button
+                  onClick={() => setFinanceCheckOpen(false)}
+                  className="text-xs font-medium text-stone-500 transition-colors hover:text-stone-800"
+                >
+                  View all findings
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       <div className="flex-1 flex flex-col items-center lg:flex-row lg:items-stretch lg:justify-center p-4 gap-4">
         {/* Mobile: the findings panel stacks ABOVE the chat — small screens
             get the audit's value instead of losing the sidebar entirely.
             Compact, capped at 3 with "+N more": a business drowning in
             findings must not have the chat pushed below the fold. */}
         <div className="lg:hidden w-full max-w-2xl bg-white rounded-2xl shadow-sm border border-stone-200 p-4">
+          <TodaySummary
+            data={findings}
+            loading={findingsLoading}
+            persona={persona}
+            disabled={isLoading}
+            onReviewPriority={handleFindingAct}
+          />
           <FindingsPanel
             data={findings}
             loading={findingsLoading}
@@ -899,7 +1013,7 @@ function BooksView() {
           <div className="pb-3 border-b border-stone-100">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
-                Dashboard
+                Finance check
               </h2>
               {xeroMode !== "unknown" && (
                 <span
@@ -925,6 +1039,14 @@ function BooksView() {
               )}
             </SkeletonReveal>
           </div>
+
+          <TodaySummary
+            data={findings}
+            loading={findingsLoading}
+            persona={persona}
+            disabled={isLoading}
+            onReviewPriority={handleFindingAct}
+          />
 
           {/* P&L Summary — with contextual hint for first-time users */}
           <div>
@@ -1032,7 +1154,7 @@ function BooksView() {
             </div>
             <div className="flex-1">
               <p className="text-sm font-semibold text-stone-800">
-                {persona === "siki" ? "Siki · The Explainer" : "Zana · The Enforcer"}
+                {persona === "siki" ? "Siki · The Explainer" : "Zana · Collections assistant"}
               </p>
               <p className="text-[11px] text-stone-500 flex items-center gap-1">
                 {isLoading ? (
@@ -1632,7 +1754,7 @@ function BooksView() {
 
       <footer className="text-center py-3">
         <p className="text-[10px] text-stone-400">
-          Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
+          Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
         </p>
       </footer>
 

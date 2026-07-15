@@ -7,7 +7,7 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 
 ### Zone A — Signature (mascot + persona + voice)
 
-**Where:** Landing hero, `/books` chat, findings panel, connect/onboarding, impact hero caption, `AnalysisCard` headers, auto-chase confirmation (`AutoChaseNotice`).
+**Where:** Landing hero, `/books` chat, finance-check handoff, findings panel, connect/onboarding, impact hero caption, `AnalysisCard` headers, auto-chase confirmation (`AutoChaseNotice`).
 
 **Rules:**
 - Siki = explain, sky/orange accents, plain English.
@@ -55,6 +55,24 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 | `cleanFindingsCopy()` | Clean-audit empty state |
 
 Persisted persona: `PERSONA_STORAGE_KEY` / `usePersona()`. Chat messages carry optional `persona` so cards and mascots match the agent that produced them.
+
+## Finance-check entry flow
+
+Landing, pricing, and Xero OAuth callback paths converge on `/books?flow=check`.
+That flow should feel like the user has arrived inside the product, not a
+second landing page. The page may show a focused handoff panel and `TodaySummary`,
+but both must read from canonical findings and send users into existing finding
+actions.
+
+Rules:
+- `TodaySummary` is a compact return-state surface: priority finding, amount,
+  source status, and one review action.
+- Do not duplicate `FindingsPanel`, create a separate AP dashboard, or invent
+  marketing-only metrics.
+- Clean states should be quiet and credible; risk states should make the next
+  review action obvious.
+- Persona accents can guide tone, but findings evidence and source links carry
+  the trust.
 
 ## Chart placement
 

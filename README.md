@@ -11,8 +11,6 @@ to formal action. It also explains the P&L, estimates UK Corporation Tax with
 HMRC citations, proposes approval-gated bookkeeping fixes, and includes AP
 Integrity: evidence-backed duplicate bill/payment and payable-risk review.
 
-Built for the Xero Hackathon.
-
 **Writing any user-facing copy?** Read [docs/BRAND.md](docs/BRAND.md)
 first — the Siki/Zana duo rule (Siki explains, Zana enforces), honesty
 rules, and canonical copy live there.
@@ -23,9 +21,10 @@ rules, and canonical copy live there.
 
 **https://sikizana.persidian.com**
 
-- `/` — Landing page with Siki the Owl mascot
-- `/books` — AI Finance Assistant chat (live Xero data)
-- `/pricing` — Freemium pricing tiers
+- `/` — Product landing page focused on money found, protected, and recovered
+- `/books` — AI Finance Assistant workspace and finance-check flow
+- `/books?flow=check` — Landing/pricing/Xero callback handoff into the first finance check
+- `/pricing` — Freemium pricing tiers with a clear path home and into the finance check
 - `/impact` — Live impact metrics (money found, issues caught, tax savings)
 - `/security` — Plain-English trust page (what we read, what we can't touch, how to leave)
 - `/activity` — Session audit trail (journals, chase sends, recoveries)
@@ -141,6 +140,11 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 ### 1. Proactive Audit
 The agent runs `find_discrepancies` automatically when the user opens
 the books page — they see value before typing a single word.
+
+Landing, pricing, and post-Xero-connect CTAs route into `/books?flow=check`.
+That handoff opens the same canonical findings workflow with a focused
+finance-check summary, then routes the user into the relevant finding action
+instead of maintaining a separate marketing dashboard.
 
 ### 2. While Siki Works (Educational Wait Time)
 Instead of a blank spinner, the 30-60s wait is filled with three layers:

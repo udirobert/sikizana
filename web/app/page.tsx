@@ -71,95 +71,162 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero — dual persona paths ───────────────────────────────── */}
-      <section className="relative max-w-5xl mx-auto px-6 pt-16 pb-20 text-center">
-        <div className="absolute top-8 left-1/4 w-48 h-48 bg-sky-200/30 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-16 right-1/4 w-48 h-48 bg-rose-200/25 rounded-full blur-3xl pointer-events-none" />
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto px-6 pt-14 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 items-center">
+          <div className="text-left">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 fade-in-up">
+              Read-only Xero checks
+            </div>
 
-        <div className="relative flex items-center justify-center gap-3 mb-6 fade-in-up">
-          <SikiMascot size={56} mood={mood} />
-          <span className="text-stone-300 text-sm font-medium">+</span>
-          <ZanaMascot size={56} mood="look" />
-        </div>
+            <h1 className="mt-5 text-4xl sm:text-6xl font-bold text-stone-950 leading-[1.03] tracking-tight fade-in-up fade-in-up-delay-1">
+              Find money hiding in your Xero books.
+            </h1>
 
-        <div className="inline-block bg-violet-100 text-violet-700 text-[11px] font-semibold uppercase tracking-wide px-3 py-1 rounded-full mb-5 fade-in-up fade-in-up-delay-1">
-          Powered by Supermemory Local · Your business memory stays on your machine
-        </div>
+            <p className="mt-5 text-lg text-stone-600 max-w-xl leading-relaxed fade-in-up fade-in-up-delay-2">
+              Sikizana checks invoices, payments, receivables, and P&amp;L movements for the
+              things busy owners miss: duplicate supplier payments, overdue customers, tax flags,
+              and numbers that need plain-English explanation.
+            </p>
 
-        <h1 className="text-4xl sm:text-5xl font-bold text-stone-900 leading-[1.1] tracking-tight fade-in-up fade-in-up-delay-2">
-          Stop money slipping away.
-          <br />
-          <span className="bg-gradient-to-r from-sky-600 via-stone-700 to-rose-600 bg-clip-text text-transparent">
-            Explain it or chase it.
-          </span>
-        </h1>
+            <div className="mt-7 flex flex-col sm:flex-row gap-3 fade-in-up fade-in-up-delay-3">
+              <Link
+                href="/books?flow=check"
+                className="inline-flex items-center justify-center rounded-xl bg-stone-950 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-stone-900/15 transition hover:bg-stone-800 btn-press"
+              >
+                Try sample books
+              </Link>
+              <Link
+                href="/books?flow=check&connect=1"
+                className="inline-flex items-center justify-center rounded-xl border border-stone-300 bg-white px-6 py-3 text-sm font-semibold text-stone-800 transition hover:bg-stone-100 btn-press"
+              >
+                Connect Xero
+              </Link>
+            </div>
 
-        <p className="mt-5 text-lg text-stone-600 max-w-2xl mx-auto fade-in-up fade-in-up-delay-3">
-          Sikizana reads your Xero data with two AI personas — Siki explains your books in plain
-          English; Zana drafts the chasing emails and escalates until overdue invoices get paid.
-          And with Supermemory Local, Siki remembers every conversation, customer pattern, and tax
-          rule across sessions — so you never start from zero.
-        </p>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-stone-600 fade-in-up fade-in-up-delay-4">
+              {["No signup for demo", "No changes without approval", "No data sold or shared"].map((item) => (
+                <div key={item} className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  {item}
+                </div>
+              ))}
+            </div>
+          </div>
 
-        <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto text-left fade-in-up fade-in-up-delay-4">
-          {personaPaths.map((path, i) => (
-            <div
-              key={path.persona}
-              className={`bg-white border-2 rounded-2xl p-6 transition-shadow ${path.cardClass} fade-in-up`}
-              style={{ animationDelay: `${400 + i * 80}ms` }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                {path.persona === "siki" ? (
-                  <SikiMascot size={52} mood="wave" />
-                ) : (
-                  <ZanaMascot size={52} mood="look" />
-                )}
-                <div>
-                  <h2 className="text-lg font-bold text-stone-900">{path.headline}</h2>
-                  <p className={`text-[10px] font-bold uppercase tracking-wide ${path.badgeClass.split(" ")[1]}`}>
-                    {path.name} · {path.role}
-                  </p>
+          <div className="fade-in-up fade-in-up-delay-3">
+            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xl shadow-stone-900/8">
+              <div className="border-b border-stone-200 bg-stone-950 px-5 py-4 text-white">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
+                      This week's Xero check
+                    </p>
+                    <p className="mt-1 text-lg font-bold">3 recoverable issues found</p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <SikiMascot size={38} mood={mood} />
+                    <ZanaMascot size={38} mood="look" />
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-stone-600 leading-relaxed mb-4">{path.description}</p>
-              <ul className="space-y-1.5 mb-4">
-                {path.bullets.map((b) => (
-                  <li key={b} className="text-xs text-stone-500 flex items-start gap-2">
-                    <span className={`mt-0.5 shrink-0 ${path.persona === "zana" ? "text-rose-400" : "text-sky-400"}`}>•</span>
-                    {b}
-                  </li>
+
+              <div className="divide-y divide-stone-100">
+                {[
+                  {
+                    label: "Overdue receivables",
+                    value: "£4,200",
+                    detail: "Three customers are 30+ days late. Chase drafts are ready.",
+                    tone: "bg-rose-50 text-rose-700 border-rose-100",
+                    evidence: "ageing",
+                  },
+                  {
+                    label: "Possible duplicate payment",
+                    value: "£680",
+                    detail: "Same supplier, same bill, two payments one day apart.",
+                    tone: "bg-amber-50 text-amber-700 border-amber-100",
+                    evidence: "duplicate",
+                  },
+                  {
+                    label: "Books explained",
+                    value: "Ready to review",
+                    detail: "P&L, cash position, sector benchmarks, and tax flags summarized.",
+                    tone: "bg-sky-50 text-sky-700 border-sky-100",
+                    evidence: "summary",
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="p-5">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="text-sm font-semibold text-stone-950">{item.label}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-stone-500">{item.detail}</p>
+                      </div>
+                      <div className={`rounded-full border px-3 py-1 text-xs font-bold ${item.tone}`}>
+                        {item.value}
+                      </div>
+                    </div>
+                    {item.evidence === "ageing" && (
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        {[
+                          ["Aster Studio", "45d", "£1,800"],
+                          ["Hinton & Co", "38d", "£1,400"],
+                          ["North Works", "31d", "£1,000"],
+                        ].map(([customer, days, amount]) => (
+                          <div key={customer} className="border-l-2 border-rose-300 pl-2">
+                            <p className="truncate text-[10px] font-medium text-stone-600">{customer}</p>
+                            <p className="mt-0.5 text-xs font-bold text-stone-900">{amount}</p>
+                            <p className="text-[10px] text-rose-700">{days} overdue</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {item.evidence === "duplicate" && (
+                      <div className="mt-4 overflow-hidden rounded-lg border border-amber-100 bg-amber-50/40 text-[11px]">
+                        {[
+                          ["13 Jun", "Cobalt Electrical", "-£680"],
+                          ["14 Jun", "Cobalt Electrical", "-£680"],
+                        ].map(([date, supplier, amount], index) => (
+                          <div
+                            key={date}
+                            className={`grid grid-cols-[3.5rem_1fr_auto] items-center gap-2 px-3 py-2 ${index ? "border-t border-amber-100" : ""}`}
+                          >
+                            <span className="text-stone-500">{date}</span>
+                            <span className="font-medium text-stone-800">{supplier}</span>
+                            <span className="font-bold text-amber-800">{amount}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {item.evidence === "summary" && (
+                      <div className="mt-4 grid grid-cols-3 divide-x divide-stone-200 border-y border-stone-100 py-2.5">
+                        {[
+                          ["Cash", "£18.4k", "up £1.2k"],
+                          ["Operating profit", "£6.3k", "this month"],
+                          ["VAT due", "£2.1k", "in 12 days"],
+                        ].map(([metric, amount, context]) => (
+                          <div key={metric} className="px-2.5 first:pl-0 last:pr-0">
+                            <p className="text-[10px] text-stone-500">{metric}</p>
+                            <p className="mt-0.5 text-xs font-bold text-stone-900">{amount}</p>
+                            <p className="text-[10px] text-sky-700">{context}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
-              </ul>
-              <p className="text-[11px] text-stone-400 italic mb-4 leading-relaxed">
-                &quot;{path.quote}&quot;
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Link
-                  href={path.demoHref}
-                  className={`flex-1 text-center font-semibold px-4 py-2.5 rounded-xl transition shadow-lg btn-press text-sm ${path.btnClass}`}
-                >
-                  {path.cta} — demo
-                </Link>
-                <Link
-                  href={path.connectHref}
-                  className="flex-1 text-center font-medium px-4 py-2.5 rounded-xl transition border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 btn-press text-sm"
-                >
-                  Connect Xero
-                </Link>
+              </div>
+
+              <div className="bg-stone-50 px-5 py-4">
+                <p className="text-xs leading-relaxed text-stone-500">
+                  Every finding links back to source records. Sikizana suggests the next step;
+                  you decide what gets sent or changed.
+                </p>
               </div>
             </div>
-          ))}
+          </div>
         </div>
-
-        <p className="mt-6 text-xs text-stone-500 fade-in-up fade-in-up-delay-5">
-          Try sample data instantly — no signup. Or connect Xero to see your real numbers in under 30 seconds.
-        </p>
-        <p className="mt-1.5 text-xs text-stone-400 fade-in-up fade-in-up-delay-6">
-          Read-only until you approve an action · never sold or shared ·{" "}
-          <Link href="/security" className="underline hover:text-stone-600 transition-colors">
-            how your data is protected
-          </Link>
-        </p>
       </section>
 
       {/* ── Trust signals ───────────────────────────────────────────── */}
@@ -206,83 +273,76 @@ export default function LandingPage() {
         </section>
       )}
 
-      {/* ── How it works ────────────────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-6 pb-20">
-        <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-          How it works
-        </h2>
-        <p className="text-sm text-stone-500 text-center mb-10">
-          Pick your owl. Switch any time. Nothing sends without your OK.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* ── Jobs ────────────────────────────────────────────────────── */}
+      <section className="border-y border-stone-200 bg-white">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
+            Start where the money is stuck
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 md:divide-x md:divide-stone-200">
           {[
             {
-              step: "1",
-              icon: "ask",
-              title: "Choose Siki or Zana",
-              body: "Start with the explainer or the enforcer — the landing page remembers your choice. Toggle freely in the chat.",
+              title: "Recover overdue invoices",
+              body: "See who owes you, how long they have owed it, and the exact chase email to send next.",
+              href: "/books?flow=check&persona=zana",
             },
             {
-              step: "2",
-              icon: "analyze",
-              title: "They read your Xero",
-              body: "Live invoices, bank feeds, and P&L — traced back to source. Daily snapshots build your trend charts over time.",
+              title: "Catch duplicate payments",
+              body: "Review supplier bills and payments for duplicate amounts, dates, and references before cash disappears.",
+              href: "/books?flow=check&persona=siki",
             },
             {
-              step: "3",
-              icon: "approve",
-              title: "You approve every action",
-              body: "Chase emails, journal fixes, and auto-escalation only run after you click — human-in-the-loop by design.",
+              title: "Understand your numbers",
+              body: "Turn P&L, balance sheet, tax estimates, and sector benchmarks into a clear operating summary.",
+              href: "/books?flow=check&persona=siki",
             },
-            {
-              step: "4",
-              icon: "memory",
-              title: "Siki remembers",
-              body: "Every conversation, customer pattern, and tax question is stored in Supermemory Local on your own machine. Come back tomorrow and pick up where you left off.",
-            },
-          ].map((item, i) => (
-            <div
-              key={item.step}
-              className="bg-white border border-stone-200 rounded-2xl p-6 fade-in-up hover:shadow-md transition-shadow group"
-              style={{ animationDelay: `${i * 100}ms` }}
+          ].map((job, i) => (
+            <Link
+              key={job.title}
+              href={job.href}
+              className="group py-3 md:px-6 first:pl-0 last:pr-0 transition-colors hover:text-sky-700 fade-in-up"
+              style={{ animationDelay: `${i * 80}ms` }}
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-sky-50 text-sky-600 rounded-xl flex items-center justify-center font-bold text-sm group-hover:bg-sky-100 transition-colors">
-                  {item.step}
-                </div>
-                {/* Mini icon */}
-                <svg className="w-5 h-5 text-stone-300 group-hover:text-sky-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {item.icon === "ask" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 3v-3z" />}
-                  {item.icon === "analyze" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />}
-                  {item.icon === "approve" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />}
-                  {item.icon === "memory" && <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />}
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-stone-900 mb-1">
-                {item.title}
-              </h3>
-              <p className="text-xs text-stone-600 leading-relaxed">
-                {item.body}
+              <p className="text-sm font-bold text-stone-950 transition-colors group-hover:text-sky-700">{job.title}</p>
+              <p className="mt-2 text-sm leading-relaxed text-stone-600">{job.body}</p>
+              <p className="mt-4 text-xs font-semibold text-stone-400 transition-colors group-hover:text-sky-700">
+                Try this workflow →
               </p>
+            </Link>
+          ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Trust ───────────────────────────────────────────────────── */}
+      <section className="max-w-6xl mx-auto px-6 py-16">
+        <div className="grid grid-cols-1 gap-6 border-y border-stone-200 py-6 sm:grid-cols-3 sm:divide-x sm:divide-stone-200 sm:gap-0">
+          {[
+            ["Read-only by default", "Sikizana inspects your books without changing them."],
+            ["Evidence before advice", "Every finding links back to invoices, payments, or reports."],
+            ["You approve every action", "Nothing sends, posts, or escalates without your say-so."],
+          ].map(([title, detail], index) => (
+            <div key={title} className={`fade-in-up ${index ? "sm:px-6" : "sm:pr-6"}`} style={{ animationDelay: `${index * 70}ms` }}>
+              <p className="text-sm font-bold text-stone-950">{title}</p>
+              <p className="mt-1 text-sm leading-relaxed text-stone-600">{detail}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ── Meet the duo (compact) ──────────────────────────────────── */}
-      <section className="max-w-4xl mx-auto px-6 pb-20">
-        <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-          Good cop, firm cop
-        </h2>
-        <p className="text-sm text-stone-500 text-center mb-8">
-          Same Xero data. Different voice. One product.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* ── Assistant modes ─────────────────────────────────────────── */}
+      <section className="border-y border-stone-200 bg-stone-100">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          <div className="mb-8 max-w-xl">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">One Xero connection, two operating modes</p>
+            <h2 className="mt-2 text-2xl font-bold text-stone-900">Decide with context. Collect with conviction.</h2>
+          </div>
+          <div className="grid grid-cols-1 border-y border-stone-300 md:grid-cols-2 md:divide-x md:divide-stone-300">
           {personaPaths.map((path) => (
             <Link
               key={path.persona}
               href={path.demoHref}
-              className={`block bg-white border rounded-2xl p-5 fade-in-up hover:shadow-md transition-shadow ${path.cardClass}`}
+              className={`group block py-6 first:md:pr-8 last:md:pl-8 fade-in-up ${path.persona === "siki" ? "hover:text-sky-700" : "hover:text-rose-700"}`}
             >
               <div className="flex items-center gap-3 mb-2">
                 {path.persona === "siki" ? (
@@ -298,39 +358,42 @@ export default function LandingPage() {
                 </div>
               </div>
               <p className="text-sm text-stone-600 leading-relaxed">{path.description}</p>
+              <p className="mt-4 text-xs font-semibold text-stone-400 transition-colors group-hover:text-current">Open {path.name} →</p>
             </Link>
           ))}
+          </div>
         </div>
       </section>
 
       {/* ── Feature showcase ────────────────────────────────────────── */}
-      <section className="bg-white border-y border-stone-200 py-20">
-        <div className="max-w-4xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
-            What Sikizana can do
-          </h2>
-          <p className="text-sm text-stone-500 text-center mb-12">
-            Everything an accountant would do — with a persistent local memory that learns your business.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <section className="bg-white py-20">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[0.75fr_1.25fr] md:items-end">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-stone-500">Your financial watchlist</p>
+              <h2 className="mt-2 text-3xl font-bold text-stone-900">The checks that compound.</h2>
+            </div>
+            <p className="text-sm leading-relaxed text-stone-600">The recurring finance checks most teams do manually, rushed, or too late. Sikizana keeps the routine work visible so small issues do not become expensive surprises.</p>
+          </div>
+          <div className="mt-10 border-y border-stone-200">
             {[
-              { title: "See who owes you", desc: "An aged receivables view — 30/60/90 days — of every unpaid invoice, so you know who to chase first and how urgently.", emoji: "💰" },
-              { title: "Chase with proven tactics", desc: "Escalating reminder emails built on negotiation psychology, with statutory interest and late-payment compensation calculated for you.", emoji: "✉️" },
-              { title: "Know what's normal", desc: "Compares your payment times and overdue rate against typical UK ranges for your sector — so you know if you're being taken advantage of.", emoji: "📊" },
-              { title: "Spot bad customers", desc: "Scores every customer's payment reliability (red/amber/green) and flags the ones who cost more to chase than they're worth.", emoji: "🚦" },
-              { title: "Estimate your tax bill", desc: "Calculates your UK Corporation Tax, flags non-deductible expenses — and reminds you that you pay tax on invoiced money even before it's paid.", emoji: "🏛️" },
-              { title: "Explain your P&L", desc: "Translates your profit & loss into plain English. No more guessing what the numbers mean.", emoji: "📈" },
-              { title: "Remembers across sessions", desc: "Siki recalls your customers, past conversations, and tax rules from Supermemory Local — so every answer is personal.", emoji: "🧠" },
+              { title: "Overdue invoices", desc: "Aged 30/60/90 day receivables, ranked by who needs attention first.", mark: "AR", group: "Get paid" },
+              { title: "Chase drafts", desc: "Escalating email drafts with statutory interest and compensation included where relevant.", mark: "CX", group: "Get paid" },
+              { title: "Duplicate supplier payments", desc: "Possible duplicate bills and payments with source evidence for review.", mark: "AP", group: "Protect spend" },
+              { title: "Customer risk", desc: "Payment reliability and cost-to-serve signals so repeat late payers stand out.", mark: "R", group: "Protect spend" },
+              { title: "Tax flags", desc: "Corporation Tax estimates and non-deductible expense checks in plain English.", mark: "T", group: "Know your position" },
+              { title: "P&L explanation", desc: "A readable summary of what changed, what matters, and what to inspect next.", mark: "PL", group: "Know your position" },
             ].map((feat, i) => (
               <div
                 key={feat.title}
-                className="flex gap-4 p-5 rounded-2xl border border-stone-100 hover:border-sky-200 hover:bg-sky-50/30 transition-all fade-in-up"
+                className="group grid grid-cols-[3.5rem_1fr] gap-3 border-b border-stone-100 py-4 last:border-0 sm:grid-cols-[8rem_2.5rem_1fr] sm:items-center sm:gap-5 fade-in-up"
                 style={{ animationDelay: `${i * 60}ms` }}
               >
-                <div className="text-2xl shrink-0">{feat.emoji}</div>
-                <div>
-                  <h3 className="text-sm font-semibold text-stone-900">{feat.title}</h3>
-                  <p className="text-xs text-stone-600 mt-1 leading-relaxed">{feat.desc}</p>
+                <p className="pt-1 text-[10px] font-semibold uppercase tracking-wide text-stone-400 sm:pt-0">{feat.group}</p>
+                <p className="hidden text-[11px] font-bold text-stone-400 sm:block">{feat.mark}</p>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-stone-900 transition-colors group-hover:text-sky-700">{feat.title}</h3>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{feat.desc}</p>
                 </div>
               </div>
             ))}
@@ -339,31 +402,31 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ─────────────────────────────────────────────────────── */}
-      <section className="max-w-3xl mx-auto px-6 py-20 text-center">
-        <div className="relative bg-gradient-to-br from-stone-800 via-stone-900 to-stone-950 rounded-3xl p-12 overflow-hidden">
-          <div className="absolute -right-2 -bottom-2 opacity-15 flex gap-1">
+      <section className="relative overflow-hidden bg-stone-950 px-6 py-20 text-center">
+        <div className="absolute right-8 bottom-0 flex gap-1 opacity-15">
             <SikiMascot size={100} mood="celebrate" />
             <ZanaMascot size={100} mood="look" />
-          </div>
-          <h2 className="text-3xl font-bold text-white mb-3 relative">
-            Pick your owl. Connect Xero.
+        </div>
+        <div className="relative mx-auto max-w-3xl">
+          <h2 className="text-3xl font-bold text-white mb-3">
+            Run the check on your own books.
           </h2>
-          <p className="text-stone-300 mb-8 relative max-w-lg mx-auto">
-            See who owes you what — aged 30/60/90 days — with a chasing plan for each debtor,
-            or a plain-English read on your P&amp;L and tax.
+          <p className="text-stone-300 mb-8 max-w-lg mx-auto">
+            Start with sample data, then connect Xero when you want Sikizana to inspect real
+            invoices, payments, receivables, and reports.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 relative">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/books?persona=siki&connect=1"
+              href="/books?flow=check"
               className="inline-block bg-sky-600 hover:bg-sky-500 text-white font-semibold px-7 py-3 rounded-xl transition btn-press text-base shadow-lg"
             >
-              Connect with Siki
+              Try sample books
             </Link>
             <Link
-              href="/books?persona=zana&connect=1"
+              href="/books?flow=check&connect=1"
               className="inline-block bg-rose-600 hover:bg-rose-500 text-white font-semibold px-7 py-3 rounded-xl transition btn-press text-base shadow-lg"
             >
-              Connect with Zana
+              Connect Xero
             </Link>
           </div>
         </div>
@@ -394,10 +457,7 @@ export default function LandingPage() {
             </Link>
           </div>
           <p className="text-[11px] text-stone-400 text-center">
-            Built for the Xero App &amp; Agent Hackathon · Encode Club · 2026
-          </p>
-          <p className="text-[10px] text-stone-300 text-center mt-1">
-            AI-powered bookkeeping · Human-in-the-loop by design · Your data stays yours
+            AI finance assistant for Xero. Human-in-the-loop by design.
           </p>
         </div>
       </footer>

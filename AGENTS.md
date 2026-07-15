@@ -19,6 +19,8 @@ of truth is [`docs/AP_INTEGRITY_PLAN.md`](docs/AP_INTEGRITY_PLAN.md).
 
 - Enhance the canonical `build_findings()` workflow rather than adding a
   parallel insights surface.
+- Landing, pricing, and post-Xero-connect CTAs should enter `/books?flow=check`
+  and reuse the findings workflow; do not add a second AP or dashboard surface.
 - Keep accounting connectors responsible only for normalized source facts.
   AP rules must not import `XeroService` directly.
 - Give every exception source evidence and describe it as a risk requiring
@@ -164,7 +166,8 @@ cd web && npx tsc --noEmit
 | `web/components/ImpactHeroChart.tsx` | Dither area chart + Siki trend caption on `/impact` |
 | `web/components/ProfitTrendChart.tsx` | Dither sparkline in `/books` sidebar P&L |
 | `web/components/AutoChaseNotice.tsx` | Signature moment when a chase sequence is armed |
-| `web/app/page.tsx` | Landing — dual Siki/Zana entry paths via `getLandingPersonaPaths()` |
+| `web/components/TodaySummary.tsx` | Compact return-state summary for the priority finding on `/books` |
+| `web/app/page.tsx` | Landing — finance-check entry paths via `getLandingPersonaPaths()` |
 
 ### Personalization
 
@@ -190,6 +193,13 @@ Tailwind accent classes via `getPersonaTheme()`, first-person copy via
 card headers, auto-chase confirmation). Agent messages include a `persona`
 field so historical bubbles and cards show the correct mascot. See
 `web/DESIGN.md` for where dither, motion, and mascot delight are allowed.
+
+**Finance-check handoff:** Marketing and pricing CTAs use `/books?flow=check`
+optionally with `persona=siki|zana` and `connect=1`. Xero OAuth callbacks also
+return to `/books?connected=true&flow=check`. The books page opens a focused
+finance-check handoff from canonical findings, then hands the user to the same
+finding action cards and chat flow. `TodaySummary` is the return-state summary;
+it must stay a thin view over findings, not a second dashboard.
 
 **Metric snapshots:** `GET /api/metrics/snapshots` returns periodic financial
 metrics for trend charts. Passive capture is throttled to once per day;

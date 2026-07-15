@@ -152,7 +152,7 @@ export default function TermsPage() {
             </Link>
           </div>
           <p className="text-[10px] text-stone-400">
-            Built for the Xero App &amp; Agent Hackathon · Encode Club · London 2026
+            Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
           </p>
         </div>
       </footer>
