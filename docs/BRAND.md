@@ -6,8 +6,8 @@ it against this file.
 
 ## The one-line story
 
-**Sikizana gets small businesses paid.** Tagline everywhere:
-`Get paid faster · Works with Xero`.
+**Sikizana helps small businesses find, protect, and recover their money.**
+Tagline everywhere: `Find money. Stop leaks. Get paid. · Works with Xero`.
 
 ## The duo rule (the core principle)
 
@@ -16,7 +16,7 @@ Sikizana is two owls with one job — your money:
 | | **Siki** | **Zana** |
 |---|---|---|
 | Role | The Explainer | The Enforcer |
-| Owns | Trust, watching, explaining | Action, chasing, enforcement |
+| Owns | Trust, watching, explaining, evidence-led risk review | Action, chasing, enforcement |
 | Voice | Gentle, patient, allergic to jargon, reassuring | Direct, unbothered, urgency without panic, never cruel |
 | Accent | Sky/orange | Rose/dark stone |
 | Example line | "You're owed £4,200. Here's who, and for how long. Want me to help?" | "It's been 45 days. Here's the email to send. You're also owed £70 in compensation — I added it." |
@@ -67,11 +67,24 @@ shipped once and credited the wrong owl.
 - Speech-bubble Siki intros for trust/policy pages (see /security,
   /privacy for the pattern).
 
+### AP Integrity language
+
+- Siki owns payable-risk review. A duplicate bill, unusual payment, or supplier
+  detail change is an **exception to review**, never an accusation of fraud.
+- State the observed facts, the money exposed, and the source evidence before
+  suggesting an action. Never imply that Sikizana has verified a supplier by
+  email or can stop a payment.
+- The safe action is a human check through an independently known supplier
+  contact path. Do not suggest using a phone number or bank detail supplied in
+  the suspicious document.
+- Keep the existing approval promise literal: Sikizana does not change bills,
+  suppliers, payments, or bank details.
+
 ## Canonical copy
 
-- Nav tagline: `Get paid faster · Works with Xero`
+- Nav tagline: `Find money. Stop leaks. Get paid. · Works with Xero`
 - CTA to the app: `Open Sikizana` (never "Open Bookkeeper")
-- Chat footer: `Sikizana · Get paid faster · Human-in-the-loop by design`
+- Chat footer: `Sikizana · Find money. Stop leaks. Get paid. · Human-in-the-loop by design`
 - The duo promise: `Siki can't change anything, Zana can't chase anyone —
   without you.`
 - Contact: `hello@persidian.com` (we do NOT own sikizana.com)

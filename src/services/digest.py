@@ -30,6 +30,10 @@ _KIND_ICONS = {
     "overdue_bill": "📮",
     "unreconciled": "⚠️",
     "tax_flag": "📋",
+    "ap_duplicate_bill": "🔍",
+    "ap_duplicate_payment": "🔍",
+    "ap_supplier_detail_change": "🔒",
+    "ap_payment_anomaly": "🔎",
 }
 
 
@@ -101,7 +105,8 @@ def build_digest(session_id: str) -> dict[str, Any]:
         headline = (
             f"This week: £{data['money_found']:,.2f} in overdue invoices, "
             f"{data['counts']['unreconciled']} unreconciled transactions, "
-            f"{data['counts']['tax_flags']} tax flags."
+            f"{data['counts']['tax_flags']} tax flags, and "
+            f"{data['counts'].get('ap_risks', 0)} AP risks to review."
         )
 
     extras: list[str] = []

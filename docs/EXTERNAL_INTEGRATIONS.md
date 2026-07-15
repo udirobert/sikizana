@@ -225,6 +225,36 @@ Separately — the chase loop (not part of a single chat turn):
 
 ## Planned Integrations
 
+### Invoice Evidence Intake — Planned, Not Integrated
+
+**Purpose**: support the AP Integrity roadmap with source documents and, later,
+an opt-in construction `Project Bill Review` pilot. This is not required for
+the horizontal Xero-based AP Integrity MVP.
+
+**V1 boundary**: start with user upload or a dedicated forwarding address for
+design partners. Do not request broad mailbox OAuth simply to prove invoice
+review value.
+
+**Possible later connectors**: read-only Gmail label access and Outlook folder
+access. Each connector must be independently authorized, scoped to the narrowest
+inbox area possible, and implemented outside the accounting connector registry.
+It supplies documents; it does not become an accounting platform.
+
+**Security and delivery constraints**:
+
+- No mail send permission. Reports may only be delivered to a verified,
+  account-owned address, enforced server-side.
+- Raw PDFs and images require encrypted document storage, project/user access
+  control, explicit retention, and deletion. They are not Supermemory memories.
+- OCR and LLM output must retain page-level provenance. Deterministic document
+  reconciliation rules determine exceptions; an LLM assists extraction,
+  retrieval, and explanation.
+- A document-led construction pilot is isolated from core AP Integrity until
+  confirmed value outweighs its ingestion, OCR, and support costs.
+
+The authoritative scope and delivery sequence are in
+[AP Integrity Implementation Plan](AP_INTEGRITY_PLAN.md).
+
 ### Email Automation — Shipped (via Postmark, not Make/Zapier)
 
 **Status**: Done. Originally planned as a Make/Zapier integration

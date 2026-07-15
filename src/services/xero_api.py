@@ -182,8 +182,12 @@ def _norm_invoice(inv: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": inv.get("InvoiceID", ""),
         "invoiceNumber": inv.get("InvoiceNumber", ""),
+        "reference": inv.get("Reference", "") or "",
         "type": inv.get("Type", ""),
-        "contact": {"name": (inv.get("Contact") or {}).get("Name", "Unknown")},
+        "contact": {
+            "id": (inv.get("Contact") or {}).get("ContactID", ""),
+            "name": (inv.get("Contact") or {}).get("Name", "Unknown"),
+        },
         "date": _iso_date(inv.get("DateString") or inv.get("Date")),
         "dueDate": _iso_date(inv.get("DueDateString") or inv.get("DueDate")),
         "fullyPaidOnDate": _iso_date(inv.get("FullyPaidOnDate") or ""),
@@ -191,6 +195,27 @@ def _norm_invoice(inv: dict[str, Any]) -> dict[str, Any]:
         "total": float(inv.get("Total", 0) or 0),
         "amountDue": float(inv.get("AmountDue", 0) or 0),
         "amountPaid": float(inv.get("AmountPaid", 0) or 0),
+    }
+
+
+def _norm_payment(payment: dict[str, Any]) -> dict[str, Any]:
+    invoice = payment.get("Invoice") or {}
+    contact = payment.get("Contact") or {}
+    account = payment.get("Account") or {}
+    return {
+        "id": payment.get("PaymentID", ""),
+        "date": _iso_date(payment.get("DateString") or payment.get("Date")),
+        "amount": float(payment.get("Amount", 0) or 0),
+        "reference": payment.get("Reference", "") or "",
+        "invoice": {
+            "id": invoice.get("InvoiceID", ""),
+            "invoiceNumber": invoice.get("InvoiceNumber", ""),
+        },
+        "contact": {
+            "id": contact.get("ContactID", ""),
+            "name": contact.get("Name", "Unknown"),
+        },
+        "bankAccount": {"id": account.get("AccountID", ""), "code": account.get("Code", "")},
     }
 
 
@@ -224,6 +249,9 @@ def _norm_contact(contact: dict[str, Any]) -> dict[str, Any]:
         "emailAddress": contact.get("EmailAddress", "") or "",
         "isSupplier": bool(contact.get("IsSupplier", False)),
         "isCustomer": bool(contact.get("IsCustomer", False)),
+        # Used only to create a one-way change fingerprint in AP Integrity.
+        # It is never returned in findings or persisted as raw account data.
+        "bankAccountDetails": contact.get("BankAccountDetails", "") or "",
     }
 
 
@@ -279,6 +307,11 @@ def list_bank_transactions(session_id: str) -> list[dict[str, Any]]:
         "BankTransactions", session_id, "BankTransactions", params={"order": "Date DESC"}
     )
     return [_norm_bank_txn(t) for t in txns]
+
+
+def list_payments(session_id: str) -> list[dict[str, Any]]:
+    payments = _get_paged("Payments", session_id, "Payments", params={"order": "Date DESC"})
+    return [_norm_payment(payment) for payment in payments]
 
 
 def get_report(

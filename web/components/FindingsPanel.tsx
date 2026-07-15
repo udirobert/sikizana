@@ -10,7 +10,7 @@ import {
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
-import type { Finding, FindingKind, FindingsResponse } from "@/lib/api";
+import type { Finding, FindingKind, FindingReviewState, FindingsResponse } from "@/lib/api";
 
 /**
  * FindingsPanel — the structured audit at the heart of the books page.
@@ -29,6 +29,10 @@ const KIND_ICONS: Record<FindingKind, string> = {
   overdue_bill: "📄",
   unreconciled: "🔗",
   tax_flag: "🏛️",
+  ap_duplicate_bill: "🔍",
+  ap_duplicate_payment: "🔍",
+  ap_supplier_detail_change: "🔒",
+  ap_payment_anomaly: "🔎",
 };
 
 const KIND_LABELS: Record<FindingKind, string> = {
@@ -36,12 +40,20 @@ const KIND_LABELS: Record<FindingKind, string> = {
   overdue_bill: "Overdue bill",
   unreconciled: "Unreconciled",
   tax_flag: "Tax flag",
+  ap_duplicate_bill: "Possible duplicate bill",
+  ap_duplicate_payment: "Possible duplicate payment",
+  ap_supplier_detail_change: "Supplier detail change",
+  ap_payment_anomaly: "Payment anomaly",
 };
 
 /** Plain-English gloss per kind — the target user isn't an accountant. */
 const KIND_GLOSS: Partial<Record<FindingKind, string>> = {
   unreconciled: "A bank transaction Xero can't match to an invoice or bill yet",
   tax_flag: "An expense that may affect what tax you owe",
+  ap_duplicate_bill: "Review the matching source bills before paying or requesting a credit",
+  ap_duplicate_payment: "Review the matching payment records before requesting a credit or refund",
+  ap_supplier_detail_change: "Verify through a supplier contact channel you already trust",
+  ap_payment_anomaly: "A conservative prompt to check a high-value first payment",
 };
 
 function severityClasses(severity: Finding["severity"]): string {
@@ -70,6 +82,9 @@ export function findingsSummary(data: FindingsResponse): string {
   if (data.counts.tax_flags > 0) {
     parts.push(`${data.counts.tax_flags} tax flag${data.counts.tax_flags === 1 ? "" : "s"}`);
   }
+  if (data.counts.ap_risks > 0) {
+    parts.push(`${data.counts.ap_risks} AP risk${data.counts.ap_risks === 1 ? "" : "s"}`);
+  }
   return parts.join(" · ");
 }
 
@@ -90,6 +105,9 @@ interface FindingsPanelProps {
   onAutoChase?: (finding: Finding) => void;
   /** Findings with a chase sequence already scheduled. */
   chasedIds?: ReadonlySet<string>;
+  /** Persist a human AP review state; never changes the accounting source. */
+  onReview?: (finding: Finding, state: Exclude<FindingReviewState, "open">) => void;
+  reviewingIds?: ReadonlySet<string>;
   /** Pre-fill the chat input with a suggested prompt (clean state). */
   onSuggest: (prompt: string) => void;
   /** Suggested prompts for the clean/celebration state. */
@@ -112,6 +130,8 @@ export function FindingsPanel({
   onSave,
   onAutoChase,
   chasedIds,
+  onReview,
+  reviewingIds,
   onSuggest,
   suggestions,
   compact = false,
@@ -251,6 +271,9 @@ export function FindingsPanel({
             const chased = chasedIds?.has(finding.id) ?? false;
             const chaseable =
               finding.kind === "overdue_invoice" && !!finding.invoice_number && !!onAutoChase;
+            const reviewable = finding.kind.startsWith("ap_") && !!onReview;
+            const reviewing = reviewingIds?.has(finding.id) ?? false;
+            const reviewState = finding.review?.state ?? "open";
             if (compact) {
               return (
                 <li key={finding.id}>
@@ -289,6 +312,16 @@ export function FindingsPanel({
                       {asked && (
                         <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
                       )}
+                      {reviewState !== "open" && (
+                        <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">
+                          Review: {reviewState}
+                        </p>
+                      )}
+                      {finding.evidence?.slice(0, 2).map((evidence) => (
+                        <p key={evidence.source_id} className="text-[10px] text-stone-400 mt-0.5 truncate">
+                          {evidence.label}: {evidence.detail}
+                        </p>
+                      ))}
                     </button>
                     {chaseable && (
                       <button
@@ -304,6 +337,24 @@ export function FindingsPanel({
                       >
                         {chased ? "✓ Auto-chase on" : "⚡ Auto-chase"}
                       </button>
+                    )}
+                    {reviewable && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <button
+                          onClick={() => onReview!(finding, "safe")}
+                          disabled={reviewing || disabled || reviewState === "safe"}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
+                        >
+                          {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
+                        </button>
+                        <button
+                          onClick={() => onReview!(finding, "investigating")}
+                          disabled={reviewing || disabled || reviewState === "investigating"}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
+                        >
+                          {reviewState === "investigating" ? "✓ Investigating" : "Investigate"}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </li>
@@ -339,6 +390,14 @@ export function FindingsPanel({
                       <p className="text-[10px] text-stone-400 mt-0.5 italic">
                         {KIND_GLOSS[finding.kind]}
                       </p>
+                    )}
+                    {finding.evidence && finding.evidence.length > 0 && (
+                      <p className="text-[10px] text-stone-400 mt-0.5">
+                        {finding.evidence.length} source record{finding.evidence.length === 1 ? "" : "s"} cited
+                      </p>
+                    )}
+                    {reviewState !== "open" && (
+                      <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">Review: {reviewState}</p>
                     )}
                   </div>
                 </div>
@@ -382,6 +441,24 @@ export function FindingsPanel({
                     >
                       {chased ? "✓ Auto-chase on" : "⚡ Auto-chase"}
                     </button>
+                  )}
+                  {reviewable && (
+                    <>
+                      <button
+                        onClick={() => onReview!(finding, "safe")}
+                        disabled={reviewing || disabled || reviewState === "safe"}
+                        className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
+                      >
+                        {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
+                      </button>
+                      <button
+                        onClick={() => onReview!(finding, "investigating")}
+                        disabled={reviewing || disabled || reviewState === "investigating"}
+                        className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
+                      >
+                        {reviewState === "investigating" ? "✓ Investigating" : "Investigate"}
+                      </button>
+                    </>
                   )}
                   {asked && (
                     <span className="text-[10px] text-stone-500">In progress — see chat</span>

@@ -719,6 +719,9 @@ class XeroService:
 
     @_read_through_cache
     def list_payments(self) -> list[dict[str, Any]]:
+        via_oauth = self._oauth(lambda: xero_api.list_payments(self.session_id), "payments")
+        if via_oauth is not None:
+            return via_oauth
         live = self._cli(["payments", "list"])
         if live is not None:
             return live  # type: ignore[return-value]

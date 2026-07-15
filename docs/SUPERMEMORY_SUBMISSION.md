@@ -2,7 +2,7 @@
 
 ## What we built
 
-Sikizana is an AI credit controller and bookkeeper for Xero, powered by
+Sikizana is an AI finance assistant for Xero, powered by
 Supermemory Local. The persistent memory layer is the infrastructure that makes
 the agent useful session after session: it gives the agent five load-bearing
 capabilities — cross-session memory, multi-region semantic tax RAG, proactive

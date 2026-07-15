@@ -105,7 +105,6 @@ def build_findings(session_id: str) -> dict[str, Any]:
         findings.append(finding)
 
     # --- Unreconciled bank transactions ---
-    # Loss aversion: "unreconciled = risk of duplicate payment or missed VAT claim"
     unreconciled = svc.find_unreconciled_transactions()
     for txn in unreconciled:
         amount = float(txn.get("total", 0) or 0)
@@ -118,7 +117,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
                 "severity": "high" if amount >= 500 else "medium",
                 "title": ref,
                 "amount": amount,
-                "detail": f"{txn.get('type', '?')} on {txn_date} · risk of double-counting",
+                "detail": f"{txn.get('type', '?')} on {txn_date} · needs reconciliation",
                 "action": {
                     "type": "fix",
                     "label": "Fix now",
@@ -131,6 +130,17 @@ def build_findings(session_id: str) -> dict[str, Any]:
             }
         )
 
+    # --- Accounts payable integrity ---
+    # This is deliberately composed here so the panel, digest, and chat retain
+    # one ordered finding stream. Matching and persistence live in the AP
+    # domain, not in this presentation-oriented service.
+    try:
+        from src.services.ap_integrity import build_ap_findings
+
+        findings.extend(build_ap_findings(session_id, svc))
+    except Exception as exc:  # noqa: BLE001 — AP checks are best-effort
+        log.warning("ap_integrity_unavailable", extra={"error": str(exc)})
+
     # --- Tax flags from the P&L ---
     findings.extend(_tax_flags(svc))
 
@@ -138,6 +148,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "overdue": sum(1 for f in findings if f["kind"] in ("overdue_invoice", "overdue_bill")),
         "unreconciled": sum(1 for f in findings if f["kind"] == "unreconciled"),
         "tax_flags": sum(1 for f in findings if f["kind"] == "tax_flag"),
+        "ap_risks": sum(1 for f in findings if str(f["kind"]).startswith("ap_")),
     }
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     findings.sort(key=lambda f: (severity_rank.get(f["severity"], 3), -f.get("amount", 0)))

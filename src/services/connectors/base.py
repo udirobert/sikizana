@@ -125,6 +125,17 @@ class AccountingConnector(ABC):
         ...
 
     @abstractmethod
+    def list_payments(self, limit: int = 0) -> list[dict[str, Any]]:
+        """Payments applied to invoices and credit notes.
+
+        Each payment must expose stable payment, invoice, and contact IDs where
+        the source platform provides them. AP Integrity uses this normalized
+        history to detect potential duplicate payments without importing a
+        platform-specific service.
+        """
+        ...
+
+    @abstractmethod
     def get_profit_and_loss(self, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
         """P&L report: revenue, expenses, net profit."""
         ...

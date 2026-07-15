@@ -81,6 +81,10 @@ class XeroConnector(AccountingConnector):
         result = self._svc.list_bank_transactions(txn_type=txn_type)
         return result[:limit] if limit else result
 
+    def list_payments(self, limit: int = 0) -> list[dict[str, Any]]:
+        result = self._svc.list_payments()
+        return result[:limit] if limit else result
+
     def get_profit_and_loss(self, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
         return self._svc.get_profit_and_loss(from_date=from_date, to_date=to_date)
 

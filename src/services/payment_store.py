@@ -253,6 +253,27 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE users ADD COLUMN industry TEXT;
     """,
     ),
+    (
+        12,
+        """
+        CREATE TABLE IF NOT EXISTS ap_supplier_fingerprints (
+            session_id TEXT NOT NULL,
+            supplier_id TEXT NOT NULL,
+            fingerprint TEXT NOT NULL,
+            captured_at TEXT NOT NULL,
+            PRIMARY KEY (session_id, supplier_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS ap_finding_reviews (
+            session_id TEXT NOT NULL,
+            finding_id TEXT NOT NULL,
+            state TEXT NOT NULL CHECK (state IN ('safe', 'investigating', 'confirmed', 'dismissed')),
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (session_id, finding_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_ap_reviews_session ON ap_finding_reviews(session_id);
+        """,
+    ),
 ]
 
 
@@ -464,6 +485,12 @@ def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict
         ).rowcount
         counts["metric_snapshots"] = conn.execute(
             "DELETE FROM metric_snapshots WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["ap_supplier_fingerprints"] = conn.execute(
+            "DELETE FROM ap_supplier_fingerprints WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["ap_finding_reviews"] = conn.execute(
+            "DELETE FROM ap_finding_reviews WHERE session_id = ?", (session_id,)
         ).rowcount
         counts["platform_connections"] = conn.execute(
             "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND disconnected_at IS NULL",

@@ -4,9 +4,27 @@
 
 Sikizana is an AI finance assistant that connects to accounting platforms
 (Xero today, QuickBooks/Sage tomorrow) with persistent memory via Supermemory
-Local. The agent (Siki) reads invoices, finds discrepancies, estimates tax
-savings, and chases overdue payments — all read-only by design,
-human-in-the-loop by default.
+Local. It helps small businesses find, protect, and recover their money: Siki
+explains books, discrepancies, and risk; Zana chases overdue payments. The
+product is read-only by default and human-in-the-loop for every consequential
+action.
+
+### Product direction: AP Integrity
+
+AP Integrity is Sikizana's protection pillar: evidence-backed detection of
+duplicate bills/payments, supplier-detail changes, and other payable
+exceptions. It extends the existing findings, chat, digest, and audit trail;
+it is not a separate dashboard or payment product. The implementation source
+of truth is [`docs/AP_INTEGRITY_PLAN.md`](docs/AP_INTEGRITY_PLAN.md).
+
+- Enhance the canonical `build_findings()` workflow rather than adding a
+  parallel insights surface.
+- Keep accounting connectors responsible only for normalized source facts.
+  AP rules must not import `XeroService` directly.
+- Give every exception source evidence and describe it as a risk requiring
+  review, never as a fraud allegation.
+- Construction `Project Bill Review` is a design-partner vertical. Its OCR,
+  email, and document needs stay isolated until the pilot proves value.
 
 ## Architecture
 
@@ -58,6 +76,10 @@ instantiating `XeroService` directly. The only file that imports `XeroService`
 is `src/services/connectors/xero.py` (the adapter itself). Adding a second
 connector requires no changes to the agent, tools, findings, or API layer.
 
+AP Integrity extends the contract once with normalized payments and stable
+source IDs, then uses them from the AP domain service. Do not add
+platform-specific detection paths.
+
 ### Two-tier data deletion
 
 - `POST /api/data/disconnect` — Disconnects the accounting platform but KEEPS
@@ -82,7 +104,7 @@ connector requires no changes to the agent, tools, findings, or API layer.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 11 (see `MIGRATIONS` list).
+Current schema version: 12 (see `MIGRATIONS` list).
 
 Key tables:
 - `users`, `auth_sessions` — accounts and session→user links

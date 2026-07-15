@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import os
 import secrets
+from typing import Any, Literal
 
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
@@ -1040,6 +1041,34 @@ async def xero_findings(session_id: str = Depends(get_session_id)):
     return await asyncio.to_thread(build_findings, session_id)
 
 
+class ApFindingReviewRequest(BaseModel):
+    state: Literal["safe", "investigating", "confirmed", "dismissed"]
+
+
+@app.put("/api/ap-integrity/findings/{finding_id}/review")
+async def review_ap_finding(
+    finding_id: str = Path(..., min_length=20, max_length=96, pattern=r"^ap-[a-z0-9-]+:[a-f0-9]{16}$"),
+    req: ApFindingReviewRequest = ...,
+    session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
+):
+    """Persist a human review disposition for an AP exception.
+
+    This never changes the source bill, payment, supplier, or bank details.
+    The ID format is deterministic and opaque, so the endpoint stores no raw
+    accounting identifiers beyond the session-scoped review record.
+    """
+    from src.services.ap_integrity.store import set_review_state
+
+    await asyncio.to_thread(set_review_state, session_id, finding_id, req.state)
+    record_audit(
+        action="ap_finding_reviewed",
+        description=f"{finding_id} marked {req.state}",
+        session_id=session_id,
+    )
+    return {"finding_id": finding_id, "state": req.state}
+
+
 @app.get("/api/activity")
 async def activity(session_id: str = Depends(get_session_id)):
     """This session's audit trail + aggregate activity stats (social proof)."""
@@ -1718,6 +1747,7 @@ async def chase_start(
         return seq, mode, contact_email
 
     seq, mode, contact_email = await asyncio.to_thread(_resolve_and_create)
+    contact_name = str(seq.get("contact_name") or "this customer")
 
     # Learn from the user's approval: store a chase policy signal for this customer.
     # Future overdue invoices for this customer will surface a memory-driven action.

@@ -1,16 +1,15 @@
-# Sikizana — Get Paid Faster, with Xero
+# Sikizana — Find Money. Stop Leaks. Get Paid.
 
-**Stop money slipping away. See who owes you what, learn what's normal for your industry, and chase effectively.**
+**See money at risk, stop preventable leakage, and recover what you are owed — with Xero.**
 
-Sikizana is an AI credit controller (and bookkeeper) that connects to
-Xero and remembers every conversation in Supermemory Local. It builds an aged receivables view (30/60/90 days by debtor),
-scores customers' payment reliability, compares your numbers against
-typical UK sector ranges, drafts escalating chasing emails with
-statutory interest and fixed-sum compensation calculated, and lays out
-the escalation path from friendly reminder to formal action. On the
-side: plain-English P&L, UK Corporation Tax estimates with HMRC
-citations, and bookkeeping fixes posted to Xero with human-in-the-loop
-approval.
+Sikizana is an AI finance assistant that connects to Xero and remembers every
+conversation in Supermemory Local. It builds an aged receivables view (30/60/90
+days by debtor), scores payment reliability, compares numbers against typical
+UK sector ranges, drafts escalating chasing emails with statutory interest and
+fixed-sum compensation, and lays out the escalation path from friendly reminder
+to formal action. It also explains the P&L, estimates UK Corporation Tax with
+HMRC citations, proposes approval-gated bookkeeping fixes, and includes AP
+Integrity: evidence-backed duplicate bill/payment and payable-risk review.
 
 Built for the Xero Hackathon.
 
@@ -36,13 +35,12 @@ rules, and canonical copy live there.
 
 ## The Problem
 
-4.4 million small businesses use Xero. Most don't have an accountant —
-or a credit controller. They're owed money they never chase, don't know
-whether their late payers are normal or outrageous for their industry,
-and don't know the escalation options (statutory interest, fixed-sum
-compensation, letter before action) that UK law gives them. Meanwhile
-the books drift: unreconciled transactions pile up and the P&L stays
-opaque.
+Small businesses lose money in two directions: customers pay late, and
+preventable mistakes or risks leave through accounts payable. They often lack
+a credit controller or finance controls team, do not know whether a payment
+pattern is normal for their industry, and do not have time to trace every
+exception through the books. Sikizana makes the evidence and the next safe
+action clear.
 
 ## The Solution
 
@@ -50,11 +48,16 @@ Siki the Owl is an AI agent that:
 1. **Audits automatically** — runs on page load, before the user types anything
 2. **Ages the receivables** — who owes what, bucketed 30/60/90 days, plus true days-to-get-paid
 3. **Chases effectively** — escalating reminder emails (negotiation-psychology based) with statutory interest and compensation calculated
-4. **Benchmarks honestly** — compares against typical UK sector ranges, clearly labelled as indicative
-5. **Scores customers** — RED/AMBER/GREEN payment reliability, flags customers who cost more than they're worth
-6. **Estimates tax** — UK Corporation Tax, non-deductible flags, HMRC citations (BIM45010, EIM31240, etc.)
-7. **Fixes things** — proposes journal entries; posting happens only via the user's Approve button
-8. **Explains everything** — translates accounting jargon into plain English
+4. **Protects AP** — flags duplicate bills/payments and other evidence-backed payable risks in the same findings workflow
+5. **Benchmarks honestly** — compares against typical UK sector ranges, clearly labelled as indicative
+6. **Scores customers** — RED/AMBER/GREEN payment reliability, flags customers who cost more than they're worth
+7. **Estimates tax** — UK Corporation Tax, non-deductible flags, HMRC citations (BIM45010, EIM31240, etc.)
+8. **Fixes things** — proposes journal entries; posting happens only via the user's Approve button
+9. **Explains everything** — translates accounting jargon into plain English
+
+AP Integrity enhances the existing findings, chat, weekly-digest, and
+audit-history workflow. It does not change suppliers, payments, or bank
+details. See [the implementation plan](docs/AP_INTEGRITY_PLAN.md).
 
 ---
 
@@ -113,7 +116,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Data deletion**: `POST /api/data/disconnect` (disconnect platform, keep memories) + `POST /api/data/delete` (full erasure — revokes Xero + erases conversations, audit trail, chase sequences, snapshots, prefs, and memories)
 - **User profiles**: `GET/PUT /api/profile` — name, business name, industry, timezone, language. User-scoped (persists across sessions). Injected into agent system prompt for personalization. Industry feeds sector benchmarks.
 - **Security**: Brute-force protection (5 failed logins → 15min lockout), password reset (token-based, 1h expiry), email verification (token-based, 24h expiry), 30-day sliding session timeout
-- **Tests**: `tests/` — 156 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction
+- **Tests**: `tests/` — 163 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration

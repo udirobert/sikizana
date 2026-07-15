@@ -1,6 +1,6 @@
 """Normalisation of Xero API shapes into the app's camelCase shapes."""
 
-from src.services.xero_api import _iso_date, _norm_bank_txn, _norm_invoice
+from src.services.xero_api import _iso_date, _norm_bank_txn, _norm_invoice, _norm_payment
 
 
 def test_iso_date_converts_dotnet_json_dates():
@@ -58,3 +58,21 @@ def test_norm_bank_txn_maps_reconciliation_flag():
     assert txn["isReconciled"] is False
     assert txn["bankAccount"]["code"] == "090"
     assert txn["total"] == 87.43
+
+
+def test_norm_payment_includes_stable_source_ids():
+    payment = _norm_payment(
+        {
+            "PaymentID": "pay-1",
+            "Date": "/Date(1750000000000+0000)/",
+            "Amount": 87.43,
+            "Reference": "BACS-123",
+            "Invoice": {"InvoiceID": "bill-1", "InvoiceNumber": "BILL-1"},
+            "Contact": {"ContactID": "supplier-1", "Name": "Acme Supplies"},
+            "Account": {"AccountID": "bank-1", "Code": "090"},
+        }
+    )
+    assert payment["id"] == "pay-1"
+    assert payment["invoice"]["id"] == "bill-1"
+    assert payment["contact"]["id"] == "supplier-1"
+    assert payment["bankAccount"]["id"] == "bank-1"

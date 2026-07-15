@@ -186,11 +186,20 @@ export interface JournalPostResponse {
 
 // ---- Structured audit findings (books-page panel) ----
 
-export type FindingKind = "overdue_invoice" | "overdue_bill" | "unreconciled" | "tax_flag";
+export type FindingKind =
+  | "overdue_invoice"
+  | "overdue_bill"
+  | "unreconciled"
+  | "tax_flag"
+  | "ap_duplicate_bill"
+  | "ap_duplicate_payment"
+  | "ap_supplier_detail_change"
+  | "ap_payment_anomaly";
 export type FindingSeverity = "high" | "medium" | "low";
+export type FindingReviewState = "open" | "safe" | "investigating" | "confirmed" | "dismissed";
 
 export interface FindingAction {
-  type: "chase" | "fix" | "explain";
+  type: "chase" | "fix" | "explain" | "review";
   label: string;
   /** Ready to send to the chat verbatim. */
   prompt: string;
@@ -212,6 +221,9 @@ export interface Finding {
   /** Present on overdue_invoice findings — enables one-click auto-chase. */
   invoice_number?: string;
   invoice_id?: string;
+  /** Evidence supplied by a deterministic AP rule; no raw bank details appear here. */
+  evidence?: Array<{ source_id: string; label: string; detail: string }>;
+  review?: { state: FindingReviewState };
 }
 
 export interface AgingBucketSummary {
@@ -231,7 +243,7 @@ export interface AgingSummary {
 export interface FindingsResponse {
   mode: XeroMode;
   money_found: number;
-  counts: { overdue: number; unreconciled: number; tax_flags: number };
+  counts: { overdue: number; unreconciled: number; tax_flags: number; ap_risks: number };
   clean: boolean;
   /** Pre-sorted by severity then amount. */
   findings: Finding[];
@@ -568,6 +580,12 @@ export const endpoints = {
       api.get<{ unreconciled: unknown[]; overdue: unknown[] }>("/api/xero/discrepancies"),
     /** Structured audit findings — the books-page findings panel. */
     findings: () => api.get<FindingsResponse>("/api/xero/findings"),
+    /** Human review only; this never changes bills, suppliers, or payments. */
+    reviewFinding: (findingId: string, state: Exclude<FindingReviewState, "open">) =>
+      api.put<{ finding_id: string; state: FindingReviewState }>(
+        `/api/ap-integrity/findings/${encodeURIComponent(findingId)}/review`,
+        { state },
+      ),
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();
       if (from_date) search.set("from_date", from_date);

@@ -9,6 +9,7 @@ import {
   endpoints,
   type ContextResult,
   type Finding,
+  type FindingReviewState,
   type FindingsResponse,
   type XeroMode,
 } from "@/lib/api";
@@ -91,6 +92,7 @@ function BooksView() {
   const [findingsLoading, setFindingsLoading] = useState(true);
   // Findings the user already acted on — "asked" state on the cards.
   const [askedFindingIds, setAskedFindingIds] = useState<ReadonlySet<string>>(new Set());
+  const [reviewingFindingIds, setReviewingFindingIds] = useState<ReadonlySet<string>>(new Set());
   // Findings with an auto-chase sequence scheduled (from /api/chase/list +
   // this session's clicks).
   const [chasedFindingIds, setChasedFindingIds] = useState<ReadonlySet<string>>(new Set());
@@ -593,6 +595,29 @@ function BooksView() {
     void sendToAgent(prompt);
   };
 
+  const handleFindingReview = async (
+    finding: Finding,
+    state: Exclude<FindingReviewState, "open">,
+  ) => {
+    if (!me?.authenticated) {
+      setErrorBanner("Sign in to save an AP review decision.");
+      return;
+    }
+    setReviewingFindingIds((prev) => new Set(prev).add(finding.id));
+    try {
+      await endpoints.xero.reviewFinding(finding.id, state);
+      await loadFindings();
+    } catch (e) {
+      setErrorBanner(e instanceof ApiError ? e.message : "Couldn't save the AP review. Try again.");
+    } finally {
+      setReviewingFindingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(finding.id);
+        return next;
+      });
+    }
+  };
+
   /**
    * Auto-chase: approve scheduled follow-ups for one overdue invoice.
    * The click IS the approval — the backend resolves everything from Xero
@@ -855,6 +880,8 @@ function BooksView() {
             onSave={handleFindingSave}
             onAutoChase={(f) => void handleAutoChase(f)}
             chasedIds={chasedFindingIds}
+            onReview={(f, state) => void handleFindingReview(f, state)}
+            reviewingIds={reviewingFindingIds}
             onSuggest={(prompt) => {
               setInput(prompt);
               inputRef.current?.focus();
@@ -969,6 +996,8 @@ function BooksView() {
               onSave={handleFindingSave}
               onAutoChase={(f) => void handleAutoChase(f)}
               chasedIds={chasedFindingIds}
+              onReview={(f, state) => void handleFindingReview(f, state)}
+              reviewingIds={reviewingFindingIds}
               onSuggest={(prompt) => {
                 setInput(prompt);
                 inputRef.current?.focus();
