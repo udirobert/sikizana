@@ -11,13 +11,15 @@ import { useMe } from "@/hooks/useMe";
 import { useXeroMode } from "@/hooks/useXeroMode";
 import { PLAN_LABELS, PlanBadge } from "@/components/PlanBadge";
 import { ModeBadge } from "@/components/ModeBadge";
+import { DESIGN_PARTNER_MAILTO } from "@/lib/design-partner";
 
 /**
  * Account page — sign in / create account when logged out; plan, usage
  * and billing management when logged in.
  *
- * Supports ?intent=pro|business (set by the pricing page): after a
- * successful login/signup the page auto-starts Stripe checkout for that plan.
+ * Supports ?intent=pro|business (set by the pricing page): when Stripe is
+ * configured, a successful login/signup auto-starts Checkout for that plan.
+ * Otherwise paid-plan interest is routed to design-partner onboarding.
  */
 
 function parseIntent(value: string | null): PaidPlan | null {
@@ -471,7 +473,8 @@ function AccountView() {
   };
 
   // ?intent=pro|business — auto-start checkout once the user is signed in
-  // (covers both "just logged in" and "arrived here already signed in").
+  // only when Stripe is configured. Otherwise the account page shows the
+  // manual design-partner path instead of a dead checkout state.
   useEffect(() => {
     if (intentStartedRef.current) return;
     if (!intent || !me?.authenticated || !me.stripe_configured) return;
@@ -576,20 +579,31 @@ function AccountView() {
                 )}
               </div>
 
-              {me.plan === "free" && (
+              {me.plan === "free" && me.stripe_configured && (
                 <div>
                   <button
                     onClick={() => void startCheckout("pro")}
-                    disabled={!me.stripe_configured || billingBusy !== null}
+                    disabled={billingBusy !== null}
                     className="w-full text-sm font-semibold py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {billingBusy === "pro" ? "Redirecting to checkout…" : "Upgrade to Pro — £29/mo"}
                   </button>
-                  {!me.stripe_configured && (
-                    <p className="text-[10px] text-stone-400 mt-1.5 text-center">
-                      Billing not yet enabled
-                    </p>
-                  )}
+                </div>
+              )}
+
+              {me.plan === "free" && !me.stripe_configured && (
+                <div className="rounded-lg border border-sky-100 bg-sky-50 p-3">
+                  <p className="text-xs font-semibold text-stone-900">Design partner access</p>
+                  <p className="text-[11px] text-stone-600 mt-1">
+                    Paid plans are not taking card payments yet. We are onboarding early Xero
+                    users manually for the free read-only finance check.
+                  </p>
+                  <a
+                    href={DESIGN_PARTNER_MAILTO}
+                    className="mt-3 block w-full text-center text-sm font-semibold py-2.5 rounded-lg bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors"
+                  >
+                    Ask for design partner access
+                  </a>
                 </div>
               )}
 

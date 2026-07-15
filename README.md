@@ -218,7 +218,9 @@ persona — see `web/DESIGN.md` for guardrails.
 Contextual sign-in nudges at key moments (after first answer, at 3/5
 queries), upgrade prompt at 5/5, and clear chat with two-step
 confirmation. The pricing page shows the user's own live overdue total
-next to the price (never shown for demo data).
+next to the price (never shown for demo data). When Stripe is not
+configured, paid-plan CTAs route to manual design-partner onboarding
+instead of promising credits or sending users into disabled checkout.
 
 ### 13. Aged Receivables + True Days-to-Get-Paid
 `get_receivables_aging` buckets every unpaid sales invoice into

@@ -10,6 +10,7 @@ import type { FindingsResponse, PaidPlan, Plan } from "@/lib/api";
 import { useMe } from "@/hooks/useMe";
 import { PLAN_LABELS } from "@/components/PlanBadge";
 import { getPricingTryLinks } from "@/lib/persona-theme";
+import { DESIGN_PARTNER_LABEL, DESIGN_PARTNER_MAILTO } from "@/lib/design-partner";
 
 const TIERS: Array<{
   name: string;
@@ -152,11 +153,15 @@ export default function PricingPage() {
       );
     }
 
-    // Business keeps the mailto fallback until Stripe is configured.
-    if (tier.plan === "business" && !stripeConfigured) {
+    if (!stripeConfigured) {
       return (
-        <a href="mailto:hello@persidian.com" className={ctaClass(tier.highlight)}>
-          Contact Us
+        <a
+          href={DESIGN_PARTNER_MAILTO}
+          className={`${ctaClass(tier.highlight)} ${
+            tier.plan === "pro" ? "bg-rose-600 hover:bg-rose-700" : ""
+          }`}
+        >
+          {tier.plan === "pro" ? "Try Pro as a design partner" : DESIGN_PARTNER_LABEL}
         </a>
       );
     }
@@ -314,8 +319,8 @@ export default function PricingPage() {
             Human-in-the-loop by design. No long-term contracts. Cancel anytime.
           </p>
           <p className="text-[11px] text-stone-400 max-w-md mx-auto mt-1.5">
-            On Free, after your 5 monthly queries the audit keeps running — upgrading unlocks
-            unlimited chat, auto-chase, and journal write-back.
+            On Free, after your 5 monthly queries the audit keeps running. We are onboarding
+            early Xero users manually while paid plans are being configured.
           </p>
           <div className="flex items-center justify-center gap-3 mt-4">
             <Link
