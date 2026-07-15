@@ -12,6 +12,9 @@ def test_findings_from_mock_books():
     assert data["money_found"] == 1250.0
     assert data["counts"]["overdue"] == 1
     assert data["counts"]["unreconciled"] == 4
+    duplicate_payment = next(f for f in data["findings"] if f["kind"] == "ap_duplicate_payment")
+    assert duplicate_payment["amount"] == 680.0
+    assert len(duplicate_payment["evidence"]) == 2
 
 
 def test_every_finding_has_an_action_prompt():

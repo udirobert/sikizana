@@ -34,6 +34,10 @@ services:
       # profile (comma-separated). Unset = CLI fallback disabled; anonymous
       # visitors always get demo data, never the operator's books.
       - CLI_SESSION_IDS=${CLI_SESSION_IDS:-}
+      # AP Integrity rollout controls. Empty allowlist = open rollout; set
+      # explicit design-partner user IDs for a controlled cohort.
+      - AP_INTEGRITY_USER_IDS=${AP_INTEGRITY_USER_IDS:-}
+      - AP_INTEGRITY_DISABLED=${AP_INTEGRITY_DISABLED:-false}
       # Outbound email (chase sequences + weekly digest) via Postmark SMTP.
       # Values live in the VPS .env, never in git. Unset = email loops
       # log-and-skip safely.

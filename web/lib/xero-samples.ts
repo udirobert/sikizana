@@ -13,6 +13,12 @@ export interface SampleQuery {
 
 export const SAMPLE_QUERIES: SampleQuery[] = [
   {
+    id: "ap-integrity",
+    title: "Check for duplicate payments",
+    description: "Audit my supplier bills and payments for possible duplicates. Show me the source evidence and tell me what to verify before asking for a credit or refund.",
+    hint: "Finds a reviewable AP risk",
+  },
+  {
     id: "overview",
     title: "Give me a quick overview",
     description: "Can you give me a quick overview of my business finances? What's my revenue, profit, and anything that needs my attention?",

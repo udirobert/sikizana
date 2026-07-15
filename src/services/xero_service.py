@@ -379,10 +379,12 @@ _MOCK_INVOICES = [
         "contact": {"name": "Bean There Coffee Roasters"},
         "date": _d(25),
         "dueDate": _d(-5),
-        "status": "AUTHORISED",
+        "status": "PAID",
         "total": 680.00,
-        "amountDue": 680.00,
-        "amountPaid": 0,
+        "amountDue": 0,
+        # Two full payments were recorded below. This is intentional, seeded
+        # evidence for the AP Integrity demo; it never reaches Xero.
+        "amountPaid": 1360.00,
     },
     {
         "id": "inv6",
@@ -506,10 +508,26 @@ _MOCK_PAYMENTS = [
     {
         "id": "p2",
         "date": _d(15),
-        "invoice": {"invoiceNumber": "BILL-0003"},
+        "invoice": {"id": "inv7", "invoiceNumber": "BILL-0003"},
         "contact": {"name": "Octopus Energy"},
         "amount": 340.00,
         "reference": "Direct debit",
+    },
+    {
+        "id": "p3",
+        "date": _d(24),
+        "invoice": {"id": "inv5", "invoiceNumber": "BILL-0001"},
+        "contact": {"name": "Bean There Coffee Roasters"},
+        "amount": 680.00,
+        "reference": "BACS-COFFEE-4521",
+    },
+    {
+        "id": "p4",
+        "date": _d(23),
+        "invoice": {"id": "inv5", "invoiceNumber": "BILL-0001"},
+        "contact": {"name": "Bean There Coffee Roasters"},
+        "amount": 680.00,
+        "reference": "BACS-COFFEE-4521",
     },
 ]
 

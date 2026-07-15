@@ -10,6 +10,7 @@ from src.tools.accounting_tools import (
     get_savings_opportunities,
     get_tax_insights,
     propose_journal_entry,
+    set_current_session,
 )
 
 
@@ -21,6 +22,30 @@ def test_find_discrepancies_reports_mock_issues():
     result = find_discrepancies()
     assert "UNRECONCILED" in result
     assert "OVERDUE" in result
+    assert "AP INTEGRITY RISKS" in result
+    assert "Possible duplicate payment" in result
+
+
+def test_find_discrepancies_honors_ap_integrity_allowlist(monkeypatch):
+    from src.services.payment_store import create_user, link_session_to_user
+
+    session_id = "allowed-ap-session"
+    user = create_user("ap-partner@example.com", "hash")
+    assert user is not None
+    link_session_to_user(session_id, user["id"])
+
+    try:
+        monkeypatch.setenv("AP_INTEGRITY_USER_IDS", "999")
+        set_current_session(session_id)
+        blocked = find_discrepancies()
+        assert "AP INTEGRITY RISKS" not in blocked
+
+        monkeypatch.setenv("AP_INTEGRITY_USER_IDS", str(user["id"]))
+        allowed = find_discrepancies()
+        assert "AP INTEGRITY RISKS" in allowed
+        assert "Possible duplicate payment" in allowed
+    finally:
+        set_current_session("default")
 
 
 def test_tax_insights_estimates_corporation_tax():

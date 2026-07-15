@@ -141,6 +141,13 @@ it to customers.
 **Exit gate:** every surfaced candidate is explainable from source facts; the
 team has measured precision and confirmed-value data rather than anecdotes.
 
+**Current status:** the deterministic demo now contains a labelled,
+evidence-backed duplicate-payment scenario and the chat audit reports the same
+canonical AP findings as the findings panel. The design-partner operating loop
+is documented in [AP Integrity Design-Partner Runbook](AP_INTEGRITY_DESIGN_PARTNERS.md).
+The remaining work is cohort recruitment and weekly outcome review, not a new
+AP surface.
+
 ### Phase 1: horizontal AP Integrity MVP — shipped
 
 **Goal:** let any connected Xero customer review the highest-confidence AP

@@ -237,7 +237,7 @@ def find_discrepancies() -> str:
     """
     THE CORE TOOL: Scan Xero for bookkeeping discrepancies.
     Finds unreconciled bank transactions, overdue invoices, and
-    potential matching issues. This is the agent's "audit" step.
+    evidence-backed AP Integrity risks. This is the agent's "audit" step.
     """
     unreconciled = _svc().find_unreconciled_transactions()
     overdue = _svc().find_overdue_invoices()
@@ -279,6 +279,28 @@ def find_discrepancies() -> str:
             f"\n⚠ TRIAL BALANCE IMBALANCE: "
             f"Debits £{total_debit:,.2f} ≠ Credits £{total_credit:,.2f}"
         )
+
+    # Keep AP analysis on its canonical findings path. This prevents the
+    # chat from inventing a second, less-evidenced AP detector.
+    try:
+        from src.services.ap_integrity import build_ap_findings
+        from src.services.payment_store import get_user_for_session
+
+        session_id = _current_session.get()
+        user = get_user_for_session(session_id)
+        ap_findings = build_ap_findings(session_id, _svc(), user_id=user["id"] if user else None)
+        if ap_findings:
+            findings.append(f"\nAP INTEGRITY RISKS ({len(ap_findings)}):")
+            for finding in ap_findings:
+                evidence = "; ".join(item["detail"] for item in finding["evidence"])
+                findings.append(
+                    f"  - {finding['title']} | £{finding['amount']:.2f} | "
+                    f"{finding['detail']} | Evidence: {evidence}"
+                )
+    except Exception:
+        # AP findings are best-effort in the same way as the books-page scan.
+        # A temporary connector issue must not block the broader audit.
+        pass
 
     return "\n".join(findings) if findings else "No discrepancies found. Books look clean."
 
