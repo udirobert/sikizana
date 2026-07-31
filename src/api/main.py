@@ -2154,6 +2154,87 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
     return await asyncio.to_thread(_metrics)
 
 
+# ---- MCP / A2MCP stateless surface ----
+
+
+def _mcp_api_key() -> str:
+    """Configured shared secret for the stateless AP scan endpoint.
+
+    Set `MCP_API_KEY` to require it; when unset the endpoint refuses all
+    calls so the surface is opt-in rather than open by default.
+    """
+    return os.getenv("MCP_API_KEY", "").strip()
+
+
+def require_mcp_api_key(request: Request) -> str:
+    """Dependency guarding the stateless MCP surface with a shared secret.
+
+    Uses `hmac.compare_digest` to avoid timing leaks. Distinct from the
+    cookie-session auth used elsewhere: MCP callers are agents, not
+    browsers, so a bearer-style header is the right shape.
+    """
+    expected = _mcp_api_key()
+    if not expected:
+        raise HTTPException(
+            status_code=503,
+            detail="MCP surface is not configured (set MCP_API_KEY to enable it).",
+        )
+    offered = request.headers.get("x-api-key", "").strip()
+    if not offered or not hmac.compare_digest(offered, expected):
+        raise HTTPException(status_code=401, detail="Invalid API key.")
+    return offered
+
+
+class McpApScanRequest(BaseModel):
+    """Normalized accounting facts for a stateless AP Integrity scan.
+
+    Each list matches the dict shape the Sikizana connectors return
+    (invoices of type ACCPAY, contacts, payments). The caller is
+    responsible for normalization and for any prior supplier fingerprints
+    they want supplier-detail-change detection to use.
+    """
+
+    invoices: list[dict[str, Any]] = Field(default_factory=list)
+    contacts: list[dict[str, Any]] = Field(default_factory=list)
+    payments: list[dict[str, Any]] = Field(default_factory=list)
+    prior_fingerprints: dict[str, str] | None = Field(default=None)
+
+
+@app.post("/api/mcp/ap-scan")
+async def mcp_ap_scan(
+    payload: McpApScanRequest,
+    _api_key: str = Depends(require_mcp_api_key),
+):
+    """Stateless, read-only AP Integrity scan for the A2MCP surface.
+
+    Returns evidence-backed findings (duplicate bills/payments, supplier
+    detail changes, payment anomalies) with review state "open". No session,
+    DB, or connector state is read or written. This endpoint never posts
+    journals, starts chases, or mutates source data — it is detection only.
+    """
+    from src.services.ap_integrity.service import build_ap_findings_stateless
+
+    findings = await asyncio.to_thread(
+        build_ap_findings_stateless,
+        payload.invoices,
+        payload.contacts,
+        payload.payments,
+        payload.prior_fingerprints,
+    )
+    return {
+        "findings": findings,
+        "count": len(findings),
+        "by_kind": _count_by_kind(findings),
+    }
+
+
+def _count_by_kind(findings: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for finding in findings:
+        counts[finding["kind"]] = counts.get(finding["kind"], 0) + 1
+    return counts
+
+
 # ---- Entrypoint ----
 
 if __name__ == "__main__":

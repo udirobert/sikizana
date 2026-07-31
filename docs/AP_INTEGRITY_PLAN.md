@@ -88,6 +88,19 @@ fields needed by every AP rule. Implement it in `XeroConnector` and the Xero
 API adapter, then use that contract everywhere. No AP code may import
 `XeroService` directly.
 
+### Stateless agent surface (MCP / pay-per-call)
+
+The AP domain exposes the same four rules through a stateless entry point,
+`build_ap_findings_stateless(invoices, contacts, payments, prior_fingerprints)`,
+which takes raw normalized connector dicts and returns canonical findings with
+no session, DB, or connector dependency. It is served two ways: `POST
+/api/mcp/ap-scan` (shared-secret auth via `MCP_API_KEY`) and `src/mcp_server.py`
+(an MCP stdio server). Review state is always `open` and supplier-detail-change
+detection uses a caller-managed fingerprint baseline instead of the session
+table. This surface reuses `build_facts_from_raw` and the rule modules; it does
+not add a second detection path. It is gated by `MCP_API_KEY`, not
+`AP_INTEGRITY_DISABLED`.
+
 ## Canonical facts and evidence
 
 The rules operate only on normalized, typed facts:

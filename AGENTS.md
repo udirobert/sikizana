@@ -156,6 +156,8 @@ cd web && npx tsc --noEmit
 | `src/services/xero_oauth.py` | Xero OAuth 2.0 + PKCE |
 | `src/services/xero_service.py` | Xero data service (OAuth → CLI → demo) |
 | `src/services/payment_store.py` | SQLite schema, migrations, all DB ops |
+| `src/mcp_server.py` | MCP stdio server exposing the stateless AP scan as a tool |
+| `src/services/ap_integrity/service.py` | AP evaluation; `build_ap_findings_stateless` is the stateless entry point |
 | `web/components/RequireAuth.tsx` | Client-side route guard |
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
@@ -222,6 +224,13 @@ Daily cron: `python -m src.jobs.capture_metrics` (06:00 UTC recommended).
 - Password reset: token-based, 1-hour expiry, single-use, email sent via SMTP
 - Email verification: token-based, 24-hour expiry, sent on registration
 - Password reset doesn't leak whether an email exists (always returns success)
+- MCP / agent surface: `POST /api/mcp/ap-scan` and `src/mcp_server.py` run a
+  stateless, read-only AP scan. Auth is a shared `MCP_API_KEY` header
+  (timing-safe compare); with the key unset the endpoint returns 503 so the
+  surface is opt-in, never open by default. The caller owns review state and
+  any supplier-fingerprint baseline, so no session or DB is read or written.
+  This surface is gated by `MCP_API_KEY`, not the in-product
+  `AP_INTEGRITY_DISABLED` kill switch.
 
 ### Known gaps (pre-production)
 

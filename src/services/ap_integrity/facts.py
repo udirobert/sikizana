@@ -24,10 +24,25 @@ def _fingerprint(value: str) -> str:
 
 def build_facts(svc: AccountingConnector) -> tuple[list[PayableBill], list[Payment], list[SupplierProfile]]:
     """Fetch each connector collection once and return AP-only normalized facts."""
-    invoices = svc.list_invoices(invoice_type="ACCPAY")
-    contacts = svc.list_contacts()
-    payments = svc.list_payments()
+    return build_facts_from_raw(
+        svc.list_invoices(invoice_type="ACCPAY"),
+        svc.list_contacts(),
+        svc.list_payments(),
+    )
 
+
+def build_facts_from_raw(
+    invoices: list[dict[str, Any]],
+    contacts: list[dict[str, Any]],
+    payments: list[dict[str, Any]],
+) -> tuple[list[PayableBill], list[Payment], list[SupplierProfile]]:
+    """Normalize raw connector dicts into AP-only facts.
+
+    This is the stateless entry point: it takes the same dict shapes a
+    connector returns and produces the typed facts the rules need, with no
+    session, DB, or connector dependency. The session-coupled `build_facts`
+    is a thin wrapper over this.
+    """
     contact_by_id = {str(contact.get("id", "")): contact for contact in contacts if contact.get("id")}
     contact_by_name = {
         str(contact.get("name", "")).casefold(): contact for contact in contacts if contact.get("name")
