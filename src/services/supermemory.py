@@ -611,7 +611,11 @@ def verify_document_ownership(document_id: str, container_tag: str) -> bool:
 # Pre-written demo memories that make the first-time hackathon demo immediately
 # compelling. They are scoped to the session/user container, so a real user only
 # sees them if they explicitly start the demo.
-_DEMO_MEMORIES = [
+#
+# Each scenario's memories are matched to its sample books (see
+# demo_scenarios.py), so a music visitor recalls the festival and promoter in
+# their demo data rather than the café's customers.
+_DEMO_MEMORIES_CAFE = [
     {
         "id": "demo-catering",
         "content": "Catering Co Ltd was 45 days late on invoice INV-0001 last quarter. A firm final notice citing statutory interest and the Late Payment Act got them to pay in full within 5 days.",
@@ -641,13 +645,63 @@ _DEMO_MEMORIES = [
     },
 ]
 
+_DEMO_MEMORIES_MUSIC = [
+    {
+        "id": "demo-field-day",
+        "content": "Field Day Festival settled 30 days late on a prior booking. A firm final notice citing statutory interest and the Late Payment Act got them to pay in full within a week.",
+    },
+    {
+        "id": "demo-preference",
+        "content": "The user prefers short, plain English answers and wants to be warned about non-deductible expenses such as client entertainment.",
+    },
+    {
+        "id": "demo-business",
+        "content": "Ember & Oak Ltd is a UK-based band. Typical days-to-get-paid are around 40 days, and the biggest repeat late payer is Field Day Festival.",
+    },
+    {
+        "id": "demo-tax",
+        "content": "The user previously asked about business mileage allowance. The answer for this UK business is 45p per mile for the first 10,000 business miles, then 25p per mile.",
+    },
+    {
+        "id": "demo-chase",
+        "content": "The user has historically approved the chase ladder for Field Day Festival after invoices pass 30 days overdue. The ladder stages are friendly, firm, final notice, recovery warning, and letter before action.",
+    },
+    # Structured memory signal — tells the agent to actually apply the chase
+    # policy instead of just mentioning it.
+    {
+        "id": "demo-chase-policy",
+        "content": "For Field Day Festival, approve the 4-stage chase ladder as soon as an invoice passes 30 days overdue. Use a firm final notice with statutory interest and the Late Payment Act. Do not ask the user to confirm each stage.",
+        "metadata": {"type": "chase_policy", "entity": "Field Day Festival"},
+    },
+]
+
+_DEMO_MEMORIES_BY_SCENARIO = {
+    "cafe": _DEMO_MEMORIES_CAFE,
+    "music": _DEMO_MEMORIES_MUSIC,
+}
+
+
+def _resolve_demo_scenario(session_id: str) -> str:
+    """Which demo books this session is using, so memories match the data.
+
+    Reads the same per-session preference XeroService uses; defaults to the
+    café so existing behaviour is unchanged."""
+    from src.services.demo_scenarios import DEFAULT_SCENARIO, resolve_scenario
+    from src.services.payment_store import get_session_pref
+
+    try:
+        return resolve_scenario(get_session_pref(session_id, "demo_scenario"))
+    except Exception:  # noqa: BLE001
+        return DEFAULT_SCENARIO
+
 
 def seed_demo_memories(session_id: str, user_id: int | None = None) -> int:
     """Seed demo memories for the current session if the container is empty.
 
     This makes the first-time hackathon demo immediately show proactive memory
     alerts and cross-session recall. It is idempotent — demo memories are
-    skipped if any already exist for the container.
+    skipped if any already exist for the container. The memories are matched
+    to the session's demo-books scenario (café or music).
 
     Returns the number of memories seeded.
     """
@@ -659,8 +713,9 @@ def seed_demo_memories(session_id: str, user_id: int | None = None) -> int:
     if any(d.get("id", "").startswith("demo-") for d in existing):
         return 0
 
+    scenario = _resolve_demo_scenario(session_id)
     count = 0
-    for demo in _DEMO_MEMORIES:
+    for demo in _DEMO_MEMORIES_BY_SCENARIO[scenario]:
         meta = {"source": "demo", "topic": "demo-memory"}
         if demo.get("metadata"):
             meta.update(demo["metadata"])
