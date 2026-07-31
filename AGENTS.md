@@ -27,6 +27,9 @@ of truth is [`docs/AP_INTEGRITY_PLAN.md`](docs/AP_INTEGRITY_PLAN.md).
   review, never as a fraud allegation.
 - Construction `Project Bill Review` is a design-partner vertical. Its OCR,
   email, and document needs stay isolated until the pilot proves value.
+- Music is an exploratory sector beachhead (distribution and messaging only,
+  not a product fork). See [`docs/MUSIC_BEACHHEAD.md`](docs/MUSIC_BEACHHEAD.md);
+  keep AP rules and connectors sector-agnostic while it is tested.
 
 ## Architecture
 
