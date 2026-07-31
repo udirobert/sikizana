@@ -190,6 +190,13 @@ function BooksView() {
   const streamAbortRef = useRef<AbortController | null>(null);
   const demoSeededRef = useRef(false);
   const financeCheckHandledRef = useRef(false);
+  // Which sample books to show (café default, or music when arriving from the
+  // music landing). Has no effect in live mode — the connection is the data.
+  // Data loads are held until it resolves, so a music visitor never sees a
+  // flash of café books before their scenario lands.
+  const [demoScenarioReady, setDemoScenarioReady] = useState(false);
+  const [demoScenario, setDemoScenario] = useState<string | null>(null);
+  const scenarioHandledRef = useRef(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -256,7 +263,32 @@ function BooksView() {
   }, []);
 
   // Fetch findings + Xero status + P&L on mount.
+  // Pick the sample-books scenario before anything loads. Sector landing pages
+  // arrive with ?demo=music; the first visit wins and subsequent loads skip the
+  // write. In live mode this is a harmless no-op (the connection is the data).
+  const applyDemoScenario = useCallback(async (scenario: string | null) => {
+    if (scenario === "music" || scenario === "cafe") {
+      setDemoScenario(scenario);
+      await endpoints.prefs.setDemoScenario(scenario).catch(() => {});
+    } else {
+      // No explicit scenario — read the stored one so the demo label is
+      // accurate on refresh (e.g. a music visitor who navigated internally).
+      try {
+        const prefs = await endpoints.prefs.get();
+        setDemoScenario(prefs.demo_scenario);
+      } catch { /* ignore */ }
+    }
+    setDemoScenarioReady(true);
+  }, []);
+
   useEffect(() => {
+    if (scenarioHandledRef.current) return;
+    scenarioHandledRef.current = true;
+    void applyDemoScenario(searchParams.get("demo"));
+  }, [applyDemoScenario, searchParams]);
+
+  useEffect(() => {
+    if (!demoScenarioReady) return;
     void endpoints.xero
       .status()
       .then((s) => setXeroMode(s.mode))
@@ -298,7 +330,7 @@ function BooksView() {
         }
       })
       .catch(() => {});
-  }, [loadFindings, refreshMetricSnapshots, searchParams]);
+  }, [demoScenarioReady, loadFindings, refreshMetricSnapshots, searchParams]);
 
   // Seed demo memories when running in demo mode so first-time judges see
   // proactive memory alerts and cross-session recall without a warm-up chat.
@@ -796,7 +828,15 @@ function BooksView() {
                       : "bg-stone-100 text-stone-500"
                 }`}
               >
-                {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "● Xero Live" : xeroMode === "demo" ? "● Demo Data" : "○ Connecting..."}
+                {xeroMode === "live-oauth" || xeroMode === "live-cli"
+                  ? "● Xero Live"
+                  : xeroMode === "demo"
+                    ? demoScenario === "music"
+                      ? "● Demo · Music books"
+                      : demoScenario === "cafe"
+                        ? "● Demo · Café books"
+                        : "● Demo Data"
+                    : "○ Connecting..."}
               </span>
             )}
             {/* Nav links — inline from sm up; collapsed behind a menu button

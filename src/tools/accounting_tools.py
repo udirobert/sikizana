@@ -1160,6 +1160,14 @@ _SECTOR_BENCHMARKS: dict[str, dict[str, float]] = {
         "avg_invoice_value": 2800,
         "chasing_threshold_days": 40,
     },
+    "music": {
+        "avg_receivables_days": 60,
+        "avg_overdue_rate": 0.14,
+        "avg_gross_margin": 0.40,
+        "avg_net_margin": 0.07,
+        "avg_invoice_value": 1600,
+        "chasing_threshold_days": 45,
+    },
     "default": {
         "avg_receivables_days": 50,
         "avg_overdue_rate": 0.09,
@@ -1181,6 +1189,8 @@ _SECTOR_KEYWORDS: list[tuple[str, str]] = [
     ("design", "professional_services"), ("tech", "professional_services"),
     ("manufactur", "manufacturing"), ("factory", "manufacturing"),
     ("wholesale", "wholesale"), ("distribut", "wholesale"),
+    ("music", "music"), ("band", "music"), ("artist", "music"),
+    ("studio", "music"), ("label", "music"), ("record", "music"),
 ]
 
 

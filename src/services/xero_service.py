@@ -600,6 +600,30 @@ class XeroService:
     def is_live(self) -> bool:
         return self.mode() != "demo"
 
+    def _demo_scenario(self) -> str:
+        """Which seeded demo books serve this session ("cafe" | "music").
+
+        Only meaningful in demo mode — live OAuth/CLI data is never affected.
+        The preference is stored per session (set by the sector landing
+        pages); the default keeps the café so the classic demo and its tests
+        behave exactly as before."""
+        from src.services.demo_scenarios import DEFAULT_SCENARIO, resolve_scenario
+        from src.services.payment_store import get_session_pref
+
+        try:
+            return resolve_scenario(get_session_pref(self.session_id, "demo_scenario"))
+        except Exception:
+            return DEFAULT_SCENARIO
+
+    def _demo(self, key: str):
+        """Return the scenario-specific demo dataset for the given key.
+
+        Values are deep-copied so callers can't mutate shared state, mirroring
+        the read-through cache's behaviour for live data."""
+        from src.services.demo_scenarios import scenario_data
+
+        return copy.deepcopy(scenario_data(self._demo_scenario())[key])
+
     def _cli_allowed(self) -> bool:
         """CLI data is the operator's org — allowlisted sessions only."""
         return self.session_id in _CLI_SESSION_IDS
@@ -640,7 +664,7 @@ class XeroService:
             if isinstance(live, list):
                 return live[0] if live else {}
             return live  # type: ignore[return-value]
-        return _MOCK_ORG
+        return self._demo("org")
 
     # ---- Chart of Accounts ----
 
@@ -684,7 +708,7 @@ class XeroService:
         live = self._cli(["contacts", "list"])
         if live is not None:
             return live  # type: ignore[return-value]
-        return _MOCK_CONTACTS
+        return self._demo("contacts")
 
     # ---- Invoices ----
 
@@ -705,7 +729,7 @@ class XeroService:
             # The Xero CLI's `invoices list` doesn't support --status/--type
             # flags, so we fetch all and filter client-side.
             live = self._cli(["invoices", "list"])
-            result = live if live is not None else list(_MOCK_INVOICES)  # type: ignore[assignment]
+            result = live if live is not None else self._demo("invoices")  # type: ignore[assignment]
             if status:
                 result = [i for i in result if i.get("status") == status.upper()]
         if invoice_type:
@@ -728,7 +752,7 @@ class XeroService:
             # The Xero CLI's `bank-transactions list` doesn't support --type,
             # so we fetch all and filter client-side.
             live = self._cli(["bank-transactions", "list"])
-            result = live if live is not None else list(_MOCK_BANK_TXNS)  # type: ignore[assignment]
+            result = live if live is not None else self._demo("bank_txns")  # type: ignore[assignment]
         if txn_type:
             result = [t for t in result if t.get("type") == txn_type.upper()]
         return result  # type: ignore[return-value]
@@ -743,7 +767,7 @@ class XeroService:
         live = self._cli(["payments", "list"])
         if live is not None:
             return live  # type: ignore[return-value]
-        return _MOCK_PAYMENTS
+        return self._demo("payments")
 
     # ---- Reports ----
 
@@ -772,7 +796,7 @@ class XeroService:
         live = self._cli(args)
         if live is not None:
             return _parse_report(live)  # type: ignore[arg-type]
-        pl = dict(_MOCK_PL)
+        pl = self._demo("pl")
         if from_date:
             pl["fromDate"] = from_date
         if to_date:

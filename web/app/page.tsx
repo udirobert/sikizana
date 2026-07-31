@@ -50,6 +50,12 @@ export default function LandingPage() {
               Try Demo
             </Link>
             <Link
+              href="/music"
+              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
+            >
+              Music
+            </Link>
+            <Link
               href="/pricing"
               className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
@@ -451,6 +457,9 @@ export default function LandingPage() {
             </Link>
             <Link href="/tax" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Tax Assistant
+            </Link>
+            <Link href="/music" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Music
             </Link>
             <Link href="/pricing" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Pricing

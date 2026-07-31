@@ -416,8 +416,12 @@ export const endpoints = {
 
   prefs: {
     /** Store the user's sector — asked once, personalizes benchmarks. */
-    set: (sector: string) => api.post<{ ok: boolean; sector: string }>("/api/prefs", { sector }),
-    get: () => api.get<{ sector: string | null }>("/api/prefs"),
+    set: (sector: string) =>
+      api.post<{ ok: boolean; sector: string | null; demo_scenario: string | null }>("/api/prefs", { sector }),
+    /** Pick which sample books demo mode serves (café default, or music). */
+    setDemoScenario: (demo_scenario: string) =>
+      api.post<{ ok: boolean; sector: string | null; demo_scenario: string | null }>("/api/prefs", { demo_scenario }),
+    get: () => api.get<{ sector: string | null; demo_scenario: string | null }>("/api/prefs"),
   },
 
   data: {
