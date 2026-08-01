@@ -106,6 +106,7 @@ def _fallback_copy(facts: dict, nudges: list[dict]) -> dict:
         "sell_summary": "Computed from the last 13 weeks of tills, agent copy unavailable.",
         "nudges": nudges,
         "industry_trend": {"claim": "", "source_name": "", "source_url": ""},
+        "competitor_prices": [],
         "supplier_email_draft": "",
     }
 
@@ -129,9 +130,13 @@ _SCHEMA = {
             "claim": {"type": "string"}, "source_name": {"type": "string"},
             "source_url": {"type": "string"}},
             "required": ["claim", "source_name", "source_url"], "additionalProperties": False},
+        "competitor_prices": {"type": "array", "items": {"type": "object", "properties": {
+            "item": {"type": "string"}, "price_gbp": {"type": "number"},
+            "place": {"type": "string"}, "source_url": {"type": "string"}},
+            "required": ["item", "price_gbp", "place", "source_url"], "additionalProperties": False}},
         "supplier_email_draft": {"type": "string"},
     },
-    "required": ["headline", "sell_summary", "nudges", "industry_trend", "supplier_email_draft", "verification"],
+    "required": ["headline", "sell_summary", "nudges", "industry_trend", "supplier_email_draft", "verification", "competitor_prices"],
     "additionalProperties": False,
 }
 
@@ -164,6 +169,16 @@ Attached is the RAW Square Item Sales export itself (CSV). Do four things:
    (e.g. matcha demand, oat-milk pricing, café cost inflation). It must come
    from a real page you browsed — return the claim in one sentence with the
    source name and URL. If you cannot verify one, say so in claim.
+   ALSO: COMPETITOR PRICE CHECK — mandatory, keep browsing until done. Find
+   current menu prices for (a) a matcha latte and (b) a cake or pastry slice
+   at 2-4 REAL London cafés. Good hunting grounds: delivery listings
+   (Deliveroo/Uber Eats pages), the cafés' own menu pages — try places like
+   Tsujiri, Blank Street, Grind, EL&N, or any café near Shoreditch/City Road.
+   Each row: item, price in GBP, café name, and the exact URL you read it
+   from. Return 4-6 rows; only omit a row you genuinely could not verify on
+   a real page. Spend at most a couple of minutes on this; an empty array is
+   acceptable only if browsing failed entirely — say so in a verification
+   note if it did.
 3. Draft a short, friendly supplier-order email for the top nudge
    (adjusting this week's order), ready for the owner to review and send.
 """
@@ -261,7 +276,7 @@ def briefing_with_manus(refresh: bool = False) -> dict:
                 briefing["manus"] = {"status": "working", "task_id": created["task_id"],
                                      "task_url": created.get("task_url"),
                                      "share_url": created.get("share_url")}
-            result = manus_client.wait_result(created["task_id"], timeout_s=420)
+            result = manus_client.wait_result(created["task_id"], timeout_s=600)
             with _LOCK:
                 if result:
                     merged = {**_fallback_copy(briefing["sell"], briefing["nudges"]),

@@ -138,10 +138,10 @@
    }
   ],
   "attach": {
-   "matcha_transactions": 5458,
+   "matcha_transactions": 5438,
    "with_treat": 445,
    "rate": 0.082,
-   "weekly_opportunity_gbp": 207.0
+   "weekly_opportunity_gbp": 205.0
   },
   "daypart_share": {
    "morning (6-11)": 0.559,
@@ -304,7 +304,7 @@
   },
   "modifiers": {
    "oat_milk_share": 0.222,
-   "extra_shot_share": 0.036
+   "extra_shot_share": 0.039
   },
   "mix": {
    "categories": [
@@ -440,68 +440,94 @@
   },
   {
    "title": "Bundle cake with matcha",
-   "rationale": "Only 8% of matcha lattes add a cake or pastry (benchmark ~18%). A 'matcha + cake' board at the till is worth roughly \u00a3207/week.",
-   "impact_gbp": 207.0
+   "rationale": "Only 8% of matcha lattes add a cake or pastry (benchmark ~18%). A 'matcha + cake' board at the till is worth roughly \u00a3205/week.",
+   "impact_gbp": 205.0
   }
  ],
  "copy": {
-  "headline": "Iced Matcha Latte up 27.9% in four weeks; Miso Banana Loaf down 21.9%.",
-  "sell_summary": "Revenue was \u00a3157,469 over 13 weeks from 26,023 transactions, but net profit sits at -\u00a32,705; we should push higher-margin bakery attachments to lift margins as matcha demand remains strong.",
+  "headline": "Matcha is eating coffee's lunch \u2014 but your pastry case isn't keeping up.",
+  "sell_summary": "Over the last 13 weeks you processed \u00a3157,469 in revenue from 26,023 transactions; average basket \u00a36.05. Matcha drinks show growth (Iced Matcha Latte +27.9% last 4 weeks) while Miso Banana Loaf fell -21.9%. Attach rate for matcha with bakery items is 8.2% (445 of 5,438).",
   "nudges": [
    {
     "impact_gbp": null,
-    "rationale": "It's our fastest-growing item, up 27.9% recently (averaging 601 units a week). So what: Demand is already there, but if supply chain costs are squeezing margins, this is the volume driver you need to keep the lights on. Keep the ice machine prepped and the oats stocked.",
-    "title": "Push the Iced Matcha Latte."
+    "rationale": "Iced Matcha Latte sales have jumped 27.9% over the last four weeks, averaging 601 units a week. You are already burning through matcha powder faster than you ordered for, and 22.2% of drinks get oat-milk upgrade; demand is real and accelerating. This is the single fastest-growing line on your menu right now.",
+    "title": "Stock more matcha powder now"
    },
    {
     "impact_gbp": null,
-    "rationale": "Sales dropped 21.9% over the last four weeks (down to 96 units a week). So what: We're wasting prep time and bin money on a treat that's cooling off. Reduce your order this week and reallocate that labor to items that are actually flying out the door.",
-    "title": "Pull the Miso Banana Loaf."
+    "rationale": "Only 8.2% of matcha transactions included a cake or pastry (445 of 5,438). If we capture 15% of those missed bites, you could add roughly \u00a3205 a week at current traffic levels. A bundling option could incentivize purchases.",
+    "title": "Put a treat next to every matcha"
    },
    {
-    "impact_gbp": 207.0,
-    "rationale": "8.2% of matcha customers are adding a pastry (445 out of 5,438). So what: That leaves \u00a3207 of weekly opportunity on the table. Matcha drinkers are your best customers\u2014train the baristas to suggest the hojicha latte's perfect pairing at the register.",
-    "title": "Fix the Matcha Attach Rate."
+    "impact_gbp": 205.0,
+    "rationale": "Miso Banana Loaf has fallen 21.9% to 96 units per week; reduce bake order this week to free capacity; replace with a seasonal pastry to sit with matcha buyers.",
+    "title": "Cut or swap the Miso Banana Loaf"
    }
   ],
   "industry_trend": {
-   "claim": "UK caf\u00e9s face a structural matcha supply shortage, with tencha auction prices peaking around \u00a522,000/kg in May 2026 and wholesale prices up roughly 40\u201350% year-on-year.",
-   "source_name": "UnD Matcha Price Report",
-   "source_url": "https://und-ny.com/journal/matcha-price-2026/"
+   "claim": "British matcha revenue hit approximately \u00a346 million in 2025 \u2014 more than double the prior year \u2014 driven by 1,380% volume growth at major suppliers like Suki Tea, with operators now going through kilos per week.",
+   "source_name": "Pellicle Mag",
+   "source_url": "https://www.pelliclemag.com/home/2026/3/16/its-not-easy-being-green-inside-the-uks-matcha-boom"
   },
-  "supplier_email_draft": "Subject: Adjusting this week's matcha & bakery order\n\nHi [Supplier Name],\n\nHope you're having a good week.\n\nLooking at our till data for the last month, our Iced Matcha Lattes are absolutely flying right now (up nearly 28% in volume). Because of the current market shortages and price hikes, I want to make sure we lock in our supply before it dips. Can we add an extra [insert amount/kg] of [specific matcha grade] to this week's order to keep us buffered?\n\nOn the flip side, our Miso Banana Loaf has slowed down a bit (down about 22% recently). To avoid waste, please cut our usual order for that by [insert percentage/amount] for this week's delivery. \n\nLet me know if you can accommodate that matcha buffer, and I'll send over the updated PO.\n\nBest,\n[Your Name]",
+  "competitor_prices": [
+   {
+    "item": "Matcha Iced Latte",
+    "place": "EL&N London (Hans Crescent)",
+    "price_gbp": 6.7,
+    "source_url": "https://www.ubereats.com/gb/store/el%26n-london-hans-crescent/aB6SJDtRSK2e7Wh76b2aAg"
+   },
+   {
+    "item": "Matcha Latte",
+    "place": "EL&N London (Hans Crescent)",
+    "price_gbp": 6.75,
+    "source_url": "https://www.ubereats.com/gb/store/el%26n-london-hans-crescent/aB6SJDtRSK2e7Wh76b2aAg"
+   },
+   {
+    "item": "Carrot Cake",
+    "place": "EL&N London",
+    "price_gbp": 9.95,
+    "source_url": "https://www.ubereats.com/gb/store/el%26n-london-hans-crescent/aB6SJDtRSK2e7Wh76b2aAg"
+   },
+   {
+    "item": "Vanilla Meringue Cake",
+    "place": "EL&N London",
+    "price_gbp": 9.95,
+    "source_url": "https://www.ubereats.com/gb/store/el%26n-london-hans-crescent/aB6SJDtRSK2e7Wh76b2aAg"
+   }
+  ],
+  "supplier_email_draft": "Subject: Order adjustment for this week - Iced Matcha Latte restock\n\nHi [Supplier Name],\n\nI'm writing to adjust our usual order for this week. We've noticed a significant jump in demand for our Iced Matcha Lattes over the past month, with sales increasing by nearly 28% recently. \n\nTo make sure we don't run out during our busy morning rush, we'd like to increase our matcha powder order for this week. Could we add an extra 5kg of your ceremonial grade matcha to our regular shipment? \n\nLet me know if this works for you.\n\nThanks,\n\n[Owner Name]\nSiki Caf\u00e9",
   "verification": [
    {
-    "claim": "Iced Matcha Latte last 4-week average is 601 units per week.",
-    "note": "Last-4 weeks: 563, 591, 579, 671; Prior-4 weeks: 409, 428, 564, 479; Last-4 avg 601; prior-4 avg 470; Rise 27.9%",
+    "claim": "Iced Matcha Latte +27.9% rise, 601 units/week (last 4)",
+    "note": "Last 4 weeks avg 601.0; Prior 4 weeks avg 470.0",
     "verified": true
    },
    {
-    "claim": "Miso Banana Loaf last 4-week average is 96 units per week.",
-    "note": "Last-4 weeks: 113,125,85,59; Prior-4 weeks: 126,141,103,119; Last-4 avg 95.5 (~96); Prior-4 avg 122.2; Fall -21.9%",
+    "claim": "Miso Banana Loaf -21.9%, 96 units/week (last 4)",
+    "note": "Last 4 weeks avg 95.5 \u2248 96; Prior 4 weeks avg 122.2",
     "verified": true
    },
    {
-    "claim": "8.2% of transactions containing a matcha drink also contained a cake/pastry item.",
-    "note": "5,438 unique matcha transactions; 445 with a bakery pastry; Rate 8.18% (rounded 8.2%)",
+    "claim": "Matcha attach rate 8.2% (445 of 5438)",
+    "note": "445/5438 = 8.2%",
     "verified": true
    }
   ]
  },
  "verification": [
   {
-   "claim": "Iced Matcha Latte last 4-week average is 601 units per week.",
-   "note": "Last-4 weeks: 563, 591, 579, 671; Prior-4 weeks: 409, 428, 564, 479; Last-4 avg 601; prior-4 avg 470; Rise 27.9%",
+   "claim": "Iced Matcha Latte +27.9% rise, 601 units/week (last 4)",
+   "note": "Last 4 weeks avg 601.0; Prior 4 weeks avg 470.0",
    "verified": true
   },
   {
-   "claim": "Miso Banana Loaf last 4-week average is 96 units per week.",
-   "note": "Last-4 weeks: 113,125,85,59; Prior-4 weeks: 126,141,103,119; Last-4 avg 95.5 (~96); Prior-4 avg 122.2; Fall -21.9%",
+   "claim": "Miso Banana Loaf -21.9%, 96 units/week (last 4)",
+   "note": "Last 4 weeks avg 95.5 \u2248 96; Prior 4 weeks avg 122.2",
    "verified": true
   },
   {
-   "claim": "8.2% of transactions containing a matcha drink also contained a cake/pastry item.",
-   "note": "5,438 unique matcha transactions; 445 with a bakery pastry; Rate 8.18% (rounded 8.2%)",
+   "claim": "Matcha attach rate 8.2% (445 of 5438)",
+   "note": "445/5438 = 8.2%",
    "verified": true
   }
  ],
@@ -511,8 +537,8 @@
  },
  "manus": {
   "status": "done",
-  "task_id": "CKdm6UT4qBa5pMXtST7TaY",
-  "task_url": "https://manus.im/app/CKdm6UT4qBa5pMXtST7TaY",
-  "share_url": "https://manus.im/share/CKdm6UT4qBa5pMXtST7TaY?replay=1"
+  "task_id": "MNEVPZYufvogsrjxnrCG3p",
+  "task_url": "https://manus.im/app/MNEVPZYufvogsrjxnrCG3p",
+  "share_url": "https://manus.im/share/MNEVPZYufvogsrjxnrCG3p?replay=1"
  }
 }

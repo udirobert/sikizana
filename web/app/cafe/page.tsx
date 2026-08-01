@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SikiMascot } from "@/components/SikiMascot";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Sparkline } from "@/components/dither-kit/sparkline";
+import { endpoints } from "@/lib/api";
 
 /**
  * /cafe — Siki's Monday Briefing (hackathon spike: Matcha Mochi, City Road).
@@ -49,6 +50,7 @@ type Briefing = {
     headline: string; sell_summary: string;
     nudges: { title: string; rationale: string; impact_gbp: number | null }[];
     industry_trend: { claim: string; source_name: string; source_url: string };
+    competitor_prices?: { item: string; price_gbp: number; place: string; source_url: string }[];
     supplier_email_draft: string;
   };
   benchmarks: { cogs: string; attach: number };
@@ -62,6 +64,126 @@ const MIX_COLORS: Record<string, string> = {
   "Add-ons": "bg-stone-200", };
 
 const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
+
+/** Live Siki chat: owner's questions answered against COMPUTED facts (injected
+ *  context) by the production bookkeeper agent — no Manus dependency, and the
+ *  agent can run its own tools (live research) for anything beyond the facts. */
+function CafeChat({ briefing }: { briefing: Briefing }) {
+  const [msgs, setMsgs] = useState<{ role: "user" | "siki"; text: string }[]>([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [thread] = useState(() =>
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+  );
+
+  const ctx = useMemo(
+    () =>
+      JSON.stringify({
+        totals: briefing.sell.totals,
+        window: briefing.sell.window,
+        risers: briefing.sell.risers.map(({ item, pct_change, units_per_week }) => ({ item, pct_change, units_per_week })),
+        fallers: briefing.sell.fallers.map(({ item, pct_change, units_per_week }) => ({ item, pct_change, units_per_week })),
+        attach: briefing.sell.attach,
+        daypart_share: briefing.sell.daypart_share,
+        modifiers: briefing.sell.modifiers,
+        top_items: briefing.sell.top_items_by_revenue.slice(0, 5),
+        spend: briefing.spend.by_supplier_gbp,
+        nudges: briefing.nudges,
+        benchmark_cogs: briefing.benchmarks.cogs,
+      }),
+    [briefing],
+  );
+
+  const send = async (text: string) => {
+    if (!text.trim() || busy) return;
+    const message =
+      `You are Siki, the finance assistant for a London matcha café. Answer the owner's question ` +
+      `in 2-4 plain sentences, using ONLY these computed facts from its tills for any figures ` +
+      `(never invent numbers; if the facts don't cover it, say so or use your tools for live research). ` +
+      `Facts: ${ctx}\n\nOwner asks: ${text.trim()}`;
+    setMsgs((m) => [...m, { role: "user", text: text.trim() }, { role: "siki", text: "" }]);
+    setInput("");
+    setBusy(true);
+    try {
+      for await (const ev of endpoints.xero.chatStream(message, thread, "siki")) {
+        if (ev.type === "text") {
+          const chunk = ev.text;
+          setMsgs((m) => {
+            const c = [...m];
+            c[c.length - 1] = { role: "siki", text: c[c.length - 1].text + chunk };
+            return c;
+          });
+        }
+      }
+    } catch {
+      setMsgs((m) => {
+        const c = [...m];
+        c[c.length - 1] = { role: "siki", text: c[c.length - 1].text || "Hmm, I lost my train of thought — try again?" };
+        return c;
+      });
+    }
+    setBusy(false);
+  };
+
+  const chips = [
+    "What should I order more of this week?",
+    "Is my matcha latte priced right for this area?",
+    "Where is my margin actually leaking?",
+  ];
+
+  return (
+    <section className="mt-6 rounded-3xl border border-sky-200 bg-white p-6 shadow-sm md:p-7">
+      <BeatLabel n="?" text="ask me anything about these numbers" />
+      <div className="mt-3 space-y-3">
+        {msgs.map((m, i) => (
+          <div
+            key={i}
+            className={`max-w-[90%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+              m.role === "user"
+                ? "ml-auto bg-stone-800 text-white rounded-tr-sm"
+                : "bg-sky-600 text-white rounded-tl-sm"
+            }`}
+          >
+            {m.text || (busy && i === msgs.length - 1 ? "…" : m.text)}
+          </div>
+        ))}
+        {msgs.length === 0 && (
+          <div className="flex flex-wrap gap-2">
+            {chips.map((c) => (
+              <button
+                key={c}
+                onClick={() => send(c)}
+                className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-800 hover:bg-sky-100"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2 pt-1">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && send(input)}
+            disabled={busy}
+            placeholder="Why is my milk spend up? What should I charge?"
+            className="flex-1 rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500"
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={busy || !input.trim()}
+            className="rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+          >
+            Ask
+          </button>
+        </div>
+        <p className="text-[11px] text-stone-400">
+          Answered by Siki on this device’s data — figures come only from the computed facts above.
+        </p>
+      </div>
+    </section>
+  );
+}
 
 function BeatLabel({ n, text }: { n: string; text: string }) {
   return (
@@ -374,6 +496,33 @@ export default function CafeBriefingPage() {
             </p>
           </details>
         </section>
+
+        {/* -------------------- benchmark: what others charge -------------------- */}
+        {copy.competitor_prices && copy.competitor_prices.length > 0 && (
+          <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
+            <BeatLabel n="£" text="what others charge nearby" />
+            <ul className="mt-3 divide-y divide-stone-100">
+              {copy.competitor_prices.map((p, i) => (
+                <li key={i} className="flex items-baseline gap-2 py-2.5 text-sm">
+                  <span className="text-stone-800">{p.item}</span>
+                  <span className="ml-auto shrink-0 font-semibold tabular-nums text-stone-900">
+                    £{p.price_gbp.toFixed(2)}
+                  </span>
+                  <a href={p.source_url} target="_blank" rel="noreferrer"
+                     className="shrink-0 text-xs text-sky-700 underline">
+                    {p.place} ↗
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] text-stone-400">
+              Found live by the agent on real menus · indicative, check before pricing decisions
+            </p>
+          </section>
+        )}
+
+        {/* -------------------- ask Siki: the agentic layer -------------------- */}
+        <CafeChat briefing={data} />
 
         {/* -------------------- the curious (collapsed) -------------------- */}
         <section className="mt-6 space-y-3">

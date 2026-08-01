@@ -32,7 +32,7 @@ def _trend(weeks: list[int]) -> tuple[float, float]:
 
 def analyse(
     rows: list[SaleRow],
-    matcha_keywords: tuple[str, ...] = ("matcha",),
+    matcha_keywords: tuple[str, ...] = ("matcha latte",),  # drinks only — "Matcha Cake Slice" must NOT widen the attach base
     treat_keywords: tuple[str, ...] = ("cake", "donut", "loaf", "croissant"),
 ) -> dict:
     if not rows:
