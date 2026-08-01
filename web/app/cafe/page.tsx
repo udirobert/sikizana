@@ -641,6 +641,62 @@ export default function CafeBriefingPage() {
         {/* -------------------- ask Siki: the agentic layer -------------------- */}
         <CafeChat briefing={data} pack={pack} />
 
+        {/* -------------------- marquee: made by Manus -------------------- */}
+        <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50/40 p-6 shadow-sm md:p-7">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-700">
+            Marquee moments — made by the Manus agent, from our numbers
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <figure className="overflow-hidden rounded-2xl border border-stone-200 bg-black">
+              <video
+                src="/cafe/week-in-review.mp4"
+                controls
+                muted
+                loop
+                playsInline
+                className="h-52 w-full object-cover"
+              />
+              <figcaption className="bg-white px-4 py-2 text-[11px] text-stone-500">
+                20-second “week in review”, directed + animated + rendered by the agent{" "}
+                <a href="https://manus.im/share/bakMWaULrS9jiAmYftqAHx?replay=1" target="_blank" rel="noreferrer"
+                   className="font-medium text-violet-700 underline">watch its run ↗</a>
+              </figcaption>
+            </figure>
+            <a
+              href="/cafe/monday-onepager.pdf"
+              target="_blank"
+              rel="noreferrer"
+              className="group flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 hover:border-violet-300"
+            >
+              <div>
+                <p className="font-semibold text-stone-900 group-hover:text-violet-800">
+                  The Monday one-pager (PDF)
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                  A café-zine A4 card: stat chips, week-by-week bars, the EL&N price check.
+                  Print it, pin it by the till.
+                </p>
+              </div>
+              <p className="mt-3 text-[11px] text-stone-400">
+                Designed by the agent in one pass{" "}
+                <span
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open("https://manus.im/share/c9Fi5Anv4qDn3dz8asdMsJ?replay=1", "_blank");
+                  }}
+                  className="font-medium text-violet-700 underline cursor-pointer"
+                >
+                  watch its run ↗
+                </span>
+              </p>
+            </a>
+          </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-stone-400">
+            Both artefacts are served from this site (no standing dependency); the agent’s full
+            runs replay publicly at the links above.
+          </p>
+        </section>
+
         {/* -------------------- the curious (collapsed) -------------------- */}
         <section className="mt-6 space-y-3">
           <details className="rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
@@ -756,6 +812,7 @@ export default function CafeBriefingPage() {
         </section>
 
         {/* -------------------- your turn: agency rail -------------------- */}
+
         <section className="mt-8 rounded-3xl border border-emerald-200 bg-emerald-50/60 p-6 md:p-7">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-800">
             Could this be your shop?

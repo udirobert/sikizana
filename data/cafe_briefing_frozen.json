@@ -539,6 +539,20 @@
   "status": "done",
   "task_id": "MNEVPZYufvogsrjxnrCG3p",
   "task_url": "https://manus.im/app/MNEVPZYufvogsrjxnrCG3p",
-  "share_url": "https://manus.im/share/MNEVPZYufvogsrjxnrCG3p?replay=1"
+  "share_url": "https://manus.im/share/MNEVPZYufvogsrjxnrCG3p?replay=1",
+  "visuals": [
+   {
+    "kind": "video",
+    "title": "Week in review",
+    "src": "/cafe/week-in-review.mp4",
+    "run_url": "https://manus.im/share/bakMWaULrS9jiAmYftqAHx?replay=1"
+   },
+   {
+    "kind": "pdf",
+    "title": "Monday one-pager",
+    "src": "/cafe/monday-onepager.pdf",
+    "run_url": "https://manus.im/share/c9Fi5Anv4qDn3dz8asdMsJ?replay=1"
+   }
+  ]
  }
 }
