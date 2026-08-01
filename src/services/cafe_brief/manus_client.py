@@ -113,11 +113,24 @@ def task_result(task_id: str) -> dict | None:
     return found
 
 
-def run_task(prompt: str, title: str, schema: dict | None = None,
-             timeout_s: int = 420, poll_s: int = 6, profile: str = "manus-1.6") -> dict | None:
-    """Synchronous helper: create, poll until finished, fetch result."""
-    created = create_task(prompt, title=title, schema=schema, profile=profile)
-    task_id = created["task_id"]
+def task_activity(task_id: str, limit: int = 8) -> list[dict]:
+    """Last N task events as {type, text} for an agent-activity feed."""
+    body = _request("GET", f"/task.listMessages?task_id={task_id}&limit={limit}&order=desc")
+    out = []
+    for msg in reversed(body.get("messages", [])):
+        mtype = msg.get("type", "event")
+        content = msg.get("content")
+        text = ""
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+        out.append({"type": mtype, "text": text.strip().replace("\n", " ")[:220]})
+    return out
+
+
+def wait_result(task_id: str, timeout_s: int = 420, poll_s: int = 6) -> dict | None:
+    """Poll until terminal, then fetch the structured result."""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         time.sleep(poll_s)
@@ -129,3 +142,10 @@ def run_task(prompt: str, title: str, schema: dict | None = None,
         if status in ("failed", "error"):
             raise ManusError(f"task {task_id} ended with status {status}")
     raise ManusError(f"task {task_id} timed out after {timeout_s}s")
+
+
+def run_task(prompt: str, title: str, schema: dict | None = None,
+             timeout_s: int = 420, poll_s: int = 6, profile: str = "manus-1.6") -> dict | None:
+    """Synchronous helper: create, poll until finished, fetch result."""
+    created = create_task(prompt, title=title, schema=schema, profile=profile)
+    return wait_result(created["task_id"], timeout_s=timeout_s, poll_s=poll_s)

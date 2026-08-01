@@ -14,3 +14,8 @@ def get_briefing(refresh: bool = Query(False), offline: bool = Query(False)):
         if frozen:
             return frozen
     return service.briefing_with_manus(refresh=refresh)
+
+
+@router.get("/activity")
+def get_agent_activity():
+    return {"events": service.agent_activity()}

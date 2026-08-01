@@ -186,32 +186,39 @@
   }
  ],
  "copy": {
-  "headline": "Iced Matcha Latte surges 158% in 13 weeks as matcha cements a cafe-core role",
-  "sell_summary": "Over the 13-week window, revenue totaled \u00a3157,469 from 26,023 transactions, with Filter Coffee remaining the top seller (\u00a344,612) while matcha drinks contributed \u00a357,138 (36.3% of revenue). Iced Matcha Latte grew from 260 to 671 units per week, driving \u00a329,546 in revenue. Daily revenue is about \u00a31,730, and the Miso Banana Loaf is fading (week 13: 59 units). There is a clear opportunity to boost margins by expanding matcha-treat pairings at point of sale.",
+  "headline": "Iced Matcha Latte rises to second-highest revenue while food attach rate leaves \u00a3207 weekly on the table",
+  "sell_summary": "Over 13 weeks (25 Apr\u201324 Jul), revenue \u00a3157,469 from 26,023 transactions (avg basket \u00a36.05) across 286 transactions per day. Iced Matcha Latte revenue \u00a329,546, up 27.9% this quarter; Filter Coffee leads revenue at \u00a344,612. Supplier spend shows net profit of -\u00a32,705 on period 3 May\u20131 Aug, with rent \u00a32,500, beans \u00a3680, energy \u00a3340. The weekly attach rate is 8.2%, implying a \u00a3207 weekly opportunity from adding a pastry to matcha sales.",
   "nudges": [
    {
     "impact_gbp": null,
-    "rationale": "The Iced Matcha Latte is a fast-growing driver, yielding \u00a329,546 in revenue over 13 weeks and now averaging around 671 units per week at week 13. Keeping stock prevents loss of roughly \u00a32,273 in weekly revenue from stockouts.",
-    "title": "Secure Iced Matcha Latte supply to protect revenue"
+    "rationale": "Attach rate is 8.2% (weekly_opportunity_gbp \u00a3207). With 5,458 weekly matcha drink transactions, boosting the 8.2% attach rate by a few percentage points could capture roughly \u00a3207 of extra weekly sales by pairing drinks with a pastry.",
+    "title": "Nudge 1: Matcha Attach Rate \u2014 The \u00a3207 Problem"
    },
    {
     "impact_gbp": null,
-    "rationale": "Matcha attach rate is 8.2% today on 5,458 matcha transactions, with a weekly revenue opportunity of \u00a3207. Increasing bundle offers could lift weekly revenue beyond this baseline.",
-    "title": "Boost matcha drink attach rate with bundled treats"
+    "rationale": "Miso Banana Loaf sales have fallen 21.9% (weekly data), suggesting waste risk if orders stay high. Reducing the loaf order now helps guard margins without tying up ingredients.",
+    "title": "Nudge 2: Miso Banana Loaf \u2014 The Silent Drop"
+   },
+   {
+    "impact_gbp": 207.0,
+    "rationale": "Filter Coffee revenue remains the largest contributor (\u00a344,612) and its weekly growth of 11.3% supports a stable margin; maintain supply discipline to protect margins as volume grows.",
+    "title": "Nudge 3: Filter Coffee \u2014 The Workhorse That Keeps Growing"
    }
   ],
   "industry_trend": {
-   "claim": "Roughly 40% of matcha drinkers now report replacing at least one daily cup of coffee with matcha.",
-   "source_name": "Forbes",
-   "source_url": "https://www.forbes.com/sites/eshachhabra/2026/06/05/the-matcha-boom-continues-to-drive-the-worlds-fastest-growing-tea/"
+   "claim": "Sales of matcha drinks in UK caf\u00e9s more than doubled in June and July this summer, according to data from payments company Square.",
+   "source_name": "Fresh Cup",
+   "source_url": "https://freshcup.com/the-matcha-boom-is-reshaping-cafes-how-long-before-it-hits-a-wall/"
   },
-  "supplier_email_draft": "Subject: Adjusting this week's matcha order \u2013 Urgent\n\nHi [Supplier Name],\n\nHope you're having a good week.\n\nI'm getting in touch regarding our matcha powder order for this coming week. We've seen a massive spike in demand for our Iced Matcha Lattes recently\u2014we are now selling over 600 of them every single week, which is a huge jump from where we were a couple of months ago.\n\nGiven the current industry-wide rush on matcha, I want to make sure we don't run out. Could we increase our standard order of [Matcha Powder Type/Quantity] by [X]% for this week to cover this new baseline volume?\n\nLet me know if you can accommodate this or if there are any current supply constraints I should be aware of.\n\nThanks,\n[Owner Name]"
+  "supplier_email_draft": "Subject: This Week's Order \u2014 Adjusting for Matcha Demand\n\nHi [Supplier Name],\n\nI've reviewed our supplier spend for the period May 3 to Aug 1 and our books show a net loss of \u00a32,705. Our rent (\u00a32,500), coffee beans (\u00a3680), and energy (\u00a3340) are steady, but we need to tighten inventory to protect margins.\n\nGiven that Iced Matcha Latte sales have jumped 27.9% this quarter, we should be ordering more matcha powder, and Miso Banana Loaf sales have fallen 21.9%, so we should be mindful about pastry orders to avoid waste.\n\nPlease adjust this week's order: increase our matcha supply to meet demand, and reduce the Miso Banana Loaf order to minimize waste. Let's ensure we\u2019re not overstocking on items that are underperforming.\n\nBest,\n[Owner Name]"
  },
  "benchmarks": {
   "cogs": "hospitality COGS typically ~25\u201335% of revenue (industry rule of thumb)",
   "attach": 0.18
  },
  "manus": {
-  "status": "done"
+  "status": "done",
+  "task_id": "MaXSWYpU4wp7UbTh9AikCN",
+  "task_url": "https://manus.im/app/MaXSWYpU4wp7UbTh9AikCN"
  }
 }

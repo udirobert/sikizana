@@ -195,11 +195,22 @@ def briefing_with_manus(refresh: bool = False) -> dict:
     briefing["manus"] = {"status": "working"}
 
     def _enrich():
+        import sys
         try:
-            prompt = _PROMPT.format(facts=json.dumps(briefing["sell"], indent=1, default=str),
-                                    spend=json.dumps(briefing["spend"], indent=1))
-            result = manus_client.run_task(prompt, title="Café Monday Briefing copy",
-                                           schema=_SCHEMA, timeout_s=420)
+            print(f"[cafe] _enrich start", file=sys.stderr, flush=True)
+            # NOTE: str.format explodes on JSON braces in facts; use replace.
+            prompt = (_PROMPT
+                      .replace("{facts}", json.dumps(briefing["sell"], indent=1, default=str))
+                      .replace("{spend}", json.dumps(briefing["spend"], indent=1)))
+            created = manus_client.create_task(prompt, title="Café Monday Briefing copy",
+                                               schema=_SCHEMA)
+            print(f"[cafe] task created {created.get('task_id')}", file=sys.stderr, flush=True)
+            with _LOCK:
+                # Showcase the agent run itself (a Manus hackathon, after all):
+                # status lives in the briefing, activity via /api/cafe/activity.
+                briefing["manus"] = {"status": "working", "task_id": created["task_id"],
+                                     "task_url": created.get("task_url")}
+            result = manus_client.wait_result(created["task_id"], timeout_s=420)
             with _LOCK:
                 if result:
                     merged = {**_fallback_copy(briefing["sell"], briefing["nudges"]),
@@ -210,17 +221,34 @@ def briefing_with_manus(refresh: bool = False) -> dict:
                     det = briefing["nudges"]
                     for i, n in enumerate(merged.get("nudges") or []):
                         n["impact_gbp"] = det[i]["impact_gbp"] if i < len(det) else None
+                    # Never show fewer nudges than the deterministic three.
+                    if len(merged.get("nudges") or []) < len(det):
+                        merged["nudges"] = list(merged.get("nudges") or []) + det[len(merged.get("nudges") or []):]
                     briefing["copy"] = merged
-                    briefing["manus"] = {"status": "done"}
+                    briefing["manus"]["status"] = "done"
                     _freeze(briefing)
-                else:
-                    briefing["manus"] = {"status": "failed", "reason": "empty result"}
+                    return
+                briefing["manus"] = {**briefing["manus"], "status": "failed", "reason": "empty result"}
         except Exception as e:
+            import sys, traceback
+            traceback.print_exc(file=sys.stderr)
             with _LOCK:
-                briefing["manus"] = {"status": "failed", "reason": str(e)}
+                briefing["manus"] = {**briefing.get("manus", {}), "status": "failed", "reason": str(e)}
 
     threading.Thread(target=_enrich, daemon=True).start()
     return briefing
+
+
+def agent_activity() -> list[dict]:
+    """Recent events from the current briefing's Manus task (for the demo)."""
+    with _LOCK:
+        task_id = (_CACHE or {}).get("manus", {}).get("task_id")
+    if not task_id:
+        return []
+    try:
+        return manus_client.task_activity(task_id)
+    except manus_client.ManusError:
+        return []
 
 
 FROZEN = Path(__file__).resolve().parents[3] / "data" / "cafe_briefing_frozen.json"
