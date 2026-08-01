@@ -74,7 +74,9 @@ def create_task(prompt: str, title: str, schema: dict | None = None,
     payload: dict = {
         "message": {"content": content_field},
         "title": title,
-        "hide_in_task_list": True,
+        # Visible in the Manus webapp list — journeys the team should see
+        # (earlier runs hid themselves; find + publish them via task.update).
+        "hide_in_task_list": False,
         "agent_profile": profile,
     }
     if share_visibility:
