@@ -56,7 +56,11 @@ type Briefing = {
     competitor_prices?: { item: string; price_gbp: number; place: string; source_url: string }[];
     supplier_email_draft: string;
   };
-  benchmarks: { cogs: string; attach: number };
+  benchmarks: {
+    cogs: string; attach: number;
+    cogs_source?: { name: string; url: string };
+    sources?: Record<string, { value: string; source: string }>;
+  };
   manus: { status: string; reason?: string; task_id?: string; task_url?: string; share_url?: string };
   verification?: { claim: string; verified: boolean; note: string }[];
 };
@@ -1050,8 +1054,14 @@ export default function CafeBriefingPage() {
               <p>
                 Sales patterns derive from a widely used real-world coffee-shop transaction dataset
                 (Maven Analytics, 149k tills), reshaped into a Square export with a matcha-café menu.
-                Benchmarks are typical UK café ranges, indicative only. Built at the Manus café hackathon.
+                Built at the Manus café hackathon.
               </p>
+              {data.benchmarks.sources && (
+                <p>
+                  Benchmarks (researched by the agent, cited):{" "}
+                  {Object.entries(data.benchmarks.sources).map(([k, v]) => `${v.value} — ${v.source}`).join(" · ")}
+                </p>
+              )}
             </div>
           </details>
         </section>

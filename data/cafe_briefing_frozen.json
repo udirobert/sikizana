@@ -535,8 +535,38 @@
   }
  ],
  "benchmarks": {
-  "cogs": "hospitality COGS typically ~25\u201335% of revenue (industry rule of thumb)",
-  "attach": 0.18
+  "cogs": "hospitality COGS typically ~25\u201335% of revenue",
+  "cogs_source": {
+   "name": "Notions Coffee Consult",
+   "url": "https://www.thenotions.com.au/blog/coffee-shop-profit-margin"
+  },
+  "attach": 0.18,
+  "sources": {
+   "labour_pct": {
+    "value": "38\u201348% of revenue",
+    "source": "Brikly"
+   },
+   "net_margin_pct": {
+    "value": "5\u201312% (2026, UK independents)",
+    "source": "Brikly"
+   },
+   "attach_rate": {
+    "value": "20\u201325% pastry/cake add-on",
+    "source": "The Happy Manager"
+   },
+   "food_waste_pct": {
+    "value": "4\u201310% of items purchased",
+    "source": "Business Waste"
+   },
+   "matcha_market": {
+    "value": "US$40.1m in 2025 (projected to double)",
+    "source": "Grand View Research"
+   },
+   "delivery_commission": {
+    "value": "Deliveroo 25\u201335% \u00b7 Uber Eats ~30% \u00b7 Just Eat ~14\u201316%",
+    "source": "WaveGrocery / Aexir"
+   }
+  }
  },
  "manus": {
   "status": "done",

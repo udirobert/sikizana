@@ -67,8 +67,25 @@ def _spend_facts() -> dict:
 
 # ----------------------------------------------------------------- nudges
 
-_BENCHMARK_COGS = "hospitality COGS typically ~25–35% of revenue (industry rule of thumb)"
+# Benchmarks harvested from a cited corpus (Manus research run, 2026-08-01 —
+# sources kept so the page can say where a number comes from).
+# NOTE: attach benchmark moves 18% -> 20-25% in corpus (The Happy Manager);
+# the frozen fixture stays internally coherent at 18% for this demo cycle,
+# and the next enrichment refresh re-derives with the corpus value.
+_BENCHMARK_COGS = "hospitality COGS typically ~25–35% of revenue"
+_BENCHMARK_COGS_SOURCE = {
+    "name": "Notions Coffee Consult",
+    "url": "https://www.thenotions.com.au/blog/coffee-shop-profit-margin",
+}
 _BENCHMARK_ATTACH = 0.18
+_BENCHMARK_SOURCES = {
+    "labour_pct": {"value": "38–48% of revenue", "source": "Brikly"},
+    "net_margin_pct": {"value": "5–12% (2026, UK independents)", "source": "Brikly"},
+    "attach_rate": {"value": "20–25% pastry/cake add-on", "source": "The Happy Manager"},
+    "food_waste_pct": {"value": "4–10% of items purchased", "source": "Business Waste"},
+    "matcha_market": {"value": "US$40.1m in 2025 (projected to double)", "source": "Grand View Research"},
+    "delivery_commission": {"value": "Deliveroo 25–35% · Uber Eats ~30% · Just Eat ~14–16%", "source": "WaveGrocery / Aexir"},
+}
 
 
 def _nudges(facts: dict, spend: dict) -> list[dict]:
@@ -205,7 +222,8 @@ def build_briefing(csv_bytes: bytes | None = None,
         "nudges": nudges,
         "copy": _fallback_copy(facts, nudges),
         "verification": [],
-        "benchmarks": {"cogs": _BENCHMARK_COGS, "attach": _BENCHMARK_ATTACH},
+        "benchmarks": {"cogs": _BENCHMARK_COGS, "cogs_source": _BENCHMARK_COGS_SOURCE,
+                        "attach": _BENCHMARK_ATTACH, "sources": _BENCHMARK_SOURCES},
         "manus": {"status": "not_started"},
     }
 
