@@ -840,6 +840,12 @@ export default function CafeBriefingPage() {
           A snapshot of what Siki does with the books side, every day —{" "}
           <a href="/" className="font-medium text-sky-700 underline">sikizana</a> ·
           {" "}built at the Manus café hackathon, Matcha Mochi, City Road
+          <br />
+          <a href="https://manus.im/share/cguySdmV54NSpVikCzQX2G?replay=1" target="_blank" rel="noreferrer"
+             className="font-medium text-violet-600 underline">
+            The poster-site session ↗
+          </a>{" "}
+          — the agent built a full presentation site reusing its own earlier runs (publication pending one human click in Manus’s preview panel)
         </footer>
       </div>
     </main>
