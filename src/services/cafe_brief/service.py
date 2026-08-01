@@ -178,19 +178,38 @@ _CACHE: dict = {}
 _LOCK = threading.Lock()
 
 
+def _static_mode() -> bool:
+    """Snapshot mode: serve the frozen enriched briefing, never touch Manus.
+
+    Triggered explicitly (CAFE_MANUS_OFF=1) or implicitly when no API key is
+    present — which is exactly the production shape (compose has no Manus
+    env), so prod serves the snapshot with zero standing agent dependency.
+    """
+    return os.environ.get("CAFE_MANUS_OFF") == "1" or not manus_client.key_available()
+
+
 def briefing_with_manus(refresh: bool = False) -> dict:
-    """Facts now; Manus enrichment in a background thread, merged when done."""
+    """Facts now; Manus enrichment in a background thread, merged when done.
+    In static mode: the frozen enriched snapshot, always, no network."""
     global _CACHE
     with _LOCK:
         if _CACHE and not refresh:
             return _CACHE
-        briefing = _CACHE or build_briefing()
+        if _static_mode():
+            frozen = frozen_briefing()
+            if frozen:
+                briefing = frozen
+            else:
+                briefing = build_briefing()
+                briefing["manus"] = {"status": "unavailable",
+                                     "reason": "static mode, no frozen fixture"}
+        else:
+            briefing = build_briefing()
         _CACHE = briefing
 
-    if briefing["manus"]["status"] in ("working", "done"):
+    if briefing["manus"].get("status") in ("working", "done"):
         return briefing
-    if not manus_client.key_available():
-        briefing["manus"] = {"status": "unavailable", "reason": "MANUS_API_KEY not set"}
+    if _static_mode():
         return briefing
 
     briefing["manus"] = {"status": "working"}
@@ -204,13 +223,16 @@ def briefing_with_manus(refresh: bool = False) -> dict:
                       .replace("{facts}", json.dumps(briefing["sell"], indent=1, default=str))
                       .replace("{spend}", json.dumps(briefing["spend"], indent=1)))
             created = manus_client.create_task(prompt, title="Café Monday Briefing copy",
-                                               schema=_SCHEMA)
+                                               schema=_SCHEMA, share_visibility="public")
             print(f"[cafe] task created {created.get('task_id')}", file=sys.stderr, flush=True)
             with _LOCK:
                 # Showcase the agent run itself (a Manus hackathon, after all):
                 # status lives in the briefing, activity via /api/cafe/activity.
+                # share_url is public so judges/owner can open it after the
+                # hackathon credits are gone.
                 briefing["manus"] = {"status": "working", "task_id": created["task_id"],
-                                     "task_url": created.get("task_url")}
+                                     "task_url": created.get("task_url"),
+                                     "share_url": created.get("share_url")}
             result = manus_client.wait_result(created["task_id"], timeout_s=420)
             with _LOCK:
                 if result:
@@ -252,20 +274,27 @@ def agent_activity() -> list[dict]:
         return []
 
 
-FROZEN = Path(__file__).resolve().parents[3] / "data" / "cafe_briefing_frozen.json"
+# Two fixture homes: data/ (freshest, local dev) and the package copy
+# (rsync'd to prod — deploy.sh excludes data/, so this is how the snapshot
+# ships). Read data/ first; fall back to the packaged snapshot.
+_DATA_FROZEN = Path(__file__).resolve().parents[3] / "data" / "cafe_briefing_frozen.json"
+_PKG_FROZEN = Path(__file__).resolve().parent / "frozen_briefing.json"
 
 
 def _freeze(briefing: dict) -> None:
     """Persist the last fully-enriched briefing — the offline demo fixture."""
-    try:
-        FROZEN.parent.mkdir(parents=True, exist_ok=True)
-        FROZEN.write_text(json.dumps(briefing, indent=1, default=str))
-    except OSError:
-        pass
+    for path in (_DATA_FROZEN, _PKG_FROZEN):
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(briefing, indent=1, default=str))
+        except OSError:
+            pass
 
 
 def frozen_briefing() -> dict | None:
-    try:
-        return json.loads(FROZEN.read_text())
-    except (OSError, json.JSONDecodeError):
-        return None
+    for path in (_DATA_FROZEN, _PKG_FROZEN):
+        try:
+            return json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+    return None

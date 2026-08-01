@@ -56,13 +56,15 @@ def credits() -> dict:
 
 
 def create_task(prompt: str, title: str, schema: dict | None = None,
-                profile: str = "manus-1.6") -> dict:
+                profile: str = "manus-1.6", share_visibility: str | None = None) -> dict:
     payload: dict = {
         "message": {"content": prompt},
         "title": title,
         "hide_in_task_list": True,
         "agent_profile": profile,
     }
+    if share_visibility:
+        payload["share_visibility"] = share_visibility  # "public" → share_url in response
     if schema:
         payload["structured_output_schema"] = schema
     return _request("POST", "/task.create", payload)

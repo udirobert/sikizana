@@ -47,7 +47,7 @@ type Briefing = {
     supplier_email_draft: string;
   };
   benchmarks: { cogs: string; attach: number };
-  manus: { status: string; reason?: string; task_id?: string; task_url?: string };
+  manus: { status: string; reason?: string; task_id?: string; task_url?: string; share_url?: string };
 };
 
 const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
@@ -230,8 +230,8 @@ export default function CafeBriefingPage() {
                 </li>
               ))}
             </ul>
-            {manus.task_url && (
-              <a href={manus.task_url} target="_blank" rel="noreferrer"
+            {(manus.share_url || manus.task_url) && (
+              <a href={manus.share_url || manus.task_url} target="_blank" rel="noreferrer"
                  className="mt-2 inline-block text-xs font-medium text-sky-700 underline">
                 Watch the full agent run on Manus ↗
               </a>
