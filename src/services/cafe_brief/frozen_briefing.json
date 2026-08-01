@@ -148,6 +148,265 @@
    "lunch (11-14)": 0.169,
    "afternoon (14-17)": 0.185,
    "evening (17+)": 0.086
+  },
+  "rhythm": {
+   "days": [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun"
+   ],
+   "hours": [
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20
+   ],
+   "grid": [
+    [
+     463,
+     660,
+     684,
+     663,
+     698,
+     349,
+     351,
+     325,
+     362,
+     368,
+     317,
+     331,
+     177,
+     15,
+     12
+    ],
+    [
+     264,
+     738,
+     734,
+     765,
+     795,
+     288,
+     294,
+     289,
+     372,
+     409,
+     353,
+     309,
+     166,
+     17,
+     5
+    ],
+    [
+     355,
+     705,
+     692,
+     631,
+     723,
+     365,
+     295,
+     300,
+     338,
+     319,
+     291,
+     253,
+     147,
+     1,
+     3
+    ],
+    [
+     324,
+     638,
+     689,
+     676,
+     737,
+     340,
+     358,
+     336,
+     353,
+     404,
+     357,
+     324,
+     183,
+     17,
+     13
+    ],
+    [
+     329,
+     636,
+     645,
+     738,
+     755,
+     311,
+     318,
+     256,
+     316,
+     342,
+     286,
+     248,
+     176,
+     15,
+     9
+    ],
+    [
+     278,
+     745,
+     709,
+     669,
+     758,
+     321,
+     345,
+     311,
+     338,
+     388,
+     354,
+     358,
+     157,
+     4,
+     7
+    ],
+    [
+     310,
+     637,
+     678,
+     727,
+     654,
+     283,
+     296,
+     289,
+     328,
+     347,
+     318,
+     252,
+     158,
+     11,
+     3
+    ]
+   ],
+   "peak": {
+    "day": "Tue",
+    "hour": 10
+   }
+  },
+  "modifiers": {
+   "oat_milk_share": 0.222,
+   "extra_shot_share": 0.036
+  },
+  "mix": {
+   "categories": [
+    "Coffee",
+    "Matcha",
+    "Bakery",
+    "Tea",
+    "Chocolate",
+    "Retail"
+   ],
+   "weekly_revenue": {
+    "Coffee": [
+     3620.0,
+     3750.0,
+     3833.0,
+     5131.0,
+     4479.0,
+     4782.0,
+     4952.0,
+     5957.0,
+     5197.0,
+     5333.0,
+     5384.0,
+     6079.0,
+     6147.0
+    ],
+    "Chocolate": [
+     386.0,
+     424.0,
+     449.0,
+     567.0,
+     466.0,
+     567.0,
+     563.0,
+     697.0,
+     630.0,
+     588.0,
+     735.0,
+     601.0,
+     617.0
+    ],
+    "Matcha": [
+     2427.0,
+     2576.0,
+     2332.0,
+     3031.0,
+     3392.0,
+     3386.0,
+     3456.0,
+     4453.0,
+     3807.0,
+     4492.0,
+     4514.0,
+     4326.0,
+     4916.0
+    ],
+    "Tea": [
+     870.0,
+     934.0,
+     979.0,
+     1276.0,
+     953.0,
+     1189.0,
+     1040.0,
+     1713.0,
+     1246.0,
+     1207.0,
+     1094.0,
+     1277.0,
+     1624.0
+    ],
+    "Bakery": [
+     1154.0,
+     1325.0,
+     1318.0,
+     1355.0,
+     1512.0,
+     1596.0,
+     1672.0,
+     1625.0,
+     1597.0,
+     1543.0,
+     1780.0,
+     1617.0,
+     1591.0
+    ],
+    "Retail": [
+     0.0,
+     394.0,
+     288.0,
+     204.0,
+     16.0,
+     206.0,
+     494.0,
+     262.0,
+     142.0,
+     380.0,
+     366.0,
+     364.0,
+     220.0
+    ]
+   }
   }
  },
  "spend": {
@@ -186,40 +445,74 @@
   }
  ],
  "copy": {
-  "headline": "Matcha is still the main event, but a \u00a32,705 supplier gap means you need to squeeze more out of every transaction.",
-  "sell_summary": "Over the last 13 weeks you sold 26,023 transactions at an average basket of \u00a36.05, delivering \u00a3157,469 in revenue across ~286 transactions per day. Top revenue drivers are Filter Coffee (\u00a344,612) and Iced Matcha Latte (\u00a329,546), with Iced Matcha Latte showing the strongest growth (up 27.9%). Miso Banana Loaf has fallen 21.9%. Only 8.2% of matcha transactions included a treat, representing about \u00a3207 of weekly untapped revenue. The opportunity is clear: push the matcha-plus-snack pairings and keep iced matcha as the star item to sustain growth.",
+  "headline": "Iced Matcha Latte up 27.9% in four weeks; Miso Banana Loaf down 21.9%.",
+  "sell_summary": "Revenue was \u00a3157,469 over 13 weeks from 26,023 transactions, but net profit sits at -\u00a32,705; we should push higher-margin bakery attachments to lift margins as matcha demand remains strong.",
   "nudges": [
    {
     "impact_gbp": null,
-    "rationale": "131 more per week; with an average basket of \u00a36.05 that implies about \u00a3792.55 of extra weekly revenue. So what: iced matcha latte is your growth driver\u2014keep it front and center and ensure fast service; consider a seasonal iced variant to extend the trend.",
-    "title": "Iced Matcha Latte (Riser)"
+    "rationale": "It's our fastest-growing item, up 27.9% recently (averaging 601 units a week). So what: Demand is already there, but if supply chain costs are squeezing margins, this is the volume driver you need to keep the lights on. Keep the ice machine prepped and the oats stocked.",
+    "title": "Push the Iced Matcha Latte."
    },
    {
     "impact_gbp": null,
-    "rationale": "26.8 fewer units per week; at \u00a36.05 per average basket that suggests about -\u00a3162.34 weekly revenue. So what: demand for this item is waning\u2014rethink recipe, price, or production scale to cut waste and protect margins.",
-    "title": "Miso Banana Loaf (Faller)"
+    "rationale": "Sales dropped 21.9% over the last four weeks (down to 96 units a week). So what: We're wasting prep time and bin money on a treat that's cooling off. Reduce your order this week and reallocate that labor to items that are actually flying out the door.",
+    "title": "Pull the Miso Banana Loaf."
    },
    {
     "impact_gbp": 207.0,
-    "rationale": "8.2% attach rate currently yields a \u00a3207 weekly opportunity; if you lift attach rate toward 12%, you could capture roughly \u00a3207 more each week. So what: prompt staff to upsell a treat with matcha at the till to unlock this extra revenue.",
-    "title": "Matcha Treat Attach Rate"
+    "rationale": "8.2% of matcha customers are adding a pastry (445 out of 5,438). So what: That leaves \u00a3207 of weekly opportunity on the table. Matcha drinkers are your best customers\u2014train the baristas to suggest the hojicha latte's perfect pairing at the register.",
+    "title": "Fix the Matcha Attach Rate."
    }
   ],
   "industry_trend": {
-   "claim": "British matcha revenue in 2025 was around \u00a346 million, more than double the previous year, with ongoing supply shortages and price inflation affecting UK caf\u00e9s.",
-   "source_name": "Pellicle Magazine",
-   "source_url": "https://www.pelliclemag.com/home/2026/3/16/its-not-easy-being-green-inside-the-uks-matcha-boom"
+   "claim": "UK caf\u00e9s face a structural matcha supply shortage, with tencha auction prices peaking around \u00a522,000/kg in May 2026 and wholesale prices up roughly 40\u201350% year-on-year.",
+   "source_name": "UnD Matcha Price Report",
+   "source_url": "https://und-ny.com/journal/matcha-price-2026/"
   },
-  "supplier_email_draft": "# Supplier Order Email\n\n**Subject:** Increased order request for next week - [Supplier Name, e.g., Matchado / Matcha Supplier]\n\nHi [Supplier Name],\n\nHope you're having a great week. \n\nOur Iced Matcha Lattes have been flying out the door recently\u2014we've seen a nearly 28% jump in volume, pushing us up to 601 units a week. \n\nBecause of this, we'd like to increase our matcha order for next week. Could we please arrange an extra [X amount, e.g., 1kg or 500g] of your [specific matcha product]? \n\nThanks so much,\n[Your Name]\n[Your Caf\u00e9 Name]"
+  "supplier_email_draft": "Subject: Adjusting this week's matcha & bakery order\n\nHi [Supplier Name],\n\nHope you're having a good week.\n\nLooking at our till data for the last month, our Iced Matcha Lattes are absolutely flying right now (up nearly 28% in volume). Because of the current market shortages and price hikes, I want to make sure we lock in our supply before it dips. Can we add an extra [insert amount/kg] of [specific matcha grade] to this week's order to keep us buffered?\n\nOn the flip side, our Miso Banana Loaf has slowed down a bit (down about 22% recently). To avoid waste, please cut our usual order for that by [insert percentage/amount] for this week's delivery. \n\nLet me know if you can accommodate that matcha buffer, and I'll send over the updated PO.\n\nBest,\n[Your Name]",
+  "verification": [
+   {
+    "claim": "Iced Matcha Latte last 4-week average is 601 units per week.",
+    "note": "Last-4 weeks: 563, 591, 579, 671; Prior-4 weeks: 409, 428, 564, 479; Last-4 avg 601; prior-4 avg 470; Rise 27.9%",
+    "verified": true
+   },
+   {
+    "claim": "Miso Banana Loaf last 4-week average is 96 units per week.",
+    "note": "Last-4 weeks: 113,125,85,59; Prior-4 weeks: 126,141,103,119; Last-4 avg 95.5 (~96); Prior-4 avg 122.2; Fall -21.9%",
+    "verified": true
+   },
+   {
+    "claim": "8.2% of transactions containing a matcha drink also contained a cake/pastry item.",
+    "note": "5,438 unique matcha transactions; 445 with a bakery pastry; Rate 8.18% (rounded 8.2%)",
+    "verified": true
+   }
+  ]
  },
+ "verification": [
+  {
+   "claim": "Iced Matcha Latte last 4-week average is 601 units per week.",
+   "note": "Last-4 weeks: 563, 591, 579, 671; Prior-4 weeks: 409, 428, 564, 479; Last-4 avg 601; prior-4 avg 470; Rise 27.9%",
+   "verified": true
+  },
+  {
+   "claim": "Miso Banana Loaf last 4-week average is 96 units per week.",
+   "note": "Last-4 weeks: 113,125,85,59; Prior-4 weeks: 126,141,103,119; Last-4 avg 95.5 (~96); Prior-4 avg 122.2; Fall -21.9%",
+   "verified": true
+  },
+  {
+   "claim": "8.2% of transactions containing a matcha drink also contained a cake/pastry item.",
+   "note": "5,438 unique matcha transactions; 445 with a bakery pastry; Rate 8.18% (rounded 8.2%)",
+   "verified": true
+  }
+ ],
  "benchmarks": {
   "cogs": "hospitality COGS typically ~25\u201335% of revenue (industry rule of thumb)",
   "attach": 0.18
  },
  "manus": {
   "status": "done",
-  "task_id": "2SxrThAk8HPU3vEdMqhB2L",
-  "task_url": "https://manus.im/app/2SxrThAk8HPU3vEdMqhB2L",
-  "share_url": "https://manus.im/share/2SxrThAk8HPU3vEdMqhB2L?replay=1"
+  "task_id": "CKdm6UT4qBa5pMXtST7TaY",
+  "task_url": "https://manus.im/app/CKdm6UT4qBa5pMXtST7TaY",
+  "share_url": "https://manus.im/share/CKdm6UT4qBa5pMXtST7TaY?replay=1"
  }
 }

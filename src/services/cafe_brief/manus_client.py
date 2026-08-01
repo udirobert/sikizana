@@ -56,9 +56,23 @@ def credits() -> dict:
 
 
 def create_task(prompt: str, title: str, schema: dict | None = None,
-                profile: str = "manus-1.6", share_visibility: str | None = None) -> dict:
+                profile: str = "manus-1.6", share_visibility: str | None = None,
+                attachments: list[tuple[str, bytes]] | None = None) -> dict:
+    if attachments:
+        import base64
+        parts: list[dict] = [{"type": "text", "text": prompt}]
+        for filename, content in attachments:
+            parts.append({
+                "type": "file",
+                "file_data": "data:text/csv;base64," + base64.b64encode(content).decode(),
+                "filename": filename,
+                "mime_type": "text/csv",
+            })
+        content_field: str | list[dict] = parts
+    else:
+        content_field = prompt
     payload: dict = {
-        "message": {"content": prompt},
+        "message": {"content": content_field},
         "title": title,
         "hide_in_task_list": True,
         "agent_profile": profile,

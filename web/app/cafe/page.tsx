@@ -36,6 +36,12 @@ type Briefing = {
     attach: { rate: number; weekly_opportunity_gbp: number; matcha_transactions: number };
     daypart_share: Record<string, number>;
     top_items_by_revenue: { item: string; revenue_gbp: number }[];
+    rhythm: {
+      days: string[]; hours: number[]; grid: number[][];
+      peak: { day: string; hour: number };
+    };
+    modifiers: { oat_milk_share: number; extra_shot_share: number };
+    mix: { categories: string[]; weekly_revenue: Record<string, number[]> };
   };
   spend: { by_supplier_gbp: { supplier: string; total_gbp: number }[]; period: string };
   nudges: { title: string; rationale: string; impact_gbp: number | null }[];
@@ -47,7 +53,13 @@ type Briefing = {
   };
   benchmarks: { cogs: string; attach: number };
   manus: { status: string; reason?: string; task_id?: string; task_url?: string; share_url?: string };
+  verification?: { claim: string; verified: boolean; note: string }[];
 };
+
+const MIX_COLORS: Record<string, string> = {
+  Coffee: "bg-stone-700", Matcha: "bg-emerald-500", Bakery: "bg-orange-400",
+  Tea: "bg-sky-400", Chocolate: "bg-amber-700", Retail: "bg-stone-300",
+  "Add-ons": "bg-stone-200", };
 
 const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
 
@@ -119,6 +131,15 @@ export default function CafeBriefingPage() {
               I read {sell.window.weeks} weeks of tills ({sell.window.start} → {sell.window.end}).
               Three numbers tell the story.
             </p>
+            {data.verification && data.verification.length > 0 && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"
+                 title={data.verification.map((v) => `${v.claim} — ${v.note}`).join("\n")}>
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-emerald-600"><path d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5L12.3 5z"/></svg>
+                {data.verification.filter((v) => v.verified).length}/{data.verification.length} figures
+                independently re-computed from the raw tills by the agent{" "}
+                {agentLink && <a href={agentLink} target="_blank" rel="noreferrer" className="underline">(watch)</a>}
+              </p>
+            )}
           </div>
         </header>
 
@@ -148,6 +169,47 @@ export default function CafeBriefingPage() {
             )}
           </section>
         )}
+
+        {/* -------------------- rhythm heatmap + supply signals -------------------- */}
+        <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
+          <BeatLabel n="·" text="the week has a shape" />
+          <div className="mt-4 space-y-1">
+            {sell.rhythm.grid.map((row, di) => {
+              const max = Math.max(...sell.rhythm.grid.flat(), 1);
+              return (
+                <div key={di} className="flex items-center gap-1">
+                  <span className="w-8 shrink-0 text-[10px] font-medium text-stone-400">
+                    {sell.rhythm.days[di]}
+                  </span>
+                  {row.map((v, h) => (
+                    <div
+                      key={h}
+                      title={`${sell.rhythm.days[di]} ${sell.rhythm.hours[h]}:00 — ${v} units`}
+                      className="h-4 flex-1 rounded-[3px]"
+                      style={{ backgroundColor: `rgba(16, 185, 129, ${0.04 + 0.96 * (v / max)})` }}
+                    />
+                  ))}
+                </div>
+              );
+            })}
+            <div className="flex gap-1 pl-9 text-[9px] text-stone-300">
+              {sell.rhythm.hours.map((h) => (
+                <span key={h} className="flex-1">{h % 3 === 0 ? h : ""}</span>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-stone-500">
+            Peak: {sell.rhythm.peak.day} {sell.rhythm.peak.hour}:00 · units by day × hour
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+              oat milk on {(sell.modifiers.oat_milk_share * 100).toFixed(0)}% of lattes → order accordingly
+            </span>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800">
+              {(sell.modifiers.extra_shot_share * 100).toFixed(0)}% of matcha add an extra shot
+            </span>
+          </div>
+        </section>
 
         {/* -------------------- beat 2: money hiding -------------------- */}
         <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
@@ -242,6 +304,37 @@ export default function CafeBriefingPage() {
                   <Sparkline data={m.weekly} color={m.up ? "green" : "red"} className="h-8 w-24 shrink-0" />
                 </div>
               ))}
+              <h4 className="pt-2 text-xs font-semibold uppercase tracking-widest text-stone-400">
+                Where revenue comes from, week by week
+              </h4>
+              <div className="flex items-end gap-[3px] pt-1" aria-hidden>
+                {sell.mix.weekly_revenue[sell.mix.categories[0]]?.map((_, wi) => {
+                  const total = sell.mix.categories
+                    .map((c) => sell.mix.weekly_revenue[c]?.[wi] ?? 0)
+                    .reduce((a, b) => a + b, 0) || 1;
+                  return (
+                    <div key={wi} className="flex h-16 flex-1 flex-col justify-end" title={`Week ${wi + 1} · £${gbp(total)}`}>
+                      {sell.mix.categories.map((c) => {
+                        const v = sell.mix.weekly_revenue[c]?.[wi] ?? 0;
+                        return (
+                          <div
+                            key={c}
+                            className={MIX_COLORS[c] ?? "bg-stone-200"}
+                            style={{ height: `${(v / total) * 100}%` }}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-stone-400">
+                {sell.mix.categories.map((c) => (
+                  <span key={c}>
+                    <span className={`inline-block h-2 w-2 rounded-sm ${MIX_COLORS[c] ?? "bg-stone-200"}`} /> {c}
+                  </span>
+                ))}
+              </div>
               <h4 className="pt-2 text-xs font-semibold uppercase tracking-widest text-stone-400">Top revenue</h4>
               <ul className="space-y-1 text-sm text-stone-600">
                 {sell.top_items_by_revenue.slice(0, 4).map((t) => (

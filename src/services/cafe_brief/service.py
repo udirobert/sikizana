@@ -117,6 +117,10 @@ _SCHEMA = {
     "properties": {
         "headline": {"type": "string"},
         "sell_summary": {"type": "string"},
+        "verification": {"type": "array", "items": {"type": "object", "properties": {
+            "claim": {"type": "string"}, "verified": {"type": "boolean"},
+            "note": {"type": "string"}},
+            "required": ["claim", "verified", "note"], "additionalProperties": False}},
         "nudges": {"type": "array", "items": {"type": "object", "properties": {
             "title": {"type": "string"}, "rationale": {"type": "string"},
             "impact_gbp": {"type": "number"}},
@@ -127,7 +131,7 @@ _SCHEMA = {
             "required": ["claim", "source_name", "source_url"], "additionalProperties": False},
         "supplier_email_draft": {"type": "string"},
     },
-    "required": ["headline", "sell_summary", "nudges", "industry_trend", "supplier_email_draft"],
+    "required": ["headline", "sell_summary", "nudges", "industry_trend", "supplier_email_draft", "verification"],
     "additionalProperties": False,
 }
 
@@ -144,11 +148,18 @@ Facts:
 Supplier spend:
 {spend}
 
-Do three things:
-1. Write the Monday Briefing copy: a one-line headline, a 2-3 sentence sell
+Attached is the RAW Square Item Sales export itself (CSV). Do four things:
+
+0. VERIFY FIRST: independently recompute these claims from the raw CSV using
+   your own code, before writing anything:
+{claims}
+   For each: verified=true only if your own computation matches within
+   rounding; otherwise false with the number you found in note.
+1. Write the Monday Briefing copy: a ONE-LINE headline, a ONE-sentence sell
    summary, and sharpen the nudges. Return EXACTLY the three nudges provided,
    in the same order — improve wording and explain "so what" in plain owner
-   language, but never change order or numbers (no jargon).
+   language, but never change order or numbers (no jargon). Be terse: the
+   page shows, you whisper.
 2. Research ONE real, current industry trend relevant to UK matcha cafés
    (e.g. matcha demand, oat-milk pricing, café cost inflation). It must come
    from a real page you browsed — return the claim in one sentence with the
@@ -169,6 +180,7 @@ def build_briefing() -> dict:
         "spend": spend,
         "nudges": nudges,
         "copy": _fallback_copy(facts, nudges),
+        "verification": [],
         "benchmarks": {"cogs": _BENCHMARK_COGS, "attach": _BENCHMARK_ATTACH},
         "manus": {"status": "not_started"},
     }
@@ -219,11 +231,27 @@ def briefing_with_manus(refresh: bool = False) -> dict:
         try:
             print(f"[cafe] _enrich start", file=sys.stderr, flush=True)
             # NOTE: str.format explodes on JSON braces in facts; use replace.
+            facts = briefing["sell"]
+            claims = []
+            if facts["risers"]:
+                r = facts["risers"][0]
+                claims.append(f'- "{r["item"]}" averaged {r["units_per_week"]} units/week over the last 4 weeks, vs a prior-4-week average that makes this a {r["pct_change"]}% rise')
+            if facts["fallers"]:
+                f = facts["fallers"][0]
+                claims.append(f'- "{f["item"]}" fell {f["pct_change"]}% using the same last-4-vs-prior-4-week method (recent avg {f["units_per_week"]}/week)')
+            a = facts["attach"]
+            claims.append(f'- Only {a["rate"]:.1%} of transactions containing a matcha drink also contained a cake/pastry item ({a["with_treat"]} of {a["matcha_transactions"]} transactions)')
             prompt = (_PROMPT
-                      .replace("{facts}", json.dumps(briefing["sell"], indent=1, default=str))
-                      .replace("{spend}", json.dumps(briefing["spend"], indent=1)))
-            created = manus_client.create_task(prompt, title="Café Monday Briefing copy",
-                                               schema=_SCHEMA, share_visibility="public")
+                      .replace("{facts}", json.dumps(facts, indent=1, default=str))
+                      .replace("{spend}", json.dumps(briefing["spend"], indent=1))
+                      .replace("{claims}", "\n".join(claims) or "- (none)"))
+            # Attach the raw till export — the agent recomputes our claims
+            # from the data itself (verification), never just our summary.
+            csv_bytes = Path(CSV_PATH).read_bytes()[:20 * 1024 * 1024]
+            created = manus_client.create_task(
+                prompt, title="Café Monday Briefing copy", schema=_SCHEMA,
+                share_visibility="public",
+                attachments=[("square_item_sales.csv", csv_bytes)])
             print(f"[cafe] task created {created.get('task_id')}", file=sys.stderr, flush=True)
             with _LOCK:
                 # Showcase the agent run itself (a Manus hackathon, after all):
@@ -248,6 +276,7 @@ def briefing_with_manus(refresh: bool = False) -> dict:
                     if len(merged.get("nudges") or []) < len(det):
                         merged["nudges"] = list(merged.get("nudges") or []) + det[len(merged.get("nudges") or []):]
                     briefing["copy"] = merged
+                    briefing["verification"] = result.get("verification") or []
                     briefing["manus"]["status"] = "done"
                     _freeze(briefing)
                     return

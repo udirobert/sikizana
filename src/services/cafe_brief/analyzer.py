@@ -13,6 +13,7 @@ from statistics import mean
 from src.services.cafe_brief.pos_ingest import SaleRow
 
 MIN_WEEKLY_UNITS = 15  # ignore retail/noise items for trend calls
+LATTE_ITEMS = {"Latte", "Cappuccino", "Matcha Latte", "Iced Matcha Latte", "Hojicha Latte"}
 
 
 def _week_index(date: dt.date, start: dt.date) -> int:
@@ -95,6 +96,42 @@ def analyse(
     n_txns = max(len(txn_basket), 1)
     n_days = max(len(txn_dates), 1)
 
+    # --- weekly rhythm: 7 days x hours 6..20, unit counts (the heatmap) ---
+    H0, H1 = 6, 21
+    grid = [[0] * (H1 - H0) for _ in range(7)]
+    for r in rows:
+        try:
+            h = int(r.time.split(":")[0])
+        except (ValueError, IndexError):
+            continue
+        if H0 <= h < H1:
+            grid[r.date.weekday()][h - H0] += r.qty
+    flat = [v for row in grid for v in row]
+    peak_i = flat.index(max(flat)) if flat and max(flat) else 0
+
+    # --- supply signals from modifiers (what to order more of) ---
+    latte_like = [r for r in rows if r.item in LATTE_ITEMS]
+    oat = sum(1 for r in latte_like if "oat" in r.modifiers.lower())
+    matcha_rows = [r for r in rows if any(k in r.item.lower() for k in matcha_keywords)]
+    shot = sum(1 for r in matcha_rows if "shot" in r.modifiers.lower())
+
+    # --- weekly revenue mix by category (stacked-bar series) ---
+    cat_week: dict[str, list[float]] = collections.defaultdict(lambda: [0.0] * n_weeks)
+    for r in rows:
+        wk = _week_index(r.date, start)
+        if wk < n_weeks:
+            cat_week[r.category][wk] += r.gross
+
+    facts_rhythm = {
+        "days": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "hours": list(range(H0, H1)),
+        "grid": grid,
+        "peak": {
+            "day": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][peak_i // (H1 - H0)],
+            "hour": H0 + peak_i % (H1 - H0),
+        },
+    }
+
     return {
         "window": {"start": start.isoformat(), "end": end.isoformat(), "weeks": n_weeks},
         "totals": {
@@ -117,4 +154,13 @@ def analyse(
             ),  # toward an 18% attach benchmark at ~£5/treat
         },
         "daypart_share": {k: round(v / total_units, 3) for k, v in dayparts.items()},
+        "rhythm": facts_rhythm,
+        "modifiers": {
+            "oat_milk_share": round(oat / max(len(latte_like), 1), 3),
+            "extra_shot_share": round(shot / max(len(matcha_rows), 1), 3),
+        },
+        "mix": {
+            "categories": sorted(cat_week, key=lambda c: -sum(cat_week[c])),
+            "weekly_revenue": {c: [round(v, 0) for v in wks] for c, wks in cat_week.items()},
+        },
     }
