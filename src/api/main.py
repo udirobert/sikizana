@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import automation, auth, base, chat, context, data, memory, prefs, xero
+from src.api.routes import automation, auth, base, cafe, chat, context, data, memory, prefs, xero
 from src.api.routes.automation import (
     _count_by_kind,
     _webhook_message,
@@ -48,6 +48,7 @@ from src.api.session import (
 from src.services.logging import get_logger
 
 load_dotenv()
+load_dotenv(".env.local")  # local-only keys (e.g. MANUS_API_KEY) — dev convenience
 log = get_logger("sikizana.api")
 
 # Allowed origins: comma-separated in env, "*" by default for the demo.
@@ -103,6 +104,7 @@ app.include_router(xero.router)
 app.include_router(prefs.router)
 app.include_router(data.router)
 app.include_router(automation.router)
+app.include_router(cafe.router)  # hackathon spike: café Monday Briefing
 
 # Backwards-compatibility re-exports: existing tests import these helpers
 # from `src.api.main`, so keep them available here even though they now

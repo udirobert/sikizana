@@ -1,0 +1,217 @@
+{
+ "cafe": {
+  "name": "Matcha Mochi \u2014 City Road (demo twin)",
+  "pos": "Square Item Sales export"
+ },
+ "sell": {
+  "window": {
+   "start": "2026-04-25",
+   "end": "2026-07-24",
+   "weeks": 13
+  },
+  "totals": {
+   "transactions": 26023,
+   "transactions_per_day": 286,
+   "avg_basket_gbp": 6.05,
+   "revenue_gbp": 157469.0
+  },
+  "top_items_by_revenue": [
+   {
+    "item": "Filter Coffee",
+    "revenue_gbp": 44612.0
+   },
+   {
+    "item": "Iced Matcha Latte",
+    "revenue_gbp": 29546.0
+   },
+   {
+    "item": "Matcha Latte",
+    "revenue_gbp": 17562.0
+   },
+   {
+    "item": "Hojicha Latte",
+    "revenue_gbp": 10030.0
+   },
+   {
+    "item": "Latte",
+    "revenue_gbp": 8022.0
+   },
+   {
+    "item": "Croissant",
+    "revenue_gbp": 7766.0
+   },
+   {
+    "item": "Cappuccino",
+    "revenue_gbp": 7566.0
+   },
+   {
+    "item": "Dark Hot Chocolate",
+    "revenue_gbp": 7291.0
+   }
+  ],
+  "risers": [
+   {
+    "item": "Iced Matcha Latte",
+    "pct_change": 27.9,
+    "units_per_week": 601,
+    "abs_delta": 131,
+    "weekly": [
+     260,
+     292,
+     269,
+     339,
+     418,
+     409,
+     428,
+     564,
+     479,
+     563,
+     591,
+     579,
+     671
+    ]
+   },
+   {
+    "item": "Mochi Donut",
+    "pct_change": 12.2,
+    "units_per_week": 110,
+    "abs_delta": 12.0,
+    "weekly": [
+     73,
+     73,
+     89,
+     75,
+     100,
+     84,
+     122,
+     92,
+     96,
+     90,
+     129,
+     122,
+     101
+    ]
+   },
+   {
+    "item": "Filter Coffee",
+    "pct_change": 11.3,
+    "units_per_week": 1182,
+    "abs_delta": 120,
+    "weekly": [
+     742,
+     761,
+     770,
+     1075,
+     949,
+     989,
+     1017,
+     1184,
+     1058,
+     1098,
+     1140,
+     1203,
+     1287
+    ]
+   }
+  ],
+  "fallers": [
+   {
+    "item": "Miso Banana Loaf",
+    "pct_change": -21.9,
+    "units_per_week": 96,
+    "abs_delta": -26.8,
+    "weekly": [
+     97,
+     110,
+     101,
+     79,
+     113,
+     126,
+     141,
+     103,
+     119,
+     113,
+     125,
+     85,
+     59
+    ]
+   }
+  ],
+  "attach": {
+   "matcha_transactions": 5458,
+   "with_treat": 445,
+   "rate": 0.082,
+   "weekly_opportunity_gbp": 207.0
+  },
+  "daypart_share": {
+   "morning (6-11)": 0.559,
+   "lunch (11-14)": 0.169,
+   "afternoon (14-17)": 0.185,
+   "evening (17+)": 0.086
+  }
+ },
+ "spend": {
+  "by_supplier_gbp": [
+   {
+    "supplier": "Shoreditch Property Management",
+    "total_gbp": 2500.0
+   },
+   {
+    "supplier": "Bean There Coffee Roasters",
+    "total_gbp": 680.0
+   },
+   {
+    "supplier": "Octopus Energy",
+    "total_gbp": 340.0
+   }
+  ],
+  "net_profit_gbp": -2705.0,
+  "period": "2026-05-03 to 2026-08-01"
+ },
+ "nudges": [
+  {
+   "title": "Stock up for Iced Matcha Latte",
+   "rationale": "Up 27.9% vs the prior month \u2014 now ~601/week. Raise the matcha and oat-milk order before the weekend rush.",
+   "impact_gbp": null
+  },
+  {
+   "title": "Cut the Miso Banana Loaf order",
+   "rationale": "Down 21.9% over the last 4 weeks (~96/week). Waste risk on perishables.",
+   "impact_gbp": null
+  },
+  {
+   "title": "Bundle cake with matcha",
+   "rationale": "Only 8% of matcha lattes add a cake or pastry (benchmark ~18%). A 'matcha + cake' board at the till is worth roughly \u00a3207/week.",
+   "impact_gbp": 207.0
+  }
+ ],
+ "copy": {
+  "headline": "Iced Matcha Latte surges 158% in 13 weeks as matcha cements a cafe-core role",
+  "sell_summary": "Over the 13-week window, revenue totaled \u00a3157,469 from 26,023 transactions, with Filter Coffee remaining the top seller (\u00a344,612) while matcha drinks contributed \u00a357,138 (36.3% of revenue). Iced Matcha Latte grew from 260 to 671 units per week, driving \u00a329,546 in revenue. Daily revenue is about \u00a31,730, and the Miso Banana Loaf is fading (week 13: 59 units). There is a clear opportunity to boost margins by expanding matcha-treat pairings at point of sale.",
+  "nudges": [
+   {
+    "impact_gbp": null,
+    "rationale": "The Iced Matcha Latte is a fast-growing driver, yielding \u00a329,546 in revenue over 13 weeks and now averaging around 671 units per week at week 13. Keeping stock prevents loss of roughly \u00a32,273 in weekly revenue from stockouts.",
+    "title": "Secure Iced Matcha Latte supply to protect revenue"
+   },
+   {
+    "impact_gbp": null,
+    "rationale": "Matcha attach rate is 8.2% today on 5,458 matcha transactions, with a weekly revenue opportunity of \u00a3207. Increasing bundle offers could lift weekly revenue beyond this baseline.",
+    "title": "Boost matcha drink attach rate with bundled treats"
+   }
+  ],
+  "industry_trend": {
+   "claim": "Roughly 40% of matcha drinkers now report replacing at least one daily cup of coffee with matcha.",
+   "source_name": "Forbes",
+   "source_url": "https://www.forbes.com/sites/eshachhabra/2026/06/05/the-matcha-boom-continues-to-drive-the-worlds-fastest-growing-tea/"
+  },
+  "supplier_email_draft": "Subject: Adjusting this week's matcha order \u2013 Urgent\n\nHi [Supplier Name],\n\nHope you're having a good week.\n\nI'm getting in touch regarding our matcha powder order for this coming week. We've seen a massive spike in demand for our Iced Matcha Lattes recently\u2014we are now selling over 600 of them every single week, which is a huge jump from where we were a couple of months ago.\n\nGiven the current industry-wide rush on matcha, I want to make sure we don't run out. Could we increase our standard order of [Matcha Powder Type/Quantity] by [X]% for this week to cover this new baseline volume?\n\nLet me know if you can accommodate this or if there are any current supply constraints I should be aware of.\n\nThanks,\n[Owner Name]"
+ },
+ "benchmarks": {
+  "cogs": "hospitality COGS typically ~25\u201335% of revenue (industry rule of thumb)",
+  "attach": 0.18
+ },
+ "manus": {
+  "status": "done"
+ }
+}
