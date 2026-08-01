@@ -76,6 +76,12 @@ export default function CafeBriefingPage() {
   const [error, setError] = useState<string | null>(null);
   const tries = useRef(0);
 
+  // ----- interactive instrument state (client-side only) -----
+  const [attachPct, setAttachPct] = useState(8);           // slider, %
+  const [ownWeekly, setOwnWeekly] = useState<number | null>(null);   // owner override
+  const [ownTreat, setOwnTreat] = useState<number | null>(null);     // £ treat price
+  const [ownRate, setOwnRate] = useState<number | null>(null);       // their attach %
+
   const load = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/cafe/briefing`);
@@ -112,6 +118,13 @@ export default function CafeBriefingPage() {
   const faller = sell.fallers[0];
   const agentLink = manus.share_url || manus.task_url;
   const doNudges = (copy.nudges?.length ? copy.nudges : nudges).slice(0, 3);
+
+  // ----- attach-gap instrument (the report becomes an instrument) -----
+  const weeklyMatcha = ownWeekly ?? sell.attach.matcha_transactions / sell.window.weeks;
+  const treatPrice = ownTreat ?? 5.0;
+  const baseRate = (ownRate ?? sell.attach.rate * 100);
+  const upliftWeek = Math.max(0, attachPct - baseRate) / 100 * weeklyMatcha * treatPrice;
+  const upliftYear = upliftWeek * 52;
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -280,6 +293,86 @@ export default function CafeBriefingPage() {
               <p className="mt-2 text-xs text-stone-400">Siki drafts, you decide — always.</p>
             </details>
           )}
+        </section>
+
+        {/* -------------------- make it yours: the instrument -------------------- */}
+        <section className="mt-6 rounded-3xl border border-orange-200 bg-orange-50/50 p-6 shadow-sm md:p-7">
+          <BeatLabel n="→" text="your turn — drive the number" />
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="attach" className="text-sm font-medium text-stone-800">
+                If {attachPct}% of matcha drinks left with a cake…
+              </label>
+              <span className="text-sm font-semibold tabular-nums text-orange-800">{attachPct}%</span>
+            </div>
+            <input
+              id="attach"
+              type="range"
+              min={2}
+              max={40}
+              value={attachPct}
+              onChange={(e) => setAttachPct(Number(e.target.value))}
+              className="mt-2 w-full accent-orange-500"
+            />
+            <div className="mt-2 flex items-baseline gap-2">
+              <AnimatedNumber
+                value={Math.round(upliftWeek)}
+                prefix="+£"
+                className="text-4xl font-semibold tabular-nums text-orange-800"
+              />
+              <span className="text-sm text-stone-500">a week</span>
+              <span className="ml-auto text-sm font-medium tabular-nums text-stone-500">
+                ≈ £{gbp(upliftYear)} a year
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-stone-400">
+              vs the {baseRate.toFixed(0)}% this shop attaches today · ~{Math.round(weeklyMatcha)} matcha
+              drinks/week · £{treatPrice.toFixed(2)} a treat
+            </p>
+          </div>
+
+          <details className="mt-4 rounded-2xl border border-dashed border-orange-300 bg-white/70 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-stone-700">
+              Got your own rough numbers? Drop them in
+            </summary>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="text-[11px] text-stone-500">matcha drinks / week</span>
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={Math.round(weeklyMatcha)}
+                  onChange={(e) => setOwnWeekly(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-stone-500">price of a cake, £</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  defaultValue={treatPrice}
+                  onChange={(e) => setOwnTreat(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-stone-500">you think you attach, %</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  defaultValue={Math.round(baseRate)}
+                  onChange={(e) => setOwnRate(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
+              Nothing you type leaves this page — the maths runs on your device.
+            </p>
+          </details>
         </section>
 
         {/* -------------------- the curious (collapsed) -------------------- */}
