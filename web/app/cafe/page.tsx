@@ -58,6 +58,92 @@ type Briefing = {
   verification?: { claim: string; verified: boolean; note: string }[];
 };
 
+type LocalityPack = {
+  postcode: string;
+  area: string;
+  cafe: { name: string; blurb: string } | null;
+  visitor_cafe_name?: string;
+  competitors: { name: string; note: string; url?: string }[];
+  source: "locals" | "live_search";
+  source_note: string;
+  at: string;
+};
+
+const LOCALITY_KEY = "sikizana.cafeLocality";
+
+/** Personalisation: café name + postcode -> locality pack (seeded real packs
+ *  first, live Exa search elsewhere). Persisted locally; feeds Siki's context. */
+function LocalityCard({ pack, onPack }: { pack: LocalityPack | null; onPack: (p: LocalityPack | null) => void }) {
+  const [cafe, setCafe] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(!pack);
+
+  const submit = async () => {
+    if (!postcode.trim() || busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/cafe/locality`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postcode: postcode.trim(), cafe_name: cafe.trim() || null }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const p = (await res.json()) as LocalityPack;
+      if (p.visitor_cafe_name === undefined && cafe.trim()) p.visitor_cafe_name = cafe.trim();
+      onPack(p);
+      try { localStorage.setItem(LOCALITY_KEY, JSON.stringify(p)); } catch {}
+      setOpen(false);
+    } catch { /* keep demo state on any failure */ }
+    setBusy(false);
+  };
+
+  return (
+    <section className="mt-4 rounded-2xl border border-dashed border-stone-300 bg-white/70 px-5 py-4">
+      {pack && !open ? (
+        <div className="flex items-center justify-between text-xs">
+          <p className="font-medium text-emerald-800">
+            Localised for {pack.visitor_cafe_name || pack.cafe?.name || pack.area}{" "}
+            <span className="text-stone-400">· {pack.postcode}</span>
+          </p>
+          <button onClick={() => setOpen(true)} className="text-stone-400 underline">change</button>
+        </div>
+      ) : (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
+            Your café? We’ll localise this page
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              value={cafe}
+              onChange={(e) => setCafe(e.target.value)}
+              placeholder="Café name (optional)"
+              className="min-w-40 flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm outline-none focus:border-sky-500"
+            />
+            <input
+              value={postcode}
+              onChange={(e) => setPostcode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              placeholder="Postcode, e.g. EC1V 1NR"
+              className="w-40 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm outline-none focus:border-sky-500"
+            />
+            <button
+              onClick={submit}
+              disabled={busy || !postcode.trim()}
+              className="rounded-lg bg-stone-800 px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-stone-700 disabled:opacity-50"
+            >
+              {busy ? "…" : "Localise"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-stone-400">
+            Only used to fetch your neighbourhood; stored in this browser, nothing else changes hands.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 const MIX_COLORS: Record<string, string> = {
   Coffee: "bg-stone-700", Matcha: "bg-emerald-500", Bakery: "bg-orange-400",
   Tea: "bg-sky-400", Chocolate: "bg-amber-700", Retail: "bg-stone-300",
@@ -68,7 +154,7 @@ const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
 /** Live Siki chat: owner's questions answered against COMPUTED facts (injected
  *  context) by the production bookkeeper agent — no Manus dependency, and the
  *  agent can run its own tools (live research) for anything beyond the facts. */
-function CafeChat({ briefing }: { briefing: Briefing }) {
+function CafeChat({ briefing, pack }: { briefing: Briefing; pack: LocalityPack | null }) {
   const [msgs, setMsgs] = useState<{ role: "user" | "siki"; text: string }[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -79,6 +165,7 @@ function CafeChat({ briefing }: { briefing: Briefing }) {
   const ctx = useMemo(
     () =>
       JSON.stringify({
+        locality: pack ? { area: pack.area, cafe: pack.visitor_cafe_name || pack.cafe?.name, nearby_competitors: pack.competitors.map((c) => c.name), benchmark_note: pack.source_note } : undefined,
         totals: briefing.sell.totals,
         window: briefing.sell.window,
         risers: briefing.sell.risers.map(({ item, pct_change, units_per_week }) => ({ item, pct_change, units_per_week })),
@@ -127,7 +214,9 @@ function CafeChat({ briefing }: { briefing: Briefing }) {
 
   const chips = [
     "What should I order more of this week?",
-    "Is my matcha latte priced right for this area?",
+    pack
+      ? `How do I compare against ${pack.competitors[0]?.name ?? "nearby cafés"}?`
+      : "Is my matcha latte priced right for this area?",
     "Where is my margin actually leaking?",
   ];
 
@@ -196,6 +285,7 @@ function BeatLabel({ n, text }: { n: string; text: string }) {
 export default function CafeBriefingPage() {
   const [data, setData] = useState<Briefing | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pack, setPack] = useState<LocalityPack | null>(null);
   const tries = useRef(0);
 
   // ----- interactive instrument state (client-side only) -----
@@ -225,6 +315,10 @@ export default function CafeBriefingPage() {
 
   useEffect(() => {
     load();
+    try {
+      const saved = localStorage.getItem(LOCALITY_KEY);
+      if (saved) setPack(JSON.parse(saved));
+    } catch { /* first visit */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -257,7 +351,7 @@ export default function CafeBriefingPage() {
           <SikiMascot size={84} mood={manus.status === "done" ? "celebrate" : "look"} className="mt-1 shrink-0" />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-sky-700">
-              Siki’s Monday Briefing · {data.cafe.name}
+              Siki’s Monday Briefing · {pack?.cafe?.name || pack?.visitor_cafe_name || data.cafe.name}
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold leading-snug md:text-3xl">
               {copy.headline}
@@ -277,6 +371,29 @@ export default function CafeBriefingPage() {
             )}
           </div>
         </header>
+
+        <LocalityCard pack={pack} onPack={setPack} />
+
+        {/* neighbourhood section — appears once localised */}
+        {pack && (
+          <section className="mt-4 rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
+              Your corner of the map{pack.cafe ? ` — ${pack.area}` : ""}
+            </p>
+            {pack.cafe && <p className="mt-1 text-sm text-stone-600">{pack.cafe.blurb}</p>}
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {pack.competitors.map((c) => (
+                <li key={c.name} className="flex items-baseline gap-2">
+                  <span className="font-medium text-stone-800">
+                    {c.url ? <a href={c.url} target="_blank" rel="noreferrer" className="underline decoration-sky-400">{c.name} ↗</a> : c.name}
+                  </span>
+                  <span className="text-xs text-stone-500">{c.note}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[11px] italic text-stone-400">{pack.source_note}</p>
+          </section>
+        )}
 
         {/* -------------------- beat 1: what's moving -------------------- */}
         {riser && (
@@ -522,7 +639,7 @@ export default function CafeBriefingPage() {
         )}
 
         {/* -------------------- ask Siki: the agentic layer -------------------- */}
-        <CafeChat briefing={data} />
+        <CafeChat briefing={data} pack={pack} />
 
         {/* -------------------- the curious (collapsed) -------------------- */}
         <section className="mt-6 space-y-3">
