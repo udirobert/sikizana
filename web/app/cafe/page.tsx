@@ -25,7 +25,7 @@ type Move = {
   item: string; pct_change: number; units_per_week: number; weekly: number[];
 };
 type Briefing = {
-  cafe: { name: string; pos: string };
+  cafe: { name: string; pos: string; uploaded?: boolean };
   sell: {
     window: { start: string; end: string; weeks: number };
     totals: {
@@ -44,7 +44,10 @@ type Briefing = {
     modifiers: { oat_milk_share: number; extra_shot_share: number };
     mix: { categories: string[]; weekly_revenue: Record<string, number[]> };
   };
-  spend: { by_supplier_gbp: { supplier: string; total_gbp: number }[]; period: string };
+  spend: {
+    by_supplier_gbp: { supplier: string; total_gbp: number; email?: string }[];
+    period: string;
+  };
   nudges: { title: string; rationale: string; impact_gbp: number | null }[];
   copy: {
     headline: string; sell_summary: string;
@@ -138,6 +141,113 @@ function LocalityCard({ pack, onPack }: { pack: LocalityPack | null; onPack: (p:
           <p className="mt-1.5 text-[11px] leading-relaxed text-stone-400">
             Only used to fetch your neighbourhood; stored in this browser, nothing else changes hands.
           </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Stage 0 — where the story comes from. The input step + the thought
+ *  process they asked for: pick a source, watch the parse receipt tick. */
+function SourceChooser({
+  data, onUploaded, onNote,
+}: {
+  data: Briefing;
+  onUploaded: (b: Briefing) => void;
+  onNote: (m: string | null) => void;
+}) {
+  const [parsing, setParsing] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const staged = (lines: string[]) => {
+    setParsing([]);
+    lines.forEach((l, i) => setTimeout(() => setParsing((p) => [...(p ?? []), l]), 320 * (i + 1)));
+  };
+
+  const upload = async (file: File) => {
+    setBusy(true); setError(null); onNote(null);
+    staged([`reading ${file.name}…`, `mapping columns…`, `counting tills…`, `computing weekly deltas…`]);
+    try {
+      const fd = new FormData();
+      fd.append("file", file, file.name);
+      const res = await fetch(`${API_BASE}/api/cafe/analyse`, { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok || b.error) throw new Error(b.error || `HTTP ${res.status}`);
+      const bb = b as Briefing;
+      staged([
+        `found ${bb.sell.totals.transactions.toLocaleString()} transactions`,
+        `window ${bb.sell.window.start} → ${bb.sell.window.end}`,
+        `columns mapped ✓ ${bb.sell.totals.transactions.toLocaleString()} tills`,
+        `computing weekly deltas ✓`,
+      ]);
+      setTimeout(() => { setParsing(null); onUploaded(bb); }, 1400);
+    } catch (e) {
+      setParsing(null);
+      setError(e instanceof Error ? e.message : "couldn’t parse that export");
+    }
+    setBusy(false);
+  };
+
+  const card = "flex-1 min-w-44 rounded-2xl border border-stone-200 bg-white p-4 text-left transition-colors hover:border-sky-300";
+  return (
+    <section className="mt-4 rounded-3xl border border-stone-200 p-5 shadow-sm md:p-6">
+      <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
+        Stage 0 — where this café’s story comes from
+      </p>
+      <div className="mt-3 flex flex-wrap gap-3">
+        <button
+          className={card}
+          onClick={() =>
+            onNote(
+              "149,116 real-world till rows (Maven Analytics’ coffee-shop dataset, 3 NYC cafés, Jan–Jun 2023), reshaped into this twin window. Read by our parser, ticked off by the agent.",
+            )
+          }
+        >
+          <p className="text-sm font-semibold text-stone-900">① The demo twin</p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">149k tills from a NYC coffee trio, replayed as a City Road café.</p>
+        </button>
+        <button
+          className={card}
+          onClick={() =>
+            onNote(
+              `${data.spend.by_supplier_gbp.length} supplier bills, rent and energy from the Xero demo org — the books side of the same café (period ${data.spend.period}).`,
+            )
+          }
+        >
+          <p className="text-sm font-semibold text-stone-900">② The Xero demo books</p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">bills, rent and energy — the accountant’s side of the story.</p>
+        </button>
+        <label className={`${card} cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+          <p className="text-sm font-semibold text-stone-900">③ Your own export</p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">
+            Square Dashboard → Item Sales → CSV. Parsed here, kept nowhere.
+          </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f);
+              e.target.value = "";
+            }}
+          />
+          <p className="mt-2 inline-block rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white">
+            {busy ? "parsing…" : "drop a CSV →"}
+          </p>
+        </label>
+      </div>
+      {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
+      {parsing && (
+        <div className="mt-3 rounded-2xl bg-stone-50 p-4">
+          {parsing.map((l, i) => (
+            <p key={i} className="text-xs text-stone-600">
+              ✓ {l}
+            </p>
+          ))}
         </div>
       )}
     </section>
@@ -286,6 +396,7 @@ export default function CafeBriefingPage() {
   const [data, setData] = useState<Briefing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pack, setPack] = useState<LocalityPack | null>(null);
+  const [sourceNote, setSourceNote] = useState<string | null>(null);
   const tries = useRef(0);
 
   // ---------- deck (present) mode ----------
@@ -406,6 +517,35 @@ export default function CafeBriefingPage() {
   const faller = sell.fallers[0];
   const agentLink = manus.share_url || manus.task_url;
   const doNudges = (copy.nudges?.length ? copy.nudges : nudges).slice(0, 3);
+  const uploaded = Boolean(data.cafe.uploaded);
+
+  // ----- real actions, not dead ends -----
+  const supplierEmail = spend.by_supplier_gbp.find((s) => s.email)?.email ?? "";
+  const mailtoHref = () => {
+    const subject = encodeURIComponent(`This week's order — draft for review`);
+    const body = encodeURIComponent(
+      (copy.supplier_email_draft ||
+        `Hi,\n\nBased on this week's sales, we'd like to adjust our order:\n- ${doNudges.map((n) => n.title).join("\n- ")}\n\nThanks,`).slice(0, 1800),
+    );
+    return `mailto:${supplierEmail}?subject=${subject}&body=${body}`;
+  };
+  const downloadOrderCsv = () => {
+    const rows: string[][] = [["Item", "Suggested units this week", "Change vs last month", "Note"]];
+    sell.risers.slice(0, 3).forEach((r) =>
+      rows.push([r.item, String(r.units_per_week), `+${r.pct_change}%`, "rising — raise the order"]),
+    );
+    sell.fallers.slice(0, 2).forEach((f) =>
+      rows.push([f.item, String(f.units_per_week), `${f.pct_change}%`, "falling — cut the order"]),
+    );
+    rows.push(["Oat milk", "—", `${(sell.modifiers.oat_milk_share * 100).toFixed(0)}% of lattes`, "supply accordingly"]);
+    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `order-${sell.window.end}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
 
   // ----- attach-gap instrument (the report becomes an instrument) -----
   const weeklyMatcha = ownWeekly ?? sell.attach.matcha_transactions / sell.window.weeks;
@@ -446,6 +586,22 @@ export default function CafeBriefingPage() {
             )}
           </div>
         </header>
+
+        <SourceChooser
+          data={data}
+          onNote={setSourceNote}
+          onUploaded={(b) => { setData(b); }}
+        />
+        {sourceNote && (
+          <p className="mt-2 rounded-xl bg-stone-100 px-4 py-2.5 text-xs leading-relaxed text-stone-500">
+            {sourceNote}
+          </p>
+        )}
+        {uploaded && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+            ✦ your export — every figure on this page is now yours (spend figures stay from the demo books)
+          </p>
+        )}
 
         <LocalityCard pack={pack} onPack={setPack} />
 
@@ -596,15 +752,29 @@ export default function CafeBriefingPage() {
               </div>
             ))}
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <a
+              href={mailtoHref()}
+              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              ✉ Email {supplierEmail ? "your supplier" : "the drafted order"}
+            </a>
+            <button
+              onClick={downloadOrderCsv}
+              className="rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+            >
+              ⬇ This week’s order (.csv)
+            </button>
+          </div>
           {copy.supplier_email_draft && (
-            <details className="mt-4 rounded-2xl border border-dashed border-stone-300 bg-white/70 px-4 py-3">
+            <details className="mt-3 rounded-2xl border border-dashed border-stone-300 bg-white/70 px-4 py-3">
               <summary className="cursor-pointer text-sm font-medium text-stone-700">
-                I even drafted the supplier email — review before anything sends
+                The drafted email — review before anything sends
               </summary>
               <pre className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl bg-stone-50 p-4 text-xs leading-relaxed text-stone-700">
                 {copy.supplier_email_draft}
               </pre>
-              <p className="mt-2 text-xs text-stone-400">Siki drafts, you decide — always.</p>
+              <p className="mt-2 text-xs text-stone-400">Siki drafts, you press send — always.</p>
             </details>
           )}
         </section>

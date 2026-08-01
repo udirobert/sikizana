@@ -27,6 +27,8 @@ def _spend_facts() -> dict:
 
         data = scenario_data("cafe")
         supplier_names = {c["name"] for c in data["contacts"] if c.get("isSupplier")}
+        supplier_emails = {c["name"]: c.get("emailAddress", "")
+                           for c in data["contacts"] if c.get("isSupplier")}
 
         def _contact_name(obj) -> str | None:
             if isinstance(obj, dict):
@@ -53,7 +55,7 @@ def _spend_facts() -> dict:
         pl = data.get("pl") or {}
         return {
             "by_supplier_gbp": [
-                {"supplier": k, "total_gbp": round(v, 2)}
+                {"supplier": k, "total_gbp": round(v, 2), "email": supplier_emails.get(k, "")}
                 for k, v in sorted(by_supplier.items(), key=lambda kv: -kv[1])
             ],
             "net_profit_gbp": pl.get("netProfit"),
@@ -184,13 +186,20 @@ Attached is the RAW Square Item Sales export itself (CSV). Do four things:
 """
 
 
-def build_briefing() -> dict:
-    """Fast path: deterministic facts + fallback copy. No network."""
-    facts = analyzer.analyse(load_item_sales(CSV_PATH))
+def build_briefing(csv_bytes: bytes | None = None,
+                   source_note: str | None = None) -> dict:
+    """Fast path: deterministic facts + fallback copy. No network.
+
+    csv_bytes: an owner-uploaded Square export (their data analysed fresh,
+    client-side nothing — POSTed to us once, parsed, discarded).
+    """
+    facts = analyzer.analyse(load_item_sales(csv_bytes if csv_bytes is not None else CSV_PATH))
     spend = _spend_facts()
     nudges = _nudges(facts, spend)
+    cafe_label = (source_note or "Matcha Mochi — City Road (demo twin)")
     return {
-        "cafe": {"name": "Matcha Mochi — City Road (demo twin)", "pos": "Square Item Sales export"},
+        "cafe": {"name": cafe_label, "pos": "Square Item Sales export",
+                 "uploaded": csv_bytes is not None},
         "sell": facts,
         "spend": spend,
         "nudges": nudges,

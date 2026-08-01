@@ -413,15 +413,18 @@
   "by_supplier_gbp": [
    {
     "supplier": "Shoreditch Property Management",
-    "total_gbp": 2500.0
+    "total_gbp": 2500.0,
+    "email": "rent@shoreditchpm.co.uk"
    },
    {
     "supplier": "Bean There Coffee Roasters",
-    "total_gbp": 680.0
+    "total_gbp": 680.0,
+    "email": "orders@beanthere.co.uk"
    },
    {
     "supplier": "Octopus Energy",
-    "total_gbp": 340.0
+    "total_gbp": 340.0,
+    "email": ""
    }
   ],
   "net_profit_gbp": -2705.0,
