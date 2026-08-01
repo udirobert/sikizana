@@ -27,9 +27,19 @@ echo ""
 # the pushed repo. Deleted files are handled automatically by git.
 
 git_pull_vps() {
-  echo "→ git pull on VPS..."
-  ssh "$REMOTE" "cd $REMOTE_DIR && git fetch origin main && git reset --hard origin/main" 2>&1
-  echo "  ✓ VPS repo synced to origin/main"
+  # Sync the VPS to the CURRENT branch — never hardcoded main. Partial
+  # deploys (web/backend) stay consistent because both services always
+  # share one ref baseline. If the branch isn't on origin, rsync is the
+  # source of truth (working tree) and we explicitly do NOT reset.
+  local ref; ref="$(git rev-parse --abbrev-ref HEAD)"
+  echo "→ syncing VPS to ref: $ref ..."
+  if git ls-remote --exit-code --heads "origin" "$ref" >/dev/null 2>&1; then
+    ssh "$REMOTE" "cd $REMOTE_DIR && git fetch origin '$ref' && git reset --hard 'origin/$ref'" 2>&1
+    echo "  ✓ VPS repo synced to origin/$ref"
+  else
+    echo "  ⚠ branch '$ref' not on origin — rsync-only deploy (working tree is source of truth)"
+    echo "    (push it to keep VPS git state auditable: git push -u origin $ref)"
+  fi
 }
 
 # ---- Step 2: rsync fallback for uncommitted local changes ----
@@ -74,19 +84,29 @@ rebuild() {
 
 health_check() {
   echo ""
-  echo "✓ Deploy complete!"
-  echo ""
-  echo "Health check:"
+  echo "Health check (gating — any non-2xx fails the deploy):"
   sleep 3
-  for path in / /books /pricing /privacy /terms; do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "https://sikizana.persidian.com${path}")
-    echo "  ${path} → ${HTTP_CODE}"
+  local failed=0 code
+  for path in / /books /pricing /privacy /terms /api/health /api/xero/status; do
+    code=$(curl -s -o /dev/null -w "%{http_code}" "https://sikizana.persidian.com${path}")
+    echo "  ${path} → ${code}"
+    [ "$code" -ge 400 ] && failed=1
   done
+  # Probe surfaces that exist in the tree being deployed — /api/health
+  # cannot notice a missing router (as we learned the hard way).
+  if [ -f src/api/routes/cafe.py ]; then
+    code=$(curl -s -o /dev/null -w "%{http_code}" "https://sikizana.persidian.com/api/cafe/briefing")
+    echo "  /api/cafe/briefing → ${code}"
+    [ "$code" -ne 200 ] && failed=1
+  fi
+  if [ "$failed" -ne 0 ]; then
+    echo ""
+    echo "✗ DEPLOY UNHEALTHY — rollback with:"
+    echo "  ssh $REMOTE \"cd $REMOTE_DIR && git reset --hard origin/main && sudo docker compose -f $COMPOSE_FILE up -d --build\""
+    exit 1
+  fi
   echo ""
-  API_HEALTH=$(curl -s "https://sikizana.persidian.com/api/health" 2>/dev/null || echo "FAILED")
-  echo "  /api/health → $API_HEALTH"
-  XERO_STATUS=$(curl -s "https://sikizana.persidian.com/api/xero/status" 2>/dev/null || echo "FAILED")
-  echo "  /api/xero/status → $XERO_STATUS"
+  echo "✓ Deploy complete ($(git rev-parse --abbrev-ref HEAD) @ $(git rev-parse --short HEAD))"
 }
 
 # ---- Run ----
