@@ -288,6 +288,78 @@ export default function CafeBriefingPage() {
   const [pack, setPack] = useState<LocalityPack | null>(null);
   const tries = useRef(0);
 
+  // ---------- deck (present) mode ----------
+  const [deck, setDeck] = useState(false);
+  const [step, setStep] = useState(0);
+  const [labels, setLabels] = useState<string[]>([]);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stepEls = () =>
+    Array.from(contentRef.current?.children ?? []) as HTMLElement[];
+  const stepLabel = (el: HTMLElement, i: number) =>
+    (el.querySelector(".uppercase, h1, h2")?.textContent ||
+      el.firstElementChild?.textContent || `Step ${i + 1}`).slice(0, 34);
+
+  useEffect(() => {
+    if (!deck) return;
+    stepEls().forEach((el, i) => {
+      el.style.display = i === step ? "" : "none";
+      el.style.height = "100dvh";
+      el.style.overflowY = "auto";
+    });
+    setLabels(stepEls().map(stepLabel));
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+      stepEls().forEach((el) => {
+        el.style.display = "";
+        el.style.height = "";
+        el.style.overflowY = "";
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deck, step, data, pack]);
+
+  useEffect(() => {
+    if (!deck) return;
+    const nav = (d: number) =>
+      setStep((s) => Math.max(0, Math.min(stepEls().length - 1, s + d)));
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input,textarea,select,[contenteditable]")) return;
+      if (["ArrowDown", "PageDown", " "].includes(e.key)) { e.preventDefault(); nav(1); }
+      if (["ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); nav(-1); }
+      if (e.key === "Escape") setDeck(false);
+    };
+    let cool = 0;
+    const onWheel = (e: WheelEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input,textarea,select,video,[data-scrollable],details[open]")) return;
+      const now = Date.now();
+      if (now - cool < 900 || Math.abs(e.deltaY) < 24) return;
+      cool = now;
+      nav(e.deltaY > 0 ? 1 : -1);
+    };
+    let ty = 0;
+    const ts = (e: TouchEvent) => { ty = e.touches[0].clientY; };
+    const te = (e: TouchEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input,textarea,select,video,[data-scrollable],details[open]")) return;
+      const d = ty - e.changedTouches[0].clientY;
+      if (Math.abs(d) > 48) nav(d > 0 ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", ts, { passive: true });
+    window.addEventListener("touchend", te, { passive: true });
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", ts);
+      window.removeEventListener("touchend", te);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deck, data, pack]);
+
   // ----- interactive instrument state (client-side only) -----
   const [attachPct, setAttachPct] = useState(8);           // slider, %
   const [ownWeekly, setOwnWeekly] = useState<number | null>(null);   // owner override
@@ -344,7 +416,10 @@ export default function CafeBriefingPage() {
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
-      <div className="mx-auto max-w-3xl px-6 pb-16 pt-10">
+      <div
+        ref={contentRef}
+        className={deck ? "fixed inset-0 z-50 overflow-hidden bg-stone-50" : "mx-auto max-w-3xl px-6 pb-16 pt-10"}
+      >
 
         {/* -------------------- hook -------------------- */}
         <header className="flex items-start gap-5">
@@ -836,18 +911,80 @@ export default function CafeBriefingPage() {
           </div>
         </section>
 
-        <footer className="mt-8 text-center text-[11px] leading-relaxed text-stone-400">
+        <footer className="mt-8 text-center text-[11px] leading-relaxed text-stone-400" data-scrollable>
           A snapshot of what Siki does with the books side, every day —{" "}
           <a href="/" className="font-medium text-sky-700 underline">sikizana</a> ·
           {" "}built at the Manus café hackathon, Matcha Mochi, City Road
           <br />
-          <a href="https://manus.im/share/cguySdmV54NSpVikCzQX2G?replay=1" target="_blank" rel="noreferrer"
+          <a href="https://matchamocha-sacjkwfw.manus.space/" target="_blank" rel="noreferrer"
              className="font-medium text-violet-600 underline">
-            The poster-site session ↗
+            The presentation poster ↗
           </a>{" "}
-          — the agent built a full presentation site reusing its own earlier runs (publication pending one human click in Manus’s preview panel)
+          — the agent built and published this site itself, from its own earlier runs
         </footer>
       </div>
+
+      {/* present-mode chrome */}
+      {!deck && data && (
+        <button
+          onClick={() => { setStep(0); setDeck(true); }}
+          className="fixed bottom-5 right-5 z-40 rounded-full bg-stone-900 px-4 py-2.5 text-xs font-semibold text-white shadow-lg hover:bg-stone-700"
+        >
+          ▸ Present
+        </button>
+      )}
+      {deck && (
+        <div className="pointer-events-none fixed inset-0 z-[60]">
+          {/* dots + labels */}
+          <div className="pointer-events-auto absolute left-4 top-1/2 hidden -translate-y-1/2 flex-col gap-2.5 lg:flex">
+            {labels.map((l, i) => (
+              <button key={i} onClick={() => setStep(i)} className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${i === step ? "bg-sky-600" : "bg-stone-300 hover:bg-stone-400"}`} />
+                <span className={`max-w-40 truncate text-left text-[10px] ${i === step ? "font-semibold text-sky-700" : "text-stone-400"}`}>
+                  {l}
+                </span>
+              </button>
+            ))}
+          </div>
+          {/* exit */}
+          <div className="pointer-events-auto absolute right-4 top-4">
+            <button
+              onClick={() => setDeck(false)}
+              className="rounded-full border border-stone-300 bg-white/80 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-white"
+            >
+              ✕ Exit · Esc
+            </button>
+          </div>
+          {/* arrows + counter */}
+          <div className="pointer-events-auto absolute bottom-5 right-5 flex items-center gap-2">
+            <button
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              className="rounded-full border border-stone-300 bg-white/80 px-3 py-1.5 text-stone-600 hover:bg-white"
+              aria-label="Previous"
+            >
+              ←
+            </button>
+            <span className="text-xs tabular-nums text-stone-500">{step + 1}/{labels.length}</span>
+            <button
+              onClick={() => setStep((s) => Math.min(labels.length - 1, s + 1))}
+              className="rounded-full bg-stone-900 px-3 py-1.5 text-white hover:bg-stone-700"
+              aria-label="Next"
+            >
+              →
+            </button>
+          </div>
+          {/* progress segments */}
+          <div className="pointer-events-auto absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-1">
+            {labels.map((_, i) => (
+              <span key={i} className={`h-1 rounded-full transition-all ${i === step ? "w-6 bg-sky-500" : "w-2 bg-stone-300"}`} />
+            ))}
+          </div>
+          <p className="absolute bottom-5 left-5 hidden text-[10px] text-stone-400 md:block">
+            scroll · arrows · swipe to move
+          </p>
+        </div>
+      )}
     </main>
   );
 }
+
