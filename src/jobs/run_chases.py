@@ -214,12 +214,21 @@ def run(today: date | None = None) -> dict[str, int]:
 
 
 def main() -> None:
-    stats = run()
-    print(
-        f"Chase run: {stats['due']} due, {stats['sent']} sent, "
-        f"{stats['simulated']} simulated, {stats['completed_paid']} paid, "
-        f"{stats['failed']} failed, {stats['exhausted']} exhausted."
-    )
+    try:
+        stats = run()
+        print(
+            f"Chase run: {stats['due']} due, {stats['sent']} sent, "
+            f"{stats['simulated']} simulated, {stats['completed_paid']} paid, "
+            f"{stats['failed']} failed, {stats['exhausted']} exhausted."
+        )
+        from src.jobs.heartbeat import heartbeat
+
+        heartbeat("chases")
+    except Exception:
+        from src.jobs.heartbeat import heartbeat
+
+        heartbeat("chases", fail=True)
+        raise
 
 
 if __name__ == "__main__":

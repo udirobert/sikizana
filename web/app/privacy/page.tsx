@@ -230,6 +230,9 @@ export default function PrivacyPage() {
             <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Terms of Service
             </Link>
+            <Link href="/cookies" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Cookie Policy
+            </Link>
           </div>
           <p className="text-[10px] text-stone-400">
             Sikizana · AI finance assistant for Xero · Human-in-the-loop by design

@@ -18,20 +18,26 @@ load_dotenv()
 from src.services.logging import get_logger  # noqa: E402
 from src.services.payment_store import list_sessions_for_metric_capture  # noqa: E402
 from src.tools.accounting_tools import capture_metric_snapshot, set_current_session  # noqa: E402
+from src.jobs.heartbeat import heartbeat  # noqa: E402
 
 log = get_logger("sikizana.jobs.metrics")
 
 
 def main() -> None:
-    sessions = list_sessions_for_metric_capture()
-    for session_id in sessions:
-        set_current_session(session_id)
-        capture_metric_snapshot(force=False)
-    log.info(
-        "metric_capture_job_completed",
-        extra={"sessions": len(sessions)},
-    )
-    print(f"Metric capture: {len(sessions)} sessions processed.")
+    try:
+        sessions = list_sessions_for_metric_capture()
+        for session_id in sessions:
+            set_current_session(session_id)
+            capture_metric_snapshot(force=False)
+        log.info(
+            "metric_capture_job_completed",
+            extra={"sessions": len(sessions)},
+        )
+        print(f"Metric capture: {len(sessions)} sessions processed.")
+        heartbeat("metrics")
+    except Exception:
+        heartbeat("metrics", fail=True)
+        raise
 
 
 if __name__ == "__main__":

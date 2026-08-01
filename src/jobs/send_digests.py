@@ -18,30 +18,37 @@ load_dotenv()
 from src.services.digest import build_digest, send_email, smtp_configured  # noqa: E402
 from src.services.payment_store import get_digest_recipients  # noqa: E402
 from src.services.logging import get_logger  # noqa: E402
+from src.jobs.heartbeat import heartbeat  # noqa: E402
 
 log = get_logger("sikizana.jobs.digest")
 
 
 def main() -> None:
-    if not smtp_configured():
-        log.info("digest_job_skipped", extra={"reason": "smtp_unconfigured"})
-        print("SMTP not configured (set SMTP_HOST) — nothing sent.")
-        return
+    try:
+        if not smtp_configured():
+            log.info("digest_job_skipped", extra={"reason": "smtp_unconfigured"})
+            print("SMTP not configured (set SMTP_HOST) — nothing sent.")
+            heartbeat("digests")
+            return
 
-    recipients = get_digest_recipients()
-    sent = failed = 0
-    for r in recipients:
-        digest = build_digest(r["session_id"])
-        # Digests are correctly Siki-branded — unlike chase emails, which
-        # send under the user's business name.
-        ok = send_email(
-            r["email"], digest["subject"], digest["text"], digest["html"],
-            from_name="Siki at Sikizana",
-        )
-        sent += ok
-        failed += not ok
-    log.info("digest_job_completed", extra={"recipients": len(recipients), "sent": sent})
-    print(f"Digest run: {len(recipients)} recipients, {sent} sent, {failed} failed.")
+        recipients = get_digest_recipients()
+        sent = failed = 0
+        for r in recipients:
+            digest = build_digest(r["session_id"])
+            # Digests are correctly Siki-branded — unlike chase emails, which
+            # send under the user's business name.
+            ok = send_email(
+                r["email"], digest["subject"], digest["text"], digest["html"],
+                from_name="Siki at Sikizana",
+            )
+            sent += ok
+            failed += not ok
+        log.info("digest_job_completed", extra={"recipients": len(recipients), "sent": sent})
+        print(f"Digest run: {len(recipients)} recipients, {sent} sent, {failed} failed.")
+        heartbeat("digests")
+    except Exception:
+        heartbeat("digests", fail=True)
+        raise
 
 
 if __name__ == "__main__":

@@ -150,9 +150,14 @@ cd web && npx tsc --noEmit
 
 | File | Purpose |
 |------|---------|
-| `src/api/main.py` | FastAPI backend — all endpoints |
-| `src/agents/bookkeeper.py` | AI agent with tool calling |
+| `src/api/main.py` | FastAPI app — lifespan, middleware, router wiring |
+| `src/api/routes/` | Endpoint routers split by domain (auth, chat, xero, data, automation, etc.) |
+| `src/api/session.py` | Shared session cookie, rate limiting, quota, auth dependencies |
+| `src/agents/bookkeeper.py` | AI agent streaming loop (NVIDIA NIM + Venice fallback) |
+| `src/agents/tool_registry.py` | OpenAI function-calling tool definitions + executor |
 | `src/tools/accounting_tools.py` | Agent tool functions (platform-agnostic) |
+| `src/tools/metric_snapshots.py` | Metric capture + trend analysis |
+| `src/tools/session.py` | Shared per-request session contextvar |
 | `src/services/connectors/` | Multi-platform abstraction layer |
 | `src/services/supermemory.py` | Supermemory client + memory migration |
 | `src/services/accounts.py` | Auth, registration, profile, "Sign in with Xero" |

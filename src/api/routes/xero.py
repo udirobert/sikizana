@@ -326,6 +326,42 @@ async def xero_disconnect(session_id: str = Depends(get_session_id)):
     return {"disconnected": success}
 
 
+@router.get("/api/xero/orgs")
+async def list_user_orgs(
+    session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
+):
+    """List all Xero orgs this user has connected (practice mode).
+
+    Returns active and previously-connected orgs so an accountant managing
+    multiple clients can see their portfolio and reconnect to a different
+    org. The active org is flagged.
+    """
+    from src.services.payment_store import list_user_connections
+    from src.services.xero_oauth import get_connection_status
+
+    def _fetch():
+        connections = list_user_connections(user["id"])
+        active_status = get_connection_status(session_id)
+        active_tenant = active_status.get("tenant_id") if active_status.get("connected") else None
+        return {
+            "orgs": [
+                {
+                    "platform": c["platform"],
+                    "tenant_id": c["tenant_id"],
+                    "tenant_name": c["tenant_name"],
+                    "is_active": c["tenant_id"] == active_tenant and c["is_active"],
+                    "last_connected": c["last_connected"],
+                }
+                for c in connections
+                if c["platform"] == "xero"
+            ],
+            "active_tenant_id": active_tenant,
+        }
+
+    return await asyncio.to_thread(_fetch)
+
+
 # ---- Generic connection endpoints (platform-agnostic) ----
 
 

@@ -649,6 +649,17 @@ function AccountView() {
                     How your data is protected
                   </Link>
                 </p>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <a
+                    href={endpoints.data.exportUrl}
+                    className="text-xs font-semibold px-3 py-2 rounded-lg bg-white text-sky-700 border border-sky-200 hover:bg-sky-50 btn-press transition-colors"
+                  >
+                    Export my data
+                  </a>
+                  <span className="text-[11px] text-stone-500">
+                    Download everything as JSON (GDPR right-to-access)
+                  </span>
+                </div>
                 {deleteState === "idle" && (
                   <button
                     onClick={() => setDeleteState("confirm")}

@@ -59,7 +59,7 @@ export function AutoChaseNotice({
         </p>
         {notice.findingTitle && (
           <p
-            className={`text-[10px] mt-0.5 ${
+            className={`text-xs mt-0.5 ${
               isZana ? "text-rose-700" : "text-emerald-700"
             }`}
           >
@@ -74,7 +74,7 @@ export function AutoChaseNotice({
           {notice.message}
         </p>
         <p
-          className={`text-[10px] mt-1.5 ${
+          className={`text-xs mt-1.5 ${
             isZana ? "text-rose-600" : "text-emerald-600"
           }`}
         >

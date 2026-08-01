@@ -81,14 +81,14 @@ export function WhileAgentWorks({
           <p className="text-sm text-stone-600 t-shimmer">
             {thinkingMessage || "Thinking…"}
           </p>
-          <span className="text-[10px] text-stone-400 tabular-nums shrink-0">
+          <span className="text-xs text-stone-400 tabular-nums shrink-0">
             {elapsed}s
           </span>
         </div>
 
         <div
           key={tipIndex}
-          className="text-[11px] text-stone-500 leading-relaxed bg-stone-50 rounded-lg px-3 py-2 fade-in-up"
+          className="text-xs text-stone-500 leading-relaxed bg-stone-50 rounded-lg px-3 py-2 fade-in-up"
         >
           <span className="text-stone-400 mr-1">💡</span>
           {currentTip.text}
@@ -96,7 +96,7 @@ export function WhileAgentWorks({
 
         {insight && (
           <div
-            className={`text-[11px] leading-relaxed rounded-lg px-3 py-2 fade-in-up ${theme.insightBox}`}
+            className={`text-xs leading-relaxed rounded-lg px-3 py-2 fade-in-up ${theme.insightBox}`}
           >
             <span className={`mr-1 ${theme.insightIcon}`}>📊</span>
             {insight}
@@ -104,14 +104,14 @@ export function WhileAgentWorks({
         )}
 
         {showContext && contextResults.length > 0 && (
-          <div className="text-[11px] leading-relaxed bg-violet-50 rounded-lg px-3 py-2 fade-in-up">
+          <div className="text-xs leading-relaxed bg-violet-50 rounded-lg px-3 py-2 fade-in-up">
             <p className="text-violet-600 font-medium mb-0.5">
               <span className="mr-1">📖</span>
               Did you know?
             </p>
             {contextResults.slice(0, 1).map((r) => (
               <div key={r.url}>
-                <p className="text-violet-800 text-[10px] leading-relaxed">
+                <p className="text-violet-800 text-xs leading-relaxed">
                   {r.summary || r.snippet}
                 </p>
                 <a

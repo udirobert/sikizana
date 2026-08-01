@@ -69,6 +69,15 @@ Xero requires evidence of security best practices.
 - [x] **Data deletion on disconnect** — `POST /api/data/delete` revokes
       Xero + erases conversations, audit trail, chase sequences, snapshots,
       and session prefs; available to anonymous sessions too
+- [x] **Data export (right-to-access)** — `GET /api/data/export` downloads
+      everything Sikizana stores for the session as a JSON file (user
+      profile, platform connection, audit history, conversations, chase
+      sequences, metric snapshots, preferences, memories, AP reviews).
+      Surfaced as "Export my data" on the Account page.
+- [x] **Cookie policy** — dedicated `/cookies` page documents the single
+      session cookie (`sikizana_session`, HttpOnly, SameSite=Lax, Secure in
+      production, 30-day sliding expiry). Linked from the landing page and
+      privacy page footers.
 
 ## 3. Privacy & Compliance
 
@@ -81,7 +90,8 @@ Xero requires evidence of security best practices.
 - [x] **GDPR compliance (erasure)** — `POST /api/data/delete` implemented
       and exposed in the UI. Right to ACCESS (data export) still open.
 - [ ] **Cookie policy** — document what cookies are set and why
-      (currently just the one session cookie, documented informally on `/privacy`)
+      (currently just the one session cookie, documented on `/privacy`)
+      → **Done.** Dedicated `/cookies` page.
 
 ## 4. App Store Listing
 

@@ -57,12 +57,12 @@ export function ResponseSummary({
     <div className={`mt-2 rounded-xl border p-3 fade-in-up ${copy.panelClass}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400 mb-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-1">
             {copy.label}
           </p>
           <p className="text-xs text-stone-700 font-medium">{summary.issues}</p>
           {summary.highCount > 0 && (
-            <p className={`text-[10px] mt-0.5 ${persona === "zana" ? "text-rose-600" : "text-amber-600"}`}>
+            <p className={`text-xs mt-0.5 ${persona === "zana" ? "text-rose-600" : "text-amber-600"}`}>
               {copy.urgentLine(summary.highCount)}
             </p>
           )}

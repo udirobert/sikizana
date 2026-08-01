@@ -98,11 +98,15 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 
 ### Backend (Python / FastAPI)
 - **Agent**: `src/agents/bookkeeper.py` — tool-calling loop with NVIDIA NIM (Llama 3.3 70B), Venice fallback, real token streaming. `create_journal_entry` is deliberately NOT in the LLM's tool list (see Architecture above)
+- **Tool registry**: `src/agents/tool_registry.py` — OpenAI function-calling definitions + synchronous executor for all 19 tools
 - **Tools**: `src/tools/accounting_tools.py` — 19 tools (discrepancies, aged receivables, invoices, P&L, tax, journal proposals, chasing, benchmarks, customer scoring, trend analysis)
+- **Metric snapshots**: `src/tools/metric_snapshots.py` — periodic metric capture + trend analysis
 - **Tax rules**: `src/tools/rag_engine.py` — multi-region embedded rules (UK HMRC, AU ATO, US IRS) with citations, enhanced by Supermemory semantic RAG when available. Region auto-detected from the Xero org's country code. Falls back to region-specific keyword lookup when Supermemory is unavailable.
 - **Memory + RAG**: `src/services/supermemory.py` — Supermemory Local is the persistent memory layer. It gives the agent persistent cross-session memory (recalls customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and semantic RAG over multi-region tax rules. When unset or unreachable, the app falls back to keyword tax rules and no recall — a graceful degradation that is itself a demo moment.
 - **Memory inspection**: `GET /api/memory` + `DELETE /api/memory/{id}` — list and delete individual memories. The `/memory` page makes the memory layer transparent and user-controllable (GDPR-aligned right-to-erasure at the individual memory level).
-- **Context search**: `src/api/main.py` — `/api/context/search`, Exa + Firecrawl, 24h SQLite cache keyed on the intent-mapped query (never the raw user text — chat can contain customer names/amounts)
+- **API routes**: `src/api/routes/` — endpoints split by domain (auth, chat, xero, data, automation, memory, context, prefs). `src/api/main.py` wires the FastAPI app; `src/api/session.py` holds shared session/rate-limit/quota plumbing.
+- **Context search**: `/api/context/search`, Exa + Firecrawl, 24h SQLite cache keyed on the intent-mapped query (never the raw user text — chat can contain customer names/amounts)
+- **Data export**: `GET /api/data/export` — GDPR right-to-access, downloads everything Sikizana stores for the session as JSON
 - **Xero service**: `src/services/xero_service.py` — session-scoped OAuth → allowlisted CLI → mock resolution, with a 45s read-through cache
 - **Xero API client**: `src/services/xero_api.py` — direct Accounting API (tenant header, client-supplied idempotency key, rate-limit retry)
 - **OAuth**: `src/services/xero_oauth.py` — Connect Your Xero flow (SQLite state store, locked token refresh, session-bound callback to prevent login-CSRF)

@@ -54,7 +54,7 @@ export function MemoryRecallTrace({ data, persona = "siki" }: MemoryRecallTraceP
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
               {copy.name} noticed
             </p>
             <p className="text-[12px] text-amber-900 leading-relaxed mt-0.5">
@@ -68,7 +68,7 @@ export function MemoryRecallTrace({ data, persona = "siki" }: MemoryRecallTraceP
             {firstId && (
               <button
                 onClick={() => handleForget(firstId)}
-                className="text-[10px] text-amber-600 hover:text-red-600 px-1 py-0.5 rounded hover:bg-amber-100 transition"
+                className="text-xs text-amber-600 hover:text-red-600 px-1 py-0.5 rounded hover:bg-amber-100 transition"
                 title="Forget this memory"
               >
                 Forget
@@ -101,7 +101,7 @@ export function MemoryRecallTrace({ data, persona = "siki" }: MemoryRecallTraceP
           />
         </svg>
 
-        <span className="text-[11px] font-medium text-violet-800 flex-1">
+        <span className="text-xs font-medium text-violet-800 flex-1">
           {expanded ? copy.memoryRecallExpanded : copy.memoryRecallCompact(data.facts.length)}
         </span>
 
@@ -124,7 +124,7 @@ export function MemoryRecallTrace({ data, persona = "siki" }: MemoryRecallTraceP
         <div className="mt-1 px-3 py-2.5 bg-violet-50/50 border border-violet-100 rounded-lg space-y-2.5 fade-in-up">
           {data.sources.map((source, i) => (
             <div key={i}>
-              <p className="text-[10px] font-semibold text-violet-700 uppercase tracking-wide mb-1">
+              <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide mb-1">
                 {source.label}
               </p>
               <ul className="space-y-1">
@@ -134,14 +134,14 @@ export function MemoryRecallTrace({ data, persona = "siki" }: MemoryRecallTraceP
                   return (
                     <li
                       key={j}
-                      className="text-[11px] text-violet-900 leading-relaxed flex items-start gap-1.5"
+                      className="text-xs text-violet-900 leading-relaxed flex items-start gap-1.5"
                     >
                       <span className="text-violet-400 shrink-0 mt-0.5">•</span>
                       <span className="flex-1">{item}</span>
                       {id && (
                         <button
                           onClick={() => handleForget(id)}
-                          className="text-[10px] text-violet-400 hover:text-red-500 px-1 rounded hover:bg-violet-100 transition"
+                          className="text-xs text-violet-400 hover:text-red-500 px-1 rounded hover:bg-violet-100 transition"
                           title="Forget this memory"
                         >
                           Forget

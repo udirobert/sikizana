@@ -162,7 +162,7 @@ export function FindingsPanel({
   return (
     <section className={className} aria-label="Audit findings">
       <div className="flex items-center gap-1 mb-2">
-        <h3 className="text-[10px] font-bold text-stone-500 uppercase tracking-wide">
+        <h3 className="text-xs font-bold text-stone-500 uppercase tracking-wide">
           {theme.findingsTitle}
         </h3>
         {data && (
@@ -196,17 +196,17 @@ export function FindingsPanel({
                   {data.findings.length === 1 ? "s" : ""} a look
                 </div>
               )}
-              <p className="text-[11px] text-stone-500 mt-1">{findingsSummary(data)}</p>
+              <p className="text-xs text-stone-500 mt-1">{findingsSummary(data)}</p>
               {/* The win tally — money the chase loop actually got paid. */}
               {data.recovered && data.recovered.total > 0 && (
-                <p className="text-[11px] font-medium text-emerald-700 mt-1">
+                <p className="text-xs font-medium text-emerald-700 mt-1">
                   🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by{" "}
                   {persona === "zana" ? "Zana's" : "Siki's"} chasing (
                   {data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
                 </p>
               )}
               {data.ap_reviewed && data.ap_reviewed.confirmed_value > 0 && (
-                <p className="text-[11px] font-medium text-emerald-700 mt-1">
+                <p className="text-xs font-medium text-emerald-700 mt-1">
                   £{formatMoney(Math.round(data.ap_reviewed.confirmed_value))} confirmed by AP
                   review ({data.ap_reviewed.confirmed_count} exception
                   {data.ap_reviewed.confirmed_count === 1 ? "" : "s"})
@@ -240,7 +240,7 @@ export function FindingsPanel({
                         />
                       ))}
                   </div>
-                  <p className="text-[10px] text-stone-500 mt-1">
+                  <p className="text-xs text-stone-500 mt-1">
                     {data.aging.buckets
                       .filter((b) => b.amount > 0 && b.key !== "current")
                       .map((b) => `${b.label}: £${formatMoney(Math.round(b.amount))}`)
@@ -261,16 +261,16 @@ export function FindingsPanel({
               )}
               <div>
                 <p className="text-xs font-semibold text-emerald-800">Your books are clean ✓</p>
-                <p className="text-[10px] text-emerald-700 mt-0.5">
+                <p className="text-xs text-emerald-700 mt-0.5">
                   {cleanFindingsCopy(persona)}
                 </p>
                 {data.recovered && data.recovered.total > 0 && (
-                  <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
+                  <p className="text-xs font-medium text-emerald-700 mt-0.5">
                     🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s chasing
                   </p>
                 )}
                 {data.ap_reviewed && data.ap_reviewed.confirmed_value > 0 && (
-                  <p className="text-[10px] font-medium text-emerald-700 mt-0.5">
+                  <p className="text-xs font-medium text-emerald-700 mt-0.5">
                     £{formatMoney(Math.round(data.ap_reviewed.confirmed_value))} confirmed by AP review
                   </p>
                 )}
@@ -279,7 +279,7 @@ export function FindingsPanel({
           )}
           {!data && !loading && (
             <div className="rounded-xl border border-stone-200 bg-stone-50 p-3">
-              <p className="text-[11px] text-stone-500">
+              <p className="text-xs text-stone-500">
                 Couldn&apos;t load the audit right now — the chat below still works.
               </p>
             </div>
@@ -322,28 +322,28 @@ export function FindingsPanel({
                         <span className="text-xs leading-none" aria-hidden="true">
                           {KIND_ICONS[finding.kind]}
                         </span>
-                        <span className="text-[11px] font-semibold text-stone-800 truncate flex-1">
+                        <span className="text-xs font-semibold text-stone-800 truncate flex-1">
                           {finding.title}
                         </span>
                         {finding.amount > 0 && (
-                          <span className="text-[11px] font-bold text-stone-900 shrink-0">
+                          <span className="text-xs font-bold text-stone-900 shrink-0">
                             £{formatMoney(finding.amount)}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-stone-500 mt-0.5 truncate">
+                      <p className="text-xs text-stone-500 mt-0.5 truncate">
                         {KIND_LABELS[finding.kind]} · {finding.detail}
                       </p>
                       {finding.memory_action && !asked && (
-                        <p className="text-[10px] text-violet-600 mt-0.5 truncate">
+                        <p className="text-xs text-violet-600 mt-0.5 truncate">
                           {finding.memory_action.label}: {finding.memory_action.policy}
                         </p>
                       )}
                       {asked && (
-                        <p className="text-[10px] text-stone-400 mt-0.5">✓ Asked</p>
+                        <p className="text-xs text-stone-400 mt-0.5">✓ Asked</p>
                       )}
                       {reviewState !== "open" && (
-                        <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">
+                        <p className="text-xs text-emerald-700 mt-0.5 capitalize">
                           Review: {reviewState}
                           {finding.review?.confirmed_amount !== undefined
                             ? ` · £${formatMoney(finding.review.confirmed_amount)} confirmed`
@@ -354,7 +354,7 @@ export function FindingsPanel({
                         </p>
                       )}
                       {finding.evidence?.slice(0, 2).map((evidence) => (
-                        <p key={evidence.source_id} className="text-[10px] text-stone-400 mt-0.5 truncate">
+                        <p key={evidence.source_id} className="text-xs text-stone-400 mt-0.5 truncate">
                           {evidence.label}: {evidence.detail}
                         </p>
                       ))}
@@ -365,7 +365,7 @@ export function FindingsPanel({
                         disabled={chased || disabled}
                         aria-label={`Schedule automatic follow-ups — ${finding.title}`}
                         title="Schedule escalating follow-up emails; they stop the moment it's paid"
-                        className={`mt-1 text-[10px] font-medium px-1.5 py-0.5 rounded btn-press transition-colors disabled:cursor-not-allowed ${
+                        className={`mt-1 text-xs font-medium px-1.5 py-0.5 rounded btn-press transition-colors disabled:cursor-not-allowed ${
                           chased
                             ? "text-emerald-600 bg-emerald-50"
                             : "text-amber-700 bg-amber-50 hover:bg-amber-100"
@@ -379,14 +379,14 @@ export function FindingsPanel({
                         <button
                           onClick={() => sendReview("safe")}
                           disabled={reviewing || disabled || reviewState === "safe"}
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
+                          className="text-xs font-medium px-1.5 py-0.5 rounded text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
                         >
                           {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
                         </button>
                         <button
                           onClick={() => sendReview("investigating")}
                           disabled={reviewing || disabled || reviewState === "investigating"}
-                          className="text-[10px] font-medium px-1.5 py-0.5 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
+                          className="text-xs font-medium px-1.5 py-0.5 rounded text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
                         >
                           {reviewState === "investigating" ? "✓ Investigating" : "Investigate"}
                         </button>
@@ -419,21 +419,21 @@ export function FindingsPanel({
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-stone-500 mt-0.5">
+                    <p className="text-xs text-stone-500 mt-0.5">
                       {KIND_LABELS[finding.kind]} · {finding.detail}
                     </p>
                     {KIND_GLOSS[finding.kind] && (
-                      <p className="text-[10px] text-stone-400 mt-0.5 italic">
+                      <p className="text-xs text-stone-400 mt-0.5 italic">
                         {KIND_GLOSS[finding.kind]}
                       </p>
                     )}
                     {finding.evidence && finding.evidence.length > 0 && (
-                      <p className="text-[10px] text-stone-400 mt-0.5">
+                      <p className="text-xs text-stone-400 mt-0.5">
                         {finding.evidence.length} source record{finding.evidence.length === 1 ? "" : "s"} cited
                       </p>
                     )}
                     {reviewState !== "open" && (
-                      <p className="text-[10px] text-emerald-700 mt-0.5 capitalize">
+                      <p className="text-xs text-emerald-700 mt-0.5 capitalize">
                         Review: {reviewState}
                         {finding.review?.confirmed_amount !== undefined
                           ? ` · £${formatMoney(finding.review.confirmed_amount)} confirmed`
@@ -450,7 +450,7 @@ export function FindingsPanel({
                     onClick={() => onAct(finding)}
                     disabled={asked || disabled}
                     aria-label={`${finding.action.label} — ${finding.title}`}
-                    className={`text-[11px] font-semibold px-2.5 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
+                    className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
                       asked
                         ? "bg-stone-100 text-stone-400"
                         : `${theme.btnPrimary} disabled:opacity-50`
@@ -466,7 +466,7 @@ export function FindingsPanel({
                       disabled={asked || disabled}
                       title={finding.memory_action.policy || finding.memory_action.label}
                       aria-label={`${finding.memory_action.label} — ${finding.title}`}
-                      className="text-[11px] font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed text-violet-700 bg-violet-50 hover:bg-violet-100"
+                      className="text-xs font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed text-violet-700 bg-violet-50 hover:bg-violet-100"
                     >
                       {finding.memory_action.label}
                     </button>
@@ -477,7 +477,7 @@ export function FindingsPanel({
                       disabled={chased || disabled}
                       aria-label={`Schedule automatic follow-ups — ${finding.title}`}
                       title="Schedule escalating follow-up emails; they stop the moment it's paid"
-                      className={`text-[11px] font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
+                      className={`text-xs font-medium px-2 py-1.5 rounded-lg btn-press transition-colors disabled:cursor-not-allowed ${
                         chased
                           ? "text-emerald-600 bg-emerald-50"
                           : "text-amber-700 bg-amber-50 hover:bg-amber-100"
@@ -491,14 +491,14 @@ export function FindingsPanel({
                       <button
                         onClick={() => sendReview("safe")}
                         disabled={reviewing || disabled || reviewState === "safe"}
-                        className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
+                        className="text-xs font-medium px-2 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:cursor-not-allowed"
                       >
                         {reviewState === "safe" ? "✓ Marked safe" : "Mark safe"}
                       </button>
                       <button
                         onClick={() => sendReview("investigating")}
                         disabled={reviewing || disabled || reviewState === "investigating"}
-                        className="text-[10px] font-medium px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
+                        className="text-xs font-medium px-2 py-1.5 rounded-lg text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:cursor-not-allowed"
                       >
                         {reviewState === "investigating" ? "✓ Investigating" : "Investigate"}
                       </button>
@@ -513,7 +513,7 @@ export function FindingsPanel({
                           }
                           inputMode="decimal"
                           aria-label={`Confirmed value for ${finding.title}`}
-                          className="w-20 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-[10px] text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                          className="w-20 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
                         />
                         <button
                           onClick={() => {
@@ -523,7 +523,7 @@ export function FindingsPanel({
                             });
                           }}
                           disabled={reviewing || disabled || reviewState === "confirmed"}
-                          className="text-[10px] font-medium px-2 py-1 rounded-md text-emerald-800 bg-emerald-100 hover:bg-emerald-200 disabled:cursor-not-allowed"
+                          className="text-xs font-medium px-2 py-1 rounded-md text-emerald-800 bg-emerald-100 hover:bg-emerald-200 disabled:cursor-not-allowed"
                         >
                           {reviewState === "confirmed" ? "✓ Confirmed" : "Confirm"}
                         </button>
@@ -540,7 +540,7 @@ export function FindingsPanel({
                           maxLength={120}
                           aria-label={`Dismissal reason for ${finding.title}`}
                           placeholder="Reason"
-                          className="w-24 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-[10px] text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
+                          className="w-24 rounded-md border border-stone-200 bg-white px-1.5 py-1 text-xs text-stone-700 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200"
                         />
                         <button
                           onClick={() =>
@@ -549,7 +549,7 @@ export function FindingsPanel({
                             })
                           }
                           disabled={reviewing || disabled || reviewState === "dismissed"}
-                          className="text-[10px] font-medium px-2 py-1 rounded-md text-stone-700 bg-stone-100 hover:bg-stone-200 disabled:cursor-not-allowed"
+                          className="text-xs font-medium px-2 py-1 rounded-md text-stone-700 bg-stone-100 hover:bg-stone-200 disabled:cursor-not-allowed"
                         >
                           {reviewState === "dismissed" ? "✓ Dismissed" : "Dismiss"}
                         </button>
@@ -557,7 +557,7 @@ export function FindingsPanel({
                     </>
                   )}
                   {asked && (
-                    <span className="text-[10px] text-stone-500">In progress — see chat</span>
+                    <span className="text-xs text-stone-500">In progress — see chat</span>
                   )}
                   {/* Commitment ladder: Save button creates sunk cost.
                       A saved finding persists across sessions, giving the
@@ -567,7 +567,7 @@ export function FindingsPanel({
                       onClick={() => onSave(finding)}
                       disabled={disabled || savedIds?.has(finding.id)}
                       aria-label={`Save finding — ${finding.title}`}
-                      className="text-[10px] font-medium px-2 py-1.5 rounded-lg transition-colors disabled:cursor-not-allowed text-stone-400 hover:text-stone-600 hover:bg-stone-100"
+                      className="text-xs font-medium px-2 py-1.5 rounded-lg transition-colors disabled:cursor-not-allowed text-stone-400 hover:text-stone-600 hover:bg-stone-100"
                     >
                       {savedIds?.has(finding.id) ? "✓ Saved" : "Save"}
                     </button>
@@ -580,7 +580,7 @@ export function FindingsPanel({
             <li>
               <button
                 onClick={() => setExpanded(true)}
-                className={`w-full text-center text-[10px] font-medium py-1 transition-colors ${theme.findingsExpand}`}
+                className={`w-full text-center text-xs font-medium py-1 transition-colors ${theme.findingsExpand}`}
               >
                 + {hiddenCount} more finding{hiddenCount > 1 ? "s" : ""}
               </button>
@@ -592,7 +592,7 @@ export function FindingsPanel({
       {/* Clean state — suggested prompts keep the session going */}
       {data?.clean && suggestions.length > 0 && (
         <div className="mt-2 space-y-1.5">
-          <p className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+          <p className="text-xs uppercase tracking-wide text-stone-500 font-semibold">
             Try asking
           </p>
           {suggestions.map((s) => (

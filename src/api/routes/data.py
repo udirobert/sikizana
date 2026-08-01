@@ -1,18 +1,140 @@
 """Two-tier data deletion: disconnect the platform but keep memories, or
-full GDPR erasure of everything including memories."""
+full GDPR erasure of everything including memories. Also includes the
+GDPR right-to-access data export endpoint."""
 
 from __future__ import annotations
 
 import asyncio
+import json
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
-from src.api.session import _check_rate_limit, get_session_id
+from src.api.session import _check_rate_limit, get_session_id, require_authenticated_user
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.api")
 
 router = APIRouter()
+
+
+@router.get("/api/data/export")
+async def data_export(
+    request: Request,
+    session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
+):
+    """
+    GDPR right-to-access — export everything Sikizana stores for this
+    session/user as a downloadable JSON file.
+
+    Includes: user profile, platform connection, audit history, conversations,
+    chase sequences, metric snapshots, session preferences, and memories
+    (from Supermemory if available). The user can inspect what we hold and
+    take it with them.
+
+    Requires an authenticated Sikizana account — data export is a user
+    right, not available to anonymous sessions.
+    """
+    from src.services.payment_store import (
+        get_audit_history,
+        get_metric_snapshots,
+        get_session_pref,
+        get_user_for_session,
+        load_conversation,
+    )
+    from src.services import chase_store
+
+    _check_rate_limit(request)
+
+    def _gather() -> dict:
+        from src.services.xero_oauth import get_connection_status
+
+        data: dict = {}
+        _user = get_user_for_session(session_id)
+
+        # User profile (exclude password hash)
+        if _user:
+            data["user"] = {
+                k: v for k, v in _user.items() if k != "password_hash"
+            }
+        else:
+            data["user"] = None
+
+        # Platform connection
+        try:
+            data["platform_connection"] = get_connection_status(session_id)
+        except Exception:
+            data["platform_connection"] = None
+
+        # Audit history
+        data["audit_history"] = get_audit_history(session_id)
+
+        # Conversations
+        conversations = {}
+        try:
+            from src.services.payment_store import get_conversation_keys
+
+            for key in get_conversation_keys(session_id):
+                conversations[key] = load_conversation(key)
+        except Exception:
+            conversations = {"note": "Could not retrieve conversations."}
+        data["conversations"] = conversations
+
+        # Chase sequences
+        try:
+            data["chase_sequences"] = chase_store.list_sequences(session_id)
+        except Exception:
+            data["chase_sequences"] = []
+
+        # Metric snapshots
+        data["metric_snapshots"] = get_metric_snapshots(session_id, limit=100)
+
+        # Session preferences
+        prefs = {}
+        for key in ("sector", "demo_scenario"):
+            val = get_session_pref(session_id, key)
+            if val:
+                prefs[key] = val
+        data["session_preferences"] = prefs
+
+        # Memories from Supermemory
+        try:
+            from src.services.supermemory import (
+                is_available as _sm_available,
+                memory_container_tag,
+                list_memories,
+            )
+
+            if _sm_available() and _user:
+                container = memory_container_tag(session_id, _user["id"])
+                data["memories"] = list_memories(container)
+            else:
+                data["memories"] = []
+        except Exception:
+            data["memories"] = []
+
+        # AP finding reviews (summary only — no raw accounting identifiers)
+        try:
+            from src.services.ap_integrity.store import get_review_summary
+
+            data["ap_finding_reviews"] = get_review_summary(session_id)
+        except Exception:
+            data["ap_finding_reviews"] = {}
+
+        data["exported_at"] = datetime.now(timezone.utc).isoformat()
+        data["export_version"] = 1
+        return data
+
+    payload = await asyncio.to_thread(_gather)
+    json_bytes = json.dumps(payload, default=str, indent=2).encode("utf-8")
+    filename = f"sikizana-data-export-{datetime.now(timezone.utc).strftime('%Y%m%d')}.json"
+
+    return Response(
+        content=json_bytes,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/api/data/disconnect")

@@ -790,7 +790,7 @@ function BooksView() {
             <SikiMascot size={36} mood="idle" />
             <div>
               <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
-              <p className="text-[10px] text-stone-500 leading-none mt-0.5">
+              <p className="text-xs text-stone-500 leading-none mt-0.5">
                 Get paid faster · Works with Xero
               </p>
             </div>
@@ -802,6 +802,19 @@ function BooksView() {
                 <span className="text-xs font-medium px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">
                   ● {userConnection.tenant_name || "Your Xero"}
                 </span>
+                {/* Switch org — re-runs the Xero OAuth flow so the user can
+                    pick a different org. Minimal practice mode: doesn't
+                    support instant switching (that needs multi-tenant token
+                    storage), but makes multi-org awareness visible for
+                    accountants managing multiple clients. */}
+                <button
+                  onClick={handleConnectXero}
+                  disabled={connecting}
+                  className="text-xs text-stone-500 hover:text-sky-600 px-1.5 py-1 rounded hover:bg-sky-50 btn-press transition-colors"
+                  title="Connect a different Xero org"
+                >
+                  Switch org
+                </button>
                 <button
                   onClick={handleDisconnect}
                   className="text-xs text-stone-500 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 btn-press"
@@ -920,7 +933,7 @@ function BooksView() {
                 <p className="text-xs font-semibold text-amber-900">
                   You&apos;re looking at sample data
                 </p>
-                <p className="text-[11px] text-amber-700">
+                <p className="text-xs text-amber-700">
                   This is a demo business so you can explore. Connect your Xero to see your real numbers.
                 </p>
               </div>
@@ -945,7 +958,7 @@ function BooksView() {
         <section className="w-full border-b border-stone-200 bg-white px-4 py-5">
           <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
                 {xeroMode === "demo" ? "Your sample finance check" : "Your finance check"}
               </p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight text-stone-950">
@@ -959,7 +972,7 @@ function BooksView() {
             <div className="border-y border-stone-200 py-4 lg:border-l lg:border-y-0 lg:pl-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Detected</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Detected</p>
                   <p className="mt-1 text-sm font-bold text-stone-950">{highlightedFinding.title}</p>
                   <p className="mt-1 text-xs leading-relaxed text-stone-600">{highlightedFinding.detail}</p>
                 </div>
@@ -970,7 +983,7 @@ function BooksView() {
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <div className="border-l-2 border-sky-300 pl-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Evidence</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Evidence</p>
                   {highlightedEvidence.length > 0 ? (
                     highlightedEvidence.map((evidence) => (
                       <p key={evidence.source_id} className="mt-1 text-xs leading-relaxed text-stone-700">
@@ -984,7 +997,7 @@ function BooksView() {
                   )}
                 </div>
                 <div className="border-l-2 border-emerald-300 pl-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">Next step</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Next step</p>
                   <p className="mt-1 text-xs leading-relaxed text-stone-700">Review the evidence, then decide whether to chase, investigate, or dismiss it.</p>
                 </div>
               </div>
@@ -1071,7 +1084,7 @@ function BooksView() {
               {orgData && (
                 <div>
                   <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
-                  <p className="text-[10px] text-stone-500 mt-0.5">
+                  <p className="text-xs text-stone-500 mt-0.5">
                     {orgData.baseCurrency} · {orgData.countryCode}
                     {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
                   </p>
@@ -1091,7 +1104,7 @@ function BooksView() {
           {/* P&L Summary — with contextual hint for first-time users */}
           <div>
             <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+              <span className="text-xs uppercase tracking-wide text-stone-500 font-semibold">
                 Profit &amp; Loss
               </span>
               {showWelcome && (
@@ -1106,27 +1119,27 @@ function BooksView() {
               {profitAndLoss && (
                 <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-stone-500">This month</span>
-                    <span className="text-[10px] text-stone-500">
+                    <span className="text-xs text-stone-500">This month</span>
+                    <span className="text-xs text-stone-500">
                       as of {new Date(profitAndLoss.reportDate || profitAndLoss.toDate || "").toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <div className="text-[10px] text-stone-500">Revenue</div>
+                      <div className="text-xs text-stone-500">Revenue</div>
                       <div className="text-sm font-bold text-emerald-700">
                         £{(profitAndLoss.revenue ?? profitAndLoss.rows?.filter(r => r.value > 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                     <div>
-                      <div className="text-[10px] text-stone-500">Expenses</div>
+                      <div className="text-xs text-stone-500">Expenses</div>
                       <div className="text-sm font-bold text-red-600">
                         £{Math.abs(profitAndLoss.expenses ?? profitAndLoss.rows?.filter(r => r.value < 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                   </div>
                   <div className="pt-2 border-t border-stone-200">
-                    <div className="text-[10px] text-stone-500">Net Profit</div>
+                    <div className="text-xs text-stone-500">Net Profit</div>
                     <div className="text-lg font-bold text-stone-900">
                       £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
                     </div>
@@ -1142,7 +1155,7 @@ function BooksView() {
               shared with the mobile panel. Compact enough for the sidebar. */}
           <div className="flex-1">
             <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+              <span className="text-xs uppercase tracking-wide text-stone-500 font-semibold">
                 Findings
               </span>
               {showWelcome && (
@@ -1172,10 +1185,10 @@ function BooksView() {
           </div>
 
           <div className="border-t border-stone-100 pt-3 mt-auto space-y-1.5">
-            <Link href="/memory" className={`block text-[10px] text-violet-500 hover:text-violet-700 transition-colors`}>
+            <Link href="/memory" className={`block text-xs text-violet-500 hover:text-violet-700 transition-colors`}>
               {copy.memoryLink}
             </Link>
-            <Link href="/activity" className={`block text-[10px] text-stone-500 hover:text-stone-700 transition-colors`}>
+            <Link href="/activity" className={`block text-xs text-stone-500 hover:text-stone-700 transition-colors`}>
               {copy.activityLink}
             </Link>
           </div>
@@ -1196,7 +1209,7 @@ function BooksView() {
               <p className="text-sm font-semibold text-stone-800">
                 {persona === "siki" ? "Siki · The Explainer" : "Zana · Collections assistant"}
               </p>
-              <p className="text-[11px] text-stone-500 flex items-center gap-1">
+              <p className="text-xs text-stone-500 flex items-center gap-1">
                 {isLoading ? (
                   <>
                     <span className={`w-1.5 h-1.5 rounded-full ${theme.statusPulse}`} />
@@ -1247,7 +1260,7 @@ function BooksView() {
             {/* Memory toggle — lets the user compare answers with and without Supermemory */}
             <button
               onClick={() => setMemoryEnabled((m) => !m)}
-              className={`text-[10px] font-semibold px-2.5 py-1 rounded-full transition-colors btn-press ${
+              className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors btn-press ${
                 memoryEnabled
                   ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
                   : "bg-stone-100 text-stone-500 hover:bg-stone-200"
@@ -1291,7 +1304,7 @@ function BooksView() {
           {/* Mode description — appears briefly after switching personas */}
           {modeHintShown && (
             <div
-              className={`px-5 py-1.5 border-b text-[11px] fade-in-up ${theme.modeHintBar}`}
+              className={`px-5 py-1.5 border-b text-xs fade-in-up ${theme.modeHintBar}`}
               role="status"
             >
               {persona === "siki"
@@ -1302,7 +1315,7 @@ function BooksView() {
 
           {/* Memory off nudge — when Supermemory Local is not running, the agent works without memory. */}
           {!supermemory && (
-            <div className="bg-stone-50 border-b border-stone-200 px-5 py-2 text-[11px] text-stone-500 flex items-center justify-between gap-3 fade-in-up">
+            <div className="bg-stone-50 border-b border-stone-200 px-5 py-2 text-xs text-stone-500 flex items-center justify-between gap-3 fade-in-up">
               <span>
                 Supermemory Local is not running. Siki still works, but will not remember across sessions or use multi-region tax RAG.
               </span>
@@ -1315,75 +1328,85 @@ function BooksView() {
             </div>
           )}
 
-          {/* Quota / plan-gate banner — an upgrade prompt, deliberately not styled as an error */}
-          {upgradeBanner && (
-            <div className={`border-b px-4 py-2.5 text-xs flex items-center justify-between gap-3 fade-in-up ${theme.hintBg} ${theme.toastBorder} ${theme.hintTextOnBg}`}>
-              <span>{upgradeBanner}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  href="/account?intent=pro"
-                  className={`font-semibold text-white px-2.5 py-1 rounded-lg btn-press transition-colors ${theme.btnPrimary}`}
-                >
-                  Upgrade
-                </Link>
-                <button
-                  onClick={() => setUpgradeBanner(null)}
-                  className={`btn-press ${theme.hintTextStrong}`}
-                  aria-label="Dismiss upgrade prompt"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
-
-          {errorBanner && (
-            <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 flex items-center justify-between fade-in-up">
-              <span>{errorBanner}</span>
-              <button
-                onClick={() => setErrorBanner(null)}
-                className="text-red-500 hover:text-red-700 btn-press"
-                aria-label="Dismiss"
-              >
-                ×
-              </button>
-            </div>
-          )}
-
-          {chaseNotice && (
-            <AutoChaseNotice
-              persona={persona}
-              notice={chaseNotice}
-              onDismiss={() => setChaseNotice(null)}
-            />
-          )}
-
-          {/* Sign-in nudge — contextual, dismissible, once per session.
-              Lighter than the upgrade banner: asks for sign-in (free), not
-              upgrade (paid). Shown after the first answer or at 3/5 queries. */}
-          {signInNudge && (
-            <div className="bg-violet-50 border-b border-violet-200 px-4 py-2.5 text-xs text-violet-900 flex items-center justify-between gap-3 fade-in-up">
-              <span>{signInNudge}</span>
-              <div className="flex items-center gap-2 shrink-0">
-                <Link
-                  href="/account"
-                  className="font-semibold text-white bg-violet-600 hover:bg-violet-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
-                >
-                  Sign in
-                </Link>
-                <button
-                  onClick={() => {
-                    setSignInNudge(null);
-                    sessionStorage.setItem("siki_signin_nudged", "1");
-                  }}
-                  className="text-violet-400 hover:text-violet-600 btn-press"
-                  aria-label="Dismiss sign-in prompt"
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Banner region — only one banner shows at a time, by priority:
+              error > upgrade > chase notice > sign-in nudge. This prevents
+              the stacking problem where 3-4 horizontal banners could eat the
+              chat scroll area. Each banner has its own dismiss, which clears
+              its state so the next-priority one (if any) becomes visible. */}
+          {(() => {
+            // Pick the highest-priority active banner.
+            if (errorBanner) {
+              return (
+                <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 flex items-center justify-between fade-in-up">
+                  <span>{errorBanner}</span>
+                  <button
+                    onClick={() => setErrorBanner(null)}
+                    className="text-red-500 hover:text-red-700 btn-press"
+                    aria-label="Dismiss"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            }
+            if (upgradeBanner) {
+              return (
+                <div className={`border-b px-4 py-2.5 text-xs flex items-center justify-between gap-3 fade-in-up ${theme.hintBg} ${theme.toastBorder} ${theme.hintTextOnBg}`}>
+                  <span>{upgradeBanner}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href="/account?intent=pro"
+                      className={`font-semibold text-white px-2.5 py-1 rounded-lg btn-press transition-colors ${theme.btnPrimary}`}
+                    >
+                      Upgrade
+                    </Link>
+                    <button
+                      onClick={() => setUpgradeBanner(null)}
+                      className={`btn-press ${theme.hintTextStrong}`}
+                      aria-label="Dismiss upgrade prompt"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            if (chaseNotice) {
+              return (
+                <AutoChaseNotice
+                  persona={persona}
+                  notice={chaseNotice}
+                  onDismiss={() => setChaseNotice(null)}
+                />
+              );
+            }
+            if (signInNudge) {
+              return (
+                <div className="bg-violet-50 border-b border-violet-200 px-4 py-2.5 text-xs text-violet-900 flex items-center justify-between gap-3 fade-in-up">
+                  <span>{signInNudge}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link
+                      href="/account"
+                      className="font-semibold text-white bg-violet-600 hover:bg-violet-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
+                    >
+                      Sign in
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setSignInNudge(null);
+                        sessionStorage.setItem("siki_signin_nudged", "1");
+                      }}
+                      className="text-violet-400 hover:text-violet-600 btn-press"
+                      aria-label="Dismiss sign-in prompt"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
 
           {/* The old client-fabricated "Audit Complete" banner is gone —
               the findings panel is the proactive audit now, with real
@@ -1433,7 +1456,7 @@ function BooksView() {
                       </div>
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-sky-900">Here&apos;s what I can do for you</p>
-                        <ul className="text-[11px] text-sky-700 mt-1.5 space-y-1">
+                        <ul className="text-xs text-sky-700 mt-1.5 space-y-1">
                           <li>💰 <span className="font-medium">Show who owes you</span> — every unpaid invoice, aged 30/60/90 days</li>
                           <li>✉️ <span className="font-medium">Chase what you&apos;re owed</span> — escalating reminder emails that work</li>
                           <li>📊 <span className="font-medium">Show what&apos;s normal</span> — payment norms for your industry</li>
@@ -1450,22 +1473,22 @@ function BooksView() {
                             of guessing from the org name. */}
                         <div className="mt-3 pt-3 border-t border-sky-100">
                           {sector && !sectorSaved ? (
-                            <p className="text-[11px] text-sky-700">
+                            <p className="text-xs text-sky-700">
                               📊 Comparing you against{" "}
                               <span className="font-semibold">{sector.replace("_", " ")}</span>{" "}
                               businesses.
                             </p>
                           ) : sectorSaved ? (
-                            <p className="text-[11px] font-medium text-emerald-700 fade-in-up">
+                            <p className="text-xs font-medium text-emerald-700 fade-in-up">
                               ✓ Noted — I&apos;ll compare your numbers against{" "}
                               {sector?.replace("_", " ")} businesses.
                             </p>
                           ) : (
                             <>
-                              <p className="text-[11px] font-semibold text-sky-900 mb-1.5">
+                              <p className="text-xs font-semibold text-sky-900 mb-1.5">
                                 One quick question: what&apos;s your line of business?
                               </p>
-                              <p className="text-[10px] text-sky-600 mb-2">
+                              <p className="text-xs text-sky-600 mb-2">
                                 So &quot;is this normal?&quot; compares you against YOUR industry.
                               </p>
                               <div className="flex flex-wrap gap-1.5">
@@ -1480,7 +1503,7 @@ function BooksView() {
                                   <button
                                     key={value}
                                     onClick={() => void handleSectorPick(value)}
-                                    className="text-[10px] font-medium px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-700 hover:bg-sky-100 btn-press transition-colors"
+                                    className="text-xs font-medium px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-700 hover:bg-sky-100 btn-press transition-colors"
                                   >
                                     {label}
                                   </button>
@@ -1506,7 +1529,7 @@ function BooksView() {
                     started chatting lost the connect prompt. */}
 
                 <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
-                  <p className="t-stagger-line t-stagger-line--3 text-[10px] uppercase tracking-wide text-stone-500 font-semibold text-left">
+                  <p className="t-stagger-line t-stagger-line--3 text-xs uppercase tracking-wide text-stone-500 font-semibold text-left">
                     {showWelcome ? "Try one of these to get started" : "Try a sample query"}
                   </p>
                   {(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).map((sample, i) => (
@@ -1595,7 +1618,7 @@ function BooksView() {
                     <button
                       onClick={() => handleRemember(i, msg.content)}
                       disabled={rememberedMessages.has(i)}
-                      className={`text-[10px] font-medium px-2 py-0.5 rounded transition-colors btn-press ${
+                      className={`text-xs font-medium px-2 py-0.5 rounded transition-colors btn-press ${
                         rememberedMessages.has(i)
                           ? "text-emerald-600 bg-emerald-50 cursor-default"
                           : "text-stone-400 hover:text-violet-600 hover:bg-violet-50"
@@ -1669,7 +1692,7 @@ function BooksView() {
                       return (
                         <button
                           onClick={() => handlePersonaChange("zana")}
-                          className="self-start mt-1 text-[11px] font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg btn-press transition-colors fade-in-up flex items-center gap-1.5"
+                          className="self-start mt-1 text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg btn-press transition-colors fade-in-up flex items-center gap-1.5"
                         >
                           <span className="text-rose-400">⚡</span>
                           {nudge}
@@ -1683,12 +1706,12 @@ function BooksView() {
                     !isLoading && i === messages.length - 1 &&
                     lastContextResults.length > 0 && (
                     <div className="mt-1 border-t border-stone-200/60 pt-2 fade-in-up">
-                      <p className="text-[10px] text-stone-400 font-medium mb-0.5">
+                      <p className="text-xs text-stone-400 font-medium mb-0.5">
                         📖 Related HMRC guidance
                       </p>
                       {lastContextResults.slice(0, 1).map((r) => (
                         <div key={r.url}>
-                          <p className="text-[11px] text-stone-600 leading-relaxed">
+                          <p className="text-xs text-stone-600 leading-relaxed">
                             {r.summary || r.snippet}
                           </p>
                           <a
@@ -1784,7 +1807,7 @@ function BooksView() {
               )}
             </div>
             <div className="flex items-center justify-center mt-2">
-              <span className="text-[10px] text-stone-500">
+              <span className="text-xs text-stone-500">
                 Sikizana · Get paid faster · Human-in-the-loop by design
               </span>
             </div>
@@ -1793,7 +1816,7 @@ function BooksView() {
       </div>
 
       <footer className="text-center py-3">
-        <p className="text-[10px] text-stone-400">
+        <p className="text-xs text-stone-400">
           Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
         </p>
       </footer>
@@ -1977,7 +2000,7 @@ function BooksView() {
                 Not yet
               </button>
             </div>
-            <p className="text-[10px] text-stone-400 mt-3 text-center">
+            <p className="text-xs text-stone-400 mt-3 text-center">
               Full details:{" "}
               <Link href="/security" className={`${theme.link} underline`}>
                 how your data is protected
@@ -1994,6 +2017,10 @@ function BooksView() {
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up"
           onClick={() => setRecoveredCelebration(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setRecoveredCelebration(null);
+          }}
+          tabIndex={-1}
           role="dialog"
           aria-modal="true"
           aria-label="Money recovered"

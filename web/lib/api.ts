@@ -439,6 +439,9 @@ export const endpoints = {
         "/api/data/delete",
         {},
       ),
+    /** GDPR right-to-access — download everything Sikizana stores for your
+     *  session as a JSON file. Requires a signed-in account. */
+    exportUrl: "/api/data/export",
   },
 
   connection: {
@@ -448,6 +451,12 @@ export const endpoints = {
     /** List all available accounting platform connectors. */
     platforms: () =>
       api.get<{ platforms: AvailablePlatform[] }>("/api/connection/platforms"),
+    /** List all Xero orgs the signed-in user has connected (practice mode). */
+    orgs: () =>
+      api.get<{
+        orgs: { platform: string; tenant_id: string; tenant_name: string; is_active: boolean; last_connected: string }[];
+        active_tenant_id: string | null;
+      }>("/api/xero/orgs"),
   },
 
   memory: {

@@ -455,6 +455,9 @@ export default function LandingPage() {
             <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Terms of Service
             </Link>
+            <Link href="/cookies" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
+              Cookie Policy
+            </Link>
             <Link href="/tax" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
               Tax Assistant
             </Link>

@@ -151,18 +151,18 @@ export function JournalEntryCard({
           ) : (
             <SikiMascot size={20} mood="idle" className="shrink-0" />
           )}
-          <span className="text-[11px] font-bold uppercase tracking-wide text-stone-600 truncate">
+          <span className="text-xs font-bold uppercase tracking-wide text-stone-600 truncate">
             {copy.headerTitle}
           </span>
         </div>
         {(status === "pending" || status === "posting") && (
-          <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium shrink-0">
+          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full font-medium shrink-0">
             {copy.awaitingApproval}
           </span>
         )}
         {status === "posted" && (
           <span
-            className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+            className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
               isDemo ? "text-amber-700 bg-amber-50" : isZana ? "text-rose-600 bg-rose-50" : "text-emerald-600 bg-emerald-50"
             }`}
           >
@@ -170,7 +170,7 @@ export function JournalEntryCard({
           </span>
         )}
         {status === "rejected" && (
-          <span className="text-[10px] text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
+          <span className="text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded-full font-medium">
             ✗ Rejected
           </span>
         )}
@@ -183,7 +183,7 @@ export function JournalEntryCard({
         {/* Debit/Credit rows */}
         <div className="space-y-1.5">
           <div className="flex items-center gap-3 text-xs">
-            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded w-8 text-center">
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded w-8 text-center">
               Dr
             </span>
             <span className="font-mono font-medium text-stone-700 w-12">{debitAccount}</span>
@@ -193,7 +193,7 @@ export function JournalEntryCard({
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs">
-            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded w-8 text-center">
+            <span className="text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded w-8 text-center">
               Cr
             </span>
             <span className="font-mono font-medium text-stone-700 w-12">{creditAccount}</span>
@@ -210,9 +210,9 @@ export function JournalEntryCard({
             <svg aria-hidden="true" className="w-3 h-3 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-[10px] text-stone-500">Balanced · Debits = Credits</span>
+            <span className="text-xs text-stone-500">Balanced · Debits = Credits</span>
           </div>
-          <p className="text-[10px] text-stone-400 mt-1">
+          <p className="text-xs text-stone-400 mt-1">
             In plain English: this records £
             {amount.toLocaleString(undefined, { minimumFractionDigits: 2 })} against{" "}
             <span className="font-medium text-stone-500">{debitAccountName || `account ${debitAccount}`}</span>{" "}
@@ -243,7 +243,7 @@ export function JournalEntryCard({
             {reverseState === "idle" && (
               <button
                 onClick={() => setReverseState("confirm")}
-                className="text-[11px] font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
+                className="text-xs font-medium text-stone-500 hover:text-amber-700 hover:bg-amber-50 px-2 py-1 -mx-2 rounded btn-press transition-colors"
                 aria-label={`Reverse this journal entry for £${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
               >
                 ↩ Reverse this entry
@@ -258,7 +258,7 @@ export function JournalEntryCard({
                 <button
                   onClick={() => void handleReverse()}
                   disabled={reverseState === "reversing"}
-                  className="text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700 btn-press transition-colors disabled:opacity-60 disabled:cursor-wait"
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700 btn-press transition-colors disabled:opacity-60 disabled:cursor-wait"
                 >
                   {reverseState === "reversing" ? "Reversing…" : "Yes, reverse"}
                 </button>
@@ -268,7 +268,7 @@ export function JournalEntryCard({
                     setReverseError(null);
                   }}
                   disabled={reverseState === "reversing"}
-                  className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 btn-press transition-colors disabled:opacity-60"
+                  className="text-xs font-medium px-2.5 py-1 rounded-lg bg-white text-stone-600 border border-stone-200 hover:bg-stone-100 btn-press transition-colors disabled:opacity-60"
                 >
                   Cancel
                 </button>

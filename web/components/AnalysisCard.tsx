@@ -150,7 +150,7 @@ function AnalysisCardHeader({
         ) : (
           <SikiMascot size={20} mood="idle" className="shrink-0" />
         )}
-        <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${meta.badgeClass}`}>
+        <span className={`text-xs font-bold px-2 py-1 rounded-full ${meta.badgeClass}`}>
           {meta.title}
         </span>
         {subtitle}
@@ -169,7 +169,7 @@ function BenchmarkCard({ data, persona }: { data: BenchmarkData; persona: Person
         type="sector_benchmark"
         subtitle={
           <>
-            <span className="text-[10px] font-medium text-stone-600">{data.sector}</span>
+            <span className="text-xs font-medium text-stone-600">{data.sector}</span>
             <span className="text-[9px] text-stone-400">
               {data.source === "live_ons"
                 ? "auto-extracted from gov.uk — verify"
@@ -192,13 +192,13 @@ function BenchmarkCard({ data, persona }: { data: BenchmarkData; persona: Person
           const sectorBarWidth = (m.sector_value / scaleMax) * 100;
           return (
             <div key={m.label}>
-              <div className="flex items-center justify-between text-[10px] mb-1">
+              <div className="flex items-center justify-between text-xs mb-1">
                 <span className="font-medium text-stone-700">{m.label}</span>
                 <span className={`font-semibold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
                   {style.label}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-[10px]">
+              <div className="flex items-center gap-2 text-xs">
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-stone-500 w-12 shrink-0">You:</span>
@@ -226,7 +226,7 @@ function BenchmarkCard({ data, persona }: { data: BenchmarkData; persona: Person
         })}
       </div>
       <div className="px-3 py-2 border-t border-stone-100 bg-stone-50/50">
-        <p className="text-[10px] text-stone-500">
+        <p className="text-xs text-stone-500">
           Sector chasing threshold: <span className="font-medium text-stone-700">{data.chasing_threshold_days} days</span>
         </p>
       </div>
@@ -250,7 +250,7 @@ function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Pe
         persona={persona}
         type="customer_scorecard"
         subtitle={
-          <span className="text-[10px] text-stone-500">
+          <span className="text-xs text-stone-500">
             {meta.portfolioSubtitle(data.portfolio.red_count, data.portfolio.fire_count)}
           </span>
         }
@@ -269,7 +269,7 @@ function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Pe
                   {c.rating}
                 </span>
               </div>
-              <div className="grid grid-cols-4 gap-2 text-[10px]">
+              <div className="grid grid-cols-4 gap-2 text-xs">
                 <div>
                   <p className="text-stone-400">On-time</p>
                   <p className="font-semibold text-stone-700">{c.on_time_rate}%</p>
@@ -288,7 +288,7 @@ function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Pe
                 </div>
               </div>
               {c.fire_recommendation && (
-                <p className="text-[10px] text-rose-600 mt-1.5 font-medium">
+                <p className="text-xs text-rose-600 mt-1.5 font-medium">
                   ⚠️ {meta.fireWarning}
                 </p>
               )}
@@ -297,7 +297,7 @@ function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Pe
         })}
       </div>
       <div className="px-3 py-2.5 border-t border-stone-100 bg-stone-50/50">
-        <div className="grid grid-cols-3 gap-2 text-[10px]">
+        <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <p className="text-stone-400">Total revenue</p>
             <p className="font-semibold text-stone-700">{fmtMoney(data.portfolio.total_revenue)}</p>
@@ -315,7 +315,7 @@ function CustomerScorecard({ data, persona }: { data: ScorecardData; persona: Pe
             </p>
           </div>
         </div>
-        <p className="text-[10px] text-stone-400 mt-1.5">
+        <p className="text-xs text-stone-400 mt-1.5">
           &quot;Cost&quot; = your time spent chasing this customer plus the interest lost while
           their invoices sit unpaid.
         </p>
@@ -343,14 +343,14 @@ function AgingCard({ data, persona }: { data: AgingData; persona: Persona }) {
         persona={persona}
         type="receivables_aging"
         subtitle={
-          <span className="text-[10px] text-stone-500">
+          <span className="text-xs text-stone-500">
             {fmtMoney(data.total_outstanding)} outstanding · {fmtMoney(data.total_overdue)} past due
           </span>
         }
       />
       <div className="px-3 py-2.5 space-y-1.5">
         {data.buckets.filter((b) => b.count > 0).map((b) => (
-          <div key={b.key} className="flex items-center gap-2 text-[10px]">
+          <div key={b.key} className="flex items-center gap-2 text-xs">
             <span className="text-stone-500 w-20 shrink-0">{b.label}</span>
             <div className="flex-1 h-3 bg-stone-100 rounded-full overflow-hidden">
               <div
@@ -369,12 +369,12 @@ function AgingCard({ data, persona }: { data: AgingData; persona: Persona }) {
       </div>
       {data.debtors.length > 0 && (
         <div className="px-3 py-2.5 border-t border-stone-100">
-          <p className="text-[10px] font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
+          <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-1.5">
             {meta.debtorsHeading}
           </p>
           <div className="space-y-1">
             {data.debtors.map((d) => (
-              <div key={d.name} className="flex items-center justify-between gap-2 text-[11px]">
+              <div key={d.name} className="flex items-center justify-between gap-2 text-xs">
                 <span className="text-stone-700 truncate">{d.name}</span>
                 <span className="shrink-0">
                   <span className="font-semibold text-stone-900">{fmtMoney(d.total)}</span>
@@ -390,7 +390,7 @@ function AgingCard({ data, persona }: { data: AgingData; persona: Persona }) {
         </div>
       )}
       <div className="px-3 py-2 border-t border-stone-100 bg-stone-50/50">
-        <p className="text-[10px] text-stone-500">
+        <p className="text-xs text-stone-500">
           {data.dso_days !== null
             ? `Customers take ~${Math.round(data.dso_days)} days to pay you on average (from ${data.dso_sample} paid invoice${data.dso_sample === 1 ? "" : "s"}).`
             : "Not enough payment history yet to measure how long customers take to pay."}
@@ -444,7 +444,7 @@ function TrendChart({ data, persona }: { data: TrendData; persona: Persona }) {
         persona={persona}
         type="trend_analysis"
         subtitle={
-          <span className="text-[10px] text-stone-500">
+          <span className="text-xs text-stone-500">
             {data.snapshot_count} snapshots over time
           </span>
         }
@@ -463,10 +463,10 @@ function TrendChart({ data, persona }: { data: TrendData; persona: Persona }) {
           return (
             <div key={m.key} className="px-3 py-2.5 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] text-stone-500">{m.label}</p>
+                <p className="text-xs text-stone-500">{m.label}</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs font-semibold text-stone-700">{fmtVal(m.latest)}</span>
-                  <span className={`text-[10px] font-medium ${style.text}`}>
+                  <span className={`text-xs font-medium ${style.text}`}>
                     {style.icon} {m.trend.toLowerCase()}
                   </span>
                 </div>

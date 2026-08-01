@@ -576,6 +576,30 @@ def disconnect_platform_connection(session_id: str, platform: str | None = None)
     return count
 
 
+def list_user_connections(user_id: int) -> list[dict]:
+    """List all platform connections for a user (active and disconnected).
+
+    Used by the practice-mode org switcher: an accountant managing multiple
+    Xero orgs can see which orgs they've connected and switch between them.
+    """
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        """
+        SELECT DISTINCT platform, tenant_id, tenant_name,
+               MAX(connected_at) as last_connected,
+               CASE WHEN disconnected_at IS NULL THEN 1 ELSE 0 END as is_active
+        FROM platform_connections
+        WHERE user_id = ?
+        GROUP BY platform, tenant_id, tenant_name, is_active
+        ORDER BY is_active DESC, last_connected DESC
+        """,
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 def get_recovered_total(session_id: str) -> dict:
     """Money recovered by the chase loop for one session — invoices that
     were paid after at least one chase email. The product's win metric."""
@@ -1094,6 +1118,18 @@ def load_conversation(key: str) -> list[dict]:
         return messages if isinstance(messages, list) else []
     except ValueError:
         return []
+
+
+def get_conversation_keys(session_id: str) -> list[str]:
+    """Return all conversation thread keys belonging to this session."""
+    init_db()
+    conn = _get_db()
+    rows = conn.execute(
+        "SELECT key FROM conversations WHERE key LIKE ? ORDER BY updated_at DESC",
+        (f"{session_id}:%",),
+    ).fetchall()
+    conn.close()
+    return [row["key"] for row in rows]
 
 
 def save_conversation(key: str, messages: list[dict]) -> None:
