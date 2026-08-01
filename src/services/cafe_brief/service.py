@@ -146,8 +146,9 @@ Supplier spend:
 
 Do three things:
 1. Write the Monday Briefing copy: a one-line headline, a 2-3 sentence sell
-   summary, and sharpen the nudges (keep their numbers, improve the wording,
-   explain "so what" in plain owner language, no jargon).
+   summary, and sharpen the nudges. Return EXACTLY the three nudges provided,
+   in the same order — improve wording and explain "so what" in plain owner
+   language, but never change order or numbers (no jargon).
 2. Research ONE real, current industry trend relevant to UK matcha cafés
    (e.g. matcha demand, oat-milk pricing, café cost inflation). It must come
    from a real page you browsed — return the claim in one sentence with the
