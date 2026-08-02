@@ -10,6 +10,7 @@ import collections
 import datetime as dt
 from statistics import mean
 
+from src.services.cafe_brief.config import BENCHMARK_ATTACH
 from src.services.cafe_brief.pos_ingest import SaleRow
 
 MIN_WEEKLY_UNITS = 15  # ignore retail/noise items for trend calls
@@ -150,8 +151,8 @@ def analyse(
             "with_treat": len(attached),
             "rate": round(attach_rate, 3),
             "weekly_opportunity_gbp": round(
-                max(0.0, 0.18 - attach_rate) * len(drink_txns) / n_weeks * 5.0, 0
-            ),  # toward an 18% attach benchmark at ~£5/treat
+                max(0.0, BENCHMARK_ATTACH - attach_rate) * len(drink_txns) / n_weeks * 5.0, 0
+            ),  # toward the attach benchmark at ~£5/treat
         },
         "daypart_share": {k: round(v / total_units, 3) for k, v in dayparts.items()},
         "rhythm": facts_rhythm,

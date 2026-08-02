@@ -1,6 +1,14 @@
 # Matcha Mochi, City Road — a café design partner
 
-# Matcha Mochi, City Road — a café design partner
+> **Graduated.** The café Monday Briefing has been reconciled into the
+> canonical `build_findings()` pipeline — café nudges are now `CafeFinding`
+> objects with evidence + a one-click chat action, composed alongside
+> receivables, AP integrity, and tax flags. Spend facts flow through the
+> accounting connector (not `demo_scenarios` directly), benchmarks live in
+> one place (`cafe_brief/config.py`), and human review state persists in
+> `cafe_finding_reviews` (migration 14). The `/cafe` page keeps its richer
+> briefing UX as a view over the same facts. See `src/services/cafe_brief/`
+> and `AGENTS.md` for the architecture.
 
 On a Monday morning, the owner of Matcha Mochi at The Brew on City Road opened the Square Item Sales export and watched a briefing assemble in real time. In minutes, data that usually languishes in rows and columns became actionable nudges: what sold, what margin drift looked like, and where a price discrepancy cried out for attention. The moment underscored a simple truth we chase: humans in the loop, numbers driven by code, and prose and research owned by agents.
 

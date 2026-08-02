@@ -2,6 +2,15 @@
 
 The core principles of our architecture remain steadfast: connectors fetch facts, rules evaluate them deterministically, findings terminate in actions, human in the loop governs anything consequential, and the core remains sector agnostic. The hackathon served as a proving ground for these principles in a constrained, high velocity environment. The following nine patterns crystallized from our experience, demonstrating how robust systems scale from a hackathon prototype to production grade platforms.
 
+**The port is done.** The café briefing has graduated from an isolated `/cafe`
+spike into the canonical `build_findings()` stream. Café nudges are now
+`CafeFinding` objects (evidence + one-click chat action + review state),
+composed alongside receivables, AP integrity, and tax flags. Spend flows
+through the accounting connector; benchmarks live in one place
+(`cafe_brief/config.py`); review state persists in `cafe_finding_reviews`
+(migration 14). The nine patterns below are now enforced in code, not just
+described.
+
 1. Staged parse receipts at ingestion moments
 
 **Why it works:** Parsing receipts in stages distributes work, reduces blast radius, and provides clear failure signals at ingestion checkpoints. It lets the system adapt to diverse document formats without blocking downstream processes. Incremental parsing yields faster feedback and easier debugging.
@@ -49,14 +58,16 @@ The core principles of our architecture remain steadfast: connectors fetch facts
 
 ## Port Table: Cafe Moments to Core Surfaces
 
-| Cafe Moment | Core Surface | Implementation Strategy |
+Status: **ported** — each café moment now has a canonical implementation.
+
+| Cafe Moment | Core Surface | Implementation |
 | --- | --- | --- |
-| Scanning a physical receipt | Import receipt | Staged parsing at ingestion; connectors fetch raw data. |
-| Identifying a spending anomaly | Finding actions | Code evaluates numbers; findings terminate in real actions. |
-| Confirming a discrepancy | Evidence badges | Agent recomputes verification badges. |
-| Reviewing the final report | Digest | Progressive disclosure; frozen snapshots; self hosted artifacts. |
-| Presenting a complex run | Xero connect poster | Present mode deck surfaces actionable narratives. |
-| Verifying a freeze for reproducibility | Digest | Use frozen snapshots for reports. |
-| Delivering artifacts to users | Digest | Self hosted mp4/pdf storage and stable links. |
-| Localized welcome experience | Import receipt | Locality layer enhances welcome context without altering core rules. |
-| Safe production deployment | Xero connect poster | Ref synced partial deploys with health gating.
+| Scanning a physical receipt | Import receipt | `cafe_brief/pos_ingest.py` — staged, tolerant CSV parsing at ingestion |
+| Identifying a spending anomaly | Finding actions | `cafe_brief/findings.py` — `build_cafe_findings()` composes into `build_findings()` |
+| Confirming a discrepancy | Evidence badges | `CafeFinding.evidence` — every nudge carries source-cited evidence tuples |
+| Reviewing the final report | Digest | `cafe_finding_reviews` (migration 14) + `cafe_brief/store.py` — review state persists |
+| Presenting a complex run | `/cafe` page | Progressive disclosure + deck mode; a view over the same canonical facts |
+| Verifying a freeze for reproducibility | Digest | `cafe_brief/demo_pos.py` — deterministic fixture; analyzer computes, never reads frozen facts |
+| Delivering artifacts to users | Digest | Self-hosted mp4/pdf in `web/public/cafe/`; stable URLs, no CDN dependency |
+| Localized welcome experience | `/cafe` page | `cafe_brief/locality.py` — postcode packs layer on top, core rules stay sector-agnostic |
+| Safe production deployment | Deploy | `deploy.sh` — ref-synced partial deploys with health gating |

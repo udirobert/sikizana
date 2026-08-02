@@ -39,6 +39,9 @@ const KIND_ICONS: Record<FindingKind, string> = {
   ap_duplicate_payment: "🔍",
   ap_supplier_detail_change: "🔒",
   ap_payment_anomaly: "🔎",
+  cafe_rising_item: "📈",
+  cafe_declining_item: "📉",
+  cafe_attach_gap: "🍵",
 };
 
 const KIND_LABELS: Record<FindingKind, string> = {
@@ -50,6 +53,9 @@ const KIND_LABELS: Record<FindingKind, string> = {
   ap_duplicate_payment: "Possible duplicate payment",
   ap_supplier_detail_change: "Supplier detail change",
   ap_payment_anomaly: "Payment anomaly",
+  cafe_rising_item: "Rising item",
+  cafe_declining_item: "Declining item",
+  cafe_attach_gap: "Attach-rate gap",
 };
 
 /** Plain-English gloss per kind — the target user isn't an accountant. */
@@ -60,6 +66,9 @@ const KIND_GLOSS: Partial<Record<FindingKind, string>> = {
   ap_duplicate_payment: "Review the matching payment records before requesting a credit or refund",
   ap_supplier_detail_change: "Verify through a supplier contact channel you already trust",
   ap_payment_anomaly: "A conservative prompt to check a high-value first payment",
+  cafe_rising_item: "A menu item trending up — stock up before the weekend rush",
+  cafe_declining_item: "A menu item trending down — cut the order to avoid waste",
+  cafe_attach_gap: "Few customers add a treat to their drink — an easy upsell at the till",
 };
 
 function severityClasses(severity: Finding["severity"]): string {
@@ -90,6 +99,9 @@ export function findingsSummary(data: FindingsResponse): string {
   }
   if (data.counts.ap_risks > 0) {
     parts.push(`${data.counts.ap_risks} AP risk${data.counts.ap_risks === 1 ? "" : "s"}`);
+  }
+  if (data.counts.cafe > 0) {
+    parts.push(`${data.counts.cafe} café nudge${data.counts.cafe === 1 ? "" : "s"}`);
   }
   return parts.join(" · ");
 }

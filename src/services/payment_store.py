@@ -281,6 +281,21 @@ MIGRATIONS: list[tuple[int, str]] = [
         ALTER TABLE ap_finding_reviews ADD COLUMN dismissal_reason TEXT;
         """,
     ),
+    (
+        14,
+        """
+        CREATE TABLE IF NOT EXISTS cafe_finding_reviews (
+            session_id TEXT NOT NULL,
+            finding_id TEXT NOT NULL,
+            state TEXT NOT NULL CHECK (state IN ('safe', 'investigating', 'confirmed', 'dismissed')),
+            confirmed_amount REAL,
+            dismissal_reason TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (session_id, finding_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_cafe_reviews_session ON cafe_finding_reviews(session_id);
+        """,
+    ),
 ]
 
 
@@ -498,6 +513,9 @@ def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict
         ).rowcount
         counts["ap_finding_reviews"] = conn.execute(
             "DELETE FROM ap_finding_reviews WHERE session_id = ?", (session_id,)
+        ).rowcount
+        counts["cafe_finding_reviews"] = conn.execute(
+            "DELETE FROM cafe_finding_reviews WHERE session_id = ?", (session_id,)
         ).rowcount
         counts["platform_connections"] = conn.execute(
             "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND disconnected_at IS NULL",

@@ -143,6 +143,20 @@ def build_findings(session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — AP checks are best-effort
         log.warning("ap_integrity_unavailable", extra={"error": str(exc)})
 
+    # --- Café briefing (hospitality vertical) ---
+    # The café Monday-Briefing nudges compose here as canonical findings — the
+    # same one-stream contract as AP. POS rows are the source (the analyzer
+    # computes every number); spend flows through the connector. Gated and
+    # best-effort, so a live Xero org without POS data simply sees no café row.
+    try:
+        from src.services.cafe_brief import build_cafe_findings
+        from src.services.payment_store import get_user_for_session
+
+        user = get_user_for_session(session_id)
+        findings.extend(build_cafe_findings(session_id, svc, user_id=user["id"] if user else None))
+    except Exception as exc:  # noqa: BLE001 — café findings are best-effort
+        log.warning("cafe_brief_unavailable", extra={"error": str(exc)})
+
     # --- Tax flags from the P&L ---
     findings.extend(_tax_flags(svc))
 
@@ -151,6 +165,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "unreconciled": sum(1 for f in findings if f["kind"] == "unreconciled"),
         "tax_flags": sum(1 for f in findings if f["kind"] == "tax_flag"),
         "ap_risks": sum(1 for f in findings if str(f["kind"]).startswith("ap_")),
+        "cafe": sum(1 for f in findings if str(f["kind"]).startswith("cafe_")),
     }
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     findings.sort(key=lambda f: (severity_rank.get(f["severity"], 3), -f.get("amount", 0)))
@@ -187,6 +202,14 @@ def build_findings(session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001
         log.warning("ap_review_summary_unavailable", extra={"error": str(exc)})
 
+    cafe_reviewed = None
+    try:
+        from src.services.cafe_brief.store import get_review_summary as cafe_review_summary
+
+        cafe_reviewed = cafe_review_summary(session_id)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("cafe_review_summary_unavailable", extra={"error": str(exc)})
+
     return {
         "mode": mode,
         "money_found": round(money_found, 2),
@@ -196,6 +219,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "aging": aging,
         "recovered": recovered,
         "ap_reviewed": ap_reviewed,
+        "cafe_reviewed": cafe_reviewed,
     }
 
 

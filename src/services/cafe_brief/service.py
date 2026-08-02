@@ -13,7 +13,14 @@ import threading
 from pathlib import Path
 
 from src.services.cafe_brief import analyzer, manus_client
+from src.services.cafe_brief.config import (
+    BENCHMARK_ATTACH,
+    BENCHMARK_COGS,
+    BENCHMARK_COGS_SOURCE,
+    BENCHMARK_SOURCES,
+)
 from src.services.cafe_brief.pos_ingest import load_item_sales
+from src.services.connectors.base import AccountingConnector
 
 DEFAULT_CSV = str(Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv")
 CSV_PATH = os.environ.get("CAFE_POS_CSV", DEFAULT_CSV)
@@ -21,7 +28,14 @@ CSV_PATH = os.environ.get("CAFE_POS_CSV", DEFAULT_CSV)
 # ------------------------------------------------------------------ spend
 
 def _spend_facts() -> dict:
-    """Supplier spend + P&L anchor from the seeded café demo scenario."""
+    """Supplier spend + P&L anchor from the seeded café demo scenario.
+
+    LEGACY /cafe-page path. The canonical `build_findings()` flow now sources
+    spend through the accounting connector via `facts.build_spend_facts(svc)`
+    (which respects the boundary rule: connectors fetch facts, no direct
+    `demo_scenarios` import). This stays only for the `/cafe` briefing page
+    until that surface reads from `/api/xero/findings`; consolidate there.
+    """
     try:
         from src.services.demo_scenarios import scenario_data
 
@@ -67,25 +81,10 @@ def _spend_facts() -> dict:
 
 # ----------------------------------------------------------------- nudges
 
-# Benchmarks harvested from a cited corpus (Manus research run, 2026-08-01 —
-# sources kept so the page can say where a number comes from).
-# NOTE: attach benchmark moves 18% -> 20-25% in corpus (The Happy Manager);
-# the frozen fixture stays internally coherent at 18% for this demo cycle,
-# and the next enrichment refresh re-derives with the corpus value.
-_BENCHMARK_COGS = "hospitality COGS typically ~25–35% of revenue"
-_BENCHMARK_COGS_SOURCE = {
-    "name": "Notions Coffee Consult",
-    "url": "https://www.thenotions.com.au/blog/coffee-shop-profit-margin",
-}
-_BENCHMARK_ATTACH = 0.18
-_BENCHMARK_SOURCES = {
-    "labour_pct": {"value": "38–48% of revenue", "source": "Brikly"},
-    "net_margin_pct": {"value": "5–12% (2026, UK independents)", "source": "Brikly"},
-    "attach_rate": {"value": "20–25% pastry/cake add-on", "source": "The Happy Manager"},
-    "food_waste_pct": {"value": "4–10% of items purchased", "source": "Business Waste"},
-    "matcha_market": {"value": "US$40.1m in 2025 (projected to double)", "source": "Grand View Research"},
-    "delivery_commission": {"value": "Deliveroo 25–35% · Uber Eats ~30% · Just Eat ~14–16%", "source": "WaveGrocery / Aexir"},
-}
+# Benchmarks are defined once in config.py (the single source of truth) and
+# imported above. See LEARNINGS_FROM_HACKATHON.md: the frozen fixture stays
+# internally coherent at the 18% attach benchmark for this demo cycle, and
+# the next enrichment refresh re-derives with the corpus value (20–25%).
 
 
 def _nudges(facts: dict, spend: dict) -> list[dict]:
@@ -107,11 +106,11 @@ def _nudges(facts: dict, spend: dict) -> list[dict]:
             "impact_gbp": None,
         })
     a = facts["attach"]
-    if a["rate"] < _BENCHMARK_ATTACH:
+    if a["rate"] < BENCHMARK_ATTACH:
         out.append({
             "title": "Bundle cake with matcha",
             "rationale": f"Only {a['rate']:.0%} of matcha lattes add a cake or pastry "
-                         f"(benchmark ~{_BENCHMARK_ATTACH:.0%}). A 'matcha + cake' board at "
+                         f"(benchmark ~{BENCHMARK_ATTACH:.0%}). A 'matcha + cake' board at "
                          f"the till is worth roughly £{a['weekly_opportunity_gbp']:,.0f}/week.",
             "impact_gbp": a["weekly_opportunity_gbp"],
         })
@@ -204,26 +203,45 @@ Attached is the RAW Square Item Sales export itself (CSV). Do four things:
 
 
 def build_briefing(csv_bytes: bytes | None = None,
-                   source_note: str | None = None) -> dict:
+                   source_note: str | None = None,
+                   svc: AccountingConnector | None = None) -> dict:
     """Fast path: deterministic facts + fallback copy. No network.
 
     csv_bytes: an owner-uploaded Square export (their data analysed fresh,
     client-side nothing — POSTed to us once, parsed, discarded).
+    svc: an accounting connector for spend facts. When provided, spend flows
+    through the connector (the canonical boundary — connectors fetch facts).
+    When None (the offline/frozen-snapshot path), the legacy demo-scenario
+    spend is used. The canonical `build_findings()` flow always passes a svc.
     """
-    facts = analyzer.analyse(load_item_sales(csv_bytes if csv_bytes is not None else CSV_PATH))
-    spend = _spend_facts()
-    nudges = _nudges(facts, spend)
+    from src.services.cafe_brief.facts import build_sales_facts, build_spend_facts
+
+    sales = build_sales_facts(load_item_sales(csv_bytes if csv_bytes is not None else CSV_PATH))
+    facts = {
+        "window": sales.window, "totals": sales.totals,
+        "top_items_by_revenue": sales.top_items_by_revenue,
+        "risers": sales.risers, "fallers": sales.fallers, "attach": sales.attach,
+        "daypart_share": sales.daypart_share, "rhythm": sales.rhythm,
+        "modifiers": sales.modifiers, "mix": sales.mix,
+    }
+    spend = build_spend_facts(svc) if svc else _spend_facts()
+    spend_dict = {
+        "by_supplier_gbp": spend.by_supplier_gbp,
+        "net_profit_gbp": spend.net_profit_gbp,
+        "period": spend.period,
+    } if svc else spend
+    nudges = _nudges(facts, spend_dict)
     cafe_label = (source_note or "Matcha Mochi — City Road (demo twin)")
     return {
         "cafe": {"name": cafe_label, "pos": "Square Item Sales export",
                  "uploaded": csv_bytes is not None},
         "sell": facts,
-        "spend": spend,
+        "spend": spend_dict,
         "nudges": nudges,
         "copy": _fallback_copy(facts, nudges),
         "verification": [],
-        "benchmarks": {"cogs": _BENCHMARK_COGS, "cogs_source": _BENCHMARK_COGS_SOURCE,
-                        "attach": _BENCHMARK_ATTACH, "sources": _BENCHMARK_SOURCES},
+        "benchmarks": {"cogs": BENCHMARK_COGS, "cogs_source": BENCHMARK_COGS_SOURCE,
+                        "attach": BENCHMARK_ATTACH, "sources": BENCHMARK_SOURCES},
         "manus": {"status": "not_started"},
     }
 
@@ -242,7 +260,7 @@ def _static_mode() -> bool:
     return os.environ.get("CAFE_MANUS_OFF") == "1" or not manus_client.key_available()
 
 
-def briefing_with_manus(refresh: bool = False) -> dict:
+def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None = None) -> dict:
     """Facts now; Manus enrichment in a background thread, merged when done.
     In static mode: the frozen enriched snapshot, always, no network."""
     global _CACHE
@@ -254,11 +272,11 @@ def briefing_with_manus(refresh: bool = False) -> dict:
             if frozen:
                 briefing = frozen
             else:
-                briefing = build_briefing()
+                briefing = build_briefing(svc=svc)
                 briefing["manus"] = {"status": "unavailable",
                                      "reason": "static mode, no frozen fixture"}
         else:
-            briefing = build_briefing()
+            briefing = build_briefing(svc=svc)
         _CACHE = briefing
 
     if briefing["manus"].get("status") in ("working", "done"):

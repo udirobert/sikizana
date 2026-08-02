@@ -1,9 +1,18 @@
-"""Café Monday Briefing — hackathon spike router (isolated, additive)."""
+"""Café Monday Briefing — hospitality vertical router (isolated, additive).
 
-from fastapi import APIRouter, Query, UploadFile
+Spend facts flow through the accounting connector (the canonical boundary),
+so the briefing and the findings panel describe the same supplier spend. The
+briefing route stays session-aware: a connected session gets live spend; a
+demo/anonymous session gets the demo café scenario through the same connector
+interface.
+"""
+
+from fastapi import APIRouter, Depends, Query, UploadFile
 from pydantic import BaseModel, Field
 
+from src.api.session import get_session_id
 from src.services.cafe_brief import locality, service
+from src.services.connectors import get_connector
 
 router = APIRouter(prefix="/api/cafe", tags=["cafe"])
 
@@ -14,12 +23,13 @@ class LocalityRequest(BaseModel):
 
 
 @router.get("/briefing")
-def get_briefing(refresh: bool = Query(False), offline: bool = Query(False)):
+def get_briefing(refresh: bool = Query(False), offline: bool = Query(False),
+                 session_id: str = Depends(get_session_id)):
     if offline:
         frozen = service.frozen_briefing()
         if frozen:
             return frozen
-    return service.briefing_with_manus(refresh=refresh)
+    return service.briefing_with_manus(refresh=refresh, svc=get_connector(session_id))
 
 
 @router.get("/activity")
@@ -34,7 +44,7 @@ def post_locality(req: LocalityRequest):
 
 
 @router.post("/analyse")
-async def post_analyse(file: UploadFile):
+async def post_analyse(file: UploadFile, session_id: str = Depends(get_session_id)):
     """The input step they asked for: owner drops a real Square export,
     we parse + analyse it fresh (deterministic, no agent, no storage) and
     hand back a briefing-shaped payload on THEIR numbers."""
@@ -43,7 +53,8 @@ async def post_analyse(file: UploadFile):
         return {"error": "export too large (max 20MB)"}
     try:
         briefing = service.build_briefing(csv_bytes=csv_bytes,
-                                          source_note=f"Your export · {file.filename}")
+                                          source_note=f"Your export · {file.filename}",
+                                          svc=get_connector(session_id))
     except ValueError as e:
         return {"error": str(e)}
     briefing["manus"] = {"status": "uploaded",

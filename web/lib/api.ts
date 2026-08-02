@@ -194,7 +194,10 @@ export type FindingKind =
   | "ap_duplicate_bill"
   | "ap_duplicate_payment"
   | "ap_supplier_detail_change"
-  | "ap_payment_anomaly";
+  | "ap_payment_anomaly"
+  | "cafe_rising_item"
+  | "cafe_declining_item"
+  | "cafe_attach_gap";
 export type FindingSeverity = "high" | "medium" | "low";
 export type FindingReviewState = "open" | "safe" | "investigating" | "confirmed" | "dismissed";
 
@@ -205,7 +208,7 @@ export interface FindingReviewPayload {
 }
 
 export interface FindingAction {
-  type: "chase" | "fix" | "explain" | "review";
+  type: "chase" | "fix" | "explain" | "review" | "draft";
   label: string;
   /** Ready to send to the chat verbatim. */
   prompt: string;
@@ -254,7 +257,7 @@ export interface AgingSummary {
 export interface FindingsResponse {
   mode: XeroMode;
   money_found: number;
-  counts: { overdue: number; unreconciled: number; tax_flags: number; ap_risks: number };
+  counts: { overdue: number; unreconciled: number; tax_flags: number; ap_risks: number; cafe: number };
   clean: boolean;
   /** Pre-sorted by severity then amount. */
   findings: Finding[];
@@ -264,6 +267,12 @@ export interface FindingsResponse {
   recovered?: { total: number; count: number } | null;
   /** Human-confirmed AP Integrity outcomes for this session. */
   ap_reviewed?: {
+    confirmed_value: number;
+    confirmed_count: number;
+    dismissed_count: number;
+  } | null;
+  /** Human-confirmed café briefing outcomes for this session. */
+  cafe_reviewed?: {
     confirmed_value: number;
     confirmed_count: number;
     dismissed_count: number;
@@ -610,17 +619,19 @@ export const endpoints = {
       api.get<{ unreconciled: unknown[]; overdue: unknown[] }>("/api/xero/discrepancies"),
     /** Structured audit findings — the books-page findings panel. */
     findings: () => api.get<FindingsResponse>("/api/xero/findings"),
-    /** Human review only; this never changes bills, suppliers, or payments. */
-    reviewFinding: (findingId: string, review: FindingReviewPayload) =>
-      api.put<{
+    /** Human review only; this never changes bills, suppliers, payments, or
+     *  POS data. Routes to the café or AP endpoint by finding-ID prefix. */
+    reviewFinding: (findingId: string, review: FindingReviewPayload) => {
+      const base = findingId.startsWith("cafe-")
+        ? "/api/cafe-brief/findings"
+        : "/api/ap-integrity/findings";
+      return api.put<{
         finding_id: string;
         state: FindingReviewState;
         confirmed_amount?: number | null;
         dismissal_reason?: string | null;
-      }>(
-        `/api/ap-integrity/findings/${encodeURIComponent(findingId)}/review`,
-        review,
-      ),
+      }>(`${base}/${encodeURIComponent(findingId)}/review`, review);
+    },
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();
       if (from_date) search.set("from_date", from_date);

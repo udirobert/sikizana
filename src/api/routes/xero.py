@@ -112,7 +112,51 @@ async def review_ap_finding(
     }
 
 
-@router.get("/api/xero/invoices")
+@router.put("/api/cafe-brief/findings/{finding_id}/review")
+async def review_cafe_finding(
+    finding_id: str = Path(..., min_length=20, max_length=96, pattern=r"^cafe-[a-z]+:[a-f0-9]{16}$"),
+    req: ApFindingReviewRequest = ...,
+    session_id: str = Depends(get_session_id),
+    user: dict = Depends(require_authenticated_user),
+):
+    """Persist a human review disposition for a café nudge.
+
+    Same contract as the AP review endpoint: never changes the source POS or
+    accounting data, only records a session-scoped review. The finding ID is
+    an opaque hash (no raw menu or supplier identifiers stored).
+    """
+    from src.services.cafe_brief.store import set_review_outcome
+
+    confirmed_amount = req.confirmed_amount
+    if confirmed_amount is not None and confirmed_amount < 0:
+        raise HTTPException(status_code=400, detail="Confirmed amount must be zero or more.")
+    dismissal_reason = (req.dismissal_reason or "").strip()[:240] or None
+
+    await asyncio.to_thread(
+        set_review_outcome,
+        session_id,
+        finding_id,
+        req.state,
+        confirmed_amount=confirmed_amount,
+        dismissal_reason=dismissal_reason,
+    )
+    outcome = f"{finding_id} marked {req.state}"
+    if req.state == "confirmed" and confirmed_amount is not None:
+        outcome += f" with £{confirmed_amount:,.2f} confirmed"
+    if req.state == "dismissed" and dismissal_reason:
+        outcome += f" because {dismissal_reason}"
+    record_audit(
+        action="cafe_finding_reviewed",
+        description=outcome,
+        amount=confirmed_amount if req.state == "confirmed" else None,
+        session_id=session_id,
+    )
+    return {
+        "finding_id": finding_id,
+        "state": req.state,
+        "confirmed_amount": confirmed_amount if req.state == "confirmed" else None,
+        "dismissal_reason": dismissal_reason if req.state == "dismissed" else None,
+    }
 async def xero_invoices(
     status: str | None = None,
     invoice_type: str | None = None,

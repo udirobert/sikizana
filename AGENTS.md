@@ -109,7 +109,7 @@ platform-specific detection paths.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 13 (see `MIGRATIONS` list).
+Current schema version: 14 (see `MIGRATIONS` list).
 
 Key tables:
 - `users`, `auth_sessions` — accounts and session→user links
@@ -127,6 +127,8 @@ Key tables:
 - `metric_snapshots` — periodic financial metrics
 - `ap_supplier_fingerprints`, `ap_finding_reviews` — AP Integrity baselines,
   review states, confirmed values, and dismissal reasons
+- `cafe_finding_reviews` — café briefing review states, confirmed values,
+  and dismissal reasons (migration 14); mirrors `ap_finding_reviews`
 - `session_prefs` — legacy session-scoped preferences (sector); user profile
   is now the primary source, session_prefs is a fallback
 
@@ -166,6 +168,8 @@ cd web && npx tsc --noEmit
 | `src/services/payment_store.py` | SQLite schema, migrations, all DB ops |
 | `src/mcp_server.py` | MCP stdio server exposing the stateless AP scan as a tool |
 | `src/services/ap_integrity/service.py` | AP evaluation; `build_ap_findings_stateless` is the stateless entry point |
+| `src/services/cafe_brief/findings.py` | Café evaluation; `build_cafe_findings(session_id, svc, user_id)` composes café nudges into the canonical findings stream (mirrors AP) |
+| `src/services/cafe_brief/service.py` | Café Monday Briefing rich-UX composer (Manus prose + cited trend); the `/cafe` page view over the same facts |
 | `web/components/RequireAuth.tsx` | Client-side route guard |
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
