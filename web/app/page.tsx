@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SikiMascot, ZanaMascot, type MascotMood } from "@/components/SikiMascot";
+import { SiteNav } from "@/components/SiteNav";
 import { useImpactMetrics } from "@/hooks/useRevenue";
-import { useMe } from "@/hooks/useMe";
-import { PlanBadge } from "@/components/PlanBadge";
 import { getLandingPersonaPaths } from "@/lib/persona-theme";
 
 /**
@@ -15,7 +14,6 @@ import { getLandingPersonaPaths } from "@/lib/persona-theme";
  */
 export default function LandingPage() {
   const metrics = useImpactMetrics(60_000);
-  const { me } = useMe();
   const moneyFound = metrics?.money_found ?? 0;
   const discrepanciesFound = metrics?.discrepancies_found ?? 0;
   const personaPaths = getLandingPersonaPaths();
@@ -33,49 +31,7 @@ export default function LandingPage() {
 
   return (
     <main className="min-h-screen bg-stone-50 overflow-x-hidden">
-      {/* ── Nav ─────────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-stone-200 px-4 py-3 sticky top-0 z-50 backdrop-blur-md bg-white/90">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <SikiMascot size={32} mood="idle" />
-            <span className="text-base font-bold text-stone-900 tracking-tight group-hover:text-sky-600 transition-colors">
-              SIKIZANA
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/books"
-              className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
-            >
-              Try Demo
-            </Link>
-            <Link
-              href="/music"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
-            >
-              Music
-            </Link>
-            <Link
-              href="/pricing"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/account"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press flex items-center gap-1.5"
-            >
-              {me?.authenticated ? (
-                <>
-                  Account <PlanBadge plan={me.plan} />
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav variant="marketing" />
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 pt-14 pb-16">
@@ -90,9 +46,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-5 text-lg text-stone-600 max-w-xl leading-relaxed fade-in-up fade-in-up-delay-2">
-              Sikizana checks invoices, payments, receivables, and P&amp;L movements for the
-              things busy owners miss: duplicate supplier payments, overdue customers, tax flags,
-              and numbers that need plain-English explanation.
+              Duplicate payments, overdue customers, tax flags — Siki finds them. You approve every fix.
             </p>
 
             <div className="mt-7 flex flex-col sm:flex-row gap-3 fade-in-up fade-in-up-delay-3">

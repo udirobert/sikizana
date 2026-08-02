@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SiteNav } from "@/components/SiteNav";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";
 import type { FindingsResponse, PaidPlan, Plan } from "@/lib/api";
@@ -198,39 +199,10 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
       <RotatedReveal />
-      <nav className="bg-white border-b border-stone-200 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <Link href="/" aria-label="Sikizana home" className="flex items-center gap-3 group">
-            <SikiMascot size={36} mood="idle" />
-            <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none transition-colors group-hover:text-sky-600">SIKIZANA</h1>
-              <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                Get paid faster · Works with Xero
-              </p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/"
-              className="text-[10px] font-medium text-stone-500 hover:text-stone-800 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Home
-            </Link>
-            <Link
-              href="/books?flow=check"
-              className="text-[10px] font-medium text-stone-500 hover:text-sky-600 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Open check
-            </Link>
-            <Link
-              href="/account"
-              className="text-[10px] text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              {me?.authenticated ? "Account" : "Sign in"}
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav variant="product" subtitle="Get paid faster · Works with Xero" links={[
+        { href: "/", label: "Home" },
+        { href: "/books?flow=check", label: "Open check" },
+      ]} />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="text-center mb-10 fade-in-up">

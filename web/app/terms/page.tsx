@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SikiMascot } from "@/components/SikiMascot";
+import { SiteNav } from "@/components/SiteNav";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Sikizana",
@@ -15,33 +15,10 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
-      <nav className="bg-white border-b border-stone-200 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-3">
-            <SikiMascot size={36} mood="idle" />
-            <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
-              <p className="text-[10px] text-stone-500 leading-none mt-0.5">
-                Get paid faster · Works with Xero
-              </p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/privacy"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/books"
-              className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-            >
-              Open Sikizana
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav variant="legal" links={[
+        { href: "/privacy", label: "Privacy" },
+        { href: "/books", label: "Open Sikizana" },
+      ]} />
 
       <div className="flex-1 max-w-2xl mx-auto w-full px-6 py-12">
         <h2 className="text-3xl font-bold text-stone-900 mb-2">Terms of Service</h2>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SiteNav } from "@/components/SiteNav";
 
 /**
  * Music landing page — the sector beachhead entry point.
@@ -16,37 +17,7 @@ import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
 export default function MusicLandingPage() {
   return (
     <main className="min-h-screen bg-stone-50 overflow-x-hidden">
-      {/* ── Nav ─────────────────────────────────────────────────────── */}
-      <nav className="bg-white border-b border-stone-200 px-4 py-3 sticky top-0 z-50 backdrop-blur-md bg-white/90">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <SikiMascot size={32} mood="idle" />
-            <span className="text-base font-bold text-stone-900 tracking-tight group-hover:text-sky-600 transition-colors">
-              SIKIZANA
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/music#demo"
-              className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
-            >
-              Try the demo
-            </Link>
-            <Link
-              href="/pricing"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/account"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
-            >
-              Sign in
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <SiteNav variant="marketing" />
 
       {/* ── Hero — split, music-led ─────────────────────────────────── */}
       <section className="max-w-6xl mx-auto px-6 pt-14 pb-16">
@@ -63,11 +34,9 @@ export default function MusicLandingPage() {
             </h1>
 
             <p className="mt-5 text-lg text-stone-600 max-w-xl leading-relaxed fade-in-up fade-in-up-delay-2">
-              From April 2026, self-employed musicians earning over £50k must keep digital
-              records and file quarterly through software like Xero. Getting onto Xero is the
-              easy part. The hard part is what happens next: who notices the backline hire you
-              paid twice, or the festival that&rsquo;s gone quiet on a £2,400 invoice? Sikizana
-              does.
+              From April 2026 you&rsquo;ll need digital records. Getting onto Xero is the easy
+              part — who notices the backline hire you paid twice, or the festival that&rsquo;s
+              gone quiet on a £2,400 invoice? Siki does.
             </p>
 
             <div className="mt-7 flex flex-col sm:flex-row gap-3 fade-in-up fade-in-up-delay-3">
@@ -229,11 +198,9 @@ export default function MusicLandingPage() {
               </h2>
             </div>
             <p className="text-sm leading-relaxed text-stone-600">
-              Session fees, royalties, merch, PR, door splits — your income arrives from a
-              dozen different payers, on different schedules, into one set of books. That&apos;s
-              exactly where money goes missing: a double payment here, a late festival
-              settlement there, a supplier detail change you never saw. Sikizana runs on the
-              same Xero data your accountant uses, and keeps watching between tax returns.
+              Session fees, royalties, merch, door splits — your income arrives from a dozen
+              payers into one set of books. That&apos;s exactly where money goes missing. Siki
+              watches the same Xero data your accountant uses, between tax returns.
             </p>
           </div>
         </div>
