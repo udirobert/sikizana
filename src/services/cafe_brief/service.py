@@ -12,7 +12,7 @@ import os
 import threading
 from pathlib import Path
 
-from src.services.cafe_brief import analyzer, manus_client
+from src.services.cafe_brief import manus_client
 from src.services.cafe_brief.config import (
     BENCHMARK_ATTACH,
     BENCHMARK_COGS,
@@ -21,6 +21,9 @@ from src.services.cafe_brief.config import (
 )
 from src.services.cafe_brief.pos_ingest import load_item_sales
 from src.services.connectors.base import AccountingConnector
+from src.services.logging import get_logger
+
+log = get_logger("cafe_brief.service")
 
 DEFAULT_CSV = str(Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv")
 CSV_PATH = os.environ.get("CAFE_POS_CSV", DEFAULT_CSV)
@@ -287,9 +290,8 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
     briefing["manus"] = {"status": "working"}
 
     def _enrich():
-        import sys
         try:
-            print(f"[cafe] _enrich start", file=sys.stderr, flush=True)
+            log.info("cafe_enrich_start")
             # NOTE: str.format explodes on JSON braces in facts; use replace.
             facts = briefing["sell"]
             claims = []
@@ -312,7 +314,7 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
                 prompt, title="Café Monday Briefing copy", schema=_SCHEMA,
                 share_visibility="public",
                 attachments=[("square_item_sales.csv", csv_bytes)])
-            print(f"[cafe] task created {created.get('task_id')}", file=sys.stderr, flush=True)
+            log.info("cafe_manus_task_created", extra={"task_id": created.get("task_id")})
             with _LOCK:
                 # Showcase the agent run itself (a Manus hackathon, after all):
                 # status lives in the briefing, activity via /api/cafe/activity.
@@ -342,8 +344,7 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
                     return
                 briefing["manus"] = {**briefing["manus"], "status": "failed", "reason": "empty result"}
         except Exception as e:
-            import sys, traceback
-            traceback.print_exc(file=sys.stderr)
+            log.exception("cafe_enrich_failed", extra={"error": str(e)})
             with _LOCK:
                 briefing["manus"] = {**briefing.get("manus", {}), "status": "failed", "reason": str(e)}
 

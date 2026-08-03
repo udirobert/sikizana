@@ -7,7 +7,6 @@ without Supermemory — just without memory.
 
 import time
 
-import pytest
 
 from src.services import supermemory as sm
 

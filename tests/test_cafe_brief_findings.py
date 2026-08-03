@@ -11,13 +11,11 @@ import importlib
 
 import pytest
 
-from src.services.cafe_brief import build_cafe_findings
-from src.services.cafe_brief.analyzer import analyse, MIN_WEEKLY_UNITS
+from src.services.cafe_brief.analyzer import analyse
 from src.services.cafe_brief.demo_pos import demo_rows
 from src.services.cafe_brief.facts import build_sales_facts
 from src.services.cafe_brief.pos_ingest import SaleRow
 from src.services.cafe_brief.store import (
-    get_review_outcomes as get_cafe_review_outcomes,
     set_review_outcome as set_cafe_review_outcome,
     get_review_summary as get_cafe_review_summary,
 )

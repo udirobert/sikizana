@@ -1,6 +1,5 @@
 """Tests for security hardening: brute-force protection, password reset, email verification."""
 
-import pytest
 from datetime import datetime, timezone, timedelta
 
 from src.services import payment_store as store

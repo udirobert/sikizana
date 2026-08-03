@@ -1,6 +1,5 @@
 """Tests for the connector abstraction layer and two-tier deletion model."""
 
-import pytest
 
 from src.services import payment_store as store
 from src.services.connectors import (
@@ -9,7 +8,6 @@ from src.services.connectors import (
     get_active_platform,
     list_available_platforms,
 )
-from src.services.connectors.base import ConnectorInfo
 from src.services.connectors.xero import XeroConnector
 from src.services.payment_store import (
     delete_session_data,

@@ -1,6 +1,5 @@
 """Tests for user profile: CRUD, agent injection, sector benchmark integration."""
 
-import pytest
 
 from src.services import payment_store as store
 from src.services import accounts

@@ -56,3 +56,7 @@ data/*.db-shm
 
 # HyperFrames demo video project (large binaries: MP4s, audio, node_modules)
 sikizana-demo/
+
+# Runtime-generated café spike data (debug dumps, telemetry)
+data/manus_debug/
+data/cafe_locality_interest.jsonl
