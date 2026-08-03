@@ -298,8 +298,8 @@ async def run_bookkeeper_streaming(
     # patterns, chasing outcomes, user preferences, prior findings) instead of
     # starting from zero. If Supermemory is unset or unreachable, this entire
     # block is skipped and the agent works identically — just without memory.
-    from src.services.supermemory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
-    from src.services.supermemory import memory_container_tag as _sm_container_tag
+    from src.services.memory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
+    from src.services.memory import memory_container_tag as _sm_container_tag
     from src.services.payment_store import get_user_for_session as _get_user
 
     _memory_enabled = _sm_available() and not disable_memory
@@ -363,7 +363,7 @@ async def run_bookkeeper_streaming(
             # this customer"). They are stored when the user rejects a journal,
             # cancels a chase, etc.
             try:
-                from src.services.supermemory import get_preference_signals
+                from src.services.memory import get_preference_signals
 
                 _preference_signals = await asyncio.to_thread(get_preference_signals, session_id)
                 if _preference_signals:
@@ -727,8 +727,8 @@ async def run_bookkeeper_streaming(
                 # time too, you sent a final notice and they paid in 5 days."
                 if tool_name in ("get_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
                     try:
-                        from src.services.supermemory import is_available as _sm_avail, search as _sm_search
-                        from src.services.supermemory import memory_container_tag as _sm_ct
+                        from src.services.memory import is_available as _sm_avail, search as _sm_search
+                        from src.services.memory import memory_container_tag as _sm_ct
                         from src.services.payment_store import get_user_for_session as _get_user3
 
                         if _sm_avail() and not disable_memory:
@@ -790,8 +790,8 @@ async def run_bookkeeper_streaming(
         # --- Supermemory: ingest conversation for future recall ---
         # Fire-and-forget — never block the response on memory ingestion.
         # The conversation will be available for recall in future sessions.
-        from src.services.supermemory import is_available as _sm_available2, ingest_conversation as _sm_ingest
-        from src.services.supermemory import memory_container_tag as _sm_container_tag2
+        from src.services.memory import is_available as _sm_available2, ingest_conversation as _sm_ingest
+        from src.services.memory import memory_container_tag as _sm_container_tag2
         from src.services.payment_store import get_user_for_session as _get_user2
 
         if _sm_available2() and not disable_memory:

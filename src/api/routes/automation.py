@@ -119,7 +119,7 @@ async def chase_start(
     # Learn from the user's approval: store a chase policy signal for this customer.
     # Future overdue invoices for this customer will surface a memory-driven action.
     try:
-        from src.services.supermemory import is_available as sm_available, save_signal, memory_container_tag
+        from src.services.memory import is_available as sm_available, save_signal, memory_container_tag
         from src.services.payment_store import get_user_for_session
 
         if sm_available():
@@ -186,7 +186,7 @@ async def chase_cancel(
     # Learn from the cancellation: store a signal that this customer should not
     # be auto-chased without explicit approval.
     try:
-        from src.services.supermemory import is_available as sm_available, save_signal, memory_container_tag
+        from src.services.memory import is_available as sm_available, save_signal, memory_container_tag
         from src.services.payment_store import get_user_for_session as get_user
 
         if sm_available() and seq:

@@ -351,7 +351,7 @@ def lookup_tax_rule(query: str, region: str | None = None) -> str:
 
     # --- Supermemory: semantic RAG over the tax corpus ---
     try:
-        from src.services.supermemory import search_tax_rules
+        from src.services.memory import search_tax_rules
 
         results = search_tax_rules(query, region=region, limit=3)
         if results:

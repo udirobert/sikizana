@@ -296,6 +296,30 @@ MIGRATIONS: list[tuple[int, str]] = [
         CREATE INDEX IF NOT EXISTS idx_cafe_reviews_session ON cafe_finding_reviews(session_id);
         """,
     ),
+    (
+        15,
+        # Local memory store — the default backend for src/services/memory.py.
+        # memories_fts mirrors memories.content for FTS5 retrieval; the two are
+        # written and deleted together by the memory service (no triggers).
+        """
+        CREATE TABLE IF NOT EXISTS memories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            doc_id TEXT NOT NULL UNIQUE,
+            custom_id TEXT,
+            container_tag TEXT NOT NULL,
+            content TEXT NOT NULL,
+            metadata_json TEXT NOT NULL DEFAULT '{}',
+            task_type TEXT NOT NULL DEFAULT 'memory',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_memories_container ON memories(container_tag);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_container_custom
+            ON memories(container_tag, custom_id) WHERE custom_id IS NOT NULL;
+        CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+            doc_id UNINDEXED, container_tag UNINDEXED, content
+        );
+        """,
+    ),
 ]
 
 
@@ -494,6 +518,16 @@ def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict
             ).rowcount
             counts["session_prefs"] = conn.execute(
                 "DELETE FROM session_prefs WHERE session_id = ?", (session_id,)
+            ).rowcount
+            # Local memory store — session container plus the user's container
+            _user = get_user_for_session(session_id)
+            _tags = [f"session:{session_id}"] + ([f"user:{_user['id']}"] if _user else [])
+            _ph = ",".join("?" * len(_tags))
+            counts["memories"] = conn.execute(
+                f"DELETE FROM memories WHERE container_tag IN ({_ph})", _tags,
+            ).rowcount
+            counts["memory_search"] = conn.execute(
+                f"DELETE FROM memories_fts WHERE container_tag IN ({_ph})", _tags,
             ).rowcount
         else:
             # Platform disconnect — keep user-owned data

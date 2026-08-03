@@ -175,7 +175,7 @@ function BooksView() {
   const copy = getPersonaCopy(persona);
   const recoveredCopy = getRecoveredCelebrationCopy(persona);
   const connectCopy = getConnectMomentCopy(persona, xeroMode === "demo");
-  const { supermemory } = useBackendHealth();
+  const { memory } = useBackendHealth();
 
   const refreshMetricSnapshots = useCallback((force = false) => {
     void endpoints.xero
@@ -1257,7 +1257,7 @@ function BooksView() {
               </button>
             </div>
 
-            {/* Memory toggle — lets the user compare answers with and without Supermemory */}
+            {/* Memory toggle — lets the user compare answers with and without memory recall */}
             <button
               onClick={() => setMemoryEnabled((m) => !m)}
               className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors btn-press ${
@@ -1313,11 +1313,11 @@ function BooksView() {
             </div>
           )}
 
-          {/* Memory off nudge — when Supermemory Local is not running, the agent works without memory. */}
-          {!supermemory && (
+          {/* Memory off nudge — when the memory store is unreachable, the agent works without memory. */}
+          {!memory && (
             <div className="bg-stone-50 border-b border-stone-200 px-5 py-2 text-xs text-stone-500 flex items-center justify-between gap-3 fade-in-up">
               <span>
-                Supermemory Local is not running. Siki still works, but will not remember across sessions or use multi-region tax RAG.
+                Memory is unavailable. Siki still works, but will not remember across sessions.
               </span>
               <Link
                 href="/memory"

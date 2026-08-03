@@ -17,7 +17,7 @@ from src.services.connectors import get_connector
 from src.services.connectors.base import AccountingConnector
 from src.services.rates import daily_statutory_interest
 from src.services.logging import get_logger
-from src.services.supermemory import get_chase_policy_for_session, is_available as sm_available
+from src.services.memory import get_chase_policy_for_session, is_available as sm_available
 
 log = get_logger("sikizana.findings")
 

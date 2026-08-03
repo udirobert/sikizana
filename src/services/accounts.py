@@ -352,7 +352,7 @@ def _migrate_memories(session_id: str, user_id: int) -> None:
     when the user authenticates.
     """
     try:
-        from src.services.supermemory import migrate_session_memories
+        from src.services.memory import migrate_session_memories
 
         count = migrate_session_memories(session_id, user_id)
         if count:

@@ -3,8 +3,8 @@
 ## What this is
 
 Sikizana is an AI finance assistant that connects to accounting platforms
-(Xero today, QuickBooks/Sage tomorrow) with persistent memory via Supermemory
-Local. It helps small businesses find, protect, and recover their money: Siki
+(Xero today, QuickBooks/Sage tomorrow) with persistent memory stored
+locally in SQLite. It helps small businesses find, protect, and recover their money: Siki
 explains books, discrepancies, and risk; Zana chases overdue payments. The
 product is read-only by default and human-in-the-loop for every consequential
 action.
@@ -95,23 +95,34 @@ platform-specific detection paths.
 
 `delete_session_data(keep_memories=True)` controls what gets deleted.
 
-### Supermemory (memory layer)
+### Memory layer
 
-`src/services/supermemory.py` — client for Supermemory Local.
+`src/services/memory.py` — the memory domain. Default backend: local SQLite
++ FTS5 (migration 15, `memories`/`memories_fts`), so memory is core
+infrastructure with no external service or network calls. Optional backend:
+`MEMORY_BACKEND=supermemory` (+ `SUPERMEMORY_URL`) delegates every call to
+`src/services/supermemory.py`, the legacy Supermemory Local client — nothing
+else imports that module.
 
 - **User memories**: scoped by `memory_container_tag(session_id, user_id)` →
   `user:{id}` or `session:{id}`
-- **Tax RAG corpus**: shared `tax-rules` container, not user-scoped
+- **Tax RAG corpus**: shared `tax-rules` container, injected with
+  region-specific keyword fallback when the memory store is unavailable
 - **Migration**: `migrate_session_memories()` re-tags anonymous memories to
   the user container on login/register
-- **Graceful degradation**: every call no-ops if Supermemory is unavailable
+- **Signals**: chase policies and learned preferences are metadata-keyed rows
+  (exact SQL lookup), not embeddings
+- **Deferred**: conversation → extracted-fact recall (`get_profile` returns
+  None, `ingest_conversation` no-ops under SQLite); re-add later if recall
+  proves worth embeddings
 
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 14 (see `MIGRATIONS` list).
+Current schema version: 15 (see `MIGRATIONS` list).
 
 Key tables:
+- `memories`, `memories_fts` — local memory store + FTS5 mirror (migration 15)
 - `users`, `auth_sessions` — accounts and session→user links
   - User profile columns (migration 11): `name`, `business_name`, `timezone`,
     `language`, `industry` — user-scoped, persists across sessions
@@ -161,7 +172,8 @@ cd web && npx tsc --noEmit
 | `src/tools/metric_snapshots.py` | Metric capture + trend analysis |
 | `src/tools/session.py` | Shared per-request session contextvar |
 | `src/services/connectors/` | Multi-platform abstraction layer |
-| `src/services/supermemory.py` | Supermemory client + memory migration |
+| `src/services/memory.py` | Memory domain: SQLite store, signals, migration, tax corpus |
+| `src/services/supermemory.py` | Optional Supermemory backend (`MEMORY_BACKEND=supermemory`) |
 | `src/services/accounts.py` | Auth, registration, profile, "Sign in with Xero" |
 | `src/services/xero_oauth.py` | Xero OAuth 2.0 + PKCE |
 | `src/services/xero_service.py` | Xero data service (OAuth → CLI → demo) |
@@ -190,8 +202,8 @@ Three layers are injected into the agent system prompt before every response:
 1. **User profile** (user-scoped, persists across sessions): name, business
    name, industry, timezone, language. The agent addresses the user by name,
    references their business, and adapts language to their industry.
-2. **Supermemory** (user-scoped when authenticated): customer payment
-   patterns, chasing outcomes, prior findings, business context learned
+2. **Memory** (user-scoped when authenticated): customer payment
+   patterns, chasing outcomes, prior findings, business context stored
    from conversations.
 3. **Tax region** (detected from accounting platform org country): routes
    tax queries to HMRC (GB), ATO (AU), or IRS (US).

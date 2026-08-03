@@ -84,7 +84,7 @@ export default function MemoryPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-medium text-amber-900">Supermemory is not connected</p>
+                <p className="text-sm font-medium text-amber-900">Memory is not available</p>
                 <p className="text-xs text-amber-700 mt-1">{copy.memoryUnavailable}</p>
               </div>
             </div>
@@ -171,7 +171,7 @@ export default function MemoryPage() {
         {!loading && (
           <div className="mt-8 pt-6 border-t border-stone-200">
             <p className="text-xs text-stone-400 leading-relaxed">
-              Memories are stored locally by Supermemory Local on your machine, scoped to your
+              Memories are stored locally in Sikizana’s own database, scoped to your
               account — they persist across browser sessions and devices. They are never sent to
               a third party. You can delete individual memories above, or erase everything by
               disconnecting your account.

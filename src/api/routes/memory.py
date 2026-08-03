@@ -24,7 +24,7 @@ def _resolve_memory_container(session_id: str) -> str:
     Returns "user:{user_id}" if authenticated, "session:{session_id}" if anonymous.
     """
     from src.services.payment_store import get_user_for_session
-    from src.services.supermemory import memory_container_tag
+    from src.services.memory import memory_container_tag
 
     user = get_user_for_session(session_id)
     return memory_container_tag(session_id, user["id"] if user else None)
@@ -40,7 +40,7 @@ async def list_session_memories(session_id: str = Depends(get_session_id)):
 
     Memories are scoped to the user (when logged in) or the anonymous session.
     """
-    from src.services.supermemory import is_available as _sm_available, search_memories_for_display
+    from src.services.memory import is_available as _sm_available, search_memories_for_display
 
     if not _sm_available():
         return {"memories": [], "available": False}
@@ -58,7 +58,7 @@ async def delete_session_memory(document_id: str = Path(..., min_length=1, max_l
     right to erasure at the individual memory level. Verifies that the memory
     belongs to the caller's container before deleting.
     """
-    from src.services.supermemory import (
+    from src.services.memory import (
         is_available as _sm_available,
         delete_memory,
         verify_document_ownership,
@@ -99,7 +99,7 @@ async def remember_something(req: RememberRequest, session_id: str = Depends(get
     Supermemory container. This makes the memory layer interactive and gives
     the user control over what Siki remembers.
     """
-    from src.services.supermemory import is_available, add_document, memory_container_tag
+    from src.services.memory import is_available, add_document, memory_container_tag
     from src.services.payment_store import get_user_for_session
 
     if not is_available():
@@ -127,7 +127,7 @@ async def remember_signal(req: SignalRequest, session_id: str = Depends(get_sess
     They are recalled by the agent and the UI to change behavior, not just
     to add flavour to a response.
     """
-    from src.services.supermemory import is_available, save_signal, memory_container_tag
+    from src.services.memory import is_available, save_signal, memory_container_tag
     from src.services.payment_store import get_user_for_session
 
     if not is_available():
@@ -157,7 +157,7 @@ async def seed_demo_memories(session_id: str = Depends(get_session_id)):
     idempotent and only runs when the session is using demo data.
     """
     from src.services.xero_service import XeroService
-    from src.services.supermemory import seed_demo_memories
+    from src.services.memory import seed_demo_memories
     from src.services.payment_store import get_user_for_session
 
     mode = XeroService(session_id).mode()
@@ -179,7 +179,7 @@ async def search_tax_rag(q: str, region: str = "GB", session_id: str = Depends(g
     is unavailable.
     """
     from src.tools.rag_engine import _get_rules_for_region, _REGION_INFO, _normalize_region
-    from src.services.supermemory import is_available, search_tax_rules
+    from src.services.memory import is_available, search_tax_rules
 
     region = _normalize_region(region)
     if is_available():
@@ -201,6 +201,6 @@ async def search_tax_rag(q: str, region: str = "GB", session_id: str = Depends(g
         "query": q,
         "region": region,
         "region_info": _REGION_INFO.get(region, _REGION_INFO["GB"]),
-        "supermemory": is_available(),
+        "memory": is_available(),
         "results": results,
     }

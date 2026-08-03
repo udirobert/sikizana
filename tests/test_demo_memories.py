@@ -7,7 +7,7 @@ not the café's customers. The café remains the default.
 from __future__ import annotations
 
 from src.services.payment_store import set_session_pref
-from src.services.supermemory import (
+from src.services.memory import (
     _DEMO_MEMORIES_BY_SCENARIO,
     _resolve_demo_scenario,
 )

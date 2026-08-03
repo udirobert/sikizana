@@ -3,7 +3,7 @@
 **See money at risk, stop preventable leakage, and recover what you are owed — with Xero.**
 
 Sikizana is an AI finance assistant that connects to Xero and remembers every
-conversation in Supermemory Local. It builds an aged receivables view (30/60/90
+conversation in its own local memory store. It builds an aged receivables view (30/60/90
 days by debtor), scores payment reliability, compares numbers against typical
 UK sector ranges, drafts escalating chasing emails with statutory interest and
 fixed-sum compensation, and lays out the escalation path from friendly reminder
@@ -66,7 +66,7 @@ details. See [the implementation plan](docs/AP_INTEGRITY_PLAN.md).
 User → Next.js frontend → FastAPI backend → NVIDIA NIM (Llama 3.3 70B, streamed)
                                            → Venice AI (fallback when NVIDIA is down)
                                            → Xero API (per-session OAuth2 → CLI → mock)
-                                           → Supermemory Local (optional: persistent memory + RAG)
+                                           → Local memory store (SQLite + FTS5; Supermemory optional)
                                            → Exa search (live HMRC guidance, 24h cache)
                                            → Firecrawl (deep page extraction, 24h cache)
                                            → Gemini Vision (receipt matching)
@@ -101,8 +101,8 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Tool registry**: `src/agents/tool_registry.py` — OpenAI function-calling definitions + synchronous executor for all 19 tools
 - **Tools**: `src/tools/accounting_tools.py` — 19 tools (discrepancies, aged receivables, invoices, P&L, tax, journal proposals, chasing, benchmarks, customer scoring, trend analysis)
 - **Metric snapshots**: `src/tools/metric_snapshots.py` — periodic metric capture + trend analysis
-- **Tax rules**: `src/tools/rag_engine.py` — multi-region embedded rules (UK HMRC, AU ATO, US IRS) with citations, enhanced by Supermemory semantic RAG when available. Region auto-detected from the Xero org's country code. Falls back to region-specific keyword lookup when Supermemory is unavailable.
-- **Memory + RAG**: `src/services/supermemory.py` — Supermemory Local is the persistent memory layer. It gives the agent persistent cross-session memory (recalls customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and semantic RAG over multi-region tax rules. When unset or unreachable, the app falls back to keyword tax rules and no recall — a graceful degradation that is itself a demo moment.
+- **Tax rules**: `src/tools/rag_engine.py` — multi-region embedded rules (UK HMRC, AU ATO, US IRS) with citations, searched via the local FTS5 index. Region auto-detected from the Xero org's country code. Falls back to region-specific keyword lookup when the memory store is unavailable.
+- **Memory + RAG**: `src/services/memory.py` — the persistent memory layer (SQLite + FTS5 by default). It gives the agent cross-session memory (customer patterns, chasing outcomes, user preferences), proactive memory alerts (surfaces past context about overdue customers automatically), and full-text search over multi-region tax rules. Supermemory Local is an optional backend for operators who self-host it; an unreachable store degrades to keyword tax rules and no recall.
 - **Memory inspection**: `GET /api/memory` + `DELETE /api/memory/{id}` — list and delete individual memories. The `/memory` page makes the memory layer transparent and user-controllable (GDPR-aligned right-to-erasure at the individual memory level).
 - **API routes**: `src/api/routes/` — endpoints split by domain (auth, chat, xero, data, automation, memory, context, prefs). `src/api/main.py` wires the FastAPI app; `src/api/session.py` holds shared session/rate-limit/quota plumbing.
 - **Context search**: `/api/context/search`, Exa + Firecrawl, 24h SQLite cache keyed on the intent-mapped query (never the raw user text — chat can contain customer names/amounts)
@@ -119,13 +119,13 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Data deletion**: `POST /api/data/disconnect` (disconnect platform, keep memories) + `POST /api/data/delete` (full erasure — revokes Xero + erases conversations, audit trail, chase sequences, snapshots, prefs, and memories)
 - **User profiles**: `GET/PUT /api/profile` — name, business name, industry, timezone, language. User-scoped (persists across sessions). Injected into agent system prompt for personalization. Industry feeds sector benchmarks.
 - **Security**: Brute-force protection (5 failed logins → 15min lockout), password reset (token-based, 1h expiry), email verification (token-based, 24h expiry), 30-day sliding session timeout
-- **Tests**: `tests/` — 167 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
+- **Tests**: `tests/` — 214 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
 
 ### Frontend (Next.js / React / Tailwind)
 - **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration
-- **Memory page**: `web/app/memory/page.tsx` — inspect what Siki remembers about your business. Lists all Supermemory entries with delete capability. Makes the memory layer transparent and user-controllable.
-- **Memory badge**: `web/components/MemoryBadge.tsx` — "Memory: ON/OFF" pill in the chat header. Polls `/api/health` for Supermemory status. Flips to OFF when the server is down — making graceful degradation visible.
-- **Memory recall trace**: `web/components/MemoryRecallTrace.tsx` — collapsible "What Siki remembered" panel that appears above the agent's response when Supermemory returns past context. Shows recalled facts grouped by source.
+- **Memory page**: `web/app/memory/page.tsx` — inspect what Siki remembers about your business. Lists all stored memories with delete capability. Makes the memory layer transparent and user-controllable.
+- **Memory badge**: `web/components/MemoryBadge.tsx` — "Memory: ON/OFF" pill in the chat header. Polls `/api/health` for memory-backend status. Flips to OFF when the store is unreachable — making graceful degradation visible.
+- **Memory recall trace**: `web/components/MemoryRecallTrace.tsx` — collapsible "What Siki remembered" panel that appears above the agent's response when the memory store returns past context. Shows recalled facts grouped by source.
 - **WhileAgentWorks**: `web/components/WhileAgentWorks.tsx` — educational content while the agent works (tips + insights + live HMRC)
 - **Edu tips**: `web/lib/edu-tips.ts` — curated tip library keyed by tool type
 - **Impact**: `web/app/impact/page.tsx` — live metrics dashboard
@@ -266,44 +266,41 @@ from the org name — and says so either way. Figures are labelled
 "typical UK ranges · indicative," never presented as live official
 statistics.
 
-### 18. Persistent Memory + Multi-Region Semantic RAG (Supermemory Local)
-Sikizana is built on [Supermemory Local](https://supermemory.ai). The agent
-relies on its persistent memory layer to be useful across sessions:
+### 18. Persistent Memory + Multi-Region Tax Search (local by default)
+Sikizana's memory layer (`src/services/memory.py`) is local infrastructure
+we own: SQLite + FTS5 in the same database as everything else (migration
+15), with no external service, no network calls, and GDPR erasure in the
+same transaction as the rest of the session data.
 
-- **Cross-session memory**: Siki recalls past conversations, customer
-  payment patterns, chasing outcomes, and user preferences across sessions.
-  The user profile (static facts + dynamic context) is injected into the
-  system prompt at the start of each turn, so the agent picks up where it
-  left off instead of starting from zero. Conversations are ingested
-  fire-and-forget after each response — never blocking the user.
-- **Proactive memory alerts**: When the agent detects overdue invoices, it
-  automatically searches Supermemory for past context about those customers
-  and proactively surfaces it — "Acme was late last time too, and a final
-  notice got them to pay in 5 days." The memory layer drives value, not
-  just passive recall. The alert is emitted as a `memory_recall` streaming
-  event so the UI shows it in real time.
-- **Multi-region semantic RAG**: `lookup_tax_rule` performs semantic search
-  over an ingested corpus of tax guidance from three jurisdictions — UK HMRC
-  (11 rules + 12 gov.uk pages), AU ATO (11 rules + 9 ato.gov.au pages), and
-  US IRS (11 rules + 8 irs.gov pages) = 62 documents total. The region is
-  auto-detected from the Xero org's country code. Better matching on
-  natural-language questions like "can I deduct lunch with a client" (which
-  doesn't contain the word "entertainment") — and the right rules for the
-  right country (45p/mile in the UK, 88c/km in Australia, 67¢/mile in the US).
-- **Memory transparency**: The `/memory` page lists everything Siki remembers
-  about the business, with individual memory deletion (GDPR-aligned
-  right-to-erasure). The "Memory: ON/OFF" badge in the chat header makes the
-  Supermemory state visible at a glance. The "What Siki remembered" panel
-  appears above each response when memory was recalled.
+- **Cross-session memory**: Siki recalls stored memories, customer payment
+  patterns, chasing outcomes, and user preferences across sessions. Recall
+  is injected into the system prompt at the start of each turn, so the
+  agent picks up where it left off instead of starting from zero.
+- **Behaviour-shaping signals**: chase policies and learned preferences are
+  metadata-keyed rows with exact lookup — deterministic rules the agent
+  applies without asking again ("for Acme, approve the 4-stage ladder after
+  30 days overdue").
+- **Session→user migration**: memories gathered anonymously migrate to the
+  user's container on login/register, so nothing is lost.
+- **Multi-region tax search**: `lookup_tax_rule` runs FTS5 over the embedded
+  corpus of tax guidance from UK HMRC, AU ATO, and US IRS, with region
+  auto-detected from the org's country code and a keyword fallback when the
+  memory store is unreachable.
+- **Memory transparency**: The `/memory` page lists everything Siki
+  remembers, with individual deletion. The "Memory: ON/OFF" badge in the
+  chat header and the "What Siki remembered" recall panel make the memory
+  layer inspectable.
 
-**When Supermemory is unset or unreachable, the app gracefully degrades —
-but it is not the same product.** Every call is wrapped with fallback:
-`is_available()` health-checks with a 60s cache, `search()` returns `[]`,
-`get_profile()` returns `None`, `lookup_tax_rule` falls back to the
-region-specific keyword system, and conversation ingestion is silently
-skipped. The badge flips to "Memory: OFF". This is production-grade
-architecture: the demo can show memory ON vs OFF side-by-side, and the
-product never breaks.
+**Optional Supermemory backend**: operators who self-host Supermemory Local
+can set `MEMORY_BACKEND=supermemory` (+ `SUPERMEMORY_URL`) and every memory
+call delegates to the legacy client (`src/services/supermemory.py`) — the
+public API is identical, and nothing else imports that module.
+
+**Deferred by design**: automatic conversation → extracted-fact recall (the
+one feature that needs LLM extraction). Under the SQLite backend,
+`ingest_conversation()` no-ops and `get_profile()` returns None; memories
+are explicit saves, signals, and demo seeds. If recall later proves worth
+embeddings, it can be added with `sqlite-vec` without adopting a platform.
 
 ---
 
@@ -317,7 +314,6 @@ product never breaks.
 - Google Gemini API key (for vision)
 - Exa API key (optional — live HMRC guidance search)
 - Firecrawl API key (optional — deep page content extraction)
-- Supermemory Local (optional — persistent memory + semantic RAG; see below)
 - Postmark (or any SMTP provider) — optional; chase emails and the
   weekly digest log-and-skip safely without it
 

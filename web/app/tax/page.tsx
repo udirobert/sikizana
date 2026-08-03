@@ -26,7 +26,7 @@ export default function TaxRagPage() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<MemoryEntry[]>([]);
   const [regionInfo, setRegionInfo] = useState<{ name: string; authority: string } | null>(null);
-  const [supermemory, setSupermemory] = useState<boolean | null>(null);
+  const [memory, setMemory] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async (q: string) => {
@@ -37,9 +37,9 @@ export default function TaxRagPage() {
       const data = await endpoints.taxRag(q, region);
       setResults(data.results);
       setRegionInfo(data.region_info);
-      setSupermemory(data.supermemory);
+      setMemory(data.memory);
     } catch {
-      setError("Could not search the tax corpus. Try again or check that Supermemory is running.");
+      setError("Could not search the tax corpus. Try again shortly.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function TaxRagPage() {
           <div>
             <h1 className="text-xl font-semibold text-stone-800">Tax Assistant</h1>
             <p className="text-sm text-stone-500 mt-1">
-              Multi-region semantic tax RAG powered by Supermemory Local. Ask a plain English question
+              Multi-region tax rules search over official HMRC, ATO, and IRS guidance. Ask a plain English question
               and see the exact documents that answer it.
             </p>
           </div>
@@ -133,7 +133,7 @@ export default function TaxRagPage() {
               Results for {regionInfo.name} · {regionInfo.authority}
             </h2>
             <span className="text-xs text-stone-400">
-              {supermemory ? "Powered by Supermemory Local" : "Keyword fallback — Supermemory offline"}
+              {memory ? "Local index — memory backend online" : "Memory backend offline"}
             </span>
           </div>
         )}
@@ -177,7 +177,7 @@ export default function TaxRagPage() {
 
         {!query && !loading && results.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-sm text-stone-500">Ask a tax question to see Supermemory in action.</p>
+            <p className="text-sm text-stone-500">Ask a tax question to search the indexed guidance.</p>
           </div>
         )}
       </main>

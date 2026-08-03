@@ -20,7 +20,7 @@ export interface Message {
   /** Structured analysis cards (benchmarks, scorecards, trends) emitted
    *  by the backend alongside the text response. */
   analysisCards?: AnalysisCardData[];
-  /** Facts recalled from Supermemory before the agent responded.
+  /** Facts recalled from the memory store before the agent responded.
    *  Makes the memory layer visible — shown as a collapsible panel. */
   memoryRecall?: MemoryRecallData;
 }
@@ -39,7 +39,7 @@ export type AnalysisCardData = {
   [key: string]: unknown;
 };
 
-/** Memory recall data emitted when Supermemory returns past context */
+/** Memory recall data emitted when the memory store returns past context */
 export interface MemoryRecallData {
   /** Flat list of all recalled facts (for quick display) */
   facts: string[];

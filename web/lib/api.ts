@@ -127,7 +127,7 @@ export interface ContextResult {
   summary?: string;
 }
 
-/** A memory entry from Supermemory — what Siki remembers about the business. */
+/** A memory entry from Siki’s memory store — what Siki remembers about the business. */
 export interface MemoryEntry {
   id: string;
   content: string;
@@ -399,7 +399,8 @@ const STREAM_TIMEOUT_MS = 180_000;
 // ---- Endpoint functions (typed) ----
 
 export const endpoints = {
-  health: () => api.get<{ status: string; supermemory?: boolean }>("/api/health"),
+  health: () =>
+    api.get<{ status: string; memory?: boolean; memory_backend?: string }>("/api/health"),
 
   feedback: (payload: FeedbackPayload) =>
     api.post<{ received: boolean }>("/api/feedback", payload),
@@ -408,13 +409,13 @@ export const endpoints = {
   contextSearch: (q: string) =>
     api.get<{ results: ContextResult[]; source: string }>(`/api/context/search?q=${encodeURIComponent(q)}`),
 
-  /** Multi-region semantic tax RAG search (Supermemory Local). */
+  /** Multi-region tax rules search (local index, semantic when available). */
   taxRag: (q: string, region: string) =>
     api.get<{
       query: string;
       region: string;
       region_info: { name: string; authority: string; currency: string; symbol: string };
-      supermemory: boolean;
+      memory: boolean;
       results: MemoryEntry[];
     }>(`/api/tax/rag?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`),
 
@@ -469,7 +470,7 @@ export const endpoints = {
   },
 
   memory: {
-    /** List all memories Supermemory has stored for this session. */
+    /** List all memories stored for this session. */
     list: () =>
       api.get<{ memories: MemoryEntry[]; available: boolean }>("/api/memory"),
     /** Delete a specific memory by document ID (right-to-erasure). */

@@ -12,7 +12,7 @@ import { endpoints, type XeroStatus } from "@/lib/api";
 export function useBackendHealth(intervalMs = 30_000) {
   const [healthy, setHealthy] = useState<boolean | null>(null);
   const [xeroStatus, setXeroStatus] = useState<XeroStatus | null>(null);
-  const [supermemory, setSupermemory] = useState<boolean>(false);
+  const [memory, setMemory] = useState<boolean>(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,7 +22,7 @@ export function useBackendHealth(intervalMs = 30_000) {
         const res = await endpoints.health();
         if (!cancelled) {
           setHealthy(res.status === "healthy");
-          setSupermemory(res.supermemory ?? false);
+          setMemory(res.memory ?? false);
         }
       } catch {
         if (!cancelled) setHealthy(false);
@@ -44,5 +44,5 @@ export function useBackendHealth(intervalMs = 30_000) {
     };
   }, [intervalMs]);
 
-  return { healthy, xeroStatus, supermemory };
+  return { healthy, xeroStatus, memory };
 }

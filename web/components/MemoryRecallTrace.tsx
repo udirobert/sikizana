@@ -16,7 +16,7 @@ function isProactiveAlert(data: MemoryRecallData): boolean {
 }
 
 /**
- * MemoryRecallTrace — shows what Supermemory recalled before the agent responded.
+ * MemoryRecallTrace — shows what memory recalled before the agent responded.
  * Proactive memory alerts get a distinct "Siki noticed" banner so the user sees
  * the memory layer driving value, not just passive recall. Each remembered item
  * can also be forgotten directly from the chat.

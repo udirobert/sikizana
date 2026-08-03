@@ -30,11 +30,11 @@ export function getPersonaCopy(persona: Persona): PersonaCopy {
       activityLink: "Zana's actions →",
       memoryPageTitle: "What Zana Remembers",
       memoryPageIntro:
-        "Zana uses Supermemory Local to recall chasing outcomes, customer payment patterns, and uncomfortable truths from past sessions. Everything here is stored on your machine — inspect and delete any memory at any time.",
+        "Zana uses her local memory to recall chasing outcomes, customer payment patterns, and uncomfortable truths from past sessions. Everything here is stored on your machine — inspect and delete any memory at any time.",
       memoryEmpty:
         "Have a conversation with Zana and check back — memories are extracted and indexed after each session.",
       memoryUnavailable:
-        "Zana is working without memory — every session starts fresh. Start Supermemory Local to enable persistent recall.",
+        "Zana is working without memory — every session starts fresh. Memory recall is unavailable right now.",
       activityIntroLive:
         "Everything Zana has done in this session — chases sent, queries, tool calls, and journal entries.",
       activityIntroDemo:
@@ -55,11 +55,11 @@ export function getPersonaCopy(persona: Persona): PersonaCopy {
     activityLink: "View audit trail →",
     memoryPageTitle: "What Siki Remembers",
     memoryPageIntro:
-      "Siki uses Supermemory Local to recall past conversations, customer payment patterns, and your preferences across sessions. Everything here is stored on your machine — you can inspect and delete any memory at any time.",
+      "Siki uses her local memory to recall past conversations, customer payment patterns, and your preferences across sessions. Everything here is stored on your machine — you can inspect and delete any memory at any time.",
     memoryEmpty:
       "Have a conversation with Siki and check back — memories are extracted and indexed after each session.",
     memoryUnavailable:
-      "Siki is working without memory — every session starts fresh. Start Supermemory Local to enable persistent memory and semantic tax RAG.",
+      "Siki is working without memory — every session starts fresh. Persistent memory and semantic tax search are unavailable right now.",
     activityIntroLive:
       "Everything Siki has done in this session — queries, tool calls, and journal entries.",
     activityIntroDemo:

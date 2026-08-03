@@ -100,7 +100,7 @@ async def data_export(
 
         # Memories from Supermemory
         try:
-            from src.services.supermemory import (
+            from src.services.memory import (
                 is_available as _sm_available,
                 memory_container_tag,
                 list_memories,
@@ -198,7 +198,7 @@ async def data_delete(request: Request, session_id: str = Depends(get_session_id
     from src.services.connectors import get_connector
     from src.services.payment_store import delete_session_data
     from src.services import chase_store
-    from src.services.supermemory import memory_container_tag
+    from src.services.memory import memory_container_tag
     from src.services.payment_store import get_user_for_session
 
     _check_rate_limit(request)
@@ -210,7 +210,7 @@ async def data_delete(request: Request, session_id: str = Depends(get_session_id
         counts["chase_sequences"] = chase_store.delete_for_session(session_id)
         # Also delete memories from Supermemory
         try:
-            from src.services.supermemory import is_available as _sm_available, list_memories, delete_memory
+            from src.services.memory import is_available as _sm_available, list_memories, delete_memory
 
             if _sm_available():
                 _user = get_user_for_session(session_id)

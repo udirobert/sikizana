@@ -16,11 +16,12 @@ async def root():
 
 @router.get("/api/health")
 async def health():
-    from src.services.supermemory import is_available as _sm_available
+    from src.services.memory import BACKEND, is_available as _sm_available
 
     return {
         "status": "healthy",
         "db_version": get_db_version(),
         "agent_available": True,
-        "supermemory": _sm_available(),
+        "memory": _sm_available(),
+        "memory_backend": BACKEND,
     }
