@@ -9,20 +9,21 @@ import { endpoints } from "@/lib/api";
 /**
  * /cafe — Siki's Monday Briefing (hackathon spike: Matcha Mochi, City Road).
  *
- * Progressive-disclosure layout: a café owner isn't an analyst. Three
- * numbered beats — what's moving, the money hiding, what to do Monday —
- * each one dominant element per screen. Everything expert-level lives
- * under collapsed <details>. Final rail turns curiosity into agency:
- * the till is theirs already; the books can be too.
+ * Hierarchy: promise → three moves for Monday → one primary CTA → review the
+ * order → evidence. A café owner wants "what should I order, promote, or stop
+ * selling — and how much is it worth?" first; charts, sources and methodology
+ * sit lower, and demo provenance lives in a collapsed section at the end.
  *
  * Production serves a frozen snapshot (no standing agent dependency); the
- * Manus run that wrote the copy is linked, public, and replayable.
+ * Manus run that wrote the copy is linked in "How this demo was made".
  */
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:8080";
 
 type Move = {
-  item: string; pct_change: number; units_per_week: number; weekly: number[];
+  item: string; pct_change: number; units_per_week: number;
+  abs_delta?: number;  // mean(last 4 wks) − mean(prior 4 wks), in units
+  weekly: number[];
 };
 type Briefing = {
   cafe: { name: string; pos: string; uploaded?: boolean };
@@ -34,7 +35,7 @@ type Briefing = {
     };
     risers: Move[];
     fallers: Move[];
-    attach: { rate: number; weekly_opportunity_gbp: number; matcha_transactions: number };
+    attach: { rate: number; weekly_opportunity_gbp: number; matcha_transactions: number; with_treat?: number };
     daypart_share: Record<string, number>;
     top_items_by_revenue: { item: string; revenue_gbp: number }[];
     rhythm: {
@@ -77,6 +78,63 @@ type LocalityPack = {
 };
 
 const LOCALITY_KEY = "sikizana.cafeLocality";
+
+const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
+
+/** Naive suggested order: recent weekly sales (mean of last 4 weeks) adjusted
+ *  by the observed monthly trend, rounded to nearest 5, floored at 0.
+ *  Deliberately simple — no stock, recipes, or pack sizes are known. */
+const suggestUnits = (m: Move) =>
+  Math.max(0, Math.round((m.units_per_week + (m.abs_delta ?? 0)) / 5) * 5);
+
+/** Shared CSV upload: staged parse receipt, then swap the briefing in. */
+function useCsvUpload(onUploaded: (b: Briefing) => void) {
+  const [parsing, setParsing] = useState<string[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const staged = (lines: string[]) => {
+    setParsing([]);
+    lines.forEach((l, i) => setTimeout(() => setParsing((p) => [...(p ?? []), l]), 320 * (i + 1)));
+  };
+
+  const upload = async (file: File) => {
+    setBusy(true); setError(null);
+    staged([`reading ${file.name}…`, `mapping columns…`, `counting tills…`, `computing weekly deltas…`]);
+    try {
+      const fd = new FormData();
+      fd.append("file", file, file.name);
+      const res = await fetch(`${API_BASE}/api/cafe/analyse`, { method: "POST", body: fd });
+      const b = await res.json().catch(() => ({}));
+      if (!res.ok || b.error) throw new Error(b.error || `HTTP ${res.status}`);
+      const bb = b as Briefing;
+      staged([
+        `found ${bb.sell.totals.transactions.toLocaleString()} transactions`,
+        `window ${bb.sell.window.start} → ${bb.sell.window.end}`,
+        `columns mapped ✓ ${bb.sell.totals.transactions.toLocaleString()} tills`,
+        `computing weekly deltas ✓`,
+      ]);
+      setTimeout(() => { setParsing(null); onUploaded(bb); }, 1400);
+    } catch (e) {
+      setParsing(null);
+      setError(e instanceof Error ? e.message : "couldn’t parse that export");
+    }
+    setBusy(false);
+  };
+
+  return { parsing, busy, error, upload };
+}
+
+function ParsingReceipt({ parsing }: { parsing: string[] | null }) {
+  if (!parsing) return null;
+  return (
+    <div className="mt-3 rounded-2xl bg-stone-50 p-4">
+      {parsing.map((l, i) => (
+        <p key={i} className="text-xs text-stone-600">✓ {l}</p>
+      ))}
+    </div>
+  );
+}
 
 /** Personalisation: café name + postcode -> locality pack (seeded real packs
  *  first, live Exa search elsewhere). Persisted locally; feeds Siki's context. */
@@ -151,60 +209,27 @@ function LocalityCard({ pack, onPack }: { pack: LocalityPack | null; onPack: (p:
   );
 }
 
-/** Stage 0 — where the story comes from. The input step + the thought
- *  process they asked for: pick a source, watch the parse receipt tick. */
+/** Data provenance: demo twin, Xero demo books, or the visitor's own export.
+ *  Lives late on the page — it explains how the demo was sourced, not why
+ *  the product matters. */
 function SourceChooser({
-  data, onUploaded, onNote,
+  data, onUploaded,
 }: {
   data: Briefing;
   onUploaded: (b: Briefing) => void;
-  onNote: (m: string | null) => void;
 }) {
-  const [parsing, setParsing] = useState<string[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { parsing, busy, error, upload } = useCsvUpload(onUploaded);
+  const [note, setNote] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const staged = (lines: string[]) => {
-    setParsing([]);
-    lines.forEach((l, i) => setTimeout(() => setParsing((p) => [...(p ?? []), l]), 320 * (i + 1)));
-  };
-
-  const upload = async (file: File) => {
-    setBusy(true); setError(null); onNote(null);
-    staged([`reading ${file.name}…`, `mapping columns…`, `counting tills…`, `computing weekly deltas…`]);
-    try {
-      const fd = new FormData();
-      fd.append("file", file, file.name);
-      const res = await fetch(`${API_BASE}/api/cafe/analyse`, { method: "POST", body: fd });
-      const b = await res.json().catch(() => ({}));
-      if (!res.ok || b.error) throw new Error(b.error || `HTTP ${res.status}`);
-      const bb = b as Briefing;
-      staged([
-        `found ${bb.sell.totals.transactions.toLocaleString()} transactions`,
-        `window ${bb.sell.window.start} → ${bb.sell.window.end}`,
-        `columns mapped ✓ ${bb.sell.totals.transactions.toLocaleString()} tills`,
-        `computing weekly deltas ✓`,
-      ]);
-      setTimeout(() => { setParsing(null); onUploaded(bb); }, 1400);
-    } catch (e) {
-      setParsing(null);
-      setError(e instanceof Error ? e.message : "couldn’t parse that export");
-    }
-    setBusy(false);
-  };
 
   const card = "flex-1 min-w-44 rounded-2xl border border-stone-200 bg-white p-4 text-left transition-colors hover:border-sky-300";
   return (
-    <section className="mt-4 rounded-3xl border border-stone-200 p-5 shadow-sm md:p-6">
-      <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
-        Stage 0 — where this café’s story comes from
-      </p>
+    <div>
       <div className="mt-3 flex flex-wrap gap-3">
         <button
           className={card}
           onClick={() =>
-            onNote(
+            setNote(
               "149,116 real-world till rows (Maven Analytics’ coffee-shop dataset, 3 NYC cafés, Jan–Jun 2023), reshaped into this twin window. Read by our parser, ticked off by the agent.",
             )
           }
@@ -215,7 +240,7 @@ function SourceChooser({
         <button
           className={card}
           onClick={() =>
-            onNote(
+            setNote(
               `${data.spend.by_supplier_gbp.length} supplier bills, rent and energy from the Xero demo org — the books side of the same café (period ${data.spend.period}).`,
             )
           }
@@ -245,16 +270,13 @@ function SourceChooser({
         </label>
       </div>
       {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
-      {parsing && (
-        <div className="mt-3 rounded-2xl bg-stone-50 p-4">
-          {parsing.map((l, i) => (
-            <p key={i} className="text-xs text-stone-600">
-              ✓ {l}
-            </p>
-          ))}
-        </div>
+      <ParsingReceipt parsing={parsing} />
+      {note && (
+        <p className="mt-2 rounded-xl bg-stone-100 px-4 py-2.5 text-xs leading-relaxed text-stone-500">
+          {note}
+        </p>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -262,8 +284,6 @@ const MIX_COLORS: Record<string, string> = {
   Coffee: "bg-stone-700", Matcha: "bg-emerald-500", Bakery: "bg-orange-400",
   Tea: "bg-sky-400", Chocolate: "bg-amber-700", Retail: "bg-stone-300",
   "Add-ons": "bg-stone-200", };
-
-const gbp = (n: number) => Math.round(n).toLocaleString("en-GB");
 
 /** Live Siki chat: owner's questions answered against COMPUTED facts (injected
  *  context) by the production bookkeeper agent — no Manus dependency, and the
@@ -400,7 +420,6 @@ export default function CafeBriefingPage() {
   const [data, setData] = useState<Briefing | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pack, setPack] = useState<LocalityPack | null>(null);
-  const [sourceNote, setSourceNote] = useState<string | null>(null);
   const tries = useRef(0);
 
   // ---------- deck (present) mode ----------
@@ -476,7 +495,10 @@ export default function CafeBriefingPage() {
   }, [deck, data, pack]);
 
   // ----- interactive instrument state (client-side only) -----
-  const [attachPct, setAttachPct] = useState(8);           // slider, %
+  // Conservative editable starting target: 12% floor, or just above the café's
+  // own attach rate so the scenario is always a genuine uplift.
+  const [attachPct, setAttachPct] = useState(12);
+  const attachTouched = useRef(false);
   const [ownWeekly, setOwnWeekly] = useState<number | null>(null);   // owner override
   const [ownTreat, setOwnTreat] = useState<number | null>(null);     // £ treat price
   const [ownRate, setOwnRate] = useState<number | null>(null);       // their attach %
@@ -509,6 +531,17 @@ export default function CafeBriefingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Seat the slider just above the café's own attach rate (12% floor),
+  // unless the user already picked a target themselves.
+  useEffect(() => {
+    if (!data || attachTouched.current) return;
+    const rate = (data.sell.attach.rate ?? 0) * 100;
+    setAttachPct(Math.max(12, Math.min(40, Math.ceil(rate) + 2)));
+  }, [data]);
+
+  // hero upload affordance (secondary path into the same parse pipeline)
+  const heroUpload = useCsvUpload((b) => setData(b));
+
   if (error) {
     return <main className="mx-auto max-w-3xl p-10 text-sm text-stone-500">Couldn’t load the briefing ({error}).</main>;
   }
@@ -516,12 +549,54 @@ export default function CafeBriefingPage() {
     return <main className="mx-auto max-w-3xl p-10 text-sm text-stone-400">Siki is reading this week’s tills…</main>;
   }
 
-  const { sell, spend, copy, nudges, manus } = data;
+  const { sell, spend, copy, nudges } = data;
   const riser = sell.risers[0];
   const faller = sell.fallers[0];
-  const agentLink = manus.share_url || manus.task_url;
-  const doNudges = (copy.nudges?.length ? copy.nudges : nudges).slice(0, 3);
+  const agentLink = data.manus.share_url || data.manus.task_url;
   const uploaded = Boolean(data.cafe.uploaded);
+
+  // ----- the three moves, built from structured facts -----
+  const nudgePool = [...(copy.nudges ?? []), ...nudges];
+  const pickNudge = (...keys: string[]) =>
+    nudgePool.find((n) => keys.every((k) => `${n.title} ${n.rationale}`.toLowerCase().includes(k)));
+
+  const attachOpp = sell.attach.weekly_opportunity_gbp;
+  const hasMatcha = sell.attach.matcha_transactions > 0;
+  const weeklyMatchaBase = hasMatcha ? sell.attach.matcha_transactions / sell.window.weeks : 0;
+  const currentPct = sell.attach.rate * 100;
+  const benchmarkPct = Math.round(data.benchmarks.attach * 100);
+  const gapPts = data.benchmarks.attach * 100 - currentPct;
+  const BACKEND_TREAT_GBP = 5.0; // weekly_opportunity_gbp is computed server-side at ~£5/treat
+
+  type MoveCard = { title: string; stat: string; why?: string; impact: number | null };
+  const moves: MoveCard[] = [
+    ...(riser
+      ? [{
+          title: `Stock up for ${riser.item}`,
+          stat: `Demand rose ${riser.pct_change}% — it now averages ~${riser.units_per_week}/week over the last month`,
+          why: pickNudge("stock")?.rationale,
+          impact: null,
+        }]
+      : []),
+    ...(hasMatcha
+      ? [{
+          title: "Pair a pastry with matcha",
+          stat: attachOpp > 0
+            ? `Only ${currentPct.toFixed(1)}% of matcha orders include one${sell.attach.with_treat != null ? ` (${sell.attach.with_treat.toLocaleString()} of ${sell.attach.matcha_transactions.toLocaleString()})` : ""}`
+            : `${currentPct.toFixed(1)}% of matcha orders already include one — at or above the indicative ${benchmarkPct}% benchmark`,
+          why: pickNudge("treat")?.rationale ?? pickNudge("bundle")?.rationale,
+          impact: attachOpp > 0 ? attachOpp : null,
+        }]
+      : []),
+    ...(faller
+      ? [{
+          title: `Reduce ${faller.item}`,
+          stat: `Weekly sales fell ${Math.abs(faller.pct_change)}% — now ~${faller.units_per_week}/week, a waste risk on perishables`,
+          why: pickNudge("loaf")?.rationale ?? pickNudge("banana")?.rationale,
+          impact: null,
+        }]
+      : []),
+  ].slice(0, 3);
 
   // ----- real actions, not dead ends -----
   const supplierEmail = spend.by_supplier_gbp.find((s) => s.email)?.email ?? "";
@@ -529,19 +604,21 @@ export default function CafeBriefingPage() {
     const subject = encodeURIComponent(`This week's order — draft for review`);
     const body = encodeURIComponent(
       (copy.supplier_email_draft ||
-        `Hi,\n\nBased on this week's sales, we'd like to adjust our order:\n- ${doNudges.map((n) => n.title).join("\n- ")}\n\nThanks,`).slice(0, 1800),
+        `Hi,\n\nBased on this week's sales, we'd like to adjust our order:\n- ${moves.map((n) => n.title).join("\n- ")}\n\nThanks,`).slice(0, 1800),
     );
     return `mailto:${supplierEmail}?subject=${subject}&body=${body}`;
   };
+  const orderMoves = [...sell.risers.slice(0, 3), ...sell.fallers.slice(0, 2)];
+
   const downloadOrderCsv = () => {
-    const rows: string[][] = [["Item", "Suggested units this week", "Change vs last month", "Note"]];
+    const rows: string[][] = [["Item", "Recent weekly sales", "Suggested units this week", "Change vs last month", "Note"]];
     sell.risers.slice(0, 3).forEach((r) =>
-      rows.push([r.item, String(r.units_per_week), `+${r.pct_change}%`, "rising — raise the order"]),
+      rows.push([r.item, String(r.units_per_week), String(suggestUnits(r)), `+${r.pct_change}%`, "rising — check stock covers this"]),
     );
     sell.fallers.slice(0, 2).forEach((f) =>
-      rows.push([f.item, String(f.units_per_week), `${f.pct_change}%`, "falling — cut the order"]),
+      rows.push([f.item, String(f.units_per_week), String(suggestUnits(f)), `${f.pct_change}%`, "falling — consider trimming the order"]),
     );
-    rows.push(["Oat milk", "—", `${(sell.modifiers.oat_milk_share * 100).toFixed(0)}% of lattes`, "supply accordingly"]);
+    rows.push(["Oat milk", "—", "—", `${(sell.modifiers.oat_milk_share * 100).toFixed(0)}% of lattes`, "supply accordingly"]);
     const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a");
@@ -552,9 +629,9 @@ export default function CafeBriefingPage() {
   };
 
   // ----- attach-gap instrument (the report becomes an instrument) -----
-  const weeklyMatcha = ownWeekly ?? sell.attach.matcha_transactions / sell.window.weeks;
+  const weeklyMatcha = ownWeekly ?? weeklyMatchaBase;
   const treatPrice = ownTreat ?? 5.0;
-  const baseRate = (ownRate ?? sell.attach.rate * 100);
+  const baseRate = (ownRate ?? currentPct);
   const upliftWeek = Math.max(0, attachPct - baseRate) / 100 * weeklyMatcha * treatPrice;
   const upliftYear = upliftWeek * 52;
 
@@ -565,101 +642,351 @@ export default function CafeBriefingPage() {
         className={deck ? "fixed inset-0 z-50 overflow-hidden bg-stone-50" : "mx-auto max-w-3xl px-6 pb-16 pt-10"}
       >
 
-        {/* -------------------- hook -------------------- */}
+        {/* -------------------- 1 · promise -------------------- */}
         <header className="flex items-start gap-5">
-          <SikiMascot size={84} mood={manus.status === "done" ? "celebrate" : "look"} className="mt-1 shrink-0" />
+          <SikiMascot size={84} mood={data.manus.status === "done" ? "celebrate" : "look"} className="mt-1 shrink-0" />
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-widest text-sky-700">
               Siki’s Monday Briefing · {pack?.cafe?.name || pack?.visitor_cafe_name || data.cafe.name}
             </p>
             <h1 className="mt-1.5 text-2xl font-semibold leading-snug md:text-3xl">
-              {copy.headline}
+              Know what to order, promote, and cut this week
             </h1>
-            <p className="mt-2 text-sm text-stone-500">
-              I read {sell.window.weeks} weeks of tills ({sell.window.start} → {sell.window.end}).
-              Three numbers tell the story.
+            <p className="mt-2 text-sm leading-relaxed text-stone-500">
+              {copy.headline} I read {sell.window.weeks} weeks of tills
+              ({sell.window.start} → {sell.window.end}) and turned them into three moves.
             </p>
-            {data.verification && data.verification.length > 0 && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700"
-                 title={data.verification.map((v) => `${v.claim} — ${v.note}`).join("\n")}>
-                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-emerald-600"><path d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5L12.3 5z"/></svg>
-                {data.verification.filter((v) => v.verified).length}/{data.verification.length} figures
-                independently re-computed from the raw tills by the agent{" "}
-                {agentLink && <a href={agentLink} target="_blank" rel="noreferrer" className="underline">(watch)</a>}
-              </p>
-            )}
           </div>
         </header>
 
-        <SourceChooser
-          data={data}
-          onNote={setSourceNote}
-          onUploaded={(b) => { setData(b); }}
-        />
-        {sourceNote && (
-          <p className="mt-2 rounded-xl bg-stone-100 px-4 py-2.5 text-xs leading-relaxed text-stone-500">
-            {sourceNote}
-          </p>
-        )}
-        {uploaded && (
-          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-            ✦ your export — every figure on this page is now yours (spend figures stay from the demo books)
-          </p>
-        )}
-
-        <LocalityCard pack={pack} onPack={setPack} />
-
-        {/* neighbourhood section — appears once localised */}
-        {pack && (
-          <section className="mt-4 rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
-              Your corner of the map{pack.cafe ? ` — ${pack.area}` : ""}
-            </p>
-            {pack.cafe && <p className="mt-1 text-sm text-stone-600">{pack.cafe.blurb}</p>}
-            <ul className="mt-2 space-y-1.5 text-sm">
-              {pack.competitors.map((c) => (
-                <li key={c.name} className="flex items-baseline gap-2">
-                  <span className="font-medium text-stone-800">
-                    {c.url ? <a href={c.url} target="_blank" rel="noreferrer" className="underline decoration-sky-400">{c.name} ↗</a> : c.name}
+        {/* -------------------- 2 · your three moves -------------------- */}
+        <section className="mt-8 scroll-mt-8 rounded-3xl border border-sky-200 bg-sky-50/50 p-6 shadow-sm md:p-7" id="three-moves">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="text-lg font-semibold text-sky-950">Your {moves.length === 3 ? "three" : moves.length > 1 ? moves.length : ""} move{moves.length === 1 ? "" : "s"} for Monday</h2>
+            {attachOpp > 0 && (
+              <p className="text-sm font-medium text-sky-800">
+                Potential impact:{" "}
+                up to <span className="font-semibold tabular-nums">£{gbp(attachOpp)}/week</span>{" "}
+                in additional revenue*
+              </p>
+            )}
+          </div>
+          <div className="mt-4 space-y-3">
+            {moves.map((m, i) => (
+              <div key={i} className="rounded-2xl border border-sky-100 bg-white p-4">
+                <div className="flex items-baseline gap-2">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-600 text-[11px] font-bold text-white">
+                    {i + 1}
                   </span>
-                  <span className="text-xs text-stone-500">{c.note}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[11px] italic text-stone-400">{pack.source_note}</p>
-          </section>
-        )}
+                  <p className="font-semibold text-sky-950">{m.title}</p>
+                  {m.impact != null && m.impact > 0 && (
+                    <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums text-sky-700">
+                      £{gbp(m.impact)}/wk
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 pl-7 text-sm leading-relaxed text-stone-600">{m.stat}</p>
+                {m.why && (
+                  <details className="ml-7 mt-1">
+                    <summary className="cursor-pointer text-xs font-medium text-sky-700 underline decoration-sky-300">
+                      Why?
+                    </summary>
+                    <p className="mt-1.5 text-xs leading-relaxed text-stone-500">{m.why}</p>
+                  </details>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <a
+              href="#weekly-order"
+              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              Review this week’s order ↓
+            </a>
+            <a
+              href="#evidence"
+              className="rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+            >
+              See how Siki calculated this
+            </a>
+          </div>
+          <p className="mt-3 text-xs text-stone-500">
+            {attachOpp > 0 &&
+              "*Estimated revenue, before costs — the target attach rate is an indicative benchmark, not a guarantee. "}
+            Recommendations only: you approve every download, message, or change.
+          </p>
+          <div className="mt-2 text-xs text-stone-400">
+            {uploaded ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 font-semibold text-emerald-800">
+                ✦ Your export — the till analysis now runs on your data. Spend and benchmarks stay from the demo books.
+              </span>
+            ) : (
+              <>
+                This is the demo briefing —{" "}
+                <label className={`cursor-pointer font-medium text-sky-700 underline ${heroUpload.busy ? "opacity-50 pointer-events-none" : ""}`}>
+                  or upload my Square Item Sales CSV
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) heroUpload.upload(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              </>
+            )}
+          </div>
+          {heroUpload.error && <p className="mt-2 text-xs text-rose-600">{heroUpload.error}</p>}
+          <ParsingReceipt parsing={heroUpload.parsing} />
+        </section>
 
-        {/* -------------------- beat 1: what's moving -------------------- */}
-        {riser && (
-          <section className="mt-10 scroll-mt-8 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
-            <BeatLabel n="01" text="one thing is taking off" />
-            <div className="mt-3 flex items-baseline gap-2">
+        {/* -------------------- 3 · review this week's order -------------------- */}
+        <section className="mt-6 scroll-mt-8 rounded-3xl border border-orange-200 bg-orange-50/40 p-6 shadow-sm md:p-7" id="weekly-order">
+          <BeatLabel n="→" text="this week’s ordering guide — review, then act" />
+          <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            Suggested units are deliberately naive: recent weekly sales adjusted by the observed
+            monthly trend, rounded to the nearest 5. Siki can’t see your stock, recipes, or pack
+            sizes — treat them as a starting point and set the final order yourself. Siki also
+            drafts the supplier message. Nothing is sent or changed — in Xero or anywhere
+            else — until you review and approve it.
+          </p>
+          {orderMoves.length > 0 && (
+            <table className="mt-4 w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wider text-stone-400">
+                  <th className="pb-2 font-medium">Item</th>
+                  <th className="pb-2 text-right font-medium">Recent/wk</th>
+                  <th className="pb-2 text-right font-medium">Suggested</th>
+                  <th className="hidden pb-2 text-right font-medium sm:table-cell">Month</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {orderMoves.map((m) => {
+                  const rising = m.pct_change > 0;
+                  const suggested = suggestUnits(m);
+                  return (
+                    <tr key={m.item}>
+                      <td className="py-2 pr-2 text-stone-800">{m.item}</td>
+                      <td className="py-2 text-right tabular-nums text-stone-500">{m.units_per_week}</td>
+                      <td className={`py-2 text-right font-semibold tabular-nums ${rising ? "text-emerald-700" : "text-rose-600"}`}>
+                        {suggested}
+                        {suggested !== m.units_per_week && (
+                          <span className="ml-1 text-[10px] font-normal">
+                            ({suggested > m.units_per_week ? "+" : "−"}{Math.abs(suggested - m.units_per_week)})
+                          </span>
+                        )}
+                      </td>
+                      <td className={`hidden py-2 text-right tabular-nums sm:table-cell ${rising ? "text-emerald-700" : "text-rose-600"}`}>
+                        {rising ? "+" : ""}{m.pct_change}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <a
+              href={mailtoHref()}
+              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              ✉ Email {supplierEmail ? "your supplier" : "the drafted order"}
+            </a>
+            <button
+              onClick={downloadOrderCsv}
+              className="rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
+            >
+              ⬇ Download this week’s order (.csv)
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] text-stone-400">
+            The CSV lists each rising and falling item with recent weekly sales, the naive suggested
+            units (sales + observed trend), monthly change, and why.
+          </p>
+          {copy.supplier_email_draft && (
+            <details className="mt-3 rounded-2xl border border-dashed border-stone-300 bg-white/70 px-4 py-3">
+              <summary className="cursor-pointer text-sm font-medium text-stone-700">
+                The drafted email — review before anything sends
+              </summary>
+              <pre className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl bg-stone-50 p-4 text-xs leading-relaxed text-stone-700">
+                {copy.supplier_email_draft}
+              </pre>
+              <p className="mt-2 text-xs text-stone-400">Siki drafts, you press send — always.</p>
+            </details>
+          )}
+
+          {/* the instrument — only meaningful where matcha transactions exist */}
+          {hasMatcha ? (
+          <>
+          <div className="mt-5 rounded-2xl border border-orange-200 bg-white p-5">
+            <div className="flex items-baseline justify-between">
+              <label htmlFor="attach" className="text-sm font-medium text-stone-800">
+                If {attachPct}% of matcha drinks left with a pastry…
+              </label>
+              <span className="text-sm font-semibold tabular-nums text-orange-800">{attachPct}%</span>
+            </div>
+            <input
+              id="attach"
+              type="range"
+              min={2}
+              max={40}
+              value={attachPct}
+              onChange={(e) => { attachTouched.current = true; setAttachPct(Number(e.target.value)); }}
+              className="mt-2 w-full accent-orange-500"
+            />
+            <div className="mt-2 flex items-baseline gap-2">
               <AnimatedNumber
-                value={riser.weekly[riser.weekly.length - 1]}
-                className="text-5xl font-semibold tabular-nums text-emerald-950"
+                value={Math.round(upliftWeek)}
+                prefix="+£"
+                className="text-4xl font-semibold tabular-nums text-orange-800"
               />
-              <span className="text-sm text-stone-500">{riser.item} last week</span>
-              <span className="ml-auto rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
-                +{riser.pct_change}% this month
+              <span className="text-sm text-stone-500">a week, estimated revenue</span>
+              <span className="ml-auto text-sm font-medium tabular-nums text-stone-500">
+                ≈ £{gbp(upliftYear)} a year
               </span>
             </div>
-            <Sparkline data={riser.weekly} color="green" animate className="mt-4 h-24 w-full" />
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">{copy.sell_summary}</p>
-            {faller && (
-              <div className="mt-4 flex items-center gap-3 rounded-2xl bg-rose-50/70 px-4 py-3 text-sm">
-                <span className="truncate text-rose-950">▼ {faller.item}</span>
-                <span className="ml-auto shrink-0 font-semibold tabular-nums text-rose-600">
-                  {faller.pct_change}% · {faller.units_per_week}/wk
+            <p className="mt-1 text-xs text-stone-400">
+              {Math.round(weeklyMatcha)} weekly matcha orders × {Math.max(0, attachPct - baseRate).toFixed(1)}-point
+              gain × £{treatPrice.toFixed(2)} average pastry · today’s attach rate: {baseRate.toFixed(0)}% ·
+              {attachPct}% is a starting scenario — drag to explore
+            </p>
+          </div>
+
+          <details className="mt-3 rounded-2xl border border-dashed border-orange-300 bg-white/70 px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium text-stone-700">
+              Got your own rough numbers? Drop them in
+            </summary>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <label className="block">
+                <span className="text-[11px] text-stone-500">matcha drinks / week</span>
+                <input
+                  type="number"
+                  min={0}
+                  defaultValue={Math.round(weeklyMatcha)}
+                  onChange={(e) => setOwnWeekly(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-stone-500">price of a pastry, £</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  defaultValue={treatPrice}
+                  onChange={(e) => setOwnTreat(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[11px] text-stone-500">you think you attach, %</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  defaultValue={Math.round(baseRate)}
+                  onChange={(e) => setOwnRate(e.target.value ? Number(e.target.value) : null)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
+                />
+              </label>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
+              Nothing you type leaves this page — the maths runs on your device.
+            </p>
+          </details>
+          </>
+          ) : (
+            <p className="mt-5 rounded-2xl bg-stone-100 px-4 py-3 text-xs leading-relaxed text-stone-500">
+              No matcha-drink attach pattern was detected in this export, so there’s no
+              attach-rate scenario to size.
+            </p>
+          )}
+        </section>
+
+        {/* -------------------- 4 · the evidence -------------------- */}
+        <section className="mt-6 scroll-mt-8 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7" id="evidence">
+          {attachOpp > 0 ? (
+            <>
+              <BeatLabel n="£" text="the evidence behind the pastry pairing" />
+              <div className="mt-3 flex items-baseline gap-2">
+                <AnimatedNumber
+                  value={attachOpp}
+                  prefix="£"
+                  suffix="/week"
+                  className="text-5xl font-semibold tabular-nums text-sky-800"
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-stone-400">estimated additional revenue, before ingredient costs</p>
+              <p className="mt-2 text-sm leading-relaxed text-stone-600">
+                <b>{currentPct.toFixed(1)}%</b> of matcha drinks leave with a pastry. Scenario: lifting that
+                to {benchmarkPct}% — an indicative café benchmark, not a guarantee — is worth the figure above.
+              </p>
+              <p className="mt-2 rounded-xl bg-stone-50 px-3 py-2 text-xs leading-relaxed text-stone-500">
+                ~{Math.round(weeklyMatchaBase)} weekly matcha orders × {gapPts.toFixed(1)} percentage-point gap
+                × £{BACKEND_TREAT_GBP.toFixed(2)} average pastry ≈ £{gbp(attachOpp)}/week
+              </p>
+              {/* two-bar comparison */}
+              <div className="mt-4 space-y-2">
+                <div>
+                  <div className="flex justify-between text-[11px] text-stone-500">
+                    <span>This café</span><span>{currentPct.toFixed(1)}%</span>
+                  </div>
+                  <div className="mt-1 h-2.5 w-full rounded-full bg-stone-100">
+                    <div className="h-2.5 rounded-full bg-orange-400" style={{ width: `${currentPct}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between text-[11px] text-stone-500">
+                    <span>Indicative benchmark</span><span>{benchmarkPct}%</span>
+                  </div>
+                  <div className="mt-1 h-2.5 w-full rounded-full bg-stone-100">
+                    <div className="h-2.5 rounded-full bg-stone-400" style={{ width: `${data.benchmarks.attach * 100}%` }} />
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm leading-relaxed text-stone-600">
+              {hasMatcha
+                ? `Matcha attach rate is ${currentPct.toFixed(1)}% — at or above the indicative ${benchmarkPct}% benchmark, so no pastry-pairing gap was detected.`
+                : "No matcha-drink attach pattern was detected in this export, so the evidence here is the sales trend alone."}
+            </p>
+          )}
+
+          {riser && (
+            <div className="mt-6 border-t border-stone-100 pt-5">
+              <BeatLabel n="01" text="what’s moving" />
+              <div className="mt-3 flex items-baseline gap-2">
+                <AnimatedNumber
+                  value={riser.units_per_week}
+                  className="text-4xl font-semibold tabular-nums text-emerald-950"
+                />
+                <span className="text-sm text-stone-500">{riser.item}/week, recent</span>
+                <span className="ml-auto rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800">
+                  +{riser.pct_change}% this month
                 </span>
               </div>
-            )}
-          </section>
-        )}
+              <Sparkline data={riser.weekly} color="green" animate className="mt-4 h-24 w-full" />
+              <p className="mt-3 text-sm leading-relaxed text-stone-600">{copy.sell_summary}</p>
+              {faller && (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl bg-rose-50/70 px-4 py-3 text-sm">
+                  <span className="truncate text-rose-950">▼ {faller.item}</span>
+                  <span className="ml-auto shrink-0 font-semibold tabular-nums text-rose-600">
+                    {faller.pct_change}% · {faller.units_per_week}/wk recent
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
 
-        {/* -------------------- rhythm heatmap + supply signals -------------------- */}
+        {/* -------------------- 5 · trading rhythm (supply signal) -------------------- */}
         <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
-          <BeatLabel n="·" text="the week has a shape" />
+          <BeatLabel n="·" text="when the rush hits — time the bake and the order" />
           <div className="mt-4 space-y-1">
             {sell.rhythm.grid.map((row, di) => {
               const max = Math.max(...sell.rhythm.grid.flat(), 1);
@@ -698,255 +1025,32 @@ export default function CafeBriefingPage() {
           </div>
         </section>
 
-        {/* -------------------- beat 2: money hiding -------------------- */}
-        <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
-          <BeatLabel n="02" text="money is hiding in the gap" />
-          <div className="mt-3 flex items-baseline gap-2">
-            <AnimatedNumber
-              value={sell.attach.weekly_opportunity_gbp}
-              prefix="£"
-              suffix="/week"
-              className="text-5xl font-semibold tabular-nums text-sky-800"
-            />
-          </div>
-          <p className="mt-2 text-sm leading-relaxed text-stone-600">
-            Only <b>{(sell.attach.rate * 100).toFixed(0)}%</b> of matcha drinks leave with a cake or
-            pastry. Typical cafés attach closer to {Math.round(data.benchmarks.attach * 100)}%
-            (indicative). Closing that gap is worth the number above.
-          </p>
-          {/* two-bar comparison */}
-          <div className="mt-4 space-y-2">
-            <div>
-              <div className="flex justify-between text-[11px] text-stone-500">
-                <span>This café</span><span>{(sell.attach.rate * 100).toFixed(0)}%</span>
-              </div>
-              <div className="mt-1 h-2.5 w-full rounded-full bg-stone-100">
-                <div className="h-2.5 rounded-full bg-orange-400" style={{ width: `${sell.attach.rate * 100}%` }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between text-[11px] text-stone-500">
-                <span>Typical café</span><span>{Math.round(data.benchmarks.attach * 100)}%</span>
-              </div>
-              <div className="mt-1 h-2.5 w-full rounded-full bg-stone-100">
-                <div className="h-2.5 rounded-full bg-stone-400" style={{ width: `${data.benchmarks.attach * 100}%` }} />
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* -------------------- 6 · localise + ask Siki -------------------- */}
+        <LocalityCard pack={pack} onPack={setPack} />
 
-        {/* -------------------- beat 3: do this -------------------- */}
-        <section className="mt-6 rounded-3xl border border-sky-200 bg-sky-50/50 p-6 shadow-sm md:p-7">
-          <BeatLabel n="03" text="three moves for Monday" />
-          <div className="mt-4 space-y-3">
-            {doNudges.map((n, i) => (
-              <div key={i} className="rounded-2xl border border-sky-100 bg-white p-4">
-                <div className="flex items-baseline gap-2">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-600 text-[11px] font-bold text-white">
-                    {i + 1}
-                  </span>
-                  <p className="font-semibold text-sky-950">{n.title}</p>
-                  {n.impact_gbp != null && n.impact_gbp > 0 && (
-                    <span className="ml-auto shrink-0 text-sm font-semibold tabular-nums text-sky-700">
-                      £{gbp(n.impact_gbp)}/wk
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1.5 pl-7 text-sm leading-relaxed text-stone-600">{n.rationale}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <a
-              href={mailtoHref()}
-              className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
-            >
-              ✉ Email {supplierEmail ? "your supplier" : "the drafted order"}
-            </a>
-            <button
-              onClick={downloadOrderCsv}
-              className="rounded-xl border border-sky-300 bg-white px-4 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
-            >
-              ⬇ This week’s order (.csv)
-            </button>
-          </div>
-          {copy.supplier_email_draft && (
-            <details className="mt-3 rounded-2xl border border-dashed border-stone-300 bg-white/70 px-4 py-3">
-              <summary className="cursor-pointer text-sm font-medium text-stone-700">
-                The drafted email — review before anything sends
-              </summary>
-              <pre className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl bg-stone-50 p-4 text-xs leading-relaxed text-stone-700">
-                {copy.supplier_email_draft}
-              </pre>
-              <p className="mt-2 text-xs text-stone-400">Siki drafts, you press send — always.</p>
-            </details>
-          )}
-        </section>
-
-        {/* -------------------- make it yours: the instrument -------------------- */}
-        <section className="mt-6 rounded-3xl border border-orange-200 bg-orange-50/50 p-6 shadow-sm md:p-7">
-          <BeatLabel n="→" text="your turn — drive the number" />
-          <div className="mt-4">
-            <div className="flex items-baseline justify-between">
-              <label htmlFor="attach" className="text-sm font-medium text-stone-800">
-                If {attachPct}% of matcha drinks left with a cake…
-              </label>
-              <span className="text-sm font-semibold tabular-nums text-orange-800">{attachPct}%</span>
-            </div>
-            <input
-              id="attach"
-              type="range"
-              min={2}
-              max={40}
-              value={attachPct}
-              onChange={(e) => setAttachPct(Number(e.target.value))}
-              className="mt-2 w-full accent-orange-500"
-            />
-            <div className="mt-2 flex items-baseline gap-2">
-              <AnimatedNumber
-                value={Math.round(upliftWeek)}
-                prefix="+£"
-                className="text-4xl font-semibold tabular-nums text-orange-800"
-              />
-              <span className="text-sm text-stone-500">a week</span>
-              <span className="ml-auto text-sm font-medium tabular-nums text-stone-500">
-                ≈ £{gbp(upliftYear)} a year
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-stone-400">
-              vs the {baseRate.toFixed(0)}% this shop attaches today · ~{Math.round(weeklyMatcha)} matcha
-              drinks/week · £{treatPrice.toFixed(2)} a treat
+        {pack && (
+          <section className="mt-4 rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-widest text-stone-500">
+              Your corner of the map{pack.cafe ? ` — ${pack.area}` : ""}
             </p>
-          </div>
-
-          <details className="mt-4 rounded-2xl border border-dashed border-orange-300 bg-white/70 px-4 py-3">
-            <summary className="cursor-pointer text-sm font-medium text-stone-700">
-              Got your own rough numbers? Drop them in
-            </summary>
-            <div className="mt-3 grid grid-cols-3 gap-3">
-              <label className="block">
-                <span className="text-[11px] text-stone-500">matcha drinks / week</span>
-                <input
-                  type="number"
-                  min={0}
-                  defaultValue={Math.round(weeklyMatcha)}
-                  onChange={(e) => setOwnWeekly(e.target.value ? Number(e.target.value) : null)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[11px] text-stone-500">price of a cake, £</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  defaultValue={treatPrice}
-                  onChange={(e) => setOwnTreat(e.target.value ? Number(e.target.value) : null)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
-                />
-              </label>
-              <label className="block">
-                <span className="text-[11px] text-stone-500">you think you attach, %</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  defaultValue={Math.round(baseRate)}
-                  onChange={(e) => setOwnRate(e.target.value ? Number(e.target.value) : null)}
-                  className="mt-1 w-full rounded-lg border border-stone-200 px-2 py-1.5 text-sm tabular-nums"
-                />
-              </label>
-            </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-stone-400">
-              Nothing you type leaves this page — the maths runs on your device.
-            </p>
-          </details>
-        </section>
-
-        {/* -------------------- benchmark: what others charge -------------------- */}
-        {copy.competitor_prices && copy.competitor_prices.length > 0 && (
-          <section className="mt-6 rounded-3xl border border-stone-200 bg-white p-6 shadow-sm md:p-7">
-            <BeatLabel n="£" text="what others charge nearby" />
-            <ul className="mt-3 divide-y divide-stone-100">
-              {copy.competitor_prices.map((p, i) => (
-                <li key={i} className="flex items-baseline gap-2 py-2.5 text-sm">
-                  <span className="text-stone-800">{p.item}</span>
-                  <span className="ml-auto shrink-0 font-semibold tabular-nums text-stone-900">
-                    £{p.price_gbp.toFixed(2)}
+            {pack.cafe && <p className="mt-1 text-sm text-stone-600">{pack.cafe.blurb}</p>}
+            <ul className="mt-2 space-y-1.5 text-sm">
+              {pack.competitors.map((c) => (
+                <li key={c.name} className="flex items-baseline gap-2">
+                  <span className="font-medium text-stone-800">
+                    {c.url ? <a href={c.url} target="_blank" rel="noreferrer" className="underline decoration-sky-400">{c.name} ↗</a> : c.name}
                   </span>
-                  <a href={p.source_url} target="_blank" rel="noreferrer"
-                     className="shrink-0 text-xs text-sky-700 underline">
-                    {p.place} ↗
-                  </a>
+                  <span className="text-xs text-stone-500">{c.note}</span>
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-[11px] text-stone-400">
-              Found live by the agent on real menus · indicative, check before pricing decisions
-            </p>
+            <p className="mt-2 text-[11px] italic text-stone-400">{pack.source_note}</p>
           </section>
         )}
 
-        {/* -------------------- ask Siki: the agentic layer -------------------- */}
         <CafeChat briefing={data} pack={pack} />
 
-        {/* -------------------- marquee: made by Manus -------------------- */}
-        <section className="mt-6 rounded-3xl border border-violet-200 bg-violet-50/40 p-6 shadow-sm md:p-7">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-700">
-            Marquee moments — made by the Manus agent, from our numbers
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <figure className="overflow-hidden rounded-2xl border border-stone-200 bg-black">
-              <video
-                src="/cafe/week-in-review.mp4"
-                controls
-                muted
-                loop
-                playsInline
-                className="h-52 w-full object-cover"
-              />
-              <figcaption className="bg-white px-4 py-2 text-[11px] text-stone-500">
-                20-second “week in review”, directed + animated + rendered by the agent{" "}
-                <a href="https://manus.im/share/bakMWaULrS9jiAmYftqAHx?replay=1" target="_blank" rel="noreferrer"
-                   className="font-medium text-violet-700 underline">watch its run ↗</a>
-              </figcaption>
-            </figure>
-            <a
-              href="/cafe/monday-onepager.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="group flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 hover:border-violet-300"
-            >
-              <div>
-                <p className="font-semibold text-stone-900 group-hover:text-violet-800">
-                  The Monday one-pager (PDF)
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-stone-600">
-                  A café-zine A4 card: stat chips, week-by-week bars, the EL&N price check.
-                  Print it, pin it by the till.
-                </p>
-              </div>
-              <p className="mt-3 text-[11px] text-stone-400">
-                Designed by the agent in one pass{" "}
-                <span
-                  onClick={(e) => {
-                    e.preventDefault();
-                    window.open("https://manus.im/share/c9Fi5Anv4qDn3dz8asdMsJ?replay=1", "_blank");
-                  }}
-                  className="font-medium text-violet-700 underline cursor-pointer"
-                >
-                  watch its run ↗
-                </span>
-              </p>
-            </a>
-          </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-stone-400">
-            Both artefacts are served from this site (no standing dependency); the agent’s full
-            runs replay publicly at the links above.
-          </p>
-        </section>
-
-        {/* -------------------- the curious (collapsed) -------------------- */}
+        {/* -------------------- 7 · optional deeper analysis (collapsed) -------------------- */}
         <section className="mt-6 space-y-3">
           <details className="rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
             <summary className="cursor-pointer text-sm font-semibold text-stone-800">
@@ -1028,11 +1132,55 @@ export default function CafeBriefingPage() {
             </p>
           </details>
 
+          {copy.competitor_prices && copy.competitor_prices.length > 0 && (
+            <details className="rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+              <summary className="cursor-pointer text-sm font-semibold text-stone-800">
+                What others charge nearby
+              </summary>
+              <ul className="mt-3 divide-y divide-stone-100">
+                {copy.competitor_prices.map((p, i) => (
+                  <li key={i} className="flex items-baseline gap-2 py-2.5 text-sm">
+                    <span className="text-stone-800">{p.item}</span>
+                    <span className="ml-auto shrink-0 font-semibold tabular-nums text-stone-900">
+                      £{p.price_gbp.toFixed(2)}
+                    </span>
+                    <a href={p.source_url} target="_blank" rel="noreferrer"
+                       className="shrink-0 text-xs text-sky-700 underline">
+                      {p.place} ↗
+                    </a>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[11px] text-stone-400">
+                Found live by the agent on real menus · indicative, check before pricing decisions
+              </p>
+            </details>
+          )}
+
           <details className="rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
             <summary className="cursor-pointer text-sm font-semibold text-stone-800">
-              How this was made (the honest bit)
+              Data used in this briefing
+            </summary>
+            <SourceChooser
+              data={data}
+              onUploaded={(b) => { setData(b); }}
+            />
+          </details>
+
+          <details className="rounded-2xl border border-stone-200 bg-white px-5 py-4 shadow-sm">
+            <summary className="cursor-pointer text-sm font-semibold text-stone-800">
+              How this demo was made (the honest bit)
             </summary>
             <div className="mt-3 space-y-2 text-xs leading-relaxed text-stone-500">
+              {data.verification && data.verification.length > 0 && (
+                <p className="flex items-center gap-1.5 text-emerald-700"
+                   title={data.verification.map((v) => `${v.claim} — ${v.note}`).join("\n")}>
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-emerald-600"><path d="M6.2 11.2 2.9 7.9l1.1-1.1 2.2 2.2 5-5L12.3 5z"/></svg>
+                  {data.verification.filter((v) => v.verified).length}/{data.verification.length} figures
+                  independently re-computed from the raw tills by the agent{" "}
+                  {agentLink && <a href={agentLink} target="_blank" rel="noreferrer" className="underline">(watch)</a>}
+                </p>
+              )}
               <p>
                 Every number on this page was computed by deterministic code from a Square Item Sales
                 export — never by an AI. A Manus agent did three things only: wrote the words,
@@ -1062,12 +1210,62 @@ export default function CafeBriefingPage() {
                   {Object.entries(data.benchmarks.sources).map(([k, v]) => `${v.value} — ${v.source}`).join(" · ")}
                 </p>
               )}
+
+              {/* marquee artefacts, made by the agent */}
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <figure className="overflow-hidden rounded-2xl border border-stone-200 bg-black">
+                  <video
+                    src="/cafe/week-in-review.mp4"
+                    controls
+                    muted
+                    loop
+                    playsInline
+                    className="h-52 w-full object-cover"
+                  />
+                  <figcaption className="bg-white px-4 py-2 text-[11px] text-stone-500">
+                    20-second “week in review”, directed + animated + rendered by the agent{" "}
+                    <a href="https://manus.im/share/bakMWaULrS9jiAmYftqAHx?replay=1" target="_blank" rel="noreferrer"
+                       className="font-medium text-violet-700 underline">watch its run ↗</a>
+                  </figcaption>
+                </figure>
+                <a
+                  href="/cafe/monday-onepager.pdf"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex flex-col justify-between rounded-2xl border border-stone-200 bg-white p-5 hover:border-violet-300"
+                >
+                  <div>
+                    <p className="font-semibold text-stone-900 group-hover:text-violet-800">
+                      The Monday one-pager (PDF)
+                    </p>
+                    <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                      A café-zine A4 card: stat chips, week-by-week bars, the EL&N price check.
+                      Print it, pin it by the till.
+                    </p>
+                  </div>
+                  <p className="mt-3 text-[11px] text-stone-400">
+                    Designed by the agent in one pass{" "}
+                    <span
+                      onClick={(e) => {
+                        e.preventDefault();
+                        window.open("https://manus.im/share/c9Fi5Anv4qDn3dz8asdMsJ?replay=1", "_blank");
+                      }}
+                      className="font-medium text-violet-700 underline cursor-pointer"
+                    >
+                      watch its run ↗
+                    </span>
+                  </p>
+                </a>
+              </div>
+              <p className="text-[11px] leading-relaxed text-stone-400">
+                Both artefacts are served from this site (no standing dependency); the agent’s full
+                runs replay publicly at the links above.
+              </p>
             </div>
           </details>
         </section>
 
-        {/* -------------------- your turn: agency rail -------------------- */}
-
+        {/* -------------------- 8 · run it on your shop -------------------- */}
         <section className="mt-8 rounded-3xl border border-emerald-200 bg-emerald-50/60 p-6 md:p-7">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-800">
             Could this be your shop?
@@ -1167,4 +1365,3 @@ export default function CafeBriefingPage() {
     </main>
   );
 }
-
