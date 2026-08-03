@@ -157,6 +157,9 @@ async def review_cafe_finding(
         "confirmed_amount": confirmed_amount if req.state == "confirmed" else None,
         "dismissal_reason": dismissal_reason if req.state == "dismissed" else None,
     }
+
+
+@router.get("/api/xero/invoices")
 async def xero_invoices(
     status: str | None = None,
     invoice_type: str | None = None,
