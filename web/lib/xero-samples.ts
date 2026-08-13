@@ -13,6 +13,13 @@ export interface SampleQuery {
 
 export const SAMPLE_QUERIES: SampleQuery[] = [
   {
+    id: "benchmark",
+    title: "How do my margins compare?",
+    description:
+      "Compare my gross margin, net margin, and receivables days against typical UK ranges for my industry. What's normal, and what should I look at next?",
+    hint: "Sector ranges · indicative",
+  },
+  {
     id: "ap-integrity",
     title: "Check for duplicate payments",
     description: "Audit my supplier bills and payments for possible duplicates. Show me the source evidence and tell me what to verify before asking for a credit or refund.",

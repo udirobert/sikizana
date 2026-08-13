@@ -12,6 +12,7 @@ import { useMe } from "@/hooks/useMe";
 import { PLAN_LABELS } from "@/components/PlanBadge";
 import { getPricingTryLinks } from "@/lib/persona-theme";
 import { DESIGN_PARTNER_LABEL, DESIGN_PARTNER_MAILTO } from "@/lib/design-partner";
+import { MarketingFooter } from "@/components/MarketingFooter";
 
 const TIERS: Array<{
   name: string;
@@ -130,26 +131,23 @@ export default function PricingPage() {
     if (tier.plan === "free") {
       return (
         <div className="mt-6 space-y-2">
-          <div className="flex flex-col gap-2">
-            <Link
-              href={tryLinks.sikiDemo}
-              className="text-center text-sm font-semibold py-2.5 rounded-lg btn-press transition-colors bg-sky-600 text-white hover:bg-sky-700"
-            >
-              Try with Siki
-            </Link>
-            <Link
-              href={tryLinks.zanaDemo}
-              className="text-center text-sm font-semibold py-2.5 rounded-lg btn-press transition-colors bg-rose-600 text-white hover:bg-rose-700"
-            >
-              Try with Zana
-            </Link>
-          </div>
+          <Link
+            href={tryLinks.sikiDemo}
+            className="block text-center text-sm font-semibold py-2.5 rounded-lg btn-press transition-colors bg-stone-950 text-white hover:bg-stone-800"
+          >
+            Try sample books
+          </Link>
           <Link
             href={tryLinks.sikiConnect}
             className="block text-center text-[11px] font-medium text-stone-500 hover:text-stone-700 transition-colors"
           >
             Or connect Xero →
           </Link>
+          <p className="text-center text-[11px] text-stone-400">
+            <Link href={tryLinks.sikiDemo} className="hover:text-sky-700">Siki</Link>
+            {" · "}
+            <Link href={tryLinks.zanaDemo} className="hover:text-rose-700">Zana</Link>
+          </p>
         </div>
       );
     }
@@ -199,10 +197,7 @@ export default function PricingPage() {
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
       <RotatedReveal />
-      <SiteNav variant="product" subtitle="Get paid faster · Works with Xero" links={[
-        { href: "/", label: "Home" },
-        { href: "/books?flow=check", label: "Open check" },
-      ]} />
+      <SiteNav variant="marketing" />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
         <div className="text-center mb-10 fade-in-up">
@@ -294,34 +289,9 @@ export default function PricingPage() {
             On Free, after your 5 monthly queries the audit keeps running. We are onboarding
             early Xero users manually while paid plans are being configured.
           </p>
-          <div className="flex items-center justify-center gap-3 mt-4">
-            <Link
-              href={tryLinks.zanaConnect}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 transition-colors"
-            >
-              Connect with Zana →
-            </Link>
-            <span className="text-stone-300">·</span>
-            <Link
-              href={tryLinks.sikiConnect}
-              className="text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors"
-            >
-              Connect with Siki →
-            </Link>
-          </div>
-          <div className="flex items-center justify-center gap-3 mt-3">
-            <Link href="/privacy" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/terms" className="text-xs text-stone-500 hover:text-stone-700 transition-colors">
-              Terms of Service
-            </Link>
-          </div>
-          <p className="text-[10px] text-stone-300 mt-2">
-            Sikizana · AI finance assistant for Xero · Human-in-the-loop by design
-          </p>
         </div>
       </div>
+      <MarketingFooter />
     </main>
   );
 }

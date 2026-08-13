@@ -36,6 +36,7 @@ import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
+import { SECTOR_IDS } from "@/lib/sector-benchmarks";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnectMomentCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
@@ -148,10 +149,15 @@ function BooksView() {
   // "is this normal?" compares against THEIR industry instead of a guess.
   const [sector, setSector] = useState<string | null>(null);
   const [sectorSaved, setSectorSaved] = useState(false);
+  // Lead-magnet / sector landing: ?sector= wins over a late prefs.get().
+  const sectorFromUrlRef = useRef(false);
   useEffect(() => {
     void endpoints.prefs
       .get()
-      .then((p) => setSector(p.sector))
+      .then((p) => {
+        if (sectorFromUrlRef.current) return;
+        setSector(p.sector);
+      })
       .catch(() => {});
   }, []);
   const handleSectorPick = async (value: string) => {
@@ -163,6 +169,21 @@ function BooksView() {
       /* best-effort — the chips can be re-picked */
     }
   };
+
+  // /books?sector=music (etc.) saves the pref once, then strips the param.
+  useEffect(() => {
+    if (sectorFromUrlRef.current) return;
+    const raw = searchParams.get("sector");
+    if (!raw) return;
+    const value = raw.toLowerCase().replace(/ /g, "_");
+    if (!(SECTOR_IDS as readonly string[]).includes(value)) return;
+    sectorFromUrlRef.current = true;
+    void handleSectorPick(value);
+    const cleaned = new URLSearchParams(searchParams.toString());
+    cleaned.delete("sector");
+    const qs = cleaned.toString();
+    window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+  }, [searchParams, pathname]);
   const [persona, setPersona] = useState<"siki" | "zana">(() => {
     // Persist persona in localStorage so it survives page refreshes
     if (typeof window !== "undefined") {
@@ -786,15 +807,15 @@ function BooksView() {
       <RotatedReveal />
       <nav className="bg-white border-b border-stone-200 px-4 py-3">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 group">
             <SikiMascot size={36} mood="idle" />
             <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none">SIKIZANA</h1>
+              <h1 className="text-base font-bold text-stone-900 leading-none transition-colors group-hover:text-sky-600">SIKIZANA</h1>
               <p className="text-xs text-stone-500 leading-none mt-0.5">
                 Get paid faster · Works with Xero
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-3">
             {/* Connection status / Connect button */}
             {userConnection?.connected ? (
@@ -829,7 +850,7 @@ function BooksView() {
                 disabled={connecting}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
               >
-                {connecting ? "Connecting…" : "Connect Your Xero →"}
+                {connecting ? "Connecting…" : "Connect Xero"}
               </button>
             ) : (
               <span
@@ -1499,6 +1520,7 @@ function BooksView() {
                                   ["hospitality", "Hospitality"],
                                   ["manufacturing", "Manufacturing"],
                                   ["wholesale", "Wholesale"],
+                                  ["music", "Music"],
                                 ].map(([value, label]) => (
                                   <button
                                     key={value}

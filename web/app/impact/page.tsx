@@ -69,7 +69,7 @@ export default function ImpactPage() {
       <RotatedReveal />
       <SiteNav variant="product" subtitle="Impact" links={[
         { href: "/pricing", label: "Pricing" },
-        { href: "/books", label: "Open Sikizana →" },
+        { href: "/books?flow=check", label: "Try sample books" },
       ]} />
 
       <div className="flex-1 w-full max-w-4xl mx-auto px-5 py-8">

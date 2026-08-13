@@ -5,7 +5,7 @@
  *
  * Three variants cover the app's nav needs without 11 copy-pasted inline navs:
  *  - "marketing": sticky + blurred, big CTA buttons, auth-aware sign-in/account
- *    (landing, music, any future sector landing)
+ *    (landing, music, margin note, any future sector landing)
  *  - "product":   logo + subtitle, compact links or custom right-side content
  *    (pricing, impact, account)
  *  - "legal":     logo + subtitle, cross-links to sibling legal pages
@@ -69,14 +69,20 @@ export function SiteNav({ variant = "marketing", subtitle, links, children }: Si
           </Link>
           <div className="flex items-center gap-2">
             <Link
-              href="/books"
+              href="/books?flow=check"
               className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
             >
-              Try Demo
+              Try sample books
+            </Link>
+            <Link
+              href="/b/catering"
+              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
+            >
+              Margins
             </Link>
             <Link
               href="/music"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
+              className="hidden sm:inline-flex bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
               Music
             </Link>

@@ -495,7 +495,7 @@ function AccountView() {
       <RotatedReveal />
       <SiteNav variant="product" subtitle="Get paid faster · Works with Xero" links={[
         { href: "/pricing", label: "Pricing" },
-        { href: "/books", label: "Open Sikizana →" },
+        { href: "/books?flow=check", label: "Try sample books" },
       ]} />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6">
