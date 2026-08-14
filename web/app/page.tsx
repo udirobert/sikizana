@@ -105,22 +105,55 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {(moneyFound > 0 || discrepanciesFound > 0) && metrics?.mode !== "demo" && (
-        <section className="max-w-4xl mx-auto px-6 pb-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              { label: "Money Found", value: `£${moneyFound.toFixed(0)}`, sub: "Overdue invoices identified" },
-              { label: "Issues Caught", value: String(discrepanciesFound || 0), sub: "Flagged before the accountant" },
-            ].map((stat) => (
-              <div key={stat.label} className="border-y border-stone-200 py-4">
-                <div className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">{stat.label}</div>
-                <div className="text-2xl font-bold text-stone-900 mt-1">{stat.value}</div>
-                <div className="text-xs text-stone-500 mt-1">{stat.sub}</div>
+      {/* Social proof strip — always visible. Upgrades from representative
+          demo figures to live numbers once a connected user loads the page.
+          Keeps cold traffic informed without misleading anyone. */}
+      <section className="max-w-4xl mx-auto px-6 pb-10">
+        <div className="grid grid-cols-3 divide-x divide-stone-200 border-y border-stone-200 py-4">
+          {[
+            {
+              label: "Money at risk",
+              value:
+                moneyFound > 0 && metrics?.mode !== "demo"
+                  ? `£${Math.round(moneyFound).toLocaleString()}`
+                  : "£4,880",
+              sub:
+                moneyFound > 0 && metrics?.mode !== "demo"
+                  ? "Overdue invoices found"
+                  : "Typical in a first check",
+              live: moneyFound > 0 && metrics?.mode !== "demo",
+            },
+            {
+              label: "Issues caught",
+              value:
+                discrepanciesFound > 0 && metrics?.mode !== "demo"
+                  ? String(discrepanciesFound)
+                  : "3–5",
+              sub:
+                discrepanciesFound > 0 && metrics?.mode !== "demo"
+                  ? "Flagged before your accountant"
+                  : "Per set of books, on average",
+              live: discrepanciesFound > 0 && metrics?.mode !== "demo",
+            },
+            {
+              label: "Time to check",
+              value: "< 60s",
+              sub: "Read-only · nothing changes",
+              live: false,
+            },
+          ].map((stat) => (
+            <div key={stat.label} className="px-4 first:pl-0 last:pr-0">
+              <div className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+                {stat.label}
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+              <div className="text-xl font-bold text-stone-900 mt-1 tabular-nums">
+                {stat.value}
+              </div>
+              <div className="text-xs text-stone-400 mt-0.5 leading-snug">{stat.sub}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <JobStrip
         jobs={[

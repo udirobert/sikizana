@@ -2,6 +2,20 @@
 
 import { useState } from "react";
 import {
+  AlertTriangle,
+  Bird,
+  Clock,
+  Coffee,
+  Copy,
+  FileText,
+  Landmark,
+  ShieldAlert,
+  TrendingDown,
+  TrendingUp,
+  Unlink,
+  type LucideIcon,
+} from "lucide-react";
+import {
   cleanFindingsCopy,
   findingActionLabel,
   getPersonaTheme,
@@ -18,6 +32,42 @@ import type {
   FindingsResponse,
 } from "@/lib/api";
 
+const KIND_ICON_MAP: Record<FindingKind, LucideIcon> = {
+  overdue_invoice:          Clock,
+  overdue_bill:             FileText,
+  unreconciled:             Unlink,
+  tax_flag:                 Landmark,
+  ap_duplicate_bill:        Copy,
+  ap_duplicate_payment:     Copy,
+  ap_supplier_detail_change: ShieldAlert,
+  ap_payment_anomaly:       AlertTriangle,
+  cafe_rising_item:         TrendingUp,
+  cafe_declining_item:      TrendingDown,
+  cafe_attach_gap:          Coffee,
+};
+
+/** Renders the per-kind icon sized and tinted by finding severity. */
+function KindIcon({
+  kind,
+  severity,
+  className = "",
+}: {
+  kind: FindingKind;
+  severity: Finding["severity"];
+  className?: string;
+}) {
+  const Icon = KIND_ICON_MAP[kind];
+  const color =
+    severity === "high" ? "text-amber-600" : "text-stone-400";
+  return (
+    <Icon
+      className={`h-3.5 w-3.5 shrink-0 ${color} ${className}`}
+      strokeWidth={2}
+      aria-hidden="true"
+    />
+  );
+}
+
 /**
  * FindingsPanel — the structured audit at the heart of the books page.
  *
@@ -30,19 +80,6 @@ import type {
  * so all state (asked findings, loading) is lifted to the page.
  */
 
-const KIND_ICONS: Record<FindingKind, string> = {
-  overdue_invoice: "💷",
-  overdue_bill: "📄",
-  unreconciled: "🔗",
-  tax_flag: "🏛️",
-  ap_duplicate_bill: "🔍",
-  ap_duplicate_payment: "🔍",
-  ap_supplier_detail_change: "🔒",
-  ap_payment_anomaly: "🔎",
-  cafe_rising_item: "📈",
-  cafe_declining_item: "📉",
-  cafe_attach_gap: "🍵",
-};
 
 const KIND_LABELS: Record<FindingKind, string> = {
   overdue_invoice: "Overdue invoice",
@@ -211,8 +248,9 @@ export function FindingsPanel({
               <p className="text-xs text-stone-500 mt-1">{findingsSummary(data)}</p>
               {/* The win tally — money the chase loop actually got paid. */}
               {data.recovered && data.recovered.total > 0 && (
-                <p className="text-xs font-medium text-emerald-700 mt-1">
-                  🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by{" "}
+                <p className="text-xs font-medium text-emerald-700 mt-1 flex items-center gap-1">
+                  <Bird className="h-3 w-3 shrink-0" aria-hidden="true" />
+                  £{formatMoney(Math.round(data.recovered.total))} recovered by{" "}
                   {persona === "zana" ? "Zana's" : "Siki's"} chasing (
                   {data.recovered.count} invoice{data.recovered.count === 1 ? "" : "s"})
                 </p>
@@ -277,8 +315,9 @@ export function FindingsPanel({
                   {cleanFindingsCopy(persona)}
                 </p>
                 {data.recovered && data.recovered.total > 0 && (
-                  <p className="text-xs font-medium text-emerald-700 mt-0.5">
-                    🦉 £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s chasing
+                  <p className="text-xs font-medium text-emerald-700 mt-0.5 flex items-center gap-1">
+                    <Bird className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    £{formatMoney(Math.round(data.recovered.total))} recovered by Siki&apos;s chasing
                   </p>
                 )}
                 {data.ap_reviewed && data.ap_reviewed.confirmed_value > 0 && (
@@ -331,9 +370,7 @@ export function FindingsPanel({
                       className="w-full text-left btn-press disabled:cursor-not-allowed"
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs leading-none" aria-hidden="true">
-                          {KIND_ICONS[finding.kind]}
-                        </span>
+                        <KindIcon kind={finding.kind} severity={finding.severity} />
                         <span className="text-xs font-semibold text-stone-800 truncate flex-1">
                           {finding.title}
                         </span>
@@ -417,9 +454,7 @@ export function FindingsPanel({
                 style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
               >
                 <div className="flex items-start gap-2">
-                  <span className="text-sm leading-none mt-0.5" aria-hidden="true">
-                    {KIND_ICONS[finding.kind]}
-                  </span>
+                  <KindIcon kind={finding.kind} severity={finding.severity} className="mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <span className="text-xs font-semibold text-stone-800 truncate">

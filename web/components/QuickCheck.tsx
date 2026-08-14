@@ -77,11 +77,11 @@ const TONE_CLASSES: Record<QuickFinding["tone"], { badge: string; border: string
 
 function buildTraceSteps(label: string): TraceStep[] {
   return [
-    { text: `Loading ${label.toLowerCase()} demo books…`, durationMs: 400 },
-    { text: "Running AP integrity scan…", durationMs: 600 },
-    { text: "Comparing margins against sector benchmarks…", durationMs: 500 },
-    { text: "Checking overdue exposure…", durationMs: 500 },
-    { text: "Siki is writing up findings…", durationMs: 700 },
+    { text: `Opening the ${label.toLowerCase()} demo books…`, durationMs: 400 },
+    { text: "Scanning for duplicate bills and payment anomalies…", durationMs: 600 },
+    { text: `Checking how your margins compare to typical ${label.toLowerCase()} ranges…`, durationMs: 500 },
+    { text: "Looking at who's overdue and by how much…", durationMs: 500 },
+    { text: "Putting it all together for you…", durationMs: 700 },
   ];
 }
 
@@ -417,6 +417,11 @@ export function QuickCheck({
               {phase === "ready" && (
                 <p className="mt-1 text-xs text-stone-500">
                   Compare your numbers against typical UK ranges. Add yours below.
+                </p>
+              )}
+              {phase === "scanning" && (
+                <p className="mt-1 text-xs text-stone-500">
+                  Give me a moment — I&apos;m reading the books carefully.
                 </p>
               )}
             </div>
