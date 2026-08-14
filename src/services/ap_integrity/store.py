@@ -88,7 +88,9 @@ def set_review_outcome(
                 finding_id,
                 state,
                 confirmed_amount if state == "confirmed" else None,
-                dismissal_reason.strip()[:240] if state == "dismissed" and dismissal_reason else None,
+                dismissal_reason.strip()[:240]
+                if state == "dismissed" and dismissal_reason
+                else None,
                 datetime.now(timezone.utc).isoformat(),
             ),
         )

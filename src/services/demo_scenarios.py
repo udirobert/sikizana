@@ -54,11 +54,31 @@ _MUSIC_ORG = {
 }
 
 _MUSIC_CONTACTS = [
-    {"id": "c1", "name": "SoundStage Backline Hire", "emailAddress": "accounts@soundstagehire.co.uk", "isSupplier": True},
-    {"id": "c2", "name": "Camden Rehearsal Studios", "emailAddress": "bookings@camdenstudios.co.uk", "isSupplier": True},
+    {
+        "id": "c1",
+        "name": "SoundStage Backline Hire",
+        "emailAddress": "accounts@soundstagehire.co.uk",
+        "isSupplier": True,
+    },
+    {
+        "id": "c2",
+        "name": "Camden Rehearsal Studios",
+        "emailAddress": "bookings@camdenstudios.co.uk",
+        "isSupplier": True,
+    },
     {"id": "c3", "name": "Octopus Energy", "emailAddress": "", "isSupplier": True},
-    {"id": "c4", "name": "The Roundhouse (promoter)", "emailAddress": "accounts@roundhouselive.co.uk", "isCustomer": True},
-    {"id": "c5", "name": "Field Day Festival", "emailAddress": "accounts@fielddayfestivals.co.uk", "isCustomer": True},
+    {
+        "id": "c4",
+        "name": "The Roundhouse (promoter)",
+        "emailAddress": "accounts@roundhouselive.co.uk",
+        "isCustomer": True,
+    },
+    {
+        "id": "c5",
+        "name": "Field Day Festival",
+        "emailAddress": "accounts@fielddayfestivals.co.uk",
+        "isCustomer": True,
+    },
     {"id": "c6", "name": "Direct gig sales", "emailAddress": "", "isCustomer": True},
 ]
 
@@ -294,6 +314,7 @@ _MUSIC_PL = {
 # ---------------------------------------------------------------------------
 # Scenario registry
 # ---------------------------------------------------------------------------
+
 
 def _music_data() -> dict[str, Any]:
     """Music scenario snapshot. Built per call so the relative dates

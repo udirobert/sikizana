@@ -26,14 +26,31 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import automation, auth, base, cafe, chat, check, context, data, memory, prefs, xero
+from src.api.routes import (
+    automation,
+    auth,
+    base,
+    cafe,
+    chat,
+    check,
+    context,
+    data,
+    memory,
+    prefs,
+    xero,
+)
 from src.api.routes.automation import (
     _count_by_kind,
     _webhook_message,
     require_mcp_api_key,
     verify_webhook_signature,
 )
-from src.api.routes.context import _CURATED_CONTEXT, _QUERY_INTENT_MAP, _clean_markdown, _map_query_to_exa
+from src.api.routes.context import (
+    _CURATED_CONTEXT,
+    _QUERY_INTENT_MAP,
+    _clean_markdown,
+    _map_query_to_exa,
+)
 from src.api.session import (
     _check_query_quota,
     _check_rate_limit,
@@ -86,7 +103,9 @@ async def _lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Sikizana API", description="AI finance assistant for Xero.", lifespan=_lifespan)
+app = FastAPI(
+    title="Sikizana API", description="AI finance assistant for Xero.", lifespan=_lifespan
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

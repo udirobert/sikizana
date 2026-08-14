@@ -15,9 +15,11 @@ No auth required. Rate-limited by IP (shared with chat limiter).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sqlite3
+import time as _time
 from datetime import date as _date
 from typing import Any
 
@@ -34,8 +36,13 @@ router = APIRouter()
 # ─── Canonical sectors ───────────────────────────────────────────────────────
 
 CANONICAL_SECTORS = [
-    "retail", "construction", "professional_services",
-    "hospitality", "manufacturing", "wholesale", "music",
+    "retail",
+    "construction",
+    "professional_services",
+    "hospitality",
+    "manufacturing",
+    "wholesale",
+    "music",
 ]
 
 SECTOR_LABELS: dict[str, str] = {
@@ -84,32 +91,61 @@ _SECTOR_ALIASES: dict[str, str] = {
 # of truth there; this is the lead-magnet copy that stays in sync).
 
 _SECTOR_KEYWORDS: list[tuple[str, str]] = [
-    ("retail", "retail"), ("shop", "retail"), ("store", "retail"),
-    ("ecommerce", "retail"), ("e-commerce", "retail"),
-    ("cafe", "hospitality"), ("café", "hospitality"),
-    ("restaurant", "hospitality"), ("bar", "hospitality"),
-    ("hotel", "hospitality"), ("catering", "hospitality"),
-    ("coffee", "hospitality"), ("pub", "hospitality"),
-    ("hostel", "hospitality"), ("lodge", "hospitality"),
-    ("bnb", "hospitality"), ("b&b", "hospitality"),
-    ("food", "hospitality"), ("kitchen", "hospitality"),
-    ("bakery", "hospitality"), ("takeaway", "hospitality"),
-    ("construct", "construction"), ("build", "construction"),
-    ("contractor", "construction"), ("plumb", "construction"),
-    ("electri", "construction"), ("roofing", "construction"),
-    ("joiner", "construction"), ("carpent", "construction"),
-    ("consult", "professional_services"), ("law", "professional_services"),
-    ("account", "professional_services"), ("agency", "professional_services"),
-    ("design", "professional_services"), ("tech", "professional_services"),
-    ("architect", "professional_services"), ("market", "professional_services"),
-    ("solicit", "professional_services"), ("recruit", "professional_services"),
-    ("manufactur", "manufacturing"), ("factory", "manufacturing"),
-    ("production", "manufacturing"), ("engineer", "manufacturing"),
-    ("wholesale", "wholesale"), ("distribut", "wholesale"),
-    ("import", "wholesale"), ("export", "wholesale"),
-    ("music", "music"), ("band", "music"), ("artist", "music"),
-    ("studio", "music"), ("label", "music"), ("record", "music"),
-    ("promot", "music"), ("festival", "music"),
+    ("retail", "retail"),
+    ("shop", "retail"),
+    ("store", "retail"),
+    ("ecommerce", "retail"),
+    ("e-commerce", "retail"),
+    ("cafe", "hospitality"),
+    ("café", "hospitality"),
+    ("restaurant", "hospitality"),
+    ("bar", "hospitality"),
+    ("hotel", "hospitality"),
+    ("catering", "hospitality"),
+    ("coffee", "hospitality"),
+    ("pub", "hospitality"),
+    ("hostel", "hospitality"),
+    ("lodge", "hospitality"),
+    ("bnb", "hospitality"),
+    ("b&b", "hospitality"),
+    ("food", "hospitality"),
+    ("kitchen", "hospitality"),
+    ("bakery", "hospitality"),
+    ("takeaway", "hospitality"),
+    ("construct", "construction"),
+    ("build", "construction"),
+    ("contractor", "construction"),
+    ("plumb", "construction"),
+    ("electri", "construction"),
+    ("roofing", "construction"),
+    ("joiner", "construction"),
+    ("carpent", "construction"),
+    ("consult", "professional_services"),
+    ("law", "professional_services"),
+    ("account", "professional_services"),
+    ("agency", "professional_services"),
+    ("design", "professional_services"),
+    ("tech", "professional_services"),
+    ("architect", "professional_services"),
+    ("market", "professional_services"),
+    ("solicit", "professional_services"),
+    ("recruit", "professional_services"),
+    ("manufactur", "manufacturing"),
+    ("factory", "manufacturing"),
+    ("production", "manufacturing"),
+    ("engineer", "manufacturing"),
+    ("wholesale", "wholesale"),
+    ("distribut", "wholesale"),
+    ("import", "wholesale"),
+    ("export", "wholesale"),
+    ("music", "music"),
+    ("band", "music"),
+    ("artist", "music"),
+    ("studio", "music"),
+    ("label", "music"),
+    ("record", "music"),
+    ("promot", "music"),
+    ("festival", "music"),
 ]
 
 # ─── Sector resolution: tier 3 (LLM + cache) ────────────────────────────────
@@ -203,9 +239,14 @@ Respond with ONLY the sector name (one word/phrase), nothing else."""
             if result in CANONICAL_SECTORS:
                 return result
         except Exception as exc:
-            log.warning("sector_classify_provider_failed", extra={
-                "provider": provider["name"], "slug": slug, "error": str(exc),
-            })
+            log.warning(
+                "sector_classify_provider_failed",
+                extra={
+                    "provider": provider["name"],
+                    "slug": slug,
+                    "error": str(exc),
+                },
+            )
             continue
 
     return None
@@ -258,32 +299,130 @@ async def _resolve_sector_with_llm(slug: str) -> str | None:
 
 SECTOR_RATIOS: dict[str, list[dict[str, Any]]] = {
     "hospitality": [
-        {"id": "staff_cost", "label": "Staff cost % of revenue", "typical": 0.30, "range": [0.25, 0.35], "unit": "%", "multiplier": 100},
-        {"id": "rent_cost", "label": "Rent % of revenue", "typical": 0.10, "range": [0.06, 0.15], "unit": "%", "multiplier": 100},
+        {
+            "id": "staff_cost",
+            "label": "Staff cost % of revenue",
+            "typical": 0.30,
+            "range": [0.25, 0.35],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "rent_cost",
+            "label": "Rent % of revenue",
+            "typical": 0.10,
+            "range": [0.06, 0.15],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
     "retail": [
-        {"id": "rent_cost", "label": "Rent % of revenue", "typical": 0.12, "range": [0.08, 0.18], "unit": "%", "multiplier": 100},
-        {"id": "shrinkage", "label": "Shrinkage % of stock", "typical": 0.015, "range": [0.01, 0.03], "unit": "%", "multiplier": 100},
+        {
+            "id": "rent_cost",
+            "label": "Rent % of revenue",
+            "typical": 0.12,
+            "range": [0.08, 0.18],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "shrinkage",
+            "label": "Shrinkage % of stock",
+            "typical": 0.015,
+            "range": [0.01, 0.03],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
     "construction": [
-        {"id": "labour_cost", "label": "Labour % of revenue", "typical": 0.35, "range": [0.28, 0.45], "unit": "%", "multiplier": 100},
-        {"id": "materials_cost", "label": "Materials % of revenue", "typical": 0.40, "range": [0.30, 0.50], "unit": "%", "multiplier": 100},
+        {
+            "id": "labour_cost",
+            "label": "Labour % of revenue",
+            "typical": 0.35,
+            "range": [0.28, 0.45],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "materials_cost",
+            "label": "Materials % of revenue",
+            "typical": 0.40,
+            "range": [0.30, 0.50],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
     "professional_services": [
-        {"id": "staff_cost", "label": "Staff cost % of revenue", "typical": 0.55, "range": [0.45, 0.65], "unit": "%", "multiplier": 100},
-        {"id": "utilisation", "label": "Utilisation rate", "typical": 0.70, "range": [0.60, 0.80], "unit": "%", "multiplier": 100},
+        {
+            "id": "staff_cost",
+            "label": "Staff cost % of revenue",
+            "typical": 0.55,
+            "range": [0.45, 0.65],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "utilisation",
+            "label": "Utilisation rate",
+            "typical": 0.70,
+            "range": [0.60, 0.80],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
     "manufacturing": [
-        {"id": "materials_cost", "label": "Materials % of revenue", "typical": 0.45, "range": [0.35, 0.55], "unit": "%", "multiplier": 100},
-        {"id": "energy_cost", "label": "Energy % of revenue", "typical": 0.08, "range": [0.04, 0.12], "unit": "%", "multiplier": 100},
+        {
+            "id": "materials_cost",
+            "label": "Materials % of revenue",
+            "typical": 0.45,
+            "range": [0.35, 0.55],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "energy_cost",
+            "label": "Energy % of revenue",
+            "typical": 0.08,
+            "range": [0.04, 0.12],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
     "wholesale": [
-        {"id": "logistics_cost", "label": "Logistics % of revenue", "typical": 0.08, "range": [0.05, 0.12], "unit": "%", "multiplier": 100},
-        {"id": "inventory_days", "label": "Inventory days", "typical": 35, "range": [20, 50], "unit": "days", "multiplier": 1},
+        {
+            "id": "logistics_cost",
+            "label": "Logistics % of revenue",
+            "typical": 0.08,
+            "range": [0.05, 0.12],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "inventory_days",
+            "label": "Inventory days",
+            "typical": 35,
+            "range": [20, 50],
+            "unit": "days",
+            "multiplier": 1,
+        },
     ],
     "music": [
-        {"id": "production_cost", "label": "Production % of revenue", "typical": 0.25, "range": [0.15, 0.40], "unit": "%", "multiplier": 100},
-        {"id": "marketing_cost", "label": "Marketing % of revenue", "typical": 0.15, "range": [0.08, 0.25], "unit": "%", "multiplier": 100},
+        {
+            "id": "production_cost",
+            "label": "Production % of revenue",
+            "typical": 0.25,
+            "range": [0.15, 0.40],
+            "unit": "%",
+            "multiplier": 100,
+        },
+        {
+            "id": "marketing_cost",
+            "label": "Marketing % of revenue",
+            "typical": 0.15,
+            "range": [0.08, 0.25],
+            "unit": "%",
+            "multiplier": 100,
+        },
     ],
 }
 
@@ -296,6 +435,7 @@ _SECTOR_TO_SCENARIO: dict[str, str] = {
 
 
 # ─── Core analysis logic ─────────────────────────────────────────────────────
+
 
 def _compute_facts(sector: str) -> dict[str, Any]:
     """Run deterministic analysis over demo data for the sector."""
@@ -324,12 +464,14 @@ def _compute_facts(sector: str) -> dict[str, Any]:
             due = _date.fromisoformat(str(due_str)[:10])
             days_late = (today - due).days
             if days_late > 0:
-                overdue.append({
-                    "contact": inv.get("contact", {}).get("name", "Unknown"),
-                    "amount": inv.get("amountDue", 0),
-                    "days_late": days_late,
-                    "invoice_number": inv.get("invoiceNumber", ""),
-                })
+                overdue.append(
+                    {
+                        "contact": inv.get("contact", {}).get("name", "Unknown"),
+                        "amount": inv.get("amountDue", 0),
+                        "days_late": days_late,
+                        "invoice_number": inv.get("invoiceNumber", ""),
+                    }
+                )
         except (ValueError, TypeError):
             pass
 
@@ -398,52 +540,64 @@ def _deterministic_findings(facts: dict[str, Any]) -> list[dict[str, Any]]:
     else:
         margin_detail = f"Margins ({gross_pct}% gross, {net_pct}% net) are in the typical band for {sector_label.lower()} ({bench_gross}% / {bench_net}%)."
 
-    findings.append({
-        "id": "margins",
-        "label": "Margin check",
-        "detail": f"~{gross_pct}% gross · ~{net_pct}% net",
-        "tone": "info",
-        "evidence": margin_detail,
-    })
+    findings.append(
+        {
+            "id": "margins",
+            "label": "Margin check",
+            "detail": f"~{gross_pct}% gross · ~{net_pct}% net",
+            "tone": "info",
+            "evidence": margin_detail,
+        }
+    )
 
     # Finding 2: Overdue exposure
     if facts["overdue_count"] > 0:
         worst = max(facts["overdue"], key=lambda x: x["amount"])
-        findings.append({
-            "id": "overdue",
-            "label": "Overdue exposure",
-            "detail": f"£{facts['total_overdue_amount']:,.0f} across {facts['overdue_count']} invoice{'s' if facts['overdue_count'] != 1 else ''}",
-            "tone": "risk",
-            "evidence": f"Largest: £{worst['amount']:,.0f} from {worst['contact']} ({worst['days_late']}d late). Sector typical overdue rate is ~{round(bench['avg_overdue_rate'] * 100)}%.",
-        })
+        findings.append(
+            {
+                "id": "overdue",
+                "label": "Overdue exposure",
+                "detail": f"£{facts['total_overdue_amount']:,.0f} across {facts['overdue_count']} invoice{'s' if facts['overdue_count'] != 1 else ''}",
+                "tone": "risk",
+                "evidence": f"Largest: £{worst['amount']:,.0f} from {worst['contact']} ({worst['days_late']}d late). Sector typical overdue rate is ~{round(bench['avg_overdue_rate'] * 100)}%.",
+            }
+        )
     else:
-        findings.append({
-            "id": "overdue",
-            "label": "Overdue exposure",
-            "detail": "No overdue invoices right now",
-            "tone": "info",
-            "evidence": f"Clean slate — but the typical {sector_label.lower()} overdue rate is ~{round(bench['avg_overdue_rate'] * 100)}%, so worth monitoring.",
-        })
+        findings.append(
+            {
+                "id": "overdue",
+                "label": "Overdue exposure",
+                "detail": "No overdue invoices right now",
+                "tone": "info",
+                "evidence": f"Clean slate — but the typical {sector_label.lower()} overdue rate is ~{round(bench['avg_overdue_rate'] * 100)}%, so worth monitoring.",
+            }
+        )
 
     # Finding 3: AP integrity
     if facts["ap_findings_count"] > 0:
         first_ap = facts["ap_findings"][0]
         amount = first_ap.get("amount", 0)
-        findings.append({
-            "id": "ap_risk",
-            "label": "Payment exception",
-            "detail": f"{first_ap.get('title', 'Possible duplicate')} · £{amount:,.0f}",
-            "tone": "risk",
-            "evidence": first_ap.get("description", "A payment anomaly was detected that warrants review."),
-        })
+        findings.append(
+            {
+                "id": "ap_risk",
+                "label": "Payment exception",
+                "detail": f"{first_ap.get('title', 'Possible duplicate')} · £{amount:,.0f}",
+                "tone": "risk",
+                "evidence": first_ap.get(
+                    "description", "A payment anomaly was detected that warrants review."
+                ),
+            }
+        )
     else:
-        findings.append({
-            "id": "ap_risk",
-            "label": "Payment integrity",
-            "detail": "No duplicate or anomalous payments detected",
-            "tone": "info",
-            "evidence": "AP scan ran clean across all payable transactions in these demo books.",
-        })
+        findings.append(
+            {
+                "id": "ap_risk",
+                "label": "Payment integrity",
+                "detail": "No duplicate or anomalous payments detected",
+                "tone": "info",
+                "evidence": "AP scan ran clean across all payable transactions in these demo books.",
+            }
+        )
 
     return findings
 
@@ -457,14 +611,14 @@ async def _enrich_with_llm(facts: dict[str, Any]) -> list[dict[str, Any]] | None
     sector_label = facts["sector"].replace("_", " ").title()
     bench = facts["benchmarks"]
 
-    prompt = f"""You are Siki, an AI finance assistant. You just scanned demo books for a {sector_label.lower()} business ({facts['org_name']}).
+    prompt = f"""You are Siki, an AI finance assistant. You just scanned demo books for a {sector_label.lower()} business ({facts["org_name"]}).
 
 Here are the computed facts from your analysis:
-- Revenue: £{facts['revenue']:,.0f}, Gross margin: {round(facts['gross_margin'] * 100)}%, Net margin: {round(facts['net_margin'] * 100)}%, Net profit: £{facts['net_profit']:,.0f}
-- Sector typical: {round(bench['avg_gross_margin'] * 100)}% gross, {round(bench['avg_net_margin'] * 100)}% net
-- Overdue: {facts['overdue_count']} invoices totalling £{facts['total_overdue_amount']:,.0f} (sector typical rate: ~{round(bench['avg_overdue_rate'] * 100)}%)
-- AP scan: {facts['ap_findings_count']} exception(s) found{f" — first: {facts['ap_findings'][0].get('title', '')}" if facts['ap_findings'] else ""}
-- Worst overdue: {facts['overdue'][0]['contact'] + ', £' + str(int(facts['overdue'][0]['amount'])) + ', ' + str(facts['overdue'][0]['days_late']) + 'd late' if facts['overdue'] else 'none'}
+- Revenue: £{facts["revenue"]:,.0f}, Gross margin: {round(facts["gross_margin"] * 100)}%, Net margin: {round(facts["net_margin"] * 100)}%, Net profit: £{facts["net_profit"]:,.0f}
+- Sector typical: {round(bench["avg_gross_margin"] * 100)}% gross, {round(bench["avg_net_margin"] * 100)}% net
+- Overdue: {facts["overdue_count"]} invoices totalling £{facts["total_overdue_amount"]:,.0f} (sector typical rate: ~{round(bench["avg_overdue_rate"] * 100)}%)
+- AP scan: {facts["ap_findings_count"]} exception(s) found{f" — first: {facts['ap_findings'][0].get('title', '')}" if facts["ap_findings"] else ""}
+- Worst overdue: {facts["overdue"][0]["contact"] + ", £" + str(int(facts["overdue"][0]["amount"])) + ", " + str(facts["overdue"][0]["days_late"]) + "d late" if facts["overdue"] else "none"}
 
 Produce exactly 3 findings as a JSON array. Each finding has:
 - "id": one of "margins", "overdue", "ap_risk"
@@ -501,13 +655,19 @@ Return ONLY the JSON array, no markdown fencing, no other text."""
             content = (response.choices[0].message.content or "").strip()
             findings = _parse_findings_response(content)
             if findings:
-                log.info("check_enrichment_ok", extra={"provider": provider["name"], "sector": facts["sector"]})
+                log.info(
+                    "check_enrichment_ok",
+                    extra={"provider": provider["name"], "sector": facts["sector"]},
+                )
                 return findings
         except Exception as exc:
-            log.warning("check_enrichment_provider_failed", extra={
-                "provider": provider["name"],
-                "error": str(exc),
-            })
+            log.warning(
+                "check_enrichment_provider_failed",
+                extra={
+                    "provider": provider["name"],
+                    "error": str(exc),
+                },
+            )
             continue
 
     return None
@@ -529,45 +689,53 @@ def _build_provider_chain() -> list[dict[str, Any]]:
             "x-vercel-ai-agent": "eve",
         }
         primary_model = os.environ.get("VERCEL_AI_MODEL", "zai/glm-5.2")
-        providers.append({
-            "name": f"glm-5.2 ({primary_model})",
-            "base_url": "https://ai-gateway.vercel.sh/v1",
-            "api_key": vercel_key,
-            "model": primary_model,
-            "timeout": 8.0,
-            "default_headers": eve_headers,
-        })
-        if primary_model != "zai/glm-5.2-fast":
-            providers.append({
-                "name": "glm-5.2-fast (zai/glm-5.2-fast)",
+        providers.append(
+            {
+                "name": f"glm-5.2 ({primary_model})",
                 "base_url": "https://ai-gateway.vercel.sh/v1",
                 "api_key": vercel_key,
-                "model": "zai/glm-5.2-fast",
+                "model": primary_model,
                 "timeout": 8.0,
                 "default_headers": eve_headers,
-            })
+            }
+        )
+        if primary_model != "zai/glm-5.2-fast":
+            providers.append(
+                {
+                    "name": "glm-5.2-fast (zai/glm-5.2-fast)",
+                    "base_url": "https://ai-gateway.vercel.sh/v1",
+                    "api_key": vercel_key,
+                    "model": "zai/glm-5.2-fast",
+                    "timeout": 8.0,
+                    "default_headers": eve_headers,
+                }
+            )
 
     # 2. NVIDIA NIM (primary production provider)
     nvidia_key = os.environ.get("NVIDIA_API_KEY", "")
     if nvidia_key:
-        providers.append({
-            "name": "nvidia-nim",
-            "base_url": "https://integrate.api.nvidia.com/v1",
-            "api_key": nvidia_key,
-            "model": os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
-            "timeout": 10.0,
-        })
+        providers.append(
+            {
+                "name": "nvidia-nim",
+                "base_url": "https://integrate.api.nvidia.com/v1",
+                "api_key": nvidia_key,
+                "model": os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
+                "timeout": 10.0,
+            }
+        )
 
     # 3. Venice AI (cross-provider fallback)
     venice_key = os.environ.get("VENICE_API_KEY", "")
     if venice_key:
-        providers.append({
-            "name": "venice",
-            "base_url": "https://api.venice.ai/api/v1",
-            "api_key": venice_key,
-            "model": os.environ.get("VENICE_MODEL", "llama-3.3-70b"),
-            "timeout": 10.0,
-        })
+        providers.append(
+            {
+                "name": "venice",
+                "base_url": "https://api.venice.ai/api/v1",
+                "api_key": venice_key,
+                "model": os.environ.get("VENICE_MODEL", "llama-3.3-70b"),
+                "timeout": 10.0,
+            }
+        )
 
     return providers
 
@@ -603,9 +771,6 @@ def _parse_findings_response(content: str) -> list[dict[str, Any]] | None:
 # Demo data never changes between deploys, so deterministic results are stable
 # per sector. LLM-enriched results are cached for 1h (same substance, just voice).
 
-import asyncio
-import time as _time
-
 _SCAN_CACHE: dict[str, tuple[float, dict]] = {}  # sector → (timestamp, response)
 _SCAN_CACHE_TTL = 3600  # 1 hour for LLM-enriched, effectively infinite for deterministic
 
@@ -632,6 +797,7 @@ def _store_scan_cache(sector: str, data: dict) -> None:
 
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
+
 @router.get("/api/check/{sector}/benchmarks")
 async def quick_check_benchmarks(sector: str, request: Request):
     """Lightweight benchmarks + ratios — no AP scan, no LLM, fully static.
@@ -653,15 +819,13 @@ async def quick_check_benchmarks(sector: str, request: Request):
             content={
                 "resolved": False,
                 "slug": sector,
-                "suggestions": [
-                    {"id": s, "label": SECTOR_LABELS[s]}
-                    for s in CANONICAL_SECTORS
-                ],
+                "suggestions": [{"id": s, "label": SECTOR_LABELS[s]} for s in CANONICAL_SECTORS],
             },
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
     from src.tools.accounting_tools import _SECTOR_BENCHMARKS
+
     bench = _SECTOR_BENCHMARKS.get(resolved, _SECTOR_BENCHMARKS["default"])
     ratios = SECTOR_RATIOS.get(resolved, [])
 
@@ -701,10 +865,7 @@ async def quick_check(sector: str, request: Request):
             content={
                 "resolved": False,
                 "slug": sector,
-                "suggestions": [
-                    {"id": s, "label": SECTOR_LABELS[s]}
-                    for s in CANONICAL_SECTORS
-                ],
+                "suggestions": [{"id": s, "label": SECTOR_LABELS[s]} for s in CANONICAL_SECTORS],
             },
         )
 

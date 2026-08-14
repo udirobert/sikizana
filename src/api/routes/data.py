@@ -55,9 +55,7 @@ async def data_export(
 
         # User profile (exclude password hash)
         if _user:
-            data["user"] = {
-                k: v for k, v in _user.items() if k != "password_hash"
-            }
+            data["user"] = {k: v for k, v in _user.items() if k != "password_hash"}
         else:
             data["user"] = None
 
@@ -210,7 +208,11 @@ async def data_delete(request: Request, session_id: str = Depends(get_session_id
         counts["chase_sequences"] = chase_store.delete_for_session(session_id)
         # Also delete memories from Supermemory
         try:
-            from src.services.memory import is_available as _sm_available, list_memories, delete_memory
+            from src.services.memory import (
+                is_available as _sm_available,
+                list_memories,
+                delete_memory,
+            )
 
             if _sm_available():
                 _user = get_user_for_session(session_id)

@@ -51,7 +51,10 @@ async def list_session_memories(session_id: str = Depends(get_session_id)):
 
 
 @router.delete("/api/memory/{document_id}")
-async def delete_session_memory(document_id: str = Path(..., min_length=1, max_length=128), session_id: str = Depends(get_session_id)):
+async def delete_session_memory(
+    document_id: str = Path(..., min_length=1, max_length=128),
+    session_id: str = Depends(get_session_id),
+):
     """Delete a specific memory by document ID.
 
     Users can remove memories they don't want Siki to remember — GDPR-aligned
@@ -162,7 +165,9 @@ async def seed_demo_memories(session_id: str = Depends(get_session_id)):
 
     mode = XeroService(session_id).mode()
     if mode != "demo":
-        raise HTTPException(status_code=403, detail="Demo memory seeding is only available in demo mode")
+        raise HTTPException(
+            status_code=403, detail="Demo memory seeding is only available in demo mode"
+        )
 
     user = get_user_for_session(session_id)
     count = await asyncio.to_thread(seed_demo_memories, session_id, user["id"] if user else None)

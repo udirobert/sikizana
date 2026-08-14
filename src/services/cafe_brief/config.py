@@ -49,6 +49,12 @@ BENCHMARK_SOURCES = {
     "net_margin_pct": {"value": "5–12% (2026, UK independents)", "source": "Brikly"},
     "attach_rate": {"value": "20–25% pastry/cake add-on", "source": "The Happy Manager"},
     "food_waste_pct": {"value": "4–10% of items purchased", "source": "Business Waste"},
-    "matcha_market": {"value": "US$40.1m in 2025 (projected to double)", "source": "Grand View Research"},
-    "delivery_commission": {"value": "Deliveroo 25–35% · Uber Eats ~30% · Just Eat ~14–16%", "source": "WaveGrocery / Aexir"},
+    "matcha_market": {
+        "value": "US$40.1m in 2025 (projected to double)",
+        "source": "Grand View Research",
+    },
+    "delivery_commission": {
+        "value": "Deliveroo 25–35% · Uber Eats ~30% · Just Eat ~14–16%",
+        "source": "WaveGrocery / Aexir",
+    },
 }

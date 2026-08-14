@@ -418,7 +418,15 @@ else:
                 conn.execute(
                     "INSERT INTO memories (doc_id, custom_id, container_tag, content, metadata_json, task_type, created_at)"
                     " VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (uuid.uuid4().hex, custom_id, new_tag, r["content"], json.dumps(meta), r["task_type"], _now()),
+                    (
+                        uuid.uuid4().hex,
+                        custom_id,
+                        new_tag,
+                        r["content"],
+                        json.dumps(meta),
+                        r["task_type"],
+                        _now(),
+                    ),
                 )
                 _fts_upsert(conn, custom_id, new_tag, r["content"])
                 migrated += 1
@@ -550,7 +558,11 @@ else:
                 (container, *_PREFERENCE_SIGNAL_TYPES),
             ).fetchall()
             return [
-                {"id": r["doc_id"], "content": r["content"], "metadata": json.loads(r["metadata_json"])}
+                {
+                    "id": r["doc_id"],
+                    "content": r["content"],
+                    "metadata": json.loads(r["metadata_json"]),
+                }
                 for r in rows
             ]
         except Exception as exc:
@@ -604,7 +616,9 @@ else:
 
     def search_tax_rules(query: str, region: str = "GB", limit: int = 3) -> list[dict[str, Any]]:
         """Search the multi-region tax corpus, biased + filtered by region."""
-        region_label = {"GB": "UK HMRC", "AU": "Australia ATO", "US": "US IRS"}.get(region, "UK HMRC")
+        region_label = {"GB": "UK HMRC", "AU": "Australia ATO", "US": "US IRS"}.get(
+            region, "UK HMRC"
+        )
         results = search(
             query=f"{region_label} {query}",
             container_tag=_TAX_CONTAINER_TAG,
@@ -613,7 +627,9 @@ else:
         if not results:
             return []
         region_lower = region.lower()
-        matched = [r for r in results if r.get("metadata", {}).get("region", "").lower() == region_lower]
+        matched = [
+            r for r in results if r.get("metadata", {}).get("region", "").lower() == region_lower
+        ]
         if matched:
             return matched[:limit]
         return results[:limit]

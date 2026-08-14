@@ -23,8 +23,11 @@ class LocalityRequest(BaseModel):
 
 
 @router.get("/briefing")
-def get_briefing(refresh: bool = Query(False), offline: bool = Query(False),
-                 session_id: str = Depends(get_session_id)):
+def get_briefing(
+    refresh: bool = Query(False),
+    offline: bool = Query(False),
+    session_id: str = Depends(get_session_id),
+):
     if offline:
         frozen = service.frozen_briefing()
         if frozen:
@@ -52,11 +55,15 @@ async def post_analyse(file: UploadFile, session_id: str = Depends(get_session_i
     if len(csv_bytes) > 20 * 1024 * 1024:
         return {"error": "export too large (max 20MB)"}
     try:
-        briefing = service.build_briefing(csv_bytes=csv_bytes,
-                                          source_note=f"Your export · {file.filename}",
-                                          svc=get_connector(session_id))
+        briefing = service.build_briefing(
+            csv_bytes=csv_bytes,
+            source_note=f"Your export · {file.filename}",
+            svc=get_connector(session_id),
+        )
     except ValueError as e:
         return {"error": str(e)}
-    briefing["manus"] = {"status": "uploaded",
-                         "reason": "facts computed locally from your file; agent verification runs separately"}
+    briefing["manus"] = {
+        "status": "uploaded",
+        "reason": "facts computed locally from your file; agent verification runs separately",
+    }
     return briefing

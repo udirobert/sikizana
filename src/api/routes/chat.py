@@ -19,7 +19,9 @@ class XeroChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=10000)
     thread_id: str | None = Field(None, max_length=64)
     persona: str = Field("siki", pattern="^(siki|zana)$")
-    disable_memory: bool = Field(False, description="If true, the agent will not recall or ingest Supermemory for this turn")
+    disable_memory: bool = Field(
+        False, description="If true, the agent will not recall or ingest Supermemory for this turn"
+    )
 
 
 @router.post("/api/xero/chat")

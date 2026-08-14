@@ -30,11 +30,14 @@ SEEDED: dict[str, dict] = {
         "cafe": {
             "name": "Matcha Mochi at The Brew",
             "blurb": "Dedicated matcha & coffee café, 163 City Rd EC1V 1NR "
-                     "(near Old Street station). Mon–Sat 8:30–18:00.",
+            "(near Old Street station). Mon–Sat 8:30–18:00.",
         },
         "competitors": [
             {"name": "Noxy Brothers", "note": "207 Old St — modern coffee spot, matcha lattes"},
-            {"name": "Lagu", "note": "61–67 Old St — authentic Japanese café, matcha lattes + bento"},
+            {
+                "name": "Lagu",
+                "note": "61–67 Old St — authentic Japanese café, matcha lattes + bento",
+            },
             {"name": "Timberyard", "note": "49 Old St — award-winning coffee, quality matcha"},
             {"name": "Shoreditch Grind", "note": "213 Old St — matcha, delivery available"},
         ],
@@ -43,46 +46,81 @@ SEEDED: dict[str, dict] = {
     },
     # Agent-researched packs (Manus, 2026-08-01, matcha-hack/locality_packs.json).
     # Prices came from real menu/delivery pages — cited but indicative.
-    "EC2A": {"area": "Shoreditch", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "Matcha Mochi Cafe", "note": "matcha latte £6.20 · its own delivery listing, fancy that"},
-        {"name": "Grind (Shoreditch)", "note": "matcha latte £5.40"},
-        {"name": "Gecko Coffeehouse", "note": "matcha latte £4.50"},
-        {"name": "Jujuhome Cha (Boxpark)", "note": "price unlisted — check the counter"},
-    ]},
-    "W1D": {"area": "Soho", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "No.79 Mousse & Hefaure", "note": "matcha latte £5.99"},
-        {"name": "Kova Patisserie", "note": "matcha latte £5.70"},
-        {"name": "Grind (Soho)", "note": "matcha latte £5.40"},
-        {"name": "TOKKIA, Berwick Street", "note": "matcha latte £4.80"},
-    ]},
-    "N1": {"area": "Islington", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "Pret A Manger (Islington)", "note": "matcha latte £4.45"},
-        {"name": "Black Sheep Coffee (Highbury & Islington)", "note": "matcha latte £4.09"},
-        {"name": "Katsute 100, Upper Street", "note": "matcha latte £3.80"},
-        {"name": "Chapel Market Roastery (Angel)", "note": "matcha latte £3.55"},
-    ]},
-    "E2": {"area": "Hackney / Bethnal Green", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "The Spot Coffee, Lamb Lane", "note": "matcha latte £6.25"},
-        {"name": "GAIL’s Bakery (Hackney Castle)", "note": "matcha latte £4.80"},
-        {"name": "Matcha Mochi Cafe & Bar (Hoxton)", "note": "matcha latte £4.75"},
-        {"name": "JUJUHOME CHA, Bethnal Green Rd", "note": "price unlisted"},
-    ]},
-    "SE15": {"area": "Peckham", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "139 Fika, Bellenden Road", "note": "matcha latte £4.90"},
-        {"name": "CUPP Bubble Tea, Queens Road", "note": "matcha latte £4.80"},
-        {"name": "Manayu, Denmark Hill", "note": "matcha latte £4.65"},
-        {"name": "Pret A Manger (Dulwich)", "note": "matcha latte £4.45"},
-    ]},
-    "SW9": {"area": "Brixton", "cafe": None, "source": "agent_research", "competitors": [
-        {"name": "Grind Brixton", "note": "matcha latte £5.40"},
-        {"name": "Pret A Manger (Brixton)", "note": "matcha latte £4.45"},
-        {"name": "Sendero Specialty Coffee, Atlantic Road", "note": "matcha latte £4.10"},
-        {"name": "Azmarino Coffee", "note": "matcha latte £3.50"},
-    ]},
+    "EC2A": {
+        "area": "Shoreditch",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {
+                "name": "Matcha Mochi Cafe",
+                "note": "matcha latte £6.20 · its own delivery listing, fancy that",
+            },
+            {"name": "Grind (Shoreditch)", "note": "matcha latte £5.40"},
+            {"name": "Gecko Coffeehouse", "note": "matcha latte £4.50"},
+            {"name": "Jujuhome Cha (Boxpark)", "note": "price unlisted — check the counter"},
+        ],
+    },
+    "W1D": {
+        "area": "Soho",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {"name": "No.79 Mousse & Hefaure", "note": "matcha latte £5.99"},
+            {"name": "Kova Patisserie", "note": "matcha latte £5.70"},
+            {"name": "Grind (Soho)", "note": "matcha latte £5.40"},
+            {"name": "TOKKIA, Berwick Street", "note": "matcha latte £4.80"},
+        ],
+    },
+    "N1": {
+        "area": "Islington",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {"name": "Pret A Manger (Islington)", "note": "matcha latte £4.45"},
+            {"name": "Black Sheep Coffee (Highbury & Islington)", "note": "matcha latte £4.09"},
+            {"name": "Katsute 100, Upper Street", "note": "matcha latte £3.80"},
+            {"name": "Chapel Market Roastery (Angel)", "note": "matcha latte £3.55"},
+        ],
+    },
+    "E2": {
+        "area": "Hackney / Bethnal Green",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {"name": "The Spot Coffee, Lamb Lane", "note": "matcha latte £6.25"},
+            {"name": "GAIL’s Bakery (Hackney Castle)", "note": "matcha latte £4.80"},
+            {"name": "Matcha Mochi Cafe & Bar (Hoxton)", "note": "matcha latte £4.75"},
+            {"name": "JUJUHOME CHA, Bethnal Green Rd", "note": "price unlisted"},
+        ],
+    },
+    "SE15": {
+        "area": "Peckham",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {"name": "139 Fika, Bellenden Road", "note": "matcha latte £4.90"},
+            {"name": "CUPP Bubble Tea, Queens Road", "note": "matcha latte £4.80"},
+            {"name": "Manayu, Denmark Hill", "note": "matcha latte £4.65"},
+            {"name": "Pret A Manger (Dulwich)", "note": "matcha latte £4.45"},
+        ],
+    },
+    "SW9": {
+        "area": "Brixton",
+        "cafe": None,
+        "source": "agent_research",
+        "competitors": [
+            {"name": "Grind Brixton", "note": "matcha latte £5.40"},
+            {"name": "Pret A Manger (Brixton)", "note": "matcha latte £4.45"},
+            {"name": "Sendero Specialty Coffee, Atlantic Road", "note": "matcha latte £4.10"},
+            {"name": "Azmarino Coffee", "note": "matcha latte £3.50"},
+        ],
+    },
 }
 
-_AGENT_RESEARCH_NOTE = ("Researched by the agent on real menus and delivery listings — "
-                        "cited, but verify before pricing decisions.")
+_AGENT_RESEARCH_NOTE = (
+    "Researched by the agent on real menus and delivery listings — "
+    "cited, but verify before pricing decisions."
+)
 
 
 def _normalise_postcode(raw: str) -> str:
@@ -98,10 +136,17 @@ def _log_interest(postcode: str, cafe_name: str | None, source: str) -> None:
     try:
         _LOG.parent.mkdir(parents=True, exist_ok=True)
         with open(_LOG, "a") as f:
-            f.write(json.dumps({
-                "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-                "postcode": postcode, "cafe_name": cafe_name, "source": source,
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                        "postcode": postcode,
+                        "cafe_name": cafe_name,
+                        "source": source,
+                    }
+                )
+                + "\n"
+            )
     except OSError:
         pass
 
@@ -162,8 +207,10 @@ def lookup(postcode_raw: str, cafe_name: str | None = None) -> dict:
             "cafe": None,
             "competitors": found,
             "source": "live_search",
-            "source_note": (f"Searched just now for cafés near {postcode} — unverified "
-                            "until someone local confirms them."),
+            "source_note": (
+                f"Searched just now for cafés near {postcode} — unverified "
+                "until someone local confirms them."
+            ),
         }
     if cafe_name and cafe_name.strip():
         pack["visitor_cafe_name"] = cafe_name.strip()[:80]

@@ -280,6 +280,7 @@ async def run_bookkeeper_streaming(
     # Falls back to GB if the org can't be fetched (e.g. demo mode).
     try:
         from src.services.connectors import get_connector
+
         _org = await asyncio.to_thread(get_connector(session_id).get_organisation)
         _country = _org.get("countryCode", "GB") if _org else "GB"
         set_current_region(_country)
@@ -325,7 +326,11 @@ async def run_bookkeeper_streaming(
     # patterns, chasing outcomes, user preferences, prior findings) instead of
     # starting from zero. If Supermemory is unset or unreachable, this entire
     # block is skipped and the agent works identically — just without memory.
-    from src.services.memory import is_available as _sm_available, get_profile as _sm_profile, search as _sm_search
+    from src.services.memory import (
+        is_available as _sm_available,
+        get_profile as _sm_profile,
+        search as _sm_search,
+    )
     from src.services.memory import memory_container_tag as _sm_container_tag
     from src.services.payment_store import get_user_for_session as _get_user
 
@@ -351,13 +356,22 @@ async def run_bookkeeper_streaming(
                 _search_hits = _profile.get("search_results", [])
                 _memory_parts: list[str] = []
                 if _static:
-                    _memory_parts.append("### WHAT YOU ALREADY KNOW ABOUT THIS BUSINESS\n" + "\n".join(f"- {s}" for s in _static))
+                    _memory_parts.append(
+                        "### WHAT YOU ALREADY KNOW ABOUT THIS BUSINESS\n"
+                        + "\n".join(f"- {s}" for s in _static)
+                    )
                     _memory_facts.extend(_static)
-                    _memory_sources.append({"type": "profile", "label": "Known facts", "items": _static})
+                    _memory_sources.append(
+                        {"type": "profile", "label": "Known facts", "items": _static}
+                    )
                 if _dynamic:
-                    _memory_parts.append("### RECENT CONTEXT\n" + "\n".join(f"- {d}" for d in _dynamic))
+                    _memory_parts.append(
+                        "### RECENT CONTEXT\n" + "\n".join(f"- {d}" for d in _dynamic)
+                    )
                     _memory_facts.extend(_dynamic)
-                    _memory_sources.append({"type": "profile", "label": "Recent context", "items": _dynamic})
+                    _memory_sources.append(
+                        {"type": "profile", "label": "Recent context", "items": _dynamic}
+                    )
                 # Merge profile search hits and hybrid hits, deduplicate
                 _all_hits = _search_hits + _hybrid_hits
                 _seen = set()
@@ -372,14 +386,19 @@ async def run_bookkeeper_streaming(
                 if _relevant:
                     _recall_items = [h["content"] for h in _relevant]
                     _recall_ids = [h.get("id", "") for h in _relevant]
-                    _memory_parts.append("### RELEVANT PAST MEMORIES\n" + "\n".join(f"- {h['content']}" for h in _relevant))
+                    _memory_parts.append(
+                        "### RELEVANT PAST MEMORIES\n"
+                        + "\n".join(f"- {h['content']}" for h in _relevant)
+                    )
                     _memory_facts.extend(_recall_items)
-                    _memory_sources.append({
-                        "type": "recall",
-                        "label": "Recalled memories",
-                        "items": _recall_items,
-                        "ids": _recall_ids,
-                    })
+                    _memory_sources.append(
+                        {
+                            "type": "recall",
+                            "label": "Recalled memories",
+                            "items": _recall_items,
+                            "ids": _recall_ids,
+                        }
+                    )
                 if _memory_parts:
                     _system_prompt += "\n\n" + "\n\n".join(_memory_parts)
                     _system_prompt += "\n\nUse this remembered context naturally. If it contradicts live Xero data, trust Xero. Never say 'from my memory' — speak as if you remember."
@@ -394,7 +413,9 @@ async def run_bookkeeper_streaming(
 
                 _preference_signals = await asyncio.to_thread(get_preference_signals, session_id)
                 if _preference_signals:
-                    _preference_text = "\n".join(f"- {s.get('content', '')}" for s in _preference_signals)
+                    _preference_text = "\n".join(
+                        f"- {s.get('content', '')}" for s in _preference_signals
+                    )
                     _system_prompt += (
                         "\n\n### USER PREFERENCE SIGNALS (learned from past actions)\n"
                         f"{_preference_text}\n\n"
@@ -438,11 +459,15 @@ async def run_bookkeeper_streaming(
                 _who.append(f"runs {_business}")
             _profile_parts.append(f"You are talking to {' '.join(_who)}.")
         if _industry:
-            _profile_parts.append(f"Their industry is {_industry}. Use industry-appropriate language and examples.")
+            _profile_parts.append(
+                f"Their industry is {_industry}. Use industry-appropriate language and examples."
+            )
         if _tz:
             _profile_parts.append(f"Their timezone is {_tz}. Use it for any time references.")
         if _lang and _lang != "en":
-            _profile_parts.append(f"Their preferred language is {_lang}. If you can, respond in that language.")
+            _profile_parts.append(
+                f"Their preferred language is {_lang}. If you can, respond in that language."
+            )
 
         if _profile_parts:
             _system_prompt += "\n\n### USER CONTEXT\n" + "\n".join(f"- {p}" for p in _profile_parts)
@@ -522,7 +547,14 @@ async def run_bookkeeper_streaming(
                 timeout=15.0,
             )
         except asyncio.TimeoutError:
-            log.error("inference_timeout", extra={"iteration": iteration, "model": active_model, "provider": "venice" if using_venice else "nvidia"})
+            log.error(
+                "inference_timeout",
+                extra={
+                    "iteration": iteration,
+                    "model": active_model,
+                    "provider": "venice" if using_venice else "nvidia",
+                },
+            )
             if not retried and not using_venice:
                 retried = True
                 if current_model != _NVIDIA_FALLBACK_MODEL:
@@ -547,7 +579,13 @@ async def run_bookkeeper_streaming(
         except Exception as exc:
             # Log the raw error; never leak provider internals to the user
             log.error(
-                "inference_error", extra={"error": str(exc), "iteration": iteration, "provider": "venice" if using_venice else "nvidia"}, exc_info=True
+                "inference_error",
+                extra={
+                    "error": str(exc),
+                    "iteration": iteration,
+                    "provider": "venice" if using_venice else "nvidia",
+                },
+                exc_info=True,
             )
             # NVIDIA error — try Venice if available
             if not using_venice and _venice_available():
@@ -594,7 +632,11 @@ async def run_bookkeeper_streaming(
         except Exception as exc:  # noqa: BLE001 — includes per-chunk timeout
             log.error(
                 "stream_error",
-                extra={"error": str(exc), "iteration": iteration, "provider": "venice" if using_venice else "nvidia"},
+                extra={
+                    "error": str(exc),
+                    "iteration": iteration,
+                    "provider": "venice" if using_venice else "nvidia",
+                },
                 exc_info=True,
             )
             stream_failed = True
@@ -656,7 +698,9 @@ async def run_bookkeeper_streaming(
                 # the result it already has.
                 call_sig = (tool_name, json.dumps(tool_args, sort_keys=True))
                 if call_sig in tool_call_history:
-                    log.warning("duplicate_tool_call", extra={"tool": tool_name, "iteration": iteration})
+                    log.warning(
+                        "duplicate_tool_call", extra={"tool": tool_name, "iteration": iteration}
+                    )
                     result = (
                         f"You already called {tool_name} with these arguments and received the result. "
                         "Use that result to answer the user's question. Do not call the same tool again."
@@ -752,9 +796,15 @@ async def run_bookkeeper_streaming(
                 # are found, inject them as a system hint so the agent can
                 # proactively reference past outcomes — "Acme was late last
                 # time too, you sent a final notice and they paid in 5 days."
-                if tool_name in ("get_invoices", "find_discrepancies", "score_customers") and "OVERDUE" in result:
+                if (
+                    tool_name in ("get_invoices", "find_discrepancies", "score_customers")
+                    and "OVERDUE" in result
+                ):
                     try:
-                        from src.services.memory import is_available as _sm_avail, search as _sm_search
+                        from src.services.memory import (
+                            is_available as _sm_avail,
+                            search as _sm_search,
+                        )
                         from src.services.memory import memory_container_tag as _sm_ct
                         from src.services.payment_store import get_user_for_session as _get_user3
 
@@ -767,10 +817,16 @@ async def run_bookkeeper_streaming(
                             _proactive_hits: list[dict[str, Any]] = []
                             _proactive_seen: set[str] = set()
                             for _cname in _customer_names[:3]:  # limit to 3 customers
-                                _hits = await asyncio.to_thread(_sm_search, _cname, _ct, 2, "hybrid")
+                                _hits = await asyncio.to_thread(
+                                    _sm_search, _cname, _ct, 2, "hybrid"
+                                )
                                 for _h in _hits:
                                     _c = _h.get("content", "")
-                                    if _h.get("score", 0) > 0.5 and _c and _c not in _proactive_seen:
+                                    if (
+                                        _h.get("score", 0) > 0.5
+                                        and _c
+                                        and _c not in _proactive_seen
+                                    ):
                                         _proactive_seen.add(_c)
                                         _proactive_hits.append(_h)
 
@@ -788,7 +844,14 @@ async def run_bookkeeper_streaming(
                                 yield {
                                     "type": "memory_recall",
                                     "facts": _proactive_facts,
-                                    "sources": [{"type": "recall", "label": "Proactive memory alert", "items": _proactive_facts, "ids": _proactive_ids}],
+                                    "sources": [
+                                        {
+                                            "type": "recall",
+                                            "label": "Proactive memory alert",
+                                            "items": _proactive_facts,
+                                            "ids": _proactive_ids,
+                                        }
+                                    ],
                                 }
                     except Exception:
                         pass  # Proactive alerts are a bonus, never a failure
@@ -817,7 +880,10 @@ async def run_bookkeeper_streaming(
         # --- Supermemory: ingest conversation for future recall ---
         # Fire-and-forget — never block the response on memory ingestion.
         # The conversation will be available for recall in future sessions.
-        from src.services.memory import is_available as _sm_available2, ingest_conversation as _sm_ingest
+        from src.services.memory import (
+            is_available as _sm_available2,
+            ingest_conversation as _sm_ingest,
+        )
         from src.services.memory import memory_container_tag as _sm_container_tag2
         from src.services.payment_store import get_user_for_session as _get_user2
 

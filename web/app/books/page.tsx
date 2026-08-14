@@ -250,7 +250,7 @@ function BooksView() {
   // the persistent amber banner, forcing two dismissals before first value.)
   useEffect(() => {
     const visited = localStore.get<boolean>(StorageKeys.BOOKS_VISITED, false);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (!visited) setShowWelcome(true);
   }, []);
 
@@ -323,7 +323,7 @@ function BooksView() {
         setOrgData(o as unknown as OrgData);
       })
       .catch(() => {});
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadFindings flips its loading flag synchronously by design
+     
     void loadFindings();
     // Fetch P&L for the dashboard sidebar
     void endpoints.xero
@@ -346,7 +346,7 @@ function BooksView() {
         // (?connect=1), open the consent screen — never hard-redirect a
         // first-time visitor into Xero's permissions page unexplained.
         if (c.oauth_configured && !c.connected && searchParams.get("connect") === "1") {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
+           
           setShowConnectConfirm(true);
         }
       })
@@ -415,7 +415,7 @@ function BooksView() {
     window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
 
     if (connected === "false") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setErrorBanner("Failed to connect your Xero account. Please try again.");
       return;
     }
@@ -509,7 +509,7 @@ function BooksView() {
     seededRef.current = true;
     const q = searchParams.get("q");
     if (q?.trim()) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       setInput(q.trim());
       return;
     }
@@ -737,10 +737,10 @@ function BooksView() {
       lastSeen = parseFloat(localStorage.getItem("siki_recovered_seen") || "0") || 0;
     } catch { /* ignore */ }
     if (total > lastSeen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       if (lastSeen > 0) setRecoveredCelebration(total - lastSeen);
       // First-ever recovery also celebrates (lastSeen 0 → show full total).
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+       
       if (lastSeen === 0) setRecoveredCelebration(total);
       try { localStorage.setItem("siki_recovered_seen", String(total)); } catch { /* ignore */ }
     }

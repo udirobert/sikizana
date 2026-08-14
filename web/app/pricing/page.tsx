@@ -282,7 +282,7 @@ export default function PricingPage() {
 
         <div className="mt-10 text-center fade-in-up">
           <p className="text-[11px] text-stone-400 max-w-md mx-auto">
-            All plans include both Siki and Zana — explain your books or chase what's owed.
+            All plans include both Siki and Zana — explain your books or chase what&apos;s owed.
             Human-in-the-loop by design. No long-term contracts. Cancel anytime.
           </p>
           <p className="text-[11px] text-stone-400 max-w-md mx-auto mt-1.5">

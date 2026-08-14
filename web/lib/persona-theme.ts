@@ -1,4 +1,4 @@
-import type { Finding, FindingKind } from "@/lib/api";
+import type { FindingKind } from "@/lib/api";
 
 export type Persona = "siki" | "zana";
 

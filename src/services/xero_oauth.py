@@ -58,6 +58,7 @@ def _extract_email_from_id_token(id_token: str) -> str | None:
     except Exception:
         return None
 
+
 # ---- Configuration from environment ----
 
 _XERO_CLIENT_ID = os.environ.get("XERO_CLIENT_ID", "")

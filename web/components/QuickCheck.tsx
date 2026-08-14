@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SikiMascot } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { ThinkingTrace, type TraceStep } from "@/components/ThinkingTrace";
@@ -302,6 +302,7 @@ export function QuickCheck({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [scanError, setScanError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Fetch lightweight benchmarks on mount (static, cached 24h, no LLM)
   useEffect(() => {
@@ -364,7 +365,6 @@ export function QuickCheck({
       ? `${window.location.origin}/check/${slug}`
       : `https://sikizana.persidian.com/check/${slug}`;
 
-  const [copied, setCopied] = useState(false);
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);

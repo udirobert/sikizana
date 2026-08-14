@@ -55,19 +55,27 @@ def credits() -> dict:
     return _request("GET", "/usage.availableCredits")
 
 
-def create_task(prompt: str, title: str, schema: dict | None = None,
-                profile: str = "manus-1.6", share_visibility: str | None = None,
-                attachments: list[tuple[str, bytes]] | None = None) -> dict:
+def create_task(
+    prompt: str,
+    title: str,
+    schema: dict | None = None,
+    profile: str = "manus-1.6",
+    share_visibility: str | None = None,
+    attachments: list[tuple[str, bytes]] | None = None,
+) -> dict:
     if attachments:
         import base64
+
         parts: list[dict] = [{"type": "text", "text": prompt}]
         for filename, content in attachments:
-            parts.append({
-                "type": "file",
-                "file_data": "data:text/csv;base64," + base64.b64encode(content).decode(),
-                "filename": filename,
-                "mime_type": "text/csv",
-            })
+            parts.append(
+                {
+                    "type": "file",
+                    "file_data": "data:text/csv;base64," + base64.b64encode(content).decode(),
+                    "filename": filename,
+                    "mime_type": "text/csv",
+                }
+            )
         content_field: str | list[dict] = parts
     else:
         content_field = prompt
@@ -162,8 +170,14 @@ def wait_result(task_id: str, timeout_s: int = 420, poll_s: int = 6) -> dict | N
     raise ManusError(f"task {task_id} timed out after {timeout_s}s")
 
 
-def run_task(prompt: str, title: str, schema: dict | None = None,
-             timeout_s: int = 420, poll_s: int = 6, profile: str = "manus-1.6") -> dict | None:
+def run_task(
+    prompt: str,
+    title: str,
+    schema: dict | None = None,
+    timeout_s: int = 420,
+    poll_s: int = 6,
+    profile: str = "manus-1.6",
+) -> dict | None:
     """Synchronous helper: create, poll until finished, fetch result."""
     created = create_task(prompt, title=title, schema=schema, profile=profile)
     return wait_result(created["task_id"], timeout_s=timeout_s, poll_s=poll_s)

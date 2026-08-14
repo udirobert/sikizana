@@ -24,7 +24,9 @@ class AuthRequest(BaseModel):
 
 
 @router.post("/api/auth/register")
-async def auth_register(req: AuthRequest, request: Request, session_id: str = Depends(get_session_id)):
+async def auth_register(
+    req: AuthRequest, request: Request, session_id: str = Depends(get_session_id)
+):
     from src.services import accounts
 
     _check_rate_limit(request)
@@ -74,7 +76,10 @@ async def password_reset_request(req: PasswordResetRequestRequest, request: Requ
 
     _check_rate_limit(request)
     await asyncio.to_thread(accounts.request_password_reset, req.email)
-    return {"ok": True, "message": "If an account exists for that email, a reset link has been sent."}
+    return {
+        "ok": True,
+        "message": "If an account exists for that email, a reset link has been sent.",
+    }
 
 
 @router.post("/api/auth/password-reset/confirm")
@@ -121,7 +126,10 @@ async def resend_verification_endpoint(req: ResendVerificationRequest, request: 
     success, error = await asyncio.to_thread(accounts.resend_verification, req.email)
     if not success:
         raise HTTPException(status_code=422, detail=error)
-    return {"ok": True, "message": "If an unverified account exists for that email, a new verification link has been sent."}
+    return {
+        "ok": True,
+        "message": "If an unverified account exists for that email, a new verification link has been sent.",
+    }
 
 
 @router.get("/api/me")
@@ -166,7 +174,10 @@ async def update_profile(req: UpdateProfileRequest, session_id: str = Depends(ge
         if v is not None:
             fields[k] = v
     if not fields:
-        return {"ok": True, "profile": await asyncio.to_thread(accounts.get_profile_for_agent, session_id)}
+        return {
+            "ok": True,
+            "profile": await asyncio.to_thread(accounts.get_profile_for_agent, session_id),
+        }
 
     success, error = await asyncio.to_thread(accounts.update_profile, session_id, **fields)
     if not success:

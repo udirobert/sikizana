@@ -73,17 +73,20 @@ def demo_rows() -> list[SaleRow]:
 
                 hour = 8 + (day.weekday() % 4)
                 for item, cat, price in basket:
-                    rows.append(SaleRow(
-                        date=day,
-                        time=f"{hour:02d}:15:00",
-                        category=cat,
-                        item=item,
-                        qty=1,
-                        price_point="Regular",
-                        modifiers="Oat Milk" if "Latte" in item and day.weekday() % 2 == 0 else "",
-                        gross=price,
-                        txn_id=f"TXN-{txn}",  # shared across this basket only
-                    ))
+                    rows.append(
+                        SaleRow(
+                            date=day,
+                            time=f"{hour:02d}:15:00",
+                            category=cat,
+                            item=item,
+                            qty=1,
+                            price_point="Regular",
+                            modifiers="Oat Milk"
+                            if "Latte" in item and day.weekday() % 2 == 0
+                            else "",
+                            gross=price,
+                            txn_id=f"TXN-{txn}",  # shared across this basket only
+                        )
+                    )
                 txn += 1  # one txn_id per basket, not per day
     return rows
-

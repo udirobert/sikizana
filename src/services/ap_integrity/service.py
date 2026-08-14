@@ -14,7 +14,9 @@ from src.services.ap_integrity.store import get_review_outcomes, sync_supplier_f
 from src.services.connectors.base import AccountingConnector
 
 
-def build_ap_findings(session_id: str, svc: AccountingConnector, user_id: int | None = None) -> list[dict]:
+def build_ap_findings(
+    session_id: str, svc: AccountingConnector, user_id: int | None = None
+) -> list[dict]:
     """Evaluate one session's payable facts and return canonical finding dicts."""
     if not is_ap_integrity_enabled(user_id):
         return []
@@ -31,9 +33,7 @@ def build_ap_findings(session_id: str, svc: AccountingConnector, user_id: int | 
     return [candidate.as_dict(reviews.get(candidate.id)) for candidate in candidates]
 
 
-def _changed_suppliers(
-    suppliers: list, prior_fingerprints: dict[str, str] | None
-) -> set[str]:
+def _changed_suppliers(suppliers: list, prior_fingerprints: dict[str, str] | None) -> set[str]:
     """Supplier IDs whose bank-detail fingerprint differs from the caller's baseline.
 
     Mirrors `sync_supplier_fingerprints` semantics: a supplier is "changed"
@@ -45,7 +45,11 @@ def _changed_suppliers(
     changed: set[str] = set()
     for supplier in suppliers:
         prior = prior_fingerprints.get(supplier.id)
-        if prior and supplier.bank_details_fingerprint and prior != supplier.bank_details_fingerprint:
+        if (
+            prior
+            and supplier.bank_details_fingerprint
+            and prior != supplier.bank_details_fingerprint
+        ):
             changed.add(supplier.id)
     return changed
 

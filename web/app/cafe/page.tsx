@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { SikiMascot } from "@/components/SikiMascot";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { Sparkline } from "@/components/dither-kit/sparkline";
@@ -312,7 +313,7 @@ function CafeChat({ briefing, pack }: { briefing: Briefing; pack: LocalityPack |
         nudges: briefing.nudges,
         benchmark_cogs: briefing.benchmarks.cogs,
       }),
-    [briefing],
+    [briefing, pack],
   );
 
   const send = async (text: string) => {
@@ -450,7 +451,7 @@ export default function CafeBriefingPage() {
         el.style.overflowY = "";
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [deck, step, data, pack]);
 
   useEffect(() => {
@@ -491,7 +492,7 @@ export default function CafeBriefingPage() {
       window.removeEventListener("touchstart", ts);
       window.removeEventListener("touchend", te);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [deck, data, pack]);
 
   // ----- interactive instrument state (client-side only) -----
@@ -1207,7 +1208,7 @@ export default function CafeBriefingPage() {
               {data.benchmarks.sources && (
                 <p>
                   Benchmarks (researched by the agent, cited):{" "}
-                  {Object.entries(data.benchmarks.sources).map(([k, v]) => `${v.value} — ${v.source}`).join(" · ")}
+                  {Object.values(data.benchmarks.sources).map((v) => `${v.value} — ${v.source}`).join(" · ")}
                 </p>
               )}
 
@@ -1291,7 +1292,7 @@ export default function CafeBriefingPage() {
 
         <footer className="mt-8 text-center text-[11px] leading-relaxed text-stone-400" data-scrollable>
           A snapshot of what Siki does with the books side, every day —{" "}
-          <a href="/" className="font-medium text-sky-700 underline">sikizana</a> ·
+          <Link href="/" className="font-medium text-sky-700 underline">sikizana</Link> ·
           {" "}built at the Manus café hackathon, Matcha Mochi, City Road
           <br />
           <a href="https://matchamocha-sacjkwfw.manus.space/" target="_blank" rel="noreferrer"

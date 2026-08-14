@@ -30,6 +30,7 @@ def set_current_region(region: str) -> None:
     """Set the tax region for the current async context (GB/AU/US)."""
     _current_region.set(_normalize_region(region))
 
+
 # ---------------------------------------------------------------------------
 # UK — HMRC rules
 # ---------------------------------------------------------------------------
@@ -261,15 +262,72 @@ IRS_RULES: dict[str, str] = {
 
 # Shared keyword topics — same concepts across all regions
 _KEYWORD_TOPICS: list[tuple[list[str], str]] = [
-    (["entertainment", "client meal", "entertaining", "hospitality", "client lunch"], "entertainment"),
-    (["corporation tax", "corp tax", "company tax", "ct600", "company tax rate"], "corporation_tax"),
-    (["subsistence", "meal", "food while travelling", "travel meal", "per diem", "business meal"], "subsistence"),
-    (["home office", "working from home", "homeworking", "remote work", "work from home"], "home_office"),
-    (["mileage", "car", "travel", "fuel", "vehicle", "cents per km", "cents per mile", "driving"], "mileage"),
-    (["capital allowance", "equipment", "machinery", "aia", "depreciation", "section 179", "instant asset", "bonus depreciation"], "capital_allowances"),
-    (["vat", "value added tax", "registration threshold", "gst", "bas", "sales tax", "nexus"], "vat"),
+    (
+        ["entertainment", "client meal", "entertaining", "hospitality", "client lunch"],
+        "entertainment",
+    ),
+    (
+        ["corporation tax", "corp tax", "company tax", "ct600", "company tax rate"],
+        "corporation_tax",
+    ),
+    (
+        [
+            "subsistence",
+            "meal",
+            "food while travelling",
+            "travel meal",
+            "per diem",
+            "business meal",
+        ],
+        "subsistence",
+    ),
+    (
+        ["home office", "working from home", "homeworking", "remote work", "work from home"],
+        "home_office",
+    ),
+    (
+        [
+            "mileage",
+            "car",
+            "travel",
+            "fuel",
+            "vehicle",
+            "cents per km",
+            "cents per mile",
+            "driving",
+        ],
+        "mileage",
+    ),
+    (
+        [
+            "capital allowance",
+            "equipment",
+            "machinery",
+            "aia",
+            "depreciation",
+            "section 179",
+            "instant asset",
+            "bonus depreciation",
+        ],
+        "capital_allowances",
+    ),
+    (
+        ["vat", "value added tax", "registration threshold", "gst", "bas", "sales tax", "nexus"],
+        "vat",
+    ),
     (["software", "subscription", "saas", "cloud"], "software"),
-    (["pension", "retirement", "employer contribution", "superannuation", "super guarantee", "401k", "sep ira"], "pension"),
+    (
+        [
+            "pension",
+            "retirement",
+            "employer contribution",
+            "superannuation",
+            "super guarantee",
+            "401k",
+            "sep ira",
+        ],
+        "pension",
+    ),
     (["bad debt", "irrecoverable", "write off", "uncollectible", "worthless debt"], "bad_debt"),
     (["overdue", "unpaid invoice", "late payment", "aged debt"], "overdue_invoices"),
 ]

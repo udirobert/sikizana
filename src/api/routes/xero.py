@@ -67,7 +67,9 @@ class ApFindingReviewRequest(BaseModel):
 
 @router.put("/api/ap-integrity/findings/{finding_id}/review")
 async def review_ap_finding(
-    finding_id: str = Path(..., min_length=20, max_length=96, pattern=r"^ap-[a-z0-9-]+:[a-f0-9]{16}$"),
+    finding_id: str = Path(
+        ..., min_length=20, max_length=96, pattern=r"^ap-[a-z0-9-]+:[a-f0-9]{16}$"
+    ),
     req: ApFindingReviewRequest = ...,
     session_id: str = Depends(get_session_id),
     user: dict = Depends(require_authenticated_user),
@@ -114,7 +116,9 @@ async def review_ap_finding(
 
 @router.put("/api/cafe-brief/findings/{finding_id}/review")
 async def review_cafe_finding(
-    finding_id: str = Path(..., min_length=20, max_length=96, pattern=r"^cafe-[a-z]+:[a-f0-9]{16}$"),
+    finding_id: str = Path(
+        ..., min_length=20, max_length=96, pattern=r"^cafe-[a-z]+:[a-f0-9]{16}$"
+    ),
     req: ApFindingReviewRequest = ...,
     session_id: str = Depends(get_session_id),
     user: dict = Depends(require_authenticated_user),

@@ -42,8 +42,16 @@ def find_duplicate_payments(payments: list[Payment], bills: list[PayableBill]) -
                         "what to verify before requesting a credit or refund."
                     ),
                     evidence=(
-                        Evidence(left.id, "First payment", f"{left.date} · £{left.amount:,.2f} · {left.reference or 'No reference'}"),
-                        Evidence(right.id, "Second payment", f"{right.date} · £{right.amount:,.2f} · {right.reference or 'No reference'}"),
+                        Evidence(
+                            left.id,
+                            "First payment",
+                            f"{left.date} · £{left.amount:,.2f} · {left.reference or 'No reference'}",
+                        ),
+                        Evidence(
+                            right.id,
+                            "Second payment",
+                            f"{right.date} · £{right.amount:,.2f} · {right.reference or 'No reference'}",
+                        ),
                     ),
                 )
             )

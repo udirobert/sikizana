@@ -30,7 +30,9 @@ from src.services.logging import get_logger
 
 log = get_logger("sikizana.cafe_brief")
 
-_DEFAULT_CSV = str(Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv")
+_DEFAULT_CSV = str(
+    Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv"
+)
 _CSV_PATH = os.environ.get("CAFE_POS_CSV", _DEFAULT_CSV)
 
 
@@ -68,81 +70,99 @@ def _build_candidates(sales: Any, spend: Any) -> list[CafeFinding]:
         r = sales.risers[0]
         weekly = r.get("units_per_week")
         pct = r.get("pct_change")
-        out.append(CafeFinding(
-            id=_nudge_id("riser", r["item"], period),
-            kind="cafe_rising_item",
-            severity="low",
-            title=f"{r['item']} is taking off",
-            amount=0.0,
-            detail=f"Up {pct}% vs the prior month — ~{weekly}/week now. Raise the order before the weekend rush.",
-            action_type="draft",
-            action_label="Draft order",
-            action_prompt=(
-                f"\"{r['item']}\" averaged {weekly} units/week over the last 4 weeks, "
-                f"a {pct}% rise vs the prior 4 weeks (window {period}). Explain what this "
-                f"means for my supplier order this week and draft the email to my top "
-                f"supplier adjusting the order. Keep it short and owner-friendly."
-            ),
-            evidence=(
-                Evidence("pos-trend", "Weekly units", ", ".join(str(v) for v in r.get("weekly", []))),
-                Evidence("pos-window", "Analysis window", period),
-            ),
-        ))
+        out.append(
+            CafeFinding(
+                id=_nudge_id("riser", r["item"], period),
+                kind="cafe_rising_item",
+                severity="low",
+                title=f"{r['item']} is taking off",
+                amount=0.0,
+                detail=f"Up {pct}% vs the prior month — ~{weekly}/week now. Raise the order before the weekend rush.",
+                action_type="draft",
+                action_label="Draft order",
+                action_prompt=(
+                    f'"{r["item"]}" averaged {weekly} units/week over the last 4 weeks, '
+                    f"a {pct}% rise vs the prior 4 weeks (window {period}). Explain what this "
+                    f"means for my supplier order this week and draft the email to my top "
+                    f"supplier adjusting the order. Keep it short and owner-friendly."
+                ),
+                evidence=(
+                    Evidence(
+                        "pos-trend", "Weekly units", ", ".join(str(v) for v in r.get("weekly", []))
+                    ),
+                    Evidence("pos-window", "Analysis window", period),
+                ),
+            )
+        )
 
     if sales.fallers:
         f = sales.fallers[0]
         weekly = f.get("units_per_week")
         pct = f.get("pct_change")
-        out.append(CafeFinding(
-            id=_nudge_id("faller", f["item"], period),
-            kind="cafe_declining_item",
-            severity="low",
-            title=f"Cut the {f['item']} order",
-            amount=0.0,
-            detail=f"Down {abs(pct)}% over the last 4 weeks (~{weekly}/week). Waste risk on perishables.",
-            action_type="draft",
-            action_label="Draft order",
-            action_prompt=(
-                f"\"{f['item']}\" fell {pct}% using the same last-4-vs-prior-4-week method "
-                f"(~{weekly}/week recently, window {period}). Explain the waste risk and "
-                f"draft the supplier email trimming the order. Short and owner-friendly."
-            ),
-            evidence=(
-                Evidence("pos-trend", "Weekly units", ", ".join(str(v) for v in f.get("weekly", []))),
-                Evidence("pos-window", "Analysis window", period),
-            ),
-        ))
+        out.append(
+            CafeFinding(
+                id=_nudge_id("faller", f["item"], period),
+                kind="cafe_declining_item",
+                severity="low",
+                title=f"Cut the {f['item']} order",
+                amount=0.0,
+                detail=f"Down {abs(pct)}% over the last 4 weeks (~{weekly}/week). Waste risk on perishables.",
+                action_type="draft",
+                action_label="Draft order",
+                action_prompt=(
+                    f'"{f["item"]}" fell {pct}% using the same last-4-vs-prior-4-week method '
+                    f"(~{weekly}/week recently, window {period}). Explain the waste risk and "
+                    f"draft the supplier email trimming the order. Short and owner-friendly."
+                ),
+                evidence=(
+                    Evidence(
+                        "pos-trend", "Weekly units", ", ".join(str(v) for v in f.get("weekly", []))
+                    ),
+                    Evidence("pos-window", "Analysis window", period),
+                ),
+            )
+        )
 
     a = sales.attach
     if a.get("rate", 1.0) < BENCHMARK_ATTACH:
         opportunity = a.get("weekly_opportunity_gbp") or 0.0
         annual = round(opportunity * 52, 2)
-        out.append(CafeFinding(
-            id=_nudge_id("attach", period),
-            kind="cafe_attach_gap",
-            severity="medium",
-            title="Bundle cake with matcha",
-            amount=annual,
-            detail=(
-                f"Only {a['rate']:.0%} of matcha-latte transactions add a cake/pastry "
-                f"(benchmark ~{BENCHMARK_ATTACH:.0%}). ~£{opportunity:,.0f}/week left "
-                f"on the table — about £{annual:,.0f}/year."
-            ),
-            action_type="explain",
-            action_label="Explain",
-            action_prompt=(
-                f"Only {a['rate']:.1%} of the {a.get('matcha_transactions')} matcha-drink "
-                f"transactions in {period} also contained a cake/pastry item "
-                f"(benchmark ~{BENCHMARK_ATTACH:.0%}). That's roughly £{opportunity:,.0f}/week "
-                f"(~£{annual:,.0f}/year) on the table. Explain the attach-rate opportunity "
-                f"and suggest three concrete ways to lift it at the till."
-            ),
-            evidence=(
-                Evidence("pos-attach", "Matcha transactions w/ treat", f"{a.get('with_treat')} of {a.get('matcha_transactions')}"),
-                Evidence("pos-attach", "Attach rate", f"{a['rate']:.1%}"),
-                Evidence("benchmark", "Pastry/cake add-on benchmark", f"~{BENCHMARK_ATTACH:.0%} (The Happy Manager)"),
-            ),
-        ))
+        out.append(
+            CafeFinding(
+                id=_nudge_id("attach", period),
+                kind="cafe_attach_gap",
+                severity="medium",
+                title="Bundle cake with matcha",
+                amount=annual,
+                detail=(
+                    f"Only {a['rate']:.0%} of matcha-latte transactions add a cake/pastry "
+                    f"(benchmark ~{BENCHMARK_ATTACH:.0%}). ~£{opportunity:,.0f}/week left "
+                    f"on the table — about £{annual:,.0f}/year."
+                ),
+                action_type="explain",
+                action_label="Explain",
+                action_prompt=(
+                    f"Only {a['rate']:.1%} of the {a.get('matcha_transactions')} matcha-drink "
+                    f"transactions in {period} also contained a cake/pastry item "
+                    f"(benchmark ~{BENCHMARK_ATTACH:.0%}). That's roughly £{opportunity:,.0f}/week "
+                    f"(~£{annual:,.0f}/year) on the table. Explain the attach-rate opportunity "
+                    f"and suggest three concrete ways to lift it at the till."
+                ),
+                evidence=(
+                    Evidence(
+                        "pos-attach",
+                        "Matcha transactions w/ treat",
+                        f"{a.get('with_treat')} of {a.get('matcha_transactions')}",
+                    ),
+                    Evidence("pos-attach", "Attach rate", f"{a['rate']:.1%}"),
+                    Evidence(
+                        "benchmark",
+                        "Pastry/cake add-on benchmark",
+                        f"~{BENCHMARK_ATTACH:.0%} (The Happy Manager)",
+                    ),
+                ),
+            )
+        )
 
     return out
 

@@ -156,8 +156,12 @@ def login_or_register_with_xero(email: str, session_id: str) -> tuple[dict | Non
 
 # ---- Password reset ----
 
-_PASSWORD_RESET_URL = os.environ.get("PASSWORD_RESET_URL", "https://sikizana.persidian.com/reset-password")
-_EMAIL_VERIFY_URL = os.environ.get("EMAIL_VERIFY_URL", "https://sikizana.persidian.com/verify-email")
+_PASSWORD_RESET_URL = os.environ.get(
+    "PASSWORD_RESET_URL", "https://sikizana.persidian.com/reset-password"
+)
+_EMAIL_VERIFY_URL = os.environ.get(
+    "EMAIL_VERIFY_URL", "https://sikizana.persidian.com/verify-email"
+)
 
 
 def request_password_reset(email: str) -> tuple[bool, str | None]:
@@ -266,10 +270,17 @@ def get_account(session_id: str) -> dict[str, Any]:
     scope = _usage_scope(session_id, user)
     month = _current_month()
     limit = None if plan in PAID_PLANS else FREE_TIER_MONTHLY_QUERIES
-    profile = store.get_user_profile(user["id"]) if user else {
-        "name": None, "business_name": None, "timezone": None,
-        "language": None, "industry": None,
-    }
+    profile = (
+        store.get_user_profile(user["id"])
+        if user
+        else {
+            "name": None,
+            "business_name": None,
+            "timezone": None,
+            "language": None,
+            "industry": None,
+        }
+    )
     return {
         "authenticated": user is not None,
         "email": user["email"] if user else None,

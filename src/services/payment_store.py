@@ -524,10 +524,12 @@ def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict
             _tags = [f"session:{session_id}"] + ([f"user:{_user['id']}"] if _user else [])
             _ph = ",".join("?" * len(_tags))
             counts["memories"] = conn.execute(
-                f"DELETE FROM memories WHERE container_tag IN ({_ph})", _tags,
+                f"DELETE FROM memories WHERE container_tag IN ({_ph})",
+                _tags,
             ).rowcount
             counts["memory_search"] = conn.execute(
-                f"DELETE FROM memories_fts WHERE container_tag IN ({_ph})", _tags,
+                f"DELETE FROM memories_fts WHERE container_tag IN ({_ph})",
+                _tags,
             ).rowcount
         else:
             # Platform disconnect — keep user-owned data
@@ -1231,6 +1233,7 @@ def get_impact_summary() -> dict:
 # ---------------------------------------------------------------------------
 # Metric snapshots — periodic captures for trend analysis
 # ---------------------------------------------------------------------------
+
 
 def save_metric_snapshot(
     session_id: str,

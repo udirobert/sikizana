@@ -22,7 +22,9 @@ def _fingerprint(value: str) -> str:
     return hashlib.sha256(value.strip().encode("utf-8")).hexdigest() if value.strip() else ""
 
 
-def build_facts(svc: AccountingConnector) -> tuple[list[PayableBill], list[Payment], list[SupplierProfile]]:
+def build_facts(
+    svc: AccountingConnector,
+) -> tuple[list[PayableBill], list[Payment], list[SupplierProfile]]:
     """Fetch each connector collection once and return AP-only normalized facts."""
     return build_facts_from_raw(
         svc.list_invoices(invoice_type="ACCPAY"),
@@ -43,9 +45,13 @@ def build_facts_from_raw(
     session, DB, or connector dependency. The session-coupled `build_facts`
     is a thin wrapper over this.
     """
-    contact_by_id = {str(contact.get("id", "")): contact for contact in contacts if contact.get("id")}
+    contact_by_id = {
+        str(contact.get("id", "")): contact for contact in contacts if contact.get("id")
+    }
     contact_by_name = {
-        str(contact.get("name", "")).casefold(): contact for contact in contacts if contact.get("name")
+        str(contact.get("name", "")).casefold(): contact
+        for contact in contacts
+        if contact.get("name")
     }
 
     bills: list[PayableBill] = []

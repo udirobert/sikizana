@@ -33,7 +33,9 @@ def _trend(weeks: list[int]) -> tuple[float, float]:
 
 def analyse(
     rows: list[SaleRow],
-    matcha_keywords: tuple[str, ...] = ("matcha latte",),  # drinks only — "Matcha Cake Slice" must NOT widen the attach base
+    matcha_keywords: tuple[str, ...] = (
+        "matcha latte",
+    ),  # drinks only — "Matcha Cake Slice" must NOT widen the attach base
     treat_keywords: tuple[str, ...] = ("cake", "donut", "loaf", "croissant"),
 ) -> dict:
     if not rows:
@@ -73,8 +75,15 @@ def analyse(
         if item_category.get(item, "").lower() == "retail":
             continue  # shelf noise — trends are about the menu
         pct, abs_delta = _trend(weeks)
-        moves.append({"item": item, "pct_change": pct, "units_per_week": round(mean(weeks[-4:])),
-                      "abs_delta": abs_delta, "weekly": weeks})
+        moves.append(
+            {
+                "item": item,
+                "pct_change": pct,
+                "units_per_week": round(mean(weeks[-4:])),
+                "abs_delta": abs_delta,
+                "weekly": weeks,
+            }
+        )
     risers = sorted((m for m in moves if m["pct_change"] > 10), key=lambda m: -m["pct_change"])[:3]
     fallers = sorted((m for m in moves if m["pct_change"] < -10), key=lambda m: m["pct_change"])[:3]
 

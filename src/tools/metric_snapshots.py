@@ -48,6 +48,7 @@ def _gather_current_metrics() -> dict[str, float | int] | None:
         return None
 
     from datetime import date as _date
+
     today = _date.today()
 
     total_overdue = sum(float(i.get("amountDue", 0)) for i in overdue_accrec)
@@ -106,6 +107,7 @@ def _capture_snapshot(*, force: bool = False, captured_at: str | None = None) ->
         if existing:
             try:
                 from datetime import datetime as _dt
+
                 last = _dt.fromisoformat(existing[-1]["captured_at"]).date()
                 today_date = _dt.now().astimezone().date()
                 if last == today_date:
@@ -200,7 +202,11 @@ def get_trend_analysis() -> str:
         # Simple linear trend: compare first half avg to second half avg
         mid = len(overdue_values) // 2
         first_half_avg = sum(overdue_values[:mid]) / mid if mid > 0 else 0
-        second_half_avg = sum(overdue_values[mid:]) / (len(overdue_values) - mid) if (len(overdue_values) - mid) > 0 else 0
+        second_half_avg = (
+            sum(overdue_values[mid:]) / (len(overdue_values) - mid)
+            if (len(overdue_values) - mid) > 0
+            else 0
+        )
 
         if first_half_avg > 0:
             change_pct = ((second_half_avg - first_half_avg) / first_half_avg) * 100
@@ -260,14 +266,16 @@ def get_trend_analysis() -> str:
                 trend_dir = "STABLE"
         else:
             trend_dir = "STABLE"
-        trend_metrics.append({
-            "label": label,
-            "key": key,
-            "values": values,
-            "first": round(first, 2),
-            "latest": round(latest_val, 2),
-            "trend": trend_dir,
-        })
+        trend_metrics.append(
+            {
+                "label": label,
+                "key": key,
+                "values": values,
+                "first": round(first, 2),
+                "latest": round(latest_val, 2),
+                "trend": trend_dir,
+            }
+        )
 
     card_data = {
         "type": "trend_analysis",

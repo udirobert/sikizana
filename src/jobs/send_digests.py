@@ -38,7 +38,10 @@ def main() -> None:
             # Digests are correctly Siki-branded — unlike chase emails, which
             # send under the user's business name.
             ok = send_email(
-                r["email"], digest["subject"], digest["text"], digest["html"],
+                r["email"],
+                digest["subject"],
+                digest["text"],
+                digest["html"],
                 from_name="Siki at Sikizana",
             )
             sent += ok

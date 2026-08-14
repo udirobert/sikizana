@@ -136,7 +136,9 @@ class AccountingConnector(ABC):
         ...
 
     @abstractmethod
-    def get_profit_and_loss(self, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
+    def get_profit_and_loss(
+        self, from_date: str | None = None, to_date: str | None = None
+    ) -> dict[str, Any]:
         """P&L report: revenue, expenses, net profit."""
         ...
 

@@ -15,7 +15,9 @@ def find_supplier_detail_changes(
             continue
         findings.append(
             ApFinding(
-                id=stable_id("ap-supplier-detail-change", supplier.id, supplier.bank_details_fingerprint),
+                id=stable_id(
+                    "ap-supplier-detail-change", supplier.id, supplier.bank_details_fingerprint
+                ),
                 kind="ap_supplier_detail_change",
                 severity="high",
                 title=f"Supplier payment details changed: {supplier.name}",
@@ -27,7 +29,11 @@ def find_supplier_detail_changes(
                     "checklist. Do not show or change bank details; I will verify through a contact channel I already trust."
                 ),
                 evidence=(
-                    Evidence(supplier.id, "Supplier record", "Bank-detail fingerprint changed since the prior scan."),
+                    Evidence(
+                        supplier.id,
+                        "Supplier record",
+                        "Bank-detail fingerprint changed since the prior scan.",
+                    ),
                 ),
             )
         )

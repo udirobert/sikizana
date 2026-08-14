@@ -75,7 +75,9 @@ def _week_delta(session_id: str) -> str | None:
     if abs(delta) < 1:
         return "Your overdue book is flat vs. last week."
     if delta < 0:
-        return f"Your overdue book SHRANK £{abs(delta):,.0f} vs. last week — the chasing is working."
+        return (
+            f"Your overdue book SHRANK £{abs(delta):,.0f} vs. last week — the chasing is working."
+        )
     return f"Your overdue book GREW £{delta:,.0f} vs. last week — worth a look."
 
 
@@ -142,9 +144,7 @@ def build_digest(session_id: str) -> dict[str, Any]:
     books_url = f"{_APP_BASE_URL}/books"
     lines += ["", f"Review and fix them with Siki: {books_url}"]
 
-    extras_html = "".join(
-        f"<p style='color:#047857;font-weight:600'>{e}</p>" for e in extras
-    )
+    extras_html = "".join(f"<p style='color:#047857;font-weight:600'>{e}</p>" for e in extras)
     html = f"""\
 <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;color:#1c1917">
   <h2 style="color:#0284c7">🦉 Sikizana — your weekly check-in</h2>

@@ -73,6 +73,7 @@ def memory_container_tag(session_id: str, user_id: int | None = None) -> str:
         return f"user:{user_id}"
     return f"session:{session_id}"
 
+
 # Health-check cache — avoid pinging on every request.
 _health_checked_at: float = 0.0
 _health_ok: bool = False
@@ -149,12 +150,14 @@ def search(
         for r in data.get("results", []):
             # Memory results have "memory", chunk results (hybrid mode) have "chunk"
             content = r.get("memory") or r.get("chunk") or ""
-            results.append({
-                "content": content,
-                "score": r.get("similarity", 0.0),
-                "metadata": r.get("metadata") or {},
-                "id": r.get("id", ""),
-            })
+            results.append(
+                {
+                    "content": content,
+                    "score": r.get("similarity", 0.0),
+                    "metadata": r.get("metadata") or {},
+                    "id": r.get("id", ""),
+                }
+            )
         return results
     except Exception as exc:
         log.warning("supermemory_search_error", extra={"error": str(exc), "query": query[:80]})
@@ -190,7 +193,10 @@ def get_profile(container_tag: str, query: str | None = None) -> dict[str, Any] 
             "static": profile.get("static", []),
             "dynamic": profile.get("dynamic", []),
             "search_results": [
-                {"content": r.get("memory") or r.get("chunk") or "", "score": r.get("similarity", 0.0)}
+                {
+                    "content": r.get("memory") or r.get("chunk") or "",
+                    "score": r.get("similarity", 0.0),
+                }
                 for r in search_results
             ],
         }
@@ -281,7 +287,9 @@ def ingest_conversation(
         resp.raise_for_status()
         return True
     except Exception as exc:
-        log.warning("supermemory_ingest_error", extra={"error": str(exc), "conv_id": conversation_id})
+        log.warning(
+            "supermemory_ingest_error", extra={"error": str(exc), "conv_id": conversation_id}
+        )
         return False
 
 
@@ -411,7 +419,9 @@ def search_tax_rules(query: str, region: str = "GB", limit: int = 3) -> list[dic
 
     # Client-side region filter — prefer results with matching region metadata
     region_lower = region.lower()
-    matched = [r for r in results if r.get("metadata", {}).get("region", "").lower() == region_lower]
+    matched = [
+        r for r in results if r.get("metadata", {}).get("region", "").lower() == region_lower
+    ]
     if matched:
         return matched[:limit]
 
@@ -446,14 +456,16 @@ def list_memories(container_tag: str) -> list[dict[str, Any]]:
             # API may return None for content/title — coerce to empty string
             content = d.get("content") or d.get("title") or d.get("summary") or ""
             metadata = d.get("metadata") or {}
-            result.append({
-                "id": d.get("id", ""),
-                "content": content[:200] if isinstance(content, str) else str(content)[:200],
-                "status": d.get("status", "unknown"),
-                "createdAt": d.get("createdAt", ""),
-                "metadata": metadata,
-                "containerTags": d.get("containerTags") or [],
-            })
+            result.append(
+                {
+                    "id": d.get("id", ""),
+                    "content": content[:200] if isinstance(content, str) else str(content)[:200],
+                    "status": d.get("status", "unknown"),
+                    "createdAt": d.get("createdAt", ""),
+                    "metadata": metadata,
+                    "containerTags": d.get("containerTags") or [],
+                }
+            )
         return result
     except Exception as exc:
         log.warning("supermemory_list_error", extra={"error": str(exc)})

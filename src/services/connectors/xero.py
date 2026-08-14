@@ -68,7 +68,8 @@ class XeroConnector(AccountingConnector):
         # Filter by contact_id client-side (XeroService doesn't support it)
         if contact_id:
             result = [
-                i for i in result
+                i
+                for i in result
                 if i.get("contactId") == contact_id or i.get("contact_id") == contact_id
             ]
         return result[:limit] if limit else result
@@ -85,7 +86,9 @@ class XeroConnector(AccountingConnector):
         result = self._svc.list_payments()
         return result[:limit] if limit else result
 
-    def get_profit_and_loss(self, from_date: str | None = None, to_date: str | None = None) -> dict[str, Any]:
+    def get_profit_and_loss(
+        self, from_date: str | None = None, to_date: str | None = None
+    ) -> dict[str, Any]:
         return self._svc.get_profit_and_loss(from_date=from_date, to_date=to_date)
 
     def get_balance_sheet(self, as_of: str | None = None) -> dict[str, Any]:

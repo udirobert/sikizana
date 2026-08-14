@@ -30,7 +30,11 @@ def find_payment_anomalies(payments: list[Payment]) -> list[ApFinding]:
                     "Explain what evidence I should check before treating it as expected."
                 ),
                 evidence=(
-                    Evidence(payment.id, payment.bill_number or "Payment", f"{payment.date} · £{payment.amount:,.2f}"),
+                    Evidence(
+                        payment.id,
+                        payment.bill_number or "Payment",
+                        f"{payment.date} · £{payment.amount:,.2f}",
+                    ),
                 ),
             )
         )

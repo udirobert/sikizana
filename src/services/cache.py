@@ -21,9 +21,9 @@ _DB_PATH = os.environ.get("PAYMENT_DB_PATH", "data/sikizana.db")
 _MAX_ROWS = 500
 
 # Standard TTLs, named for intent at the call sites.
-TTL_DAY = 24 * 3600       # HMRC guidance pages — stable for months
+TTL_DAY = 24 * 3600  # HMRC guidance pages — stable for months
 TTL_WEEK = 7 * 24 * 3600  # sector benchmarks — updated ~annually
-TTL_FAILURE = 6 * 3600    # a failed scrape — don't hammer, retry later
+TTL_FAILURE = 6 * 3600  # a failed scrape — don't hammer, retry later
 
 
 def _db() -> sqlite3.Connection:

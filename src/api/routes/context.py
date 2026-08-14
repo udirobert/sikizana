@@ -156,7 +156,9 @@ async def context_search(q: str = ""):
                     {
                         "title": r.get("title", ""),
                         "url": r.get("url", ""),
-                        "snippet": (r.get("highlights") or [""])[0][:200] if r.get("highlights") else "",
+                        "snippet": (r.get("highlights") or [""])[0][:200]
+                        if r.get("highlights")
+                        else "",
                     }
                     for r in data.get("results", [])
                 ]

@@ -25,10 +25,13 @@ from src.services.logging import get_logger
 
 log = get_logger("cafe_brief.service")
 
-DEFAULT_CSV = str(Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv")
+DEFAULT_CSV = str(
+    Path(__file__).resolve().parents[4] / "matcha-hack" / "out" / "square_item_sales.csv"
+)
 CSV_PATH = os.environ.get("CAFE_POS_CSV", DEFAULT_CSV)
 
 # ------------------------------------------------------------------ spend
+
 
 def _spend_facts() -> dict:
     """Supplier spend + P&L anchor from the seeded café demo scenario.
@@ -44,8 +47,9 @@ def _spend_facts() -> dict:
 
         data = scenario_data("cafe")
         supplier_names = {c["name"] for c in data["contacts"] if c.get("isSupplier")}
-        supplier_emails = {c["name"]: c.get("emailAddress", "")
-                           for c in data["contacts"] if c.get("isSupplier")}
+        supplier_emails = {
+            c["name"]: c.get("emailAddress", "") for c in data["contacts"] if c.get("isSupplier")
+        }
 
         def _contact_name(obj) -> str | None:
             if isinstance(obj, dict):
@@ -94,29 +98,35 @@ def _nudges(facts: dict, spend: dict) -> list[dict]:
     out = []
     if facts["risers"]:
         r = facts["risers"][0]
-        out.append({
-            "title": f"Stock up for {r['item']}",
-            "rationale": f"Up {r['pct_change']}% vs the prior month — now ~{r['units_per_week']}/week. "
-                         f"Raise the matcha and oat-milk order before the weekend rush.",
-            "impact_gbp": None,
-        })
+        out.append(
+            {
+                "title": f"Stock up for {r['item']}",
+                "rationale": f"Up {r['pct_change']}% vs the prior month — now ~{r['units_per_week']}/week. "
+                f"Raise the matcha and oat-milk order before the weekend rush.",
+                "impact_gbp": None,
+            }
+        )
     if facts["fallers"]:
         f = facts["fallers"][0]
-        out.append({
-            "title": f"Cut the {f['item']} order",
-            "rationale": f"Down {abs(f['pct_change'])}% over the last 4 weeks "
-                         f"(~{f['units_per_week']}/week). Waste risk on perishables.",
-            "impact_gbp": None,
-        })
+        out.append(
+            {
+                "title": f"Cut the {f['item']} order",
+                "rationale": f"Down {abs(f['pct_change'])}% over the last 4 weeks "
+                f"(~{f['units_per_week']}/week). Waste risk on perishables.",
+                "impact_gbp": None,
+            }
+        )
     a = facts["attach"]
     if a["rate"] < BENCHMARK_ATTACH:
-        out.append({
-            "title": "Bundle cake with matcha",
-            "rationale": f"Only {a['rate']:.0%} of matcha lattes add a cake or pastry "
-                         f"(benchmark ~{BENCHMARK_ATTACH:.0%}). A 'matcha + cake' board at "
-                         f"the till is worth roughly £{a['weekly_opportunity_gbp']:,.0f}/week.",
-            "impact_gbp": a["weekly_opportunity_gbp"],
-        })
+        out.append(
+            {
+                "title": "Bundle cake with matcha",
+                "rationale": f"Only {a['rate']:.0%} of matcha lattes add a cake or pastry "
+                f"(benchmark ~{BENCHMARK_ATTACH:.0%}). A 'matcha + cake' board at "
+                f"the till is worth roughly £{a['weekly_opportunity_gbp']:,.0f}/week.",
+                "impact_gbp": a["weekly_opportunity_gbp"],
+            }
+        )
     return out[:3]
 
 
@@ -139,25 +149,67 @@ _SCHEMA = {
     "properties": {
         "headline": {"type": "string"},
         "sell_summary": {"type": "string"},
-        "verification": {"type": "array", "items": {"type": "object", "properties": {
-            "claim": {"type": "string"}, "verified": {"type": "boolean"},
-            "note": {"type": "string"}},
-            "required": ["claim", "verified", "note"], "additionalProperties": False}},
-        "nudges": {"type": "array", "items": {"type": "object", "properties": {
-            "title": {"type": "string"}, "rationale": {"type": "string"},
-            "impact_gbp": {"type": "number"}},
-            "required": ["title", "rationale", "impact_gbp"], "additionalProperties": False}},
-        "industry_trend": {"type": "object", "properties": {
-            "claim": {"type": "string"}, "source_name": {"type": "string"},
-            "source_url": {"type": "string"}},
-            "required": ["claim", "source_name", "source_url"], "additionalProperties": False},
-        "competitor_prices": {"type": "array", "items": {"type": "object", "properties": {
-            "item": {"type": "string"}, "price_gbp": {"type": "number"},
-            "place": {"type": "string"}, "source_url": {"type": "string"}},
-            "required": ["item", "price_gbp", "place", "source_url"], "additionalProperties": False}},
+        "verification": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "claim": {"type": "string"},
+                    "verified": {"type": "boolean"},
+                    "note": {"type": "string"},
+                },
+                "required": ["claim", "verified", "note"],
+                "additionalProperties": False,
+            },
+        },
+        "nudges": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "rationale": {"type": "string"},
+                    "impact_gbp": {"type": "number"},
+                },
+                "required": ["title", "rationale", "impact_gbp"],
+                "additionalProperties": False,
+            },
+        },
+        "industry_trend": {
+            "type": "object",
+            "properties": {
+                "claim": {"type": "string"},
+                "source_name": {"type": "string"},
+                "source_url": {"type": "string"},
+            },
+            "required": ["claim", "source_name", "source_url"],
+            "additionalProperties": False,
+        },
+        "competitor_prices": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "item": {"type": "string"},
+                    "price_gbp": {"type": "number"},
+                    "place": {"type": "string"},
+                    "source_url": {"type": "string"},
+                },
+                "required": ["item", "price_gbp", "place", "source_url"],
+                "additionalProperties": False,
+            },
+        },
         "supplier_email_draft": {"type": "string"},
     },
-    "required": ["headline", "sell_summary", "nudges", "industry_trend", "supplier_email_draft", "verification", "competitor_prices"],
+    "required": [
+        "headline",
+        "sell_summary",
+        "nudges",
+        "industry_trend",
+        "supplier_email_draft",
+        "verification",
+        "competitor_prices",
+    ],
     "additionalProperties": False,
 }
 
@@ -205,9 +257,11 @@ Attached is the RAW Square Item Sales export itself (CSV). Do four things:
 """
 
 
-def build_briefing(csv_bytes: bytes | None = None,
-                   source_note: str | None = None,
-                   svc: AccountingConnector | None = None) -> dict:
+def build_briefing(
+    csv_bytes: bytes | None = None,
+    source_note: str | None = None,
+    svc: AccountingConnector | None = None,
+) -> dict:
     """Fast path: deterministic facts + fallback copy. No network.
 
     csv_bytes: an owner-uploaded Square export (their data analysed fresh,
@@ -221,30 +275,46 @@ def build_briefing(csv_bytes: bytes | None = None,
 
     sales = build_sales_facts(load_item_sales(csv_bytes if csv_bytes is not None else CSV_PATH))
     facts = {
-        "window": sales.window, "totals": sales.totals,
+        "window": sales.window,
+        "totals": sales.totals,
         "top_items_by_revenue": sales.top_items_by_revenue,
-        "risers": sales.risers, "fallers": sales.fallers, "attach": sales.attach,
-        "daypart_share": sales.daypart_share, "rhythm": sales.rhythm,
-        "modifiers": sales.modifiers, "mix": sales.mix,
+        "risers": sales.risers,
+        "fallers": sales.fallers,
+        "attach": sales.attach,
+        "daypart_share": sales.daypart_share,
+        "rhythm": sales.rhythm,
+        "modifiers": sales.modifiers,
+        "mix": sales.mix,
     }
     spend = build_spend_facts(svc) if svc else _spend_facts()
-    spend_dict = {
-        "by_supplier_gbp": spend.by_supplier_gbp,
-        "net_profit_gbp": spend.net_profit_gbp,
-        "period": spend.period,
-    } if svc else spend
+    spend_dict = (
+        {
+            "by_supplier_gbp": spend.by_supplier_gbp,
+            "net_profit_gbp": spend.net_profit_gbp,
+            "period": spend.period,
+        }
+        if svc
+        else spend
+    )
     nudges = _nudges(facts, spend_dict)
-    cafe_label = (source_note or "Matcha Mochi — City Road (demo twin)")
+    cafe_label = source_note or "Matcha Mochi — City Road (demo twin)"
     return {
-        "cafe": {"name": cafe_label, "pos": "Square Item Sales export",
-                 "uploaded": csv_bytes is not None},
+        "cafe": {
+            "name": cafe_label,
+            "pos": "Square Item Sales export",
+            "uploaded": csv_bytes is not None,
+        },
         "sell": facts,
         "spend": spend_dict,
         "nudges": nudges,
         "copy": _fallback_copy(facts, nudges),
         "verification": [],
-        "benchmarks": {"cogs": BENCHMARK_COGS, "cogs_source": BENCHMARK_COGS_SOURCE,
-                        "attach": BENCHMARK_ATTACH, "sources": BENCHMARK_SOURCES},
+        "benchmarks": {
+            "cogs": BENCHMARK_COGS,
+            "cogs_source": BENCHMARK_COGS_SOURCE,
+            "attach": BENCHMARK_ATTACH,
+            "sources": BENCHMARK_SOURCES,
+        },
         "manus": {"status": "not_started"},
     }
 
@@ -276,8 +346,10 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
                 briefing = frozen
             else:
                 briefing = build_briefing(svc=svc)
-                briefing["manus"] = {"status": "unavailable",
-                                     "reason": "static mode, no frozen fixture"}
+                briefing["manus"] = {
+                    "status": "unavailable",
+                    "reason": "static mode, no frozen fixture",
+                }
         else:
             briefing = build_briefing(svc=svc)
         _CACHE = briefing
@@ -297,37 +369,52 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
             claims = []
             if facts["risers"]:
                 r = facts["risers"][0]
-                claims.append(f'- "{r["item"]}" averaged {r["units_per_week"]} units/week over the last 4 weeks, vs a prior-4-week average that makes this a {r["pct_change"]}% rise')
+                claims.append(
+                    f'- "{r["item"]}" averaged {r["units_per_week"]} units/week over the last 4 weeks, vs a prior-4-week average that makes this a {r["pct_change"]}% rise'
+                )
             if facts["fallers"]:
                 f = facts["fallers"][0]
-                claims.append(f'- "{f["item"]}" fell {f["pct_change"]}% using the same last-4-vs-prior-4-week method (recent avg {f["units_per_week"]}/week)')
+                claims.append(
+                    f'- "{f["item"]}" fell {f["pct_change"]}% using the same last-4-vs-prior-4-week method (recent avg {f["units_per_week"]}/week)'
+                )
             a = facts["attach"]
-            claims.append(f'- Only {a["rate"]:.1%} of transactions containing a matcha drink also contained a cake/pastry item ({a["with_treat"]} of {a["matcha_transactions"]} transactions)')
-            prompt = (_PROMPT
-                      .replace("{facts}", json.dumps(facts, indent=1, default=str))
-                      .replace("{spend}", json.dumps(briefing["spend"], indent=1))
-                      .replace("{claims}", "\n".join(claims) or "- (none)"))
+            claims.append(
+                f"- Only {a['rate']:.1%} of transactions containing a matcha drink also contained a cake/pastry item ({a['with_treat']} of {a['matcha_transactions']} transactions)"
+            )
+            prompt = (
+                _PROMPT.replace("{facts}", json.dumps(facts, indent=1, default=str))
+                .replace("{spend}", json.dumps(briefing["spend"], indent=1))
+                .replace("{claims}", "\n".join(claims) or "- (none)")
+            )
             # Attach the raw till export — the agent recomputes our claims
             # from the data itself (verification), never just our summary.
-            csv_bytes = Path(CSV_PATH).read_bytes()[:20 * 1024 * 1024]
+            csv_bytes = Path(CSV_PATH).read_bytes()[: 20 * 1024 * 1024]
             created = manus_client.create_task(
-                prompt, title="Café Monday Briefing copy", schema=_SCHEMA,
+                prompt,
+                title="Café Monday Briefing copy",
+                schema=_SCHEMA,
                 share_visibility="public",
-                attachments=[("square_item_sales.csv", csv_bytes)])
+                attachments=[("square_item_sales.csv", csv_bytes)],
+            )
             log.info("cafe_manus_task_created", extra={"task_id": created.get("task_id")})
             with _LOCK:
                 # Showcase the agent run itself (a Manus hackathon, after all):
                 # status lives in the briefing, activity via /api/cafe/activity.
                 # share_url is public so judges/owner can open it after the
                 # hackathon credits are gone.
-                briefing["manus"] = {"status": "working", "task_id": created["task_id"],
-                                     "task_url": created.get("task_url"),
-                                     "share_url": created.get("share_url")}
+                briefing["manus"] = {
+                    "status": "working",
+                    "task_id": created["task_id"],
+                    "task_url": created.get("task_url"),
+                    "share_url": created.get("share_url"),
+                }
             result = manus_client.wait_result(created["task_id"], timeout_s=600)
             with _LOCK:
                 if result:
-                    merged = {**_fallback_copy(briefing["sell"], briefing["nudges"]),
-                              **{k: v for k, v in result.items() if v}}
+                    merged = {
+                        **_fallback_copy(briefing["sell"], briefing["nudges"]),
+                        **{k: v for k, v in result.items() if v},
+                    }
                     # Numbers are ours, wording is Manus's: re-pin every nudge's
                     # impact to the deterministic value (or null), never the
                     # agent's arithmetic.
@@ -336,17 +423,28 @@ def briefing_with_manus(refresh: bool = False, svc: AccountingConnector | None =
                         n["impact_gbp"] = det[i]["impact_gbp"] if i < len(det) else None
                     # Never show fewer nudges than the deterministic three.
                     if len(merged.get("nudges") or []) < len(det):
-                        merged["nudges"] = list(merged.get("nudges") or []) + det[len(merged.get("nudges") or []):]
+                        merged["nudges"] = (
+                            list(merged.get("nudges") or [])
+                            + det[len(merged.get("nudges") or []) :]
+                        )
                     briefing["copy"] = merged
                     briefing["verification"] = result.get("verification") or []
                     briefing["manus"]["status"] = "done"
                     _freeze(briefing)
                     return
-                briefing["manus"] = {**briefing["manus"], "status": "failed", "reason": "empty result"}
+                briefing["manus"] = {
+                    **briefing["manus"],
+                    "status": "failed",
+                    "reason": "empty result",
+                }
         except Exception as e:
             log.exception("cafe_enrich_failed", extra={"error": str(e)})
             with _LOCK:
-                briefing["manus"] = {**briefing.get("manus", {}), "status": "failed", "reason": str(e)}
+                briefing["manus"] = {
+                    **briefing.get("manus", {}),
+                    "status": "failed",
+                    "reason": str(e),
+                }
 
     threading.Thread(target=_enrich, daemon=True).start()
     return briefing

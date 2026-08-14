@@ -112,9 +112,7 @@ def build_aging(svc: AccountingConnector) -> dict[str, Any]:
     return {
         "total_outstanding": round(total_outstanding, 2),
         "total_overdue": round(total_overdue, 2),
-        "buckets": [
-            {**b, "amount": round(b["amount"], 2)} for b in bucket_totals.values()
-        ],
+        "buckets": [{**b, "amount": round(b["amount"], 2)} for b in bucket_totals.values()],
         "debtors": debtor_rows,
         "dso": {"days": dso, "sample": len(paid_days)},
         "invoice_count": sum(b["count"] for b in bucket_totals.values()),

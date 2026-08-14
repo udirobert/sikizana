@@ -58,8 +58,7 @@ def build_spend_facts(svc: AccountingConnector) -> SpendFact:
     contacts = svc.list_contacts()
     supplier_names = {c["name"] for c in contacts if c.get("isSupplier")}
     supplier_emails = {
-        c["name"]: c.get("emailAddress", "")
-        for c in contacts if c.get("isSupplier")
+        c["name"]: c.get("emailAddress", "") for c in contacts if c.get("isSupplier")
     }
 
     by_supplier: dict[str, float] = {}

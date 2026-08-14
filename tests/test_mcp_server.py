@@ -7,6 +7,8 @@ import json
 
 import pytest
 
+mcp = pytest.importorskip("mcp")
+
 from src.mcp_server import call_tool, list_tools
 
 

@@ -26,7 +26,7 @@ export function RotatedReveal({ color = "#0a0a0a" }: { color?: string }) {
   useLayoutEffect(() => {
     try {
       if (window.sessionStorage.getItem(REVEAL_PLAYED_KEY)) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+         
         setShow(false);
         return;
       }

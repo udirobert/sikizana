@@ -154,7 +154,11 @@ def run(today: date | None = None) -> dict[str, int]:
         # 3. Send / simulate / fail — always recorded, never silent.
         if seq["simulated"]:
             chase_store.record_send(
-                seq["id"], stage, "simulated", email.subject, seq["contact_email"],
+                seq["id"],
+                stage,
+                "simulated",
+                email.subject,
+                seq["contact_email"],
                 detail="demo mode — no email sent",
             )
             stats["simulated"] += 1
@@ -180,9 +184,7 @@ def run(today: date | None = None) -> dict[str, int]:
                 reply_to=seq["reply_to"] or "",  # replies reach the user's mailbox
             )
             outcome = "sent" if ok else "failed"
-            chase_store.record_send(
-                seq["id"], stage, outcome, email.subject, seq["contact_email"]
-            )
+            chase_store.record_send(seq["id"], stage, outcome, email.subject, seq["contact_email"])
             if not ok:
                 stats["failed"] += 1
                 continue  # leave due; retried next run

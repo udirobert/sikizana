@@ -1150,17 +1150,34 @@ _SECTOR_BENCHMARKS: dict[str, dict[str, float]] = {
 
 # Keyword mapping from org name / industry hints to sector
 _SECTOR_KEYWORDS: list[tuple[str, str]] = [
-    ("retail", "retail"), ("shop", "retail"), ("store", "retail"),
-    ("cafe", "hospitality"), ("restaurant", "hospitality"), ("bar", "hospitality"),
-    ("hotel", "hospitality"), ("catering", "hospitality"), ("coffee", "hospitality"),
-    ("construct", "construction"), ("build", "construction"), ("contractor", "construction"),
-    ("consult", "professional_services"), ("law", "professional_services"),
-    ("account", "professional_services"), ("agency", "professional_services"),
-    ("design", "professional_services"), ("tech", "professional_services"),
-    ("manufactur", "manufacturing"), ("factory", "manufacturing"),
-    ("wholesale", "wholesale"), ("distribut", "wholesale"),
-    ("music", "music"), ("band", "music"), ("artist", "music"),
-    ("studio", "music"), ("label", "music"), ("record", "music"),
+    ("retail", "retail"),
+    ("shop", "retail"),
+    ("store", "retail"),
+    ("cafe", "hospitality"),
+    ("restaurant", "hospitality"),
+    ("bar", "hospitality"),
+    ("hotel", "hospitality"),
+    ("catering", "hospitality"),
+    ("coffee", "hospitality"),
+    ("construct", "construction"),
+    ("build", "construction"),
+    ("contractor", "construction"),
+    ("consult", "professional_services"),
+    ("law", "professional_services"),
+    ("account", "professional_services"),
+    ("agency", "professional_services"),
+    ("design", "professional_services"),
+    ("tech", "professional_services"),
+    ("manufactur", "manufacturing"),
+    ("factory", "manufacturing"),
+    ("wholesale", "wholesale"),
+    ("distribut", "wholesale"),
+    ("music", "music"),
+    ("band", "music"),
+    ("artist", "music"),
+    ("studio", "music"),
+    ("label", "music"),
+    ("record", "music"),
 ]
 
 
@@ -1319,6 +1336,7 @@ def get_sector_benchmarks(sector: str = "") -> str:
         # 1. Check user profile (user-scoped, persists across sessions)
         try:
             from src.services.accounts import get_profile_for_agent
+
             profile = get_profile_for_agent(current_session())
             if profile and profile.get("industry"):
                 profile_industry = profile["industry"].lower().replace(" ", "_")
@@ -1391,6 +1409,7 @@ def get_sector_benchmarks(sector: str = "") -> str:
         pass
 
     from datetime import date as _date
+
     today = _date.today()
     if avg_receivables_days == 0:
         recv_measure = "days past due on currently overdue invoices (no payment history yet)"
@@ -1451,16 +1470,24 @@ def get_sector_benchmarks(sector: str = "") -> str:
     bench_recv = bench["avg_receivables_days"]
     if isinstance(user_recv, int):
         if user_recv <= bench_recv * 0.8:
-            recv_verdict = f"BETTER than sector average ({bench_recv} days). You're in the top quartile."
+            recv_verdict = (
+                f"BETTER than sector average ({bench_recv} days). You're in the top quartile."
+            )
         elif user_recv <= bench_recv:
-            recv_verdict = f"In line with sector average ({bench_recv} days). Normal for your industry."
+            recv_verdict = (
+                f"In line with sector average ({bench_recv} days). Normal for your industry."
+            )
         elif user_recv <= bench_recv * 1.3:
             recv_verdict = f"WORSE than sector average ({bench_recv} days). Needs attention."
         else:
-            recv_verdict = f"SIGNIFICANTLY WORSE than sector average ({bench_recv} days). Priority #1."
+            recv_verdict = (
+                f"SIGNIFICANTLY WORSE than sector average ({bench_recv} days). Priority #1."
+            )
     else:
         recv_verdict = f"No overdue invoices to measure. Sector average is {bench_recv} days."
-    summary += f"Your avg receivables: {user_recv} days (measured as {recv_measure})\n{recv_verdict}\n\n"
+    summary += (
+        f"Your avg receivables: {user_recv} days (measured as {recv_measure})\n{recv_verdict}\n\n"
+    )
 
     # Overdue rate comparison
     user_rate = round(overdue_rate * 100, 1)
@@ -1548,7 +1575,9 @@ def get_sector_benchmarks(sector: str = "") -> str:
                 "user_value": round(overdue_rate * 100, 1),
                 "sector_value": round(bench["avg_overdue_rate"] * 100, 1),
                 "unit": "%",
-                "verdict": _verdict(round(overdue_rate * 100, 1), round(bench["avg_overdue_rate"] * 100, 1)),
+                "verdict": _verdict(
+                    round(overdue_rate * 100, 1), round(bench["avg_overdue_rate"] * 100, 1)
+                ),
             },
             {
                 "label": "Avg invoice value",
@@ -1600,6 +1629,7 @@ def score_customers() -> str:
         return "No customer invoices found to analyze."
 
     from datetime import date as _date
+
     today = _date.today()
 
     scores: list[dict[str, any]] = []
@@ -1693,20 +1723,22 @@ def score_customers() -> str:
                 email = c.get("emailAddress", "") or ""
                 break
 
-        scores.append({
-            "name": name,
-            "rating": rating,
-            "on_time_rate": round(on_time_rate * 100, 1),
-            "avg_days_late": round(avg_days_late),
-            "total_invoices": total_invoices,
-            "total_revenue": total_revenue,
-            "outstanding": total_outstanding,
-            "chasing_cost": round(chasing_cost, 2),
-            "interest_lost": round(interest_lost, 2),
-            "total_cost": round(total_cost, 2),
-            "fire_recommendation": fire_recommendation,
-            "email": email,
-        })
+        scores.append(
+            {
+                "name": name,
+                "rating": rating,
+                "on_time_rate": round(on_time_rate * 100, 1),
+                "avg_days_late": round(avg_days_late),
+                "total_invoices": total_invoices,
+                "total_revenue": total_revenue,
+                "outstanding": total_outstanding,
+                "chasing_cost": round(chasing_cost, 2),
+                "interest_lost": round(interest_lost, 2),
+                "total_cost": round(total_cost, 2),
+                "fire_recommendation": fire_recommendation,
+                "email": email,
+            }
+        )
 
     # Sort by total cost descending (worst customers first)
     scores.sort(key=lambda s: s["total_cost"], reverse=True)
@@ -1734,7 +1766,11 @@ def score_customers() -> str:
     summary += "PORTFOLIO SUMMARY:\n"
     summary += f"  Total revenue: £{total_revenue_all:,.2f}\n"
     summary += f"  Total chasing + interest cost: £{total_cost_all:,.2f}\n"
-    summary += f"  Cost as % of revenue: {(total_cost_all / total_revenue_all * 100):.1f}%\n" if total_revenue_all > 0 else ""
+    summary += (
+        f"  Cost as % of revenue: {(total_cost_all / total_revenue_all * 100):.1f}%\n"
+        if total_revenue_all > 0
+        else ""
+    )
     summary += f"  Red customers: {red_count} | Firing candidates: {fire_count}\n\n"
 
     if fire_count > 0:
@@ -1782,6 +1818,7 @@ def score_customers() -> str:
 # Multi-stage chasing strategy — full negotiation plan per overdue invoice
 # ---------------------------------------------------------------------------
 
+
 def get_chasing_strategy(contact_name: str = "") -> str:
     """
     Generate a multi-stage chasing strategy for an overdue invoice or
@@ -1799,7 +1836,8 @@ def get_chasing_strategy(contact_name: str = "") -> str:
 
     if contact_name:
         overdue_accrec = [
-            i for i in overdue_accrec
+            i
+            for i in overdue_accrec
             if (i.get("contact") or {}).get("name", "").lower() == contact_name.lower()
         ]
 
@@ -1809,6 +1847,7 @@ def get_chasing_strategy(contact_name: str = "") -> str:
         return "No overdue invoices to build a chasing strategy for."
 
     from datetime import date as _date
+
     today = _date.today()
 
     # Group by contact
@@ -1893,12 +1932,16 @@ def get_chasing_strategy(contact_name: str = "") -> str:
         ]
 
         for stage in stages:
-            marker = "▶ CURRENT" if stage["stage"] == current_stage else ("✓ DONE" if stage["stage"] < current_stage else "○ UPCOMING")
+            marker = (
+                "▶ CURRENT"
+                if stage["stage"] == current_stage
+                else ("✓ DONE" if stage["stage"] < current_stage else "○ UPCOMING")
+            )
             summary += f"  Stage {stage['stage']} ({stage['days']}) — {marker}\n"
             summary += f"  Tactic: {stage['tactic']}\n"
             summary += f"  Action: {stage['action']}\n"
             if stage["stage"] >= current_stage:
-                summary += f"  To execute: Ask Zana to \"{stage['email_prompt']}\"\n"
+                summary += f'  To execute: Ask Zana to "{stage["email_prompt"]}"\n'
             summary += "\n"
 
         # Strategic advice
