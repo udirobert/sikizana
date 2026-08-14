@@ -157,22 +157,15 @@ def _cache_store(slug: str, sector: str) -> None:
 
 
 async def _llm_classify_sector(slug: str) -> str | None:
-    """Use a single cheap LLM call to classify a business type into a sector."""
-    api_key = os.environ.get("NVIDIA_API_KEY", "")
-    if not api_key:
+    """Use a single cheap LLM call to classify a business type into a sector.
+
+    Uses the same provider chain as enrichment (GLM 5.2 → NVIDIA → Venice).
+    """
+    providers = _build_provider_chain()
+    if not providers:
         return None
 
-    try:
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=api_key,
-            timeout=8.0,
-        )
-
-        model = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
-        prompt = f"""Classify this business type into exactly one of these sectors: retail, construction, professional_services, hospitality, manufacturing, wholesale, music.
+    prompt = f"""Classify this business type into exactly one of these sectors: retail, construction, professional_services, hospitality, manufacturing, wholesale, music.
 
 Business type: "{slug}"
 
@@ -188,19 +181,29 @@ Rules:
 If you cannot confidently classify it, respond with just the word "unknown".
 Respond with ONLY the sector name (one word/phrase), nothing else."""
 
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=20,
-        )
+    from openai import AsyncOpenAI
 
-        result = (response.choices[0].message.content or "").strip().lower().replace(" ", "_")
-        if result in CANONICAL_SECTORS:
-            return result
-
-    except Exception as exc:
-        log.warning("sector_classify_failed", extra={"slug": slug, "error": str(exc)})
+    for provider in providers:
+        try:
+            client = AsyncOpenAI(
+                base_url=provider["base_url"],
+                api_key=provider["api_key"],
+                timeout=provider.get("timeout", 8.0),
+            )
+            response = await client.chat.completions.create(
+                model=provider["model"],
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=20,
+            )
+            result = (response.choices[0].message.content or "").strip().lower().replace(" ", "_")
+            if result in CANONICAL_SECTORS:
+                return result
+        except Exception as exc:
+            log.warning("sector_classify_provider_failed", extra={
+                "provider": provider["name"], "slug": slug, "error": str(exc),
+            })
+            continue
 
     return None
 
@@ -443,26 +446,15 @@ def _deterministic_findings(facts: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 async def _enrich_with_llm(facts: dict[str, Any]) -> list[dict[str, Any]] | None:
-    """Single LLM call to produce findings in Siki's voice."""
-    api_key = os.environ.get("NVIDIA_API_KEY", "")
-    if not api_key:
-        return None
+    """Multi-provider LLM enrichment: GLM 5.2 (Vercel AI Gateway) → NVIDIA NIM → None.
 
-    import asyncio
+    Each provider is OpenAI-compatible. Tries them in order; first success wins.
+    Returns None if all fail, signalling deterministic fallback.
+    """
+    sector_label = facts["sector"].replace("_", " ").title()
+    bench = facts["benchmarks"]
 
-    try:
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=api_key,
-            timeout=10.0,
-        )
-
-        sector_label = facts["sector"].replace("_", " ").title()
-        bench = facts["benchmarks"]
-
-        prompt = f"""You are Siki, an AI finance assistant. You just scanned demo books for a {sector_label.lower()} business ({facts['org_name']}).
+    prompt = f"""You are Siki, an AI finance assistant. You just scanned demo books for a {sector_label.lower()} business ({facts['org_name']}).
 
 Here are the computed facts from your analysis:
 - Revenue: £{facts['revenue']:,.0f}, Gross margin: {round(facts['gross_margin'] * 100)}%, Net margin: {round(facts['net_margin'] * 100)}%, Net profit: £{facts['net_profit']:,.0f}
@@ -480,34 +472,110 @@ Produce exactly 3 findings as a JSON array. Each finding has:
 
 Return ONLY the JSON array, no markdown fencing, no other text."""
 
-        model = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=600,
-        )
+    # Provider chain: try each in order, first success wins
+    providers = _build_provider_chain()
+    if not providers:
+        return None
 
-        content = (response.choices[0].message.content or "").strip()
-        if content.startswith("```"):
-            content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
+    from openai import AsyncOpenAI
 
-        findings = json.loads(content)
-        if isinstance(findings, list) and len(findings) >= 1:
-            for f in findings:
-                if not all(k in f for k in ("id", "label", "detail", "tone", "evidence")):
-                    return None
-                if f["tone"] not in ("info", "watch", "risk"):
-                    f["tone"] = "info"
-            return findings[:3]
-
-    except Exception as exc:
-        log.warning("check_llm_enrichment_failed", extra={"error": str(exc)})
+    for provider in providers:
+        try:
+            client = AsyncOpenAI(
+                base_url=provider["base_url"],
+                api_key=provider["api_key"],
+                timeout=provider.get("timeout", 10.0),
+            )
+            response = await client.chat.completions.create(
+                model=provider["model"],
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=600,
+            )
+            content = (response.choices[0].message.content or "").strip()
+            findings = _parse_findings_response(content)
+            if findings:
+                log.info("check_enrichment_ok", extra={"provider": provider["name"], "sector": facts["sector"]})
+                return findings
+        except Exception as exc:
+            log.warning("check_enrichment_provider_failed", extra={
+                "provider": provider["name"],
+                "error": str(exc),
+            })
+            continue
 
     return None
+
+
+def _build_provider_chain() -> list[dict[str, Any]]:
+    """Build the ordered list of LLM providers to try.
+
+    Priority: GLM 5.2 (Vercel AI Gateway, free/fast) → NVIDIA NIM → Venice.
+    Only includes providers with configured API keys.
+    """
+    providers: list[dict[str, Any]] = []
+
+    # 1. GLM 5.2 via Vercel AI Gateway (free until Aug 27, 500 TPS)
+    vercel_key = os.environ.get("VERCEL_AI_GATEWAY_KEY", "")
+    if vercel_key:
+        providers.append({
+            "name": "glm-5.2",
+            "base_url": "https://ai-gateway.vercel.sh/v1",
+            "api_key": vercel_key,
+            "model": os.environ.get("VERCEL_AI_MODEL", "zai/glm-5.2"),
+            "timeout": 8.0,
+        })
+
+    # 2. NVIDIA NIM (primary production provider)
+    nvidia_key = os.environ.get("NVIDIA_API_KEY", "")
+    if nvidia_key:
+        providers.append({
+            "name": "nvidia-nim",
+            "base_url": "https://integrate.api.nvidia.com/v1",
+            "api_key": nvidia_key,
+            "model": os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct"),
+            "timeout": 10.0,
+        })
+
+    # 3. Venice AI (cross-provider fallback)
+    venice_key = os.environ.get("VENICE_API_KEY", "")
+    if venice_key:
+        providers.append({
+            "name": "venice",
+            "base_url": "https://api.venice.ai/api/v1",
+            "api_key": venice_key,
+            "model": os.environ.get("VENICE_MODEL", "llama-3.3-70b"),
+            "timeout": 10.0,
+        })
+
+    return providers
+
+
+def _parse_findings_response(content: str) -> list[dict[str, Any]] | None:
+    """Parse and validate LLM response into findings list."""
+    if content.startswith("```"):
+        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+    if content.endswith("```"):
+        content = content[:-3]
+    content = content.strip()
+
+    try:
+        findings = json.loads(content)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+    if not isinstance(findings, list) or len(findings) < 1:
+        return None
+
+    for f in findings:
+        if not isinstance(f, dict):
+            return None
+        if not all(k in f for k in ("id", "label", "detail", "tone", "evidence")):
+            return None
+        if f["tone"] not in ("info", "watch", "risk"):
+            f["tone"] = "info"
+
+    return findings[:3]
 
 
 # ─── Response caching ────────────────────────────────────────────────────────
