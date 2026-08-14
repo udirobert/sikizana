@@ -510,14 +510,96 @@ Return ONLY the JSON array, no markdown fencing, no other text."""
     return None
 
 
-# ─── Endpoint ────────────────────────────────────────────────────────────────
+# ─── Response caching ────────────────────────────────────────────────────────
+# Demo data never changes between deploys, so deterministic results are stable
+# per sector. LLM-enriched results are cached for 1h (same substance, just voice).
+
+import asyncio
+import time as _time
+
+_SCAN_CACHE: dict[str, tuple[float, dict]] = {}  # sector → (timestamp, response)
+_SCAN_CACHE_TTL = 3600  # 1 hour for LLM-enriched, effectively infinite for deterministic
+
+
+def _get_cached_scan(sector: str) -> dict | None:
+    """Return cached scan response if fresh."""
+    entry = _SCAN_CACHE.get(sector)
+    if entry is None:
+        return None
+    ts, data = entry
+    # Deterministic results never expire (demo data is static)
+    if data.get("source") == "rules":
+        return data
+    # LLM-enriched results expire after TTL
+    if _time.time() - ts < _SCAN_CACHE_TTL:
+        return data
+    return None
+
+
+def _store_scan_cache(sector: str, data: dict) -> None:
+    """Cache a scan response."""
+    _SCAN_CACHE[sector] = (_time.time(), data)
+
+
+# ─── Endpoints ───────────────────────────────────────────────────────────────
+
+@router.get("/api/check/{sector}/benchmarks")
+async def quick_check_benchmarks(sector: str, request: Request):
+    """Lightweight benchmarks + ratios — no AP scan, no LLM, fully static.
+
+    Used by the frontend on page load for instant value (benchmarks +
+    "yours" inputs). No rate limiting needed — response is pure static data.
+    Cacheable indefinitely by CDN/browser.
+    """
+    # Resolve sector (sync only — no LLM for the lightweight path)
+    resolved = _resolve_sector(sector)
+
+    if not resolved:
+        # Try async resolution for unknown slugs
+        resolved = await _resolve_sector_with_llm(sector)
+
+    if not resolved:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "resolved": False,
+                "slug": sector,
+                "suggestions": [
+                    {"id": s, "label": SECTOR_LABELS[s]}
+                    for s in CANONICAL_SECTORS
+                ],
+            },
+            headers={"Cache-Control": "public, max-age=86400"},
+        )
+
+    from src.tools.accounting_tools import _SECTOR_BENCHMARKS
+    bench = _SECTOR_BENCHMARKS.get(resolved, _SECTOR_BENCHMARKS["default"])
+    ratios = SECTOR_RATIOS.get(resolved, [])
+
+    return JSONResponse(
+        content={
+            "resolved": True,
+            "sector": resolved,
+            "sector_label": SECTOR_LABELS.get(resolved, resolved.replace("_", " ").title()),
+            "benchmarks": {
+                "gross_margin": round(bench["avg_gross_margin"] * 100),
+                "net_margin": round(bench["avg_net_margin"] * 100),
+                "avg_receivables_days": bench["avg_receivables_days"],
+                "avg_overdue_rate": round(bench["avg_overdue_rate"] * 100),
+            },
+            "ratios": ratios,
+        },
+        headers={"Cache-Control": "public, max-age=86400"},  # 24h — static data
+    )
+
 
 @router.get("/api/check/{sector}")
 async def quick_check(sector: str, request: Request):
-    """Agentic quick check — real analysis with fuzzy sector resolution.
+    """Full agentic scan — real AP analysis + LLM enrichment.
 
-    Resolution: alias → keyword → cache → LLM classify → picker.
-    Response includes benchmarks, sector-specific ratios, and findings.
+    Only called when the user explicitly clicks "Run Siki's check".
+    Results are cached in-memory per sector (deterministic: forever,
+    LLM-enriched: 1h). Rate-limited.
     """
     _check_rate_limit(request)
 
@@ -525,7 +607,6 @@ async def quick_check(sector: str, request: Request):
     resolved = await _resolve_sector_with_llm(sector)
 
     if not resolved:
-        # Unresolvable — return suggestions for the frontend picker
         return JSONResponse(
             status_code=200,
             content={
@@ -538,10 +619,17 @@ async def quick_check(sector: str, request: Request):
             },
         )
 
+    # Check cache first
+    cached = _get_cached_scan(resolved)
+    if cached:
+        return JSONResponse(
+            content=cached,
+            headers={"Cache-Control": "public, max-age=300", "X-Cache": "hit"},
+        )
+
     facts = _compute_facts(resolved)
 
     # Try LLM enrichment with timeout; fall back to deterministic
-    import asyncio
     try:
         findings = await asyncio.wait_for(_enrich_with_llm(facts), timeout=12.0)
     except asyncio.TimeoutError:
@@ -552,10 +640,9 @@ async def quick_check(sector: str, request: Request):
         findings = _deterministic_findings(facts)
         source = "rules"
 
-    # Sector-specific ratios for "yours" comparison inputs
     ratios = SECTOR_RATIOS.get(resolved, [])
 
-    return {
+    response_data = {
         "resolved": True,
         "sector": resolved,
         "sector_label": SECTOR_LABELS.get(resolved, resolved.replace("_", " ").title()),
@@ -578,3 +665,10 @@ async def quick_check(sector: str, request: Request):
             "net_margin": round(facts["net_margin"] * 100),
         },
     }
+
+    _store_scan_cache(resolved, response_data)
+
+    return JSONResponse(
+        content=response_data,
+        headers={"Cache-Control": "public, max-age=300", "X-Cache": "miss"},
+    )

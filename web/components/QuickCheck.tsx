@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type Phase = "thinking" | "benchmarks" | "findings" | "handoff";
+type Phase = "ready" | "scanning" | "findings" | "handoff";
 
 interface QuickFinding {
   id: string;
@@ -29,7 +29,28 @@ interface SectorRatio {
   multiplier: number;
 }
 
-interface CheckResponseResolved {
+interface BenchmarksResponse {
+  resolved: true;
+  sector: string;
+  sector_label: string;
+  benchmarks: {
+    gross_margin: number;
+    net_margin: number;
+    avg_receivables_days: number;
+    avg_overdue_rate: number;
+  };
+  ratios: SectorRatio[];
+}
+
+interface BenchmarksUnresolved {
+  resolved: false;
+  slug: string;
+  suggestions: { id: string; label: string }[];
+}
+
+type BenchmarksResult = BenchmarksResponse | BenchmarksUnresolved;
+
+interface ScanResponse {
   resolved: true;
   sector: string;
   sector_label: string;
@@ -37,12 +58,7 @@ interface CheckResponseResolved {
   findings: QuickFinding[];
   source: "agent" | "rules";
   ratios: SectorRatio[];
-  benchmarks: {
-    gross_margin: number;
-    net_margin: number;
-    avg_receivables_days: number;
-    avg_overdue_rate: number;
-  };
+  benchmarks: BenchmarksResponse["benchmarks"];
   meta: {
     total_invoices: number;
     overdue_count: number;
@@ -52,14 +68,6 @@ interface CheckResponseResolved {
     net_margin: number;
   };
 }
-
-interface CheckResponseUnresolved {
-  resolved: false;
-  slug: string;
-  suggestions: { id: string; label: string }[];
-}
-
-type CheckResponse = CheckResponseResolved | CheckResponseUnresolved;
 
 const TONE_CLASSES: Record<QuickFinding["tone"], { badge: string; border: string }> = {
   info: { badge: "bg-sky-50 text-sky-700 border-sky-100", border: "border-l-sky-400" },
@@ -77,7 +85,7 @@ function buildTraceSteps(label: string): TraceStep[] {
   ];
 }
 
-// ─── Sector Picker (shown when backend can't resolve the slug) ──────────────
+// ─── Sector Picker ──────────────────────────────────────────────────────────
 
 function SectorPicker({
   slug,
@@ -127,7 +135,7 @@ function YoursComparison({
   ratios,
   sectorLabel,
 }: {
-  benchmarks: CheckResponseResolved["benchmarks"];
+  benchmarks: BenchmarksResponse["benchmarks"];
   ratios: SectorRatio[];
   sectorLabel: string;
 }) {
@@ -146,7 +154,6 @@ function YoursComparison({
         Typical UK · {sectorLabel} · add yours to compare
       </p>
 
-      {/* Core margins */}
       <div className="mt-3 grid grid-cols-2 gap-4">
         <BenchmarkInput
           label="Gross margin"
@@ -164,7 +171,6 @@ function YoursComparison({
         />
       </div>
 
-      {/* Sector-specific ratios */}
       {ratios.length > 0 && (
         <div className="mt-3 grid grid-cols-2 gap-4">
           {ratios.map((r) => (
@@ -180,7 +186,6 @@ function YoursComparison({
         </div>
       )}
 
-      {/* Siki's read on their inputs */}
       {hasAnyInput && (
         <div className="mt-4 flex gap-2.5 fade-in-up">
           <SikiMascot size={24} mood="look" />
@@ -235,7 +240,7 @@ function parseNum(raw: string): number | null {
 }
 
 function buildYoursRead(
-  benchmarks: CheckResponseResolved["benchmarks"],
+  benchmarks: BenchmarksResponse["benchmarks"],
   ratios: SectorRatio[],
   gross: number | null,
   net: number | null,
@@ -259,7 +264,6 @@ function buildYoursRead(
   for (const r of ratios) {
     const val = parseNum(ratioInputs[r.id] ?? "");
     if (val === null) continue;
-    const typicalVal = Math.round(r.typical * r.multiplier);
     const [lo, hi] = [Math.round(r.range[0] * r.multiplier), Math.round(r.range[1] * r.multiplier)];
     if (val >= lo && val <= hi) {
       parts.push(`${r.label.split(" ")[0]} is within the typical ${lo}–${hi}${r.unit} band.`);
@@ -278,88 +282,83 @@ function buildYoursRead(
 /**
  * QuickCheck — the agentic lead magnet.
  *
- * Accepts a raw slug (may be unknown). Fetches /api/check/{slug} which
- * resolves the sector dynamically. If unresolved, shows a picker.
- * If resolved: instant benchmarks + "yours" inputs, then deeper findings
- * from real AP scan + optional LLM enrichment.
+ * Page loads in "ready" state with benchmarks + yours inputs (lightweight
+ * /benchmarks endpoint, cached 24h). The deeper scan (AP integrity + LLM)
+ * only fires when the user explicitly clicks "Run Siki's check".
+ *
+ * Zero API cost if the visitor just reads benchmarks and leaves.
  */
 export function QuickCheck({
   slug,
   hint,
 }: {
   slug: string;
-  /** Optional local hint from known aliases — used for initial label. */
   hint: ResolvedSnapshot | null;
 }) {
-  const [phase, setPhase] = useState<Phase>("thinking");
-  const [data, setData] = useState<CheckResponseResolved | null>(null);
-  const [unresolved, setUnresolved] = useState<CheckResponseUnresolved | null>(null);
+  const [phase, setPhase] = useState<Phase>("ready");
+  const [benchData, setBenchData] = useState<BenchmarksResponse | null>(null);
+  const [scanData, setScanData] = useState<ScanResponse | null>(null);
+  const [unresolved, setUnresolved] = useState<BenchmarksUnresolved | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
-  const [error, setError] = useState<string | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
 
-  // Track fetch timing for honest trace
-  const fetchStarted = useRef(Date.now());
-  const [apiDone, setApiDone] = useState(false);
-  const [minTraceElapsed, setMinTraceElapsed] = useState(false);
-
-  // Minimum trace time: 800ms (enough to show 2 steps)
-  useEffect(() => {
-    const t = setTimeout(() => setMinTraceElapsed(true), 800);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Fetch from backend
+  // Fetch lightweight benchmarks on mount (static, cached 24h, no LLM)
   useEffect(() => {
     let cancelled = false;
-
-    async function fetchCheck() {
+    async function fetchBenchmarks() {
       try {
-        const response = await api.get<CheckResponse>(`/api/check/${encodeURIComponent(slug)}`);
+        const res = await api.get<BenchmarksResult>(`/api/check/${encodeURIComponent(slug)}/benchmarks`);
         if (cancelled) return;
-
-        if (!response.resolved) {
-          setUnresolved(response);
+        if (!res.resolved) {
+          setUnresolved(res);
         } else {
-          setData(response);
+          setBenchData(res);
         }
       } catch {
+        // If benchmarks fail, we still show the page with hint data
         if (cancelled) return;
-        setError("Siki couldn't complete the check right now.");
-      } finally {
-        if (!cancelled) setApiDone(true);
       }
     }
-
-    void fetchCheck();
+    void fetchBenchmarks();
     return () => { cancelled = true; };
   }, [slug]);
 
-  // Transition from thinking → benchmarks once both conditions met
-  const shouldReveal = apiDone && minTraceElapsed;
-  const forceTraceComplete = apiDone; // signal trace to finish early if API is fast
+  // Scan trigger (user-initiated)
+  const [apiDone, setApiDone] = useState(false);
+  const forceTraceComplete = apiDone;
+
+  const runScan = useCallback(() => {
+    setPhase("scanning");
+    setApiDone(false);
+    setScanError(null);
+
+    async function doScan() {
+      try {
+        const res = await api.get<ScanResponse>(`/api/check/${encodeURIComponent(slug)}`);
+        setScanData(res);
+      } catch {
+        setScanError("Siki couldn't complete the scan right now. Try again or explore sample books.");
+      } finally {
+        setApiDone(true);
+      }
+    }
+    void doScan();
+  }, [slug]);
 
   const onTraceComplete = useCallback(() => {
-    if (data) setPhase("benchmarks");
-    else if (error) setPhase("benchmarks");
-    // If unresolved, the picker renders instead — no phase transition needed
-  }, [data, error]);
+    setPhase("findings");
+  }, []);
 
-  // Auto-transition when both ready
-  useEffect(() => {
-    if (shouldReveal && phase === "thinking") {
-      onTraceComplete();
-    }
-  }, [shouldReveal, phase, onTraceComplete]);
-
-  // If unresolved, render picker immediately once API responds
+  // If unresolved, render picker
   if (unresolved) {
     return <SectorPicker slug={unresolved.slug} suggestions={unresolved.suggestions} />;
   }
 
-  const sectorLabel = data?.sector_label ?? hint?.label ?? decodeURIComponent(slug);
-  const booksHref = data ? sectorCheckHref(data.sector as SectorId, { connect: true }) : "/books?flow=check&connect=1";
-  const demoHref = data ? sectorCheckHref(data.sector as SectorId) : "/books?flow=check";
+  const sectorLabel = benchData?.sector_label ?? hint?.label ?? decodeURIComponent(slug).replace(/[-_]/g, " ");
+  const resolvedSector = benchData?.sector ?? hint?.id;
+  const booksHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId, { connect: true }) : "/books?flow=check&connect=1";
+  const demoHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId) : "/books?flow=check";
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/check/${slug}`
@@ -378,12 +377,11 @@ export function QuickCheck({
 
   const markReviewed = (id: string) => {
     setReviewed((prev) => new Set(prev).add(id));
-    if (data && reviewed.size + 1 >= data.findings.length) {
+    if (scanData && reviewed.size + 1 >= scanData.findings.length) {
       setTimeout(() => setPhase("handoff"), 400);
     }
   };
 
-  const showFindings = () => setPhase("findings");
   const traceSteps = buildTraceSteps(sectorLabel);
 
   return (
@@ -405,25 +403,66 @@ export function QuickCheck({
           <div className="flex items-start gap-3 fade-in-up">
             <SikiMascot
               size={44}
-              mood={phase === "thinking" ? "look" : phase === "handoff" ? "wave" : "idle"}
+              mood={phase === "scanning" ? "look" : phase === "handoff" ? "wave" : "idle"}
             />
             <div className="min-w-0 pt-0.5">
               <p className="text-sm font-bold tracking-tight text-stone-950">SIKIZANA</p>
               <h1 className="mt-1 text-2xl sm:text-[1.75rem] font-bold text-stone-950 tracking-tight leading-tight">
-                {phase === "thinking"
+                {phase === "scanning"
                   ? `Checking ${sectorLabel.toLowerCase()}…`
-                  : phase === "benchmarks"
-                    ? `${sectorLabel} benchmarks`
-                    : phase === "findings"
-                      ? `Siki's ${sectorLabel.toLowerCase()} check`
-                      : "Ready to check your books"}
+                  : phase === "findings" || phase === "handoff"
+                    ? `Siki's ${sectorLabel.toLowerCase()} check`
+                    : `${sectorLabel} benchmarks`}
               </h1>
+              {phase === "ready" && (
+                <p className="mt-1 text-xs text-stone-500">
+                  Compare your numbers against typical UK ranges. Add yours below.
+                </p>
+              )}
             </div>
           </div>
 
-          {/* ─── Phase 1: Thinking ─── */}
-          {phase === "thinking" && (
-            <div className="mt-7 fade-in-up fade-in-up-delay-1">
+          {/* ─── Ready state: Benchmarks + Yours (instant, no scan needed) ─── */}
+          {phase === "ready" && benchData && (
+            <>
+              <div className="mt-6">
+                <YoursComparison
+                  benchmarks={benchData.benchmarks}
+                  ratios={benchData.ratios}
+                  sectorLabel={benchData.sector_label}
+                />
+              </div>
+
+              {/* CTA to run deeper scan */}
+              <div className="mt-6 space-y-3 fade-in-up fade-in-up-delay-1">
+                <button
+                  type="button"
+                  onClick={runScan}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 btn-press"
+                >
+                  Run Siki&rsquo;s check on sample books
+                </button>
+                <p className="text-center text-xs text-stone-500">
+                  Siki scans demo {sectorLabel.toLowerCase()} books for duplicates, overdue invoices, and payment risks.
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Loading state for benchmarks */}
+          {phase === "ready" && !benchData && (
+            <div className="mt-8 flex items-center gap-2 text-sm text-stone-400 fade-in-up">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-sky-500" />
+              </span>
+              Loading benchmarks…
+            </div>
+          )}
+
+          {/* ─── Scanning: Thinking trace (user-initiated) ─── */}
+          {phase === "scanning" && (
+            <div className="mt-7 fade-in-up">
               <ThinkingTrace
                 steps={traceSteps}
                 forceComplete={forceTraceComplete}
@@ -432,47 +471,15 @@ export function QuickCheck({
             </div>
           )}
 
-          {/* ─── Phase 2: Benchmarks + Yours (instant value) ─── */}
-          {phase !== "thinking" && data && (
-            <>
-              <div className="mt-6">
-                <YoursComparison
-                  benchmarks={data.benchmarks}
-                  ratios={data.ratios}
-                  sectorLabel={data.sector_label}
-                />
-              </div>
-
-              {/* Prompt to see deeper findings */}
-              {phase === "benchmarks" && (
-                <div className="mt-5 fade-in-up fade-in-up-delay-1">
-                  <button
-                    type="button"
-                    onClick={showFindings}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white px-5 py-3 text-sm font-semibold text-stone-900 shadow-sm transition hover:border-sky-300 hover:shadow-md btn-press"
-                  >
-                    <span className="text-sky-600">↓</span>
-                    See what Siki found in sample {sectorLabel.toLowerCase()} books
-                    {data.meta.ap_findings_count > 0 && (
-                      <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-700">
-                        {data.meta.ap_findings_count} risk{data.meta.ap_findings_count !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-
-          {/* ─── Phase 3: Findings (from real API) ─── */}
-          {(phase === "findings" || phase === "handoff") && data && (
-            <div className="mt-5 space-y-3 fade-in-up">
+          {/* ─── Findings (from real scan) ─── */}
+          {(phase === "findings" || phase === "handoff") && scanData && (
+            <div className="mt-6 space-y-3 fade-in-up">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-                {data.findings.length} findings · {data.org_name}
-                {data.source === "agent" ? " · Siki's voice" : " · demo books"}
+                {scanData.findings.length} findings · {scanData.org_name}
+                {scanData.source === "agent" ? " · Siki's voice" : " · demo books"}
               </p>
 
-              {data.findings.map((f) => {
+              {scanData.findings.map((f) => {
                 const tone = (["info", "watch", "risk"].includes(f.tone) ? f.tone : "info") as QuickFinding["tone"];
                 const { badge, border } = TONE_CLASSES[tone];
                 const isExpanded = expandedId === f.id;
@@ -523,7 +530,16 @@ export function QuickCheck({
             </div>
           )}
 
-          {/* ─── Phase 4: Handoff ─── */}
+          {/* Scan error */}
+          {(phase === "findings") && scanError && (
+            <div className="mt-6 fade-in-up">
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-xs text-amber-800">{scanError}</p>
+              </div>
+            </div>
+          )}
+
+          {/* ─── Handoff ─── */}
           {phase === "handoff" && (
             <div className="mt-6 space-y-3 fade-in-up">
               <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/60 to-white p-5">
@@ -556,8 +572,8 @@ export function QuickCheck({
             </div>
           )}
 
-          {/* ─── CTA (persistent during benchmarks and findings) ─── */}
-          {(phase === "findings") && (
+          {/* ─── CTA during findings phase ─── */}
+          {phase === "findings" && !scanError && (
             <div className="mt-6 flex flex-col items-center gap-2.5 fade-in-up fade-in-up-delay-2">
               <Link
                 href={booksHref}
@@ -577,25 +593,10 @@ export function QuickCheck({
             </div>
           )}
 
-          {/* Error state */}
-          {error && phase !== "thinking" && (
-            <div className="mt-6 fade-in-up">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <p className="text-xs text-amber-800">{error}</p>
-              </div>
-              <Link
-                href="/books?flow=check"
-                className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 btn-press"
-              >
-                Try sample books instead
-              </Link>
-            </div>
-          )}
-
           {/* Trust line */}
           <p className="mt-6 text-[10px] leading-relaxed text-stone-400 text-center">
             Benchmarks are typical UK ranges — not a peer dataset.
-            {phase !== "thinking" && " Siki remembers your sector for next time."}
+            {phase !== "ready" && phase !== "scanning" && " Siki remembers your sector for next time."}
           </p>
         </div>
       </section>
