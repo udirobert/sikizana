@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { SikiMascot } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { ThinkingTrace, type TraceStep } from "@/components/ThinkingTrace";
+import { SectorTipsCard } from "@/components/SectorTipsCard";
 import { sectorCheckHref, type ResolvedSnapshot, type SectorId } from "@/lib/sector-benchmarks";
+import { getSectorTips } from "@/lib/sector-tips";
 import { api } from "@/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -148,87 +150,227 @@ function YoursComparison({
 
   const hasAnyInput = gross !== null || net !== null || Object.values(ratioInputs).some((v) => parseNum(v) !== null);
 
-  return (
-    <div className="border-y border-stone-200 py-5 fade-in-up">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
-        Typical UK · {sectorLabel} · add yours to compare
-      </p>
+  const fillExample = () => {
+    setGrossInput(String(benchmarks.gross_margin));
+    setNetInput(String(benchmarks.net_margin));
+    setRatioInputs((prev) => ({
+      ...prev,
+      ...Object.fromEntries(
+        ratios.map((r) => [r.id, String(Math.round(r.typical * r.multiplier))])
+      ),
+    }));
+  };
 
-      <div className="mt-3 grid grid-cols-2 gap-4">
-        <BenchmarkInput
+  const clearNumbers = () => {
+    setGrossInput("");
+    setNetInput("");
+    setRatioInputs({});
+  };
+
+  return (
+    <div className="fade-in-up">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+            Typical UK · {sectorLabel}
+          </p>
+          <p className="mt-0.5 text-xs text-stone-500">
+            Add your {sectorLabel.toLowerCase()} numbers — I&rsquo;ll compare as you type.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={fillExample}
+          className="mt-0.5 shrink-0 whitespace-nowrap text-[11px] font-semibold text-sky-700 underline-offset-2 transition hover:text-sky-800 hover:underline"
+        >
+          Try an example →
+        </button>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <BenchmarkCard
           label="Gross margin"
           typical={benchmarks.gross_margin}
           unit="%"
           value={grossInput}
           onChange={setGrossInput}
         />
-        <BenchmarkInput
+        <BenchmarkCard
           label="Net margin"
           typical={benchmarks.net_margin}
           unit="%"
           value={netInput}
           onChange={setNetInput}
         />
+        {ratios.map((r) => (
+          <BenchmarkCard
+            key={r.id}
+            label={r.label}
+            typical={Math.round(r.typical * r.multiplier)}
+            unit={r.unit}
+            range={[
+              Math.round(r.range[0] * r.multiplier),
+              Math.round(r.range[1] * r.multiplier),
+            ]}
+            value={ratioInputs[r.id] ?? ""}
+            onChange={(v) => setRatioInputs((prev) => ({ ...prev, [r.id]: v }))}
+          />
+        ))}
       </div>
 
-      {ratios.length > 0 && (
-        <div className="mt-3 grid grid-cols-2 gap-4">
-          {ratios.map((r) => (
-            <BenchmarkInput
-              key={r.id}
-              label={r.label}
-              typical={Math.round(r.typical * r.multiplier)}
-              unit={r.unit}
-              value={ratioInputs[r.id] ?? ""}
-              onChange={(v) => setRatioInputs((prev) => ({ ...prev, [r.id]: v }))}
-            />
-          ))}
-        </div>
-      )}
-
       {hasAnyInput && (
-        <div className="mt-4 flex gap-2.5 fade-in-up">
-          <SikiMascot size={24} mood="look" />
-          <p className="text-xs leading-snug text-stone-600 pt-0.5">
-            <span className="font-semibold text-sky-700">Siki&rsquo;s read · </span>
-            {buildYoursRead(benchmarks, ratios, gross, net, ratioInputs, sectorLabel)}
-          </p>
+        <div className="mt-4 rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/70 to-white p-4 fade-in-up">
+          <div className="flex items-start gap-2.5">
+            <SikiMascot size={30} mood="look" />
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                Siki&rsquo;s read
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-stone-700">
+                {buildYoursRead(benchmarks, ratios, gross, net, ratioInputs, sectorLabel)}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={clearNumbers}
+            className="mt-2 text-[10px] font-semibold text-stone-400 underline decoration-stone-300 underline-offset-2 transition hover:text-stone-600"
+          >
+            Clear my numbers
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function BenchmarkInput({
+type MetricTone = "band" | "above" | "below";
+
+const READ_TONES: Record<MetricTone, { text: string; dot: string }> = {
+  band: { text: "text-emerald-700", dot: "bg-emerald-500" },
+  above: { text: "text-sky-700", dot: "bg-sky-500" },
+  below: { text: "text-amber-700", dot: "bg-amber-500" },
+};
+
+/** Per-field plain-English read with a tone for colouring. */
+function metricRead(opts: {
+  label: string;
+  typical: number;
+  value: number;
+  unit: string;
+  range?: [number, number];
+}): { text: string; tone: MetricTone } {
+  const { label, typical, value, unit, range } = opts;
+  const unitSuffix = unit === "%" ? "%" : unit;
+  const short = label.split(" ")[0];
+
+  if (range) {
+    const [lo, hi] = range;
+    if (value >= lo && value <= hi) return { tone: "band", text: `In the typical ${lo}–${hi}${unitSuffix} band.` };
+    if (value > hi) return { tone: "above", text: `${short} (${value}${unitSuffix}) sits above the typical ${hi}${unitSuffix} ceiling — worth investigating.` };
+    return { tone: "below", text: `${short} (${value}${unitSuffix}) sits below typical ${lo}${unitSuffix} — lean, but check capacity.` };
+  }
+
+  const diff = value - typical;
+  if (Math.abs(diff) <= 4) return { tone: "band", text: `In the typical band (around ${typical}${unitSuffix}).` };
+  if (diff > 0) return { tone: "above", text: `Above typical (${typical}${unitSuffix}) — check what&rsquo;s driving it.` };
+  return {
+    tone: "below",
+    text: `Below typical (${typical}${unitSuffix}) — ${label.toLowerCase().includes("net") ? "overheads usually explain it" : "check what&rsquo;s included first"}.`,
+  };
+}
+
+/** Thin crisp bar (Zone B: no dither) showing where "yours" sits vs typical. */
+function CompareBar({
+  typical,
+  yours,
+  range,
+  tone,
+}: {
+  typical: number;
+  yours: number | null;
+  range?: [number, number];
+  tone: MetricTone | null;
+}) {
+  const cap = Math.max(typical * 4, range ? range[1] * 1.3 : 0, yours ?? 0, 100);
+  const pos = (v: number) => Math.min(100, Math.max(0, (v / cap) * 100));
+  const dotColor = tone ? READ_TONES[tone].dot : "bg-stone-400";
+
+  return (
+    <div className="relative mt-2 h-1 rounded-full bg-stone-100" aria-hidden>
+      {range && (
+        <span
+          className="absolute top-0 h-full rounded-full bg-stone-200"
+          style={{ left: `${pos(range[0])}%`, width: `${Math.max(0, pos(range[1]) - pos(range[0]))}%` }}
+        />
+      )}
+      <span
+        className="absolute top-1/2 h-2 w-0.5 -translate-y-1/2 rounded bg-stone-400 ring-1 ring-white"
+        style={{ left: `${pos(typical)}%` }}
+      />
+      {yours !== null && (
+        <span
+          className={`absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-white ${dotColor} transition-colors duration-150`}
+          style={{ left: `${pos(yours)}%` }}
+        />
+      )}
+    </div>
+  );
+}
+
+function BenchmarkCard({
   label,
   typical,
   unit,
+  range,
   value,
   onChange,
 }: {
   label: string;
   typical: number;
   unit: string;
+  range?: [number, number];
   value: string;
   onChange: (v: string) => void;
 }) {
+  const parsed = parseNum(value);
+  const read = parsed !== null ? metricRead({ label, typical, value: parsed, unit, range }) : null;
+
   return (
-    <label className="block">
-      <span className="text-[11px] font-semibold text-stone-500">{label}</span>
-      <div className="mt-0.5 flex items-baseline gap-1.5">
-        <span className="text-2xl font-bold tabular-nums text-stone-950 leading-none">
-          {typical}{unit === "%" ? "%" : ""}
+    <div className="rounded-xl border border-stone-200 bg-white px-3.5 py-3 transition-shadow hover:shadow-sm">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[11px] font-semibold text-stone-500">{label}</span>
+        <span className="text-[10px] text-stone-400">
+          UK typical{" "}
+          <span className="ml-0.5 font-bold tabular-nums text-stone-700">
+            {typical}{unit === "%" ? "%" : unit}
+          </span>
         </span>
-        <span className="text-[10px] text-stone-400">typical</span>
       </div>
-      <input
-        inputMode="decimal"
-        placeholder="Yours"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full border-0 border-b border-stone-300 bg-transparent px-0 py-1 text-sm font-bold tabular-nums text-stone-950 outline-none placeholder:text-stone-300 focus:border-sky-500"
-      />
-    </label>
+
+      <div className="relative mt-2">
+        <input
+          inputMode="decimal"
+          placeholder={`Your ${unit === "%" ? "%" : unit}…`}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 pr-8 text-right text-sm font-bold tabular-nums text-stone-950 outline-none transition placeholder:font-normal placeholder:text-stone-300 focus:border-sky-400 focus:bg-white focus:ring-2 focus:ring-sky-100"
+        />
+        {unit === "%" && (
+          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-stone-400">
+            %
+          </span>
+        )}
+      </div>
+
+      <CompareBar typical={typical} yours={parsed} range={range} tone={read ? read.tone : null} />
+
+      {read && (
+        <p className={`mt-1.5 text-[11px] font-medium leading-snug ${READ_TONES[read.tone].text}`}>
+          {read.text}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -360,6 +502,9 @@ export function QuickCheck({
   const resolvedSector = benchData?.sector ?? hint?.id;
   const booksHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId, { connect: true }) : "/books?flow=check&connect=1";
   const demoHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId) : "/books?flow=check";
+  const handoffTips = resolvedSector
+    ? getSectorTips(resolvedSector as SectorId, "post-findings")
+    : [];
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/check/${slug}`
@@ -383,6 +528,7 @@ export function QuickCheck({
   };
 
   const traceSteps = buildTraceSteps(sectorLabel);
+  const watchTip = hint?.bench?.watchFor;
 
   return (
     <main className="min-h-screen bg-stone-50 flex flex-col">
@@ -416,7 +562,7 @@ export function QuickCheck({
               </h1>
               {phase === "ready" && (
                 <p className="mt-1 text-xs text-stone-500">
-                  Compare your numbers against typical UK ranges. Add yours below.
+                  Instant sector check — no signup needed. Add your numbers below to compare.
                 </p>
               )}
               {phase === "scanning" && (
@@ -430,7 +576,26 @@ export function QuickCheck({
           {/* ─── Ready state: Benchmarks + Yours (instant, no scan needed) ─── */}
           {phase === "ready" && benchData && (
             <>
-              <div className="mt-6">
+              {/* Siki persona guidance card */}
+              <div className="mt-5 flex items-start gap-2.5 rounded-2xl border border-stone-200 bg-white p-4 fade-in-up">
+                <SikiMascot size={30} mood="look" />
+                <div className="min-w-0">
+                  <p className="text-xs text-stone-700">
+                    <span className="font-semibold text-sky-700">
+                      Here&rsquo;s how a typical UK {sectorLabel.toLowerCase()} looks.
+                    </span>{" "}
+                    Add your numbers and I&rsquo;ll tell you exactly where you stand.
+                  </p>
+                  {watchTip && (
+                    <p className="mt-1.5 text-[11px] leading-snug text-stone-500">
+                      <span className="font-semibold text-stone-600">What to watch: </span>
+                      {watchTip}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4">
                 <YoursComparison
                   benchmarks={benchData.benchmarks}
                   ratios={benchData.ratios}
@@ -449,6 +614,11 @@ export function QuickCheck({
                 </button>
                 <p className="text-center text-xs text-stone-500">
                   Siki scans demo {sectorLabel.toLowerCase()} books for duplicates, overdue invoices, and payment risks.
+                </p>
+                <p className="text-center text-xs">
+                  <Link href={demoHref} className="font-semibold text-stone-600 hover:text-stone-900 underline underline-offset-2">
+                    Skip the comparison — see what the check finds on sample books →
+                  </Link>
                 </p>
               </div>
             </>
@@ -547,6 +717,9 @@ export function QuickCheck({
           {/* ─── Handoff ─── */}
           {phase === "handoff" && (
             <div className="mt-6 space-y-3 fade-in-up">
+              {handoffTips.length > 0 && (
+                <SectorTipsCard tips={handoffTips} sectorLabel={sectorLabel} />
+              )}
               <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/60 to-white p-5">
                 <p className="text-sm font-semibold text-stone-900">
                   That was demo data. Imagine this on <em>your</em> books.

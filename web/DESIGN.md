@@ -98,9 +98,51 @@ Sidebar sparkline and impact hero need **2+ snapshots** to render.
 
 Same calendar day (UTC) upserts one row — repeated captures refresh today's numbers instead of duplicating. Sidebar and impact show an honest **trend building** empty state when fewer than two points exist.
 
+## Sector intelligence tips (mascot knowledge layer)
+
+Siki can offer sector-specific educational tips (sources, benchmarks, methodology) drawn from a lightweight knowledge file. The goal is **contextual teaching, not information dumping** — the tips are a delight/trust layer, not a product surface.
+
+### Dosage by surface
+
+| Surface | What to show | Why |
+|---------|-------------|-----|
+| Quick-check lead magnet (`/check/[sector]`) | Single `watchFor` line already shipped in `sector-benchmarks.ts` | Compact, on-brand, doesn't distract from conversion |
+| Post-scan findings panel | Collapsible "Go deeper" tip card with 2–5 sector-specific tips shown after all findings are reviewed | Reward after engagement, feels like Siki is teaching |
+| Chat / agent | Full methodology on demand (the detailed research you've assembled) | Natural Q&A, not pushing info |
+| `/books` sidebar | "Siki's sector note" — 1 tip per visit, rotates | Ambient delight, repeat visitors discover new things |
+
+### Data model (reference for implementation)
+
+```ts
+interface SectorTip {
+  id: string;
+  topic: string;        // "Competitor benchmarking", "Rate shopping", etc.
+  summary: string;      // One-sentence Siki-voice hook
+  body: string;         // Short markdown-ish body (1–3 paragraphs)
+  sourceLabel?: string; // "Companies House", "Booking.com" etc.
+  sourceUrl?: string;   // Optional link
+  phase: "post-findings" | "chat" | "sidebar";
+}
+```
+
+### Rules
+
+- Keep the lead magnet dose to one line. Richer tips are a product feature, not a lead-gen feature.
+- Post-findings tips must be **collapsible** (no content shift) and shown only after the user has reviewed findings — never during.
+- Chat/full methodology is the natural place for depth; Siki answers when asked, not unprompted.
+- The `/books` sidebar tip should rotate on each visit (localStorage keyed by tip id) to keep ambient delight fresh.
+- Tips are stored client-side or fetched once and cached — no new backend compute.
+- Voice must be Siki's (not Zana's): plain English, helpful, teaching. Never accusatory or "you should know this."
+
+### Source material
+
+The first sector to receive rich tips is **hospitality**. A detailed methodology for free hotel/hospitality benchmarking (Companies House, annual reports, rate shops, comp sets, tourism data) has been assembled as a template. Other sectors can follow the same pattern.
+
+A `watchFor` field already exists on every `SectorBenchmark` in `sector-benchmarks.ts` — that is the single-line lead-magnet tip. The richer per-sector knowledge file (`SectorTip[]`) should be built as a separate data layer.
+
 ## Before shipping UI polish
 
 1. High-frequency surface? → Reduce motion.
 2. Would a generic fintech app ship this unchanged? → Add mascot voice or honest copy.
-3. Is Zana’s territory (chase, overdue, enforce)? → Rose accent + direct label.
+3. Is Zana's territory (chase, overdue, enforce)? → Rose accent + direct label.
 4. Can the user read the number in 2 seconds? → Numbers win over pixels.
