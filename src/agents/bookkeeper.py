@@ -43,8 +43,16 @@ _VENICE_BASE_URL = "https://api.venice.ai/api/v1"
 _VENICE_MODEL = os.environ.get("VENICE_MODEL", "llama-3.3-70b")
 _VENICE_API_KEY = os.environ.get("VENICE_API_KEY", "")
 
+# Vercel AI Gateway — GLM 5.2 via Blackbox, free for eve agents.
+# Used by check.py for Quick Check enrichment; bookkeeper uses NVIDIA/Venice
+# (tool-calling models) for the agentic chat loop.
+_VERCEL_BASE_URL = "https://ai-gateway.vercel.sh/v1"
+_VERCEL_MODEL = os.environ.get("VERCEL_AI_MODEL", "zai/glm-5.2")
+_VERCEL_API_KEY = os.environ.get("VERCEL_AI_GATEWAY_KEY", "")
+
 _client: AsyncOpenAI | None = None
 _venice_client: AsyncOpenAI | None = None
+_vercel_client: AsyncOpenAI | None = None
 
 # Conversations are keyed by "{session_id}:{thread_id}" so one visitor's
 # chat can never bleed into another's, and stored in SQLite so they
@@ -79,6 +87,25 @@ def _get_venice_client() -> AsyncOpenAI:
 
 def _venice_available() -> bool:
     return bool(_VENICE_API_KEY)
+
+
+def _get_vercel_client() -> AsyncOpenAI:
+    """Vercel AI Gateway client — GLM 5.2 / Blackbox on Vercel AI Gateway."""
+    global _vercel_client
+    if _vercel_client is None:
+        _vercel_client = AsyncOpenAI(
+            base_url=_VERCEL_BASE_URL,
+            api_key=_VERCEL_API_KEY,
+            default_headers={
+                "User-Agent": "eve-agent/1.0.0",
+                "x-vercel-ai-agent": "eve",
+            },
+        )
+    return _vercel_client
+
+
+def _vercel_available() -> bool:
+    return bool(_VERCEL_API_KEY)
 
 
 _PROMPTS_DIR = os.path.join(os.path.dirname(__file__), "prompts")
@@ -237,10 +264,10 @@ async def run_bookkeeper_streaming(
     Text events are real model tokens (stream=True), not a replay — the
     first words appear as soon as the model produces them.
     """
-    if not _NVIDIA_API_KEY and not _venice_available():
+    if not _NVIDIA_API_KEY and not _venice_available() and not _vercel_available():
         yield {
             "type": "text",
-            "text": "I'm not connected to an AI model yet. Set NVIDIA_API_KEY or VENICE_API_KEY in .env to enable the bookkeeper agent.",
+            "text": "I'm not connected to an AI model yet. Set VERCEL_AI_GATEWAY_KEY, NVIDIA_API_KEY, or VENICE_API_KEY in .env to enable the bookkeeper agent.",
         }
         yield {"type": "done"}
         return

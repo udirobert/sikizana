@@ -185,10 +185,13 @@ Respond with ONLY the sector name (one word/phrase), nothing else."""
 
     for provider in providers:
         try:
+            headers = provider.get("default_headers")
             client = AsyncOpenAI(
                 base_url=provider["base_url"],
                 api_key=provider["api_key"],
                 timeout=provider.get("timeout", 8.0),
+                max_retries=0,
+                default_headers=headers,
             )
             response = await client.chat.completions.create(
                 model=provider["model"],
@@ -481,10 +484,13 @@ Return ONLY the JSON array, no markdown fencing, no other text."""
 
     for provider in providers:
         try:
+            headers = provider.get("default_headers")
             client = AsyncOpenAI(
                 base_url=provider["base_url"],
                 api_key=provider["api_key"],
                 timeout=provider.get("timeout", 10.0),
+                max_retries=0,
+                default_headers=headers,
             )
             response = await client.chat.completions.create(
                 model=provider["model"],
@@ -510,21 +516,36 @@ Return ONLY the JSON array, no markdown fencing, no other text."""
 def _build_provider_chain() -> list[dict[str, Any]]:
     """Build the ordered list of LLM providers to try.
 
-    Priority: GLM 5.2 (Vercel AI Gateway, free/fast) → NVIDIA NIM → Venice.
+    Priority: GLM 5.2 (Vercel AI Gateway, free for Eve agents) → NVIDIA NIM → Venice.
     Only includes providers with configured API keys.
     """
     providers: list[dict[str, Any]] = []
 
-    # 1. GLM 5.2 via Vercel AI Gateway (free until Aug 27, 500 TPS)
+    # 1. GLM 5.2 via Vercel AI Gateway (free for eve agents via Blackbox on AI Gateway)
     vercel_key = os.environ.get("VERCEL_AI_GATEWAY_KEY", "")
     if vercel_key:
+        eve_headers = {
+            "User-Agent": "eve-agent/1.0.0",
+            "x-vercel-ai-agent": "eve",
+        }
+        primary_model = os.environ.get("VERCEL_AI_MODEL", "zai/glm-5.2")
         providers.append({
-            "name": "glm-5.2",
+            "name": f"glm-5.2 ({primary_model})",
             "base_url": "https://ai-gateway.vercel.sh/v1",
             "api_key": vercel_key,
-            "model": os.environ.get("VERCEL_AI_MODEL", "zai/glm-5.2"),
+            "model": primary_model,
             "timeout": 8.0,
+            "default_headers": eve_headers,
         })
+        if primary_model != "zai/glm-5.2-fast":
+            providers.append({
+                "name": "glm-5.2-fast (zai/glm-5.2-fast)",
+                "base_url": "https://ai-gateway.vercel.sh/v1",
+                "api_key": vercel_key,
+                "model": "zai/glm-5.2-fast",
+                "timeout": 8.0,
+                "default_headers": eve_headers,
+            })
 
     # 2. NVIDIA NIM (primary production provider)
     nvidia_key = os.environ.get("NVIDIA_API_KEY", "")
