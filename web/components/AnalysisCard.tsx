@@ -17,7 +17,9 @@ import {
   type AnalysisCardType,
   type Persona,
 } from "@/lib/persona-theme";
+import { BenchmarkCompareBar } from "@/components/BenchmarkCompareBar";
 import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { verdictToTone } from "@/lib/benchmark-compare";
 
 interface BenchmarkMetric {
   label: string;
@@ -178,49 +180,43 @@ function BenchmarkCard({ data, persona }: { data: BenchmarkData; persona: Person
           </>
         }
       />
-      <div className="px-3 py-2.5 space-y-2.5">
+      <div className="px-3 py-2.5 space-y-3">
         {data.metrics.map((m) => {
           const verdictKey = m.verdict.replace(/ /g, "_").toUpperCase();
           const style = VERDICT_STYLES[verdictKey] || VERDICT_STYLES.N_A;
-          const userStr = m.user_value !== null ? `${m.user_value}${m.unit === "£" ? "" : m.unit === "%" ? "%" : ""}` : "N/A";
-          const sectorStr = `${m.unit === "£" ? "£" : ""}${m.sector_value}${m.unit === "days" ? " days" : m.unit === "%" ? "%" : ""}`;
-          // Both bars share one scale (largest value = full width) so the
-          // picture matches the verdict badge — a user in line with the
-          // sector must show two equal bars, not one twice as long.
-          const scaleMax = Math.max(m.user_value ?? 0, m.sector_value, 0.001);
-          const userBarWidth = m.user_value !== null ? (m.user_value / scaleMax) * 100 : 0;
-          const sectorBarWidth = (m.sector_value / scaleMax) * 100;
+          const yoursLabel =
+            m.user_value === null
+              ? "—"
+              : m.unit === "£"
+                ? fmtMoney(m.user_value)
+                : `${m.user_value}${m.unit === "%" ? "%" : m.unit === "days" ? "d" : ""}`;
+          const typicalLabel =
+            m.unit === "£"
+              ? fmtMoney(m.sector_value)
+              : `${m.sector_value}${m.unit === "%" ? "%" : m.unit === "days" ? "d" : ""}`;
+          const tone = m.user_value === null ? null : verdictToTone(m.verdict);
           return (
             <div key={m.label}>
-              <div className="flex items-center justify-between text-xs mb-1">
+              <div className="flex items-center justify-between text-xs gap-2">
                 <span className="font-medium text-stone-700">{m.label}</span>
-                <span className={`font-semibold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
+                <span className={`shrink-0 font-semibold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
                   {style.label}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-stone-500 w-12 shrink-0">You:</span>
-                    <div className="flex-1 h-3 bg-stone-100 rounded-full overflow-hidden relative">
-                      <div
-                        className={`h-full rounded-full ${style.bg}`}
-                        style={{ width: `${userBarWidth}%` }}
-                      />
-                    </div>
-                    <span className="font-semibold text-stone-700 w-16 text-right shrink-0">
-                      {m.unit === "£" ? fmtMoney(m.user_value || 0) : userStr}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-stone-400 w-12 shrink-0">Sector:</span>
-                    <div className="flex-1 h-3 bg-stone-50 rounded-full overflow-hidden relative">
-                      <div className="h-full bg-stone-200 rounded-full" style={{ width: `${sectorBarWidth}%` }} />
-                    </div>
-                    <span className="text-stone-500 w-16 text-right shrink-0">{sectorStr}</span>
-                  </div>
-                </div>
+              <div className="mt-1 flex items-baseline justify-between text-[10px] text-stone-400">
+                <span>
+                  Yours <span className="font-semibold tabular-nums text-stone-700">{yoursLabel}</span>
+                </span>
+                <span>
+                  Typical <span className="font-semibold tabular-nums text-stone-600">{typicalLabel}</span>
+                </span>
               </div>
+              <BenchmarkCompareBar
+                typical={m.sector_value}
+                yours={m.user_value}
+                tone={tone}
+                unit={m.unit === "£" ? "£" : m.unit}
+              />
             </div>
           );
         })}

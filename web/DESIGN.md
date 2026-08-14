@@ -80,8 +80,19 @@ Rules:
 |---------|------------|
 | `/impact` hero | dither AreaChart |
 | `/books` sidebar | dither Sparkline (margin trend) |
-| Chat `AnalysisCard`s | HTML bars / SVG sparklines (persona header in Zone A) |
+| Chat `AnalysisCard`s | HTML compare bar (typical tick + yours) + verdict pill |
+| `/check` + `/b` snapshots | Same compare bar; short status (`In band` / `Above typical` / `Below typical`) |
 | Benchmarks / scorecards | No dither |
+
+## Benchmark comparison
+
+One visual language across `/check`, `/b` margin notes, and chat sector cards:
+
+- **Bar** = typical tick + yours marker (+ shaded range when we have a band). Zone B: crisp HTML, no dither.
+- **Status** = three words on the card (`In band`), not a recap sentence.
+- **Siki's read** = one sentence on the *outlier*, only after the visitor types numbers. If everything is in band: “You're in the typical {sector} shape.”
+- **Copy once.** Headline + one teaching `watchFor` line. Do not also explain the comparison in a bubble, a subtitle, per-card prose, *and* a recap.
+- Lead-magnet CTAs: one primary action to run the sample-books check. Skip-links that repeat the same action are noise.
 
 ## Metric snapshot cadence
 
