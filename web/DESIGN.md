@@ -107,23 +107,36 @@ Siki can offer sector-specific educational tips (sources, benchmarks, methodolog
 | Surface | What to show | Why |
 |---------|-------------|-----|
 | Quick-check lead magnet (`/check/[sector]`) | Single `watchFor` line already shipped in `sector-benchmarks.ts` | Compact, on-brand, doesn't distract from conversion |
-| Post-scan findings panel | Collapsible "Go deeper" tip card with 2–5 sector-specific tips shown after all findings are reviewed | Reward after engagement, feels like Siki is teaching |
-| Chat / agent | Full methodology on demand (the detailed research you've assembled) | Natural Q&A, not pushing info |
-| `/books` sidebar | "Siki's sector note" — 1 tip per visit, rotates | Ambient delight, repeat visitors discover new things |
+| Post-scan findings panel | Collapsible "Siki knows" (`SectorTipsCard`) with the sector's full tip set, shown after all findings are reviewed | Reward after engagement, feels like Siki is teaching |
+| Chat / agent | On-demand knowledge bank (`SectorChatKnows`) in the `/books` chat empty state showing full methodology, each tip seeds an "Ask Siki" conversation | Natural Q&A, not pushing info |
+| `/books` sidebar + mobile panel | Rotating "Siki's sector note" (`SectorNoteCard`) — 1 tip per visit, rotates | Ambient delight, repeat visitors discover new things |
 
 ### Data model (reference for implementation)
 
 ```ts
+type TipPhase = "post-findings" | "chat" | "sidebar";
+
 interface SectorTip {
   id: string;
   topic: string;        // "Competitor benchmarking", "Rate shopping", etc.
-  summary: string;      // One-sentence Siki-voice hook
-  body: string;         // Short markdown-ish body (1–3 paragraphs)
+  summary: string;      // One-sentence Siki-voice hook (sidebar / post-findings collapsed)
+  body: string;         // Short markdown-ish body (1–3 paragraphs) — shown in chat bank
   sourceLabel?: string; // "Companies House", "Booking.com" etc.
   sourceUrl?: string;   // Optional link
-  phase: "post-findings" | "chat" | "sidebar";
+  phase: TipPhase[];    // Which surface(s) this tip serves — a tip can span several
 }
 ```
+
+Exposed via `getSectorTips(sectorId, phase?)` in `web/lib/sector-tips.ts`, which filters a tip in when `phase` is included in its array.
+
+### Status — all four surfaces shipped
+
+| Surface | Component | Live? |
+|---------|-----------|-------|
+| Lead magnet | `watchFor` on `BenchmarkCard` / OG | ✅ |
+| Post-findings | `SectorTipsCard` | ✅ |
+| Chat bank | `SectorChatKnows` | ✅ |
+| Sidebar + mobile note | `SectorNoteCard` | ✅ |
 
 ### Rules
 

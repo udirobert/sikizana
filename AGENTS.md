@@ -198,6 +198,10 @@ cd web && npx tsc --noEmit
 | `web/app/check/[sector]/page.tsx` | Dynamic route for `/check/{slug}` — tolerant resolution, never 404s |
 | `src/api/routes/check.py` | `GET /api/check/{sector}` — fuzzy sector resolution + real AP scan + LLM enrichment |
 | `web/app/page.tsx` | Landing — finance-check entry paths via `getLandingPersonaPaths()` |
+| `web/lib/sector-tips.ts` | Sector intelligence tips data layer (`SectorTip[]` + `getSectorTips`) — client-side, no backend |
+| `web/components/SectorTipsCard.tsx` | Post-findings "Siki knows" card on `/check` (collapsible, after review) |
+| `web/components/SectorNoteCard.tsx` | Rotating "Siki's sector note" in `/books` sidebar + mobile panel (1 per visit) |
+| `web/components/SectorChatKnows.tsx` | On-demand chat knowledge bank in `/books` empty state + "Ask Siki" seeding |
 
 ### Personalization
 
@@ -215,6 +219,14 @@ Three layers are injected into the agent system prompt before every response:
 Profile is managed via `GET/PUT /api/profile` and shown on the account page.
 Sector benchmarks check the user profile's `industry` field first, then
 fall back to `session_prefs` (legacy), then org-name guess.
+
+**Sector intelligence tips (client-side):** A lightweight sector-knowledge
+layer (`web/lib/sector-tips.ts`) powers Siki-branded teaching across four
+surfaces — the `watchFor` lead-magnet tip, a post-findings `SectorTipsCard`,
+the rotating `SectorNoteCard` in the `/books` sidebar/mobile, and the
+`SectorChatKnows` chat knowledge bank. All client-side (reads `sector` from
+URL or `session_prefs`), no backend compute. See `web/DESIGN.md`
+"Sector intelligence tips" for dosage rules.
 
 **Dual persona UI (Siki / Zana):** The books page lets users switch between
 Siki (explain) and Zana (chase). Persona persists in localStorage and drives
