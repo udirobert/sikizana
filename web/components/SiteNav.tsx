@@ -75,10 +75,10 @@ export function SiteNav({ variant = "marketing", subtitle, links, children }: Si
               Try sample books
             </Link>
             <Link
-              href="/b/catering"
+              href="/check/catering"
               className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
-              Margins
+              Quick check
             </Link>
             <Link
               href="/music"

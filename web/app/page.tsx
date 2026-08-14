@@ -126,7 +126,7 @@ export default function LandingPage() {
         jobs={[
           { title: "Recover overdue", href: "/books?flow=check&persona=zana" },
           { title: "Catch duplicates", href: "/books?flow=check&persona=siki" },
-          { title: "Share a margin note", href: "/b/catering" },
+          { title: "Quick sector check", href: "/check/catering" },
         ]}
       />
       <PersonaEntryStrip />

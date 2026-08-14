@@ -7,7 +7,7 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 
 ### Zone A — Signature (mascot + persona + voice)
 
-**Where:** Landing hero, `/books` chat, finance-check handoff, findings panel, connect/onboarding, impact hero caption, `AnalysisCard` headers, auto-chase confirmation (`AutoChaseNotice`).
+**Where:** Landing hero, `/books` chat, finance-check handoff, findings panel, connect/onboarding, impact hero caption, `AnalysisCard` headers, auto-chase confirmation (`AutoChaseNotice`), `/check` thinking trace + Siki's read.
 
 **Rules:**
 - Siki = explain, sky/orange accents, plain English.
@@ -18,7 +18,7 @@ Motion (transitions.dev), dither charts, and polish are a **craft layer** on top
 
 ### Zone B — Proof (numbers must scan)
 
-**Where:** Stat cards, benchmarks, scorecards, journal previews, P&L numbers, inline `AnalysisCard`s in chat.
+**Where:** Stat cards, benchmarks, scorecards, journal previews, P&L numbers, inline `AnalysisCard`s in chat, `/check` benchmark strip + "yours" comparison inputs.
 
 **Rules:**
 - Crisp HTML/SVG or typography — no canvas dither.

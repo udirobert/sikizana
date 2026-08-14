@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import automation, auth, base, cafe, chat, context, data, memory, prefs, xero
+from src.api.routes import automation, auth, base, cafe, chat, check, context, data, memory, prefs, xero
 from src.api.routes.automation import (
     _count_by_kind,
     _webhook_message,
@@ -106,6 +106,7 @@ app.include_router(prefs.router)
 app.include_router(data.router)
 app.include_router(automation.router)
 app.include_router(cafe.router)  # hackathon spike: café Monday Briefing
+app.include_router(check.router)  # agentic quick check lead magnet
 
 # Backwards-compatibility re-exports: existing tests import these helpers
 # from `src.api.main`, so keep them available here even though they now

@@ -42,8 +42,8 @@ export default function MusicLandingPage() {
             />
             <p className="mt-3 text-xs text-stone-500">
               Or{" "}
-              <Link href="/b/music" className="font-semibold text-sky-700 hover:text-sky-800">
-                share a music margin note →
+              <Link href="/check/music" className="font-semibold text-sky-700 hover:text-sky-800">
+                try a music quick check →
               </Link>
             </p>
           </div>
@@ -108,7 +108,7 @@ export default function MusicLandingPage() {
         jobs={[
           { title: "Recover overdue", href: "/books?flow=check&persona=zana&demo=music" },
           { title: "Catch duplicates", href: "/books?flow=check&persona=siki&demo=music" },
-          { title: "Share a margin note", href: "/b/music" },
+          { title: "Quick sector check", href: "/check/music" },
         ]}
       />
       <PersonaEntryStrip

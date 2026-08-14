@@ -193,6 +193,10 @@ cd web && npx tsc --noEmit
 | `web/components/ProfitTrendChart.tsx` | Dither sparkline in `/books` sidebar P&L |
 | `web/components/AutoChaseNotice.tsx` | Signature moment when a chase sequence is armed |
 | `web/components/TodaySummary.tsx` | Compact return-state summary for the priority finding on `/books` |
+| `web/components/QuickCheck.tsx` | Agentic lead magnet: thinking trace → benchmarks + "yours" inputs → findings → handoff |
+| `web/components/ThinkingTrace.tsx` | Reusable agent-working indicator with `forceComplete` for honest timing |
+| `web/app/check/[sector]/page.tsx` | Dynamic route for `/check/{slug}` — tolerant resolution, never 404s |
+| `src/api/routes/check.py` | `GET /api/check/{sector}` — fuzzy sector resolution + real AP scan + LLM enrichment |
 | `web/app/page.tsx` | Landing — finance-check entry paths via `getLandingPersonaPaths()` |
 
 ### Personalization
@@ -226,6 +230,33 @@ return to `/books?connected=true&flow=check`. The books page opens a focused
 finance-check handoff from canonical findings, then hands the user to the same
 finding action cards and chat flow. `TodaySummary` is the return-state summary;
 it must stay a thin view over findings, not a second dashboard.
+
+**Quick Check (lead magnet):** `/check/{slug}` is the agentic lead magnet.
+Anonymous visitors arrive (any business type as the slug), and the backend
+resolves to a canonical sector via three tiers: exact alias → keyword
+substring match → LLM classification (cached permanently in SQLite). If
+all fail, the frontend shows a compact sector picker.
+
+The page renders in phases:
+1. **Thinking** — `ThinkingTrace` animates while `GET /api/check/{slug}`
+   runs real analysis. If the API responds fast (<800ms), the trace
+   completes early via `forceComplete` (honest, no artificial padding).
+2. **Benchmarks + Yours** — instant value: sector margins + sector-specific
+   operational ratios (e.g. staff cost % for hospitality) with input fields.
+   User types ballpark figures → Siki's read responds instantly (client-side).
+3. **Findings** — real AP integrity scan + overdue detection over demo data,
+   optionally enriched with a single LLM call for Siki's voice.
+4. **Handoff** — "Connect Xero — check my actual books" CTA.
+
+Rules:
+- The quick check must deliver immediate value (benchmarks + comparison)
+  without waiting for the LLM. Deeper findings are a bonus, not a gate.
+- Sector resolution must never 404 — unknown slugs get the picker or LLM
+  classification, not a dead end.
+- Old `/b/{sector}` URLs permanently redirect to `/check/{sector}` via
+  `next.config.ts`.
+- `SECTOR_RATIOS` in `check.py` is the single source for sector-specific
+  operational ratios. Add new sectors/ratios there.
 
 **Metric snapshots:** `GET /api/metrics/snapshots` returns periodic financial
 metrics for trend charts. Passive capture is throttled to once per day;
