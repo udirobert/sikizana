@@ -45,6 +45,7 @@ import { PlanBadge } from "@/components/PlanBadge";
 import { ProfitTrendChart } from "@/components/ProfitTrendChart";
 import { TodaySummary } from "@/components/TodaySummary";
 import { SectorNoteCard } from "@/components/SectorNoteCard";
+import { SectorChatKnows } from "@/components/SectorChatKnows";
 
 interface OrgData {
   name: string;
@@ -1080,6 +1081,9 @@ function BooksView() {
             compact
             persona={persona}
           />
+
+          {/* Siki's sector note — mirrors the desktop sidebar on small screens */}
+          {sector && <SectorNoteCard sector={sector as SectorId} />}
         </div>
 
         {/* Dashboard Sidebar */}
@@ -1587,6 +1591,17 @@ function BooksView() {
                     </button>
                   ))}
                 </div>
+
+                {/* Siki knows — on-demand sector methodology (chat phase) */}
+                {sector && (
+                  <SectorChatKnows
+                    sector={sector as SectorId}
+                    onAsk={(q) => {
+                      setInput(q);
+                      inputRef.current?.focus();
+                    }}
+                  />
+                )}
               </div>
             )}
 

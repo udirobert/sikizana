@@ -49,7 +49,7 @@ const HOSPITALITY_TIPS: SectorTip[] = [
       "missing turnover as zero, just exclude those from that field\u2019s comparison.",
     sourceLabel: "Companies House",
     sourceUrl: "https://find-and-update.company-information.service.gov.uk/",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
   {
     id: "hosp-rate-shop",
@@ -65,7 +65,7 @@ const HOSPITALITY_TIPS: SectorTip[] = [
       "counts on Tripadvisor or Google Hotels for the demand-side picture.",
     sourceLabel: "Booking.com / Google Hotels",
     sourceUrl: "https://www.google.com/travel/hotels",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
   {
     id: "hosp-tourism-data",
@@ -78,7 +78,7 @@ const HOSPITALITY_TIPS: SectorTip[] = [
       "and average daily rate. Use these to separate market conditions from " +
       "business execution \u2014 if your occupancy is down but the region is up, " +
       "that\u2019s a different conversation than if the whole market is soft.",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
 ];
 
@@ -98,7 +98,7 @@ const RETAIL_TIPS: SectorTip[] = [
       "is an outlier worth investigating.",
     sourceLabel: "Valuation Office Agency",
     sourceUrl: "https://www.gov.uk/government/organisations/valuation-office-agency",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
   {
     id: "retail-shrinkage",
@@ -113,7 +113,7 @@ const RETAIL_TIPS: SectorTip[] = [
       "a stock-loss problem or an accounting classification issue.",
     sourceLabel: "British Retail Consortium",
     sourceUrl: "https://brc.org.uk/",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
 ];
 
@@ -134,7 +134,7 @@ const CONSTRUCTION_TIPS: SectorTip[] = [
       "your margins need to adjust accordingly.",
     sourceLabel: "BEIS / GOV.UK",
     sourceUrl: "https://www.gov.uk/government/collections/monthly-statistics-of-building-materials-and-components",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
 ];
 
@@ -152,7 +152,7 @@ const PROFESSIONAL_SERVICES_TIPS: SectorTip[] = [
       "hours (exclude holidays and training). If you\u2019re below 60%, your net " +
       "margin will feel the drag before revenue does \u2014 the fix is usually " +
       "resourcing or pricing, not more work.",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
 ];
 
@@ -171,7 +171,7 @@ const MUSIC_TIPS: SectorTip[] = [
       "on their payment discipline. Consider shorter payment terms or staged " +
       "deposits for repeat engagement, and watch the 60+ day ageing bucket " +
       "as an early signal.",
-    phase: ["post-findings", "sidebar"],
+    phase: ["post-findings", "sidebar", "chat"],
   },
 ];
 
