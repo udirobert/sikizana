@@ -37,6 +37,7 @@ import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMas
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import { SECTOR_IDS, type SectorId } from "@/lib/sector-benchmarks";
+import { getSectorTips } from "@/lib/sector-tips";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnectMomentCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
@@ -544,7 +545,14 @@ function BooksView() {
     try {
       setLastQuery(message);
       setLastContextResults([]);
-      for await (const event of endpoints.xero.chatStream(message, tid, persona, controller.signal, !memoryEnabled)) {
+      for await (const event of endpoints.xero.chatStream(
+        message,
+        tid,
+        persona,
+        controller.signal,
+        !memoryEnabled,
+        sector ? getSectorTips(sector as SectorId, "chat") : undefined,
+      )) {
         if (event.type === "status") {
           setThinkingMessage(event.message);
         } else if (event.type === "memory_recall") {

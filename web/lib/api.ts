@@ -567,6 +567,7 @@ export const endpoints = {
       persona?: string,
       signal?: AbortSignal,
       disableMemory?: boolean,
+      sectorTips?: Array<{ topic: string; body: string; sourceLabel?: string; sourceUrl?: string }>,
     ): AsyncGenerator<AgentEvent> {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS);
@@ -578,10 +579,12 @@ export const endpoints = {
 
       let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
       try {
+        const payload: Record<string, unknown> = { message, thread_id, persona, disable_memory: disableMemory };
+        if (sectorTips && sectorTips.length > 0) payload.sector_tips = sectorTips;
         const res = await fetch(`${API_BASE}/api/xero/chat/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, thread_id, persona, disable_memory: disableMemory }),
+          body: JSON.stringify(payload),
           signal: controller.signal,
           credentials: "include",
         });

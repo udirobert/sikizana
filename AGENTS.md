@@ -220,13 +220,16 @@ Profile is managed via `GET/PUT /api/profile` and shown on the account page.
 Sector benchmarks check the user profile's `industry` field first, then
 fall back to `session_prefs` (legacy), then org-name guess.
 
-**Sector intelligence tips (client-side):** A lightweight sector-knowledge
-layer (`web/lib/sector-tips.ts`) powers Siki-branded teaching across four
-surfaces — the `watchFor` lead-magnet tip, a post-findings `SectorTipsCard`,
-the rotating `SectorNoteCard` in the `/books` sidebar/mobile, and the
-`SectorChatKnows` chat knowledge bank. All client-side (reads `sector` from
-URL or `session_prefs`), no backend compute. See `web/DESIGN.md`
-"Sector intelligence tips" for dosage rules.
+**Sector intelligence tips (client-side + agent grounding):** A lightweight
+sector-knowledge layer (`web/lib/sector-tips.ts`) powers Siki-branded teaching
+across four surfaces — the `watchFor` lead-magnet tip, a post-findings
+`SectorTipsCard`, the rotating `SectorNoteCard` in the `/books` sidebar/mobile,
+and the `SectorChatKnows` chat knowledge bank. The chat also sends the known
+sector's tips as `sector_tips` on `POST /api/xero/chat/stream`; `chat.py`
+forwards them to `run_bookkeeper[_streaming]` which injects them into the
+system prompt as `### SECTOR KNOWLEDGE (grounding)`, so Siki names real public
+sources in replies. See `web/DESIGN.md` "Sector intelligence tips" for dosage
+rules.
 
 **Dual persona UI (Siki / Zana):** The books page lets users switch between
 Siki (explain) and Zana (chase). Persona persists in localStorage and drives

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -21,6 +23,10 @@ class XeroChatRequest(BaseModel):
     persona: str = Field("siki", pattern="^(siki|zana)$")
     disable_memory: bool = Field(
         False, description="If true, the agent will not recall or ingest Supermemory for this turn"
+    )
+    sector_tips: list[dict[str, Any]] | None = Field(
+        None,
+        description="Optional sector-specific grounding tips (topic, body, source) injected into the agent's system prompt",
     )
 
 
@@ -45,6 +51,7 @@ async def xero_chat(
             persona=req.persona,
             session_id=session_id,
             disable_memory=req.disable_memory,
+            sector_tips=req.sector_tips,
         )
         agent_available = True
     except ImportError as exc:
@@ -120,6 +127,7 @@ async def xero_chat_stream(
                 persona=req.persona,
                 session_id=session_id,
                 disable_memory=req.disable_memory,
+                sector_tips=req.sector_tips,
             ):
                 # Intercept events to build the audit trail
                 if event.get("type") == "tool_result":

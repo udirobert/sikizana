@@ -223,6 +223,7 @@ async def run_bookkeeper(
     persona: str = "siki",
     session_id: str = "default",
     disable_memory: bool = False,
+    sector_tips: list[dict[str, Any]] | None = None,
 ) -> str:
     """
     Run the bookkeeper agent on user input with conversation persistence.
@@ -237,6 +238,7 @@ async def run_bookkeeper(
         persona=persona,
         session_id=session_id,
         disable_memory=disable_memory,
+        sector_tips=sector_tips,
     ):
         events.append(event)
     # Extract the final text from the events
@@ -250,6 +252,7 @@ async def run_bookkeeper_streaming(
     persona: str = "siki",
     session_id: str = "default",
     disable_memory: bool = False,
+    sector_tips: list[dict[str, Any]] | None = None,
 ) -> Any:
     """
     Streaming version of run_bookkeeper.
@@ -472,6 +475,36 @@ async def run_bookkeeper_streaming(
         if _profile_parts:
             _system_prompt += "\n\n### USER CONTEXT\n" + "\n".join(f"- {p}" for p in _profile_parts)
             _system_prompt += "\n\nUse this context naturally. Address the user by name when greeting. Reference their business and industry where relevant. Never say 'according to your profile' — speak as if you already know."
+
+    # --- Sector knowledge: ground the agent on the user's sector so answers
+    # can cite the same credible public sources the product surfaces. The tips
+    # arrive from the frontend (web/lib/sector-tips.ts) for the known sector;
+    # this is factual methodology context, not branded teaching copy.
+    if sector_tips:
+        _sector_lines: list[str] = []
+        for _tip in sector_tips:
+            if not isinstance(_tip, dict):
+                continue
+            _topic = _tip.get("topic", "")
+            _body = _tip.get("body", "")
+            if not (_topic and _body):
+                continue
+            _lab = _tip.get("sourceLabel") or ""
+            _url = _tip.get("sourceUrl") or ""
+            _src = f" (Source: {_lab}" + (f" \u2014 {_url}" if _url else "") + ")" if _lab else ""
+            _sector_lines.append(f"- **{_topic}**: {_body}{_src}")
+        if _sector_lines:
+            _system_prompt += (
+                "\n\n### SECTOR KNOWLEDGE (grounding)\n"
+                "The user's business is in this sector. Use these credible public "
+                "sources and methods when answering questions about benchmarks, "
+                "competitors, or industry context \u2014 cite the source naturally when "
+                "relevant (e.g. 'You can pull this from Companies House'). Speak as if "
+                "you already know it, never 'according to your profile'.\n"
+                + "\n".join(_sector_lines)
+                + "\n\nNever invent a source or figure beyond these. If a topic isn't "
+                "covered here, guide on methodology rather than fabricate data."
+            )
 
     # If the persona switched, inject a handoff system message so the new
     # persona knows the conversation context and who said what.

@@ -108,7 +108,7 @@ Siki can offer sector-specific educational tips (sources, benchmarks, methodolog
 |---------|-------------|-----|
 | Quick-check lead magnet (`/check/[sector]`) | Single `watchFor` line already shipped in `sector-benchmarks.ts` | Compact, on-brand, doesn't distract from conversion |
 | Post-scan findings panel | Collapsible "Siki knows" (`SectorTipsCard`) with the sector's full tip set, shown after all findings are reviewed | Reward after engagement, feels like Siki is teaching |
-| Chat / agent | On-demand knowledge bank (`SectorChatKnows`) in the `/books` chat empty state showing full methodology, each tip seeds an "Ask Siki" conversation | Natural Q&A, not pushing info |
+| Chat / agent | On-demand knowledge bank (`SectorChatKnows`) in the `/books` chat empty state showing full methodology + each tip seeds an "Ask Siki" conversation; the same tips are injected into the agent system prompt (`sector_tips` on the chat request) so generated replies cite the exact public sources | Natural Q&A, not pushing info |
 | `/books` sidebar + mobile panel | Rotating "Siki's sector note" (`SectorNoteCard`) — 1 tip per visit, rotates | Ambient delight, repeat visitors discover new things |
 
 ### Data model (reference for implementation)
@@ -137,6 +137,9 @@ Exposed via `getSectorTips(sectorId, phase?)` in `web/lib/sector-tips.ts`, which
 | Post-findings | `SectorTipsCard` | ✅ |
 | Chat bank | `SectorChatKnows` | ✅ |
 | Sidebar + mobile note | `SectorNoteCard` | ✅ |
+| Agent grounding (chat) | `sector_tips` → system prompt | ✅ |
+
+**Grounding flow:** the `/books` chat sends the known sector's tips (`getSectorTips(sector, "chat")`) as `sector_tips` on `POST /api/xero/chat/stream`. `src/api/routes/chat.py` passes them to `run_bookkeeper[_streaming]`, which appends a `### SECTOR KNOWLEDGE (grounding)` block to the system prompt so Siki can name the real sources (Companies House, BEIS indices, etc.) in generated replies — while staying honest ("guide on methodology rather than fabricate data").
 
 ### Rules
 
