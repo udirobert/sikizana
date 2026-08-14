@@ -36,7 +36,7 @@ import { FeedbackButtons } from "@/components/FeedbackButtons";
 import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
-import { SECTOR_IDS } from "@/lib/sector-benchmarks";
+import { SECTOR_IDS, type SectorId } from "@/lib/sector-benchmarks";
 import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnectMomentCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
@@ -44,6 +44,7 @@ import { useMe } from "@/hooks/useMe";
 import { PlanBadge } from "@/components/PlanBadge";
 import { ProfitTrendChart } from "@/components/ProfitTrendChart";
 import { TodaySummary } from "@/components/TodaySummary";
+import { SectorNoteCard } from "@/components/SectorNoteCard";
 
 interface OrgData {
   name: string;
@@ -1170,6 +1171,9 @@ function BooksView() {
               )}
             </SkeletonReveal>
           </div>
+
+          {/* Siki's sector note — ambient, one rotating tip per visit */}
+          {sector && <SectorNoteCard sector={sector as SectorId} />}
 
           {/* Findings — the structured audit replaces the old Health Check +
               Needs Attention + Action Center trio. One source of truth,
