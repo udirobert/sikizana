@@ -168,6 +168,7 @@ async def _llm_classify_sector(slug: str) -> str | None:
         client = AsyncOpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=api_key,
+            timeout=8.0,
         )
 
         model = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
@@ -447,12 +448,15 @@ async def _enrich_with_llm(facts: dict[str, Any]) -> list[dict[str, Any]] | None
     if not api_key:
         return None
 
+    import asyncio
+
     try:
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=api_key,
+            timeout=10.0,
         )
 
         sector_label = facts["sector"].replace("_", " ").title()
@@ -536,8 +540,13 @@ async def quick_check(sector: str, request: Request):
 
     facts = _compute_facts(resolved)
 
-    # Try LLM enrichment; fall back to deterministic
-    findings = await _enrich_with_llm(facts)
+    # Try LLM enrichment with timeout; fall back to deterministic
+    import asyncio
+    try:
+        findings = await asyncio.wait_for(_enrich_with_llm(facts), timeout=12.0)
+    except asyncio.TimeoutError:
+        log.warning("check_llm_timeout", extra={"sector": resolved})
+        findings = None
     source = "agent"
     if findings is None:
         findings = _deterministic_findings(facts)
