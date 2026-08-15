@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { QuickCheck } from "@/components/QuickCheck";
+import { parseCheckShare, researchLabelFromSlug } from "@/lib/check-share";
 import {
   formatPct,
   resolveSnapshotSector,
@@ -7,24 +8,25 @@ import {
 
 type PageProps = {
   params: Promise<{ sector: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const SITE = "https://sikizana.persidian.com";
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const { sector: slug } = await params;
+  const sp = await searchParams;
+  const share = parseCheckShare(sp);
   const resolved = resolveSnapshotSector(slug);
+  const research = researchLabelFromSlug(slug);
 
-  // For known sectors, generate rich OG metadata.
-  // For unknown slugs (resolved by backend dynamically), use generic metadata.
   if (!resolved) {
-    const label = decodeURIComponent(slug).replace(/[-_]/g, " ");
     return {
-      title: `${label} quick check — Sikizana`,
-      description: `Siki checks your ${label.toLowerCase()} business against UK sector benchmarks. See what an AI finance assistant finds.`,
+      title: `${research} quick check — Sikizana`,
+      description: `Siki checks your ${research.toLowerCase()} business against UK sector benchmarks. Ballpark figures stay in your browser until you share.`,
       openGraph: {
-        title: `${label} quick check — Sikizana`,
-        description: `Siki checks your ${label.toLowerCase()} business against UK sector benchmarks.`,
+        title: `${research} quick check — Sikizana`,
+        description: `Siki checks your ${research.toLowerCase()} business against UK sector benchmarks.`,
         siteName: "Sikizana",
         type: "website",
       },
@@ -32,13 +34,22 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const { label, bench } = resolved;
-  const title = `${label} quick check — Sikizana`;
-  const description = `Siki checks your ${label.toLowerCase()} margins against typical UK ranges: ~${formatPct(bench.avgGrossMargin)} gross, ~${formatPct(bench.avgNetMargin)} net. See what an AI finance assistant finds — then check your own books.`;
+  const yoursBits = [
+    share.include.has("g") && share.g != null ? `gross ${share.g}%` : null,
+    share.include.has("n") && share.n != null ? `net ${share.n}%` : null,
+  ].filter(Boolean);
+  const title = `${research} quick check — Sikizana`;
+  const description = yoursBits.length
+    ? `Yours vs typical UK ${label.toLowerCase()}: ${yoursBits.join(", ")}. Indicative ranges — ballpark is fine.`
+    : `Siki checks your ${research.toLowerCase()} margins against typical UK ranges: ~${formatPct(bench.avgGrossMargin)} gross, ~${formatPct(bench.avgNetMargin)} net. Ballpark is enough — then check your own books.`;
 
   const og = new URL("/api/og/check", SITE);
   og.searchParams.set("sector", resolved.slug);
+  og.searchParams.set("q", research);
+  if (share.include.has("g") && share.g != null) og.searchParams.set("g", String(share.g));
+  if (share.include.has("n") && share.n != null) og.searchParams.set("n", String(share.n));
 
-  const canonical = `/check/${resolved.slug}`;
+  const canonical = `/check/${encodeURIComponent(slug)}`;
 
   return {
     title,
@@ -61,11 +72,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function QuickCheckPage({ params }: PageProps) {
+export default async function QuickCheckPage({ params, searchParams }: PageProps) {
   const { sector: slug } = await params;
-  // Pass the raw slug — QuickCheck resolves via the backend API.
-  // Known slugs get instant local resolution as a hint; unknown slugs
-  // are resolved by the backend's keyword/LLM/cache system.
+  const sp = await searchParams;
   const hint = resolveSnapshotSector(slug);
-  return <QuickCheck slug={slug} hint={hint} />;
+  return <QuickCheck slug={slug} hint={hint} initialShare={parseCheckShare(sp)} />;
 }

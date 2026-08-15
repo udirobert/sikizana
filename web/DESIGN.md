@@ -80,19 +80,22 @@ Rules:
 |---------|------------|
 | `/impact` hero | dither AreaChart |
 | `/books` sidebar | dither Sparkline (margin trend) |
-| Chat `AnalysisCard`s | HTML compare bar (typical tick + yours) + verdict pill |
-| `/check` + `/b` snapshots | Same compare bar; short status (`In band` / `Above typical` / `Below typical`) |
+| Chat `AnalysisCard`s | HTML compare bar (typical tick + yours) + verdict pill — read-only |
+| `/check` + `/b` snapshots | Vertical compare bar you drag; short status (`In band` / `Above typical` / `Below typical`) |
 | Benchmarks / scorecards | No dither |
 
 ## Benchmark comparison
 
 One visual language across `/check`, `/b` margin notes, and chat sector cards:
 
-- **Bar** = typical tick + yours marker (+ shaded range when we have a band). Zone B: crisp HTML, no dither.
+- **Bar** = typical tick + yours fill (+ shaded range when we have a band). Zone B: crisp HTML, no dither. On `/check` and `/b`, the bar is a vertical slider — drag yours up/down (typing still works). Chat cards stay read-only.
 - **Status** = three words on the card (`In band`), not a recap sentence.
 - **Siki's read** = one sentence on the *outlier*, only after the visitor types numbers. If everything is in band: “You're in the typical {sector} shape.”
 - **Copy once.** Headline + one teaching `watchFor` line. Do not also explain the comparison in a bubble, a subtitle, per-card prose, *and* a recap.
 - Lead-magnet CTAs: one primary action to run the sample-books check. Skip-links that repeat the same action are noise.
+- **Privacy:** dragged/typed figures stay in the browser until the visitor copies a link. Encourage ballpark numbers. Do not write figures into the URL while they play.
+- **Artefact:** share is opt-in per metric (and Siki's read). The link keeps their research slug and only the ticked numbers. Recipients can keep dragging — still local until they share.
+- **Nudge:** deterministic bars → one-line Siki read → sample-books scan → connect Xero. Each step is optional and still not "your books" until connect.
 
 ## Metric snapshot cadence
 

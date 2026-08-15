@@ -15,6 +15,13 @@ import {
   synthesizeBenchmarkRead,
   type BenchmarkMetricInput,
 } from "@/lib/benchmark-compare";
+import {
+  buildCheckShareBlurb,
+  buildCheckSharePath,
+  buildCheckShareQuery,
+  researchLabelFromSlug,
+  type CheckShareState,
+} from "@/lib/check-share";
 import { getSectorTips } from "@/lib/sector-tips";
 import { api } from "@/lib/api";
 
@@ -144,33 +151,65 @@ function YoursComparison({
   benchmarks,
   ratios,
   sectorLabel,
+  slug,
+  researchLabel,
+  initialShare,
 }: {
   benchmarks: BenchmarksResponse["benchmarks"];
   ratios: SectorRatio[];
   sectorLabel: string;
+  slug: string;
+  researchLabel: string;
+  initialShare: CheckShareState;
 }) {
-  const [grossInput, setGrossInput] = useState("");
-  const [netInput, setNetInput] = useState("");
-  const [ratioInputs, setRatioInputs] = useState<Record<string, string>>({});
+  const [grossInput, setGrossInput] = useState(initialShare.g != null ? String(initialShare.g) : "");
+  const [netInput, setNetInput] = useState(initialShare.n != null ? String(initialShare.n) : "");
+  const [ratioInputs, setRatioInputs] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      ratios.map((r) => [r.id, initialShare.ratios[r.id] != null ? String(initialShare.ratios[r.id]) : ""]),
+    ),
+  );
+  const [include, setInclude] = useState<Set<string>>(initialShare.include);
+  const [shareOpen, setShareOpen] = useState(initialShare.inbound);
+  const [copied, setCopied] = useState<"link" | "note" | null>(null);
+  const [allowRead, setAllowRead] = useState(
+    !initialShare.inbound || initialShare.include.has("read"),
+  );
 
   const gross = parseNum(grossInput);
   const net = parseNum(netInput);
+  const ratioValues: Record<string, number | null> = Object.fromEntries(
+    ratios.map((r) => [r.id, parseNum(ratioInputs[r.id] ?? "")]),
+  );
+
+  const setGross = (v: string) => {
+    setAllowRead(true);
+    setGrossInput(v);
+  };
+  const setNet = (v: string) => {
+    setAllowRead(true);
+    setNetInput(v);
+  };
+  const setRatio = (id: string, v: string) => {
+    setAllowRead(true);
+    setRatioInputs((prev) => ({ ...prev, [id]: v }));
+  };
 
   const fillExample = () => {
+    setAllowRead(true);
     setGrossInput(String(benchmarks.gross_margin));
     setNetInput(String(benchmarks.net_margin));
-    setRatioInputs((prev) => ({
-      ...prev,
-      ...Object.fromEntries(
-        ratios.map((r) => [r.id, String(Math.round(r.typical * r.multiplier))])
-      ),
-    }));
+    setRatioInputs(
+      Object.fromEntries(ratios.map((r) => [r.id, String(Math.round(r.typical * r.multiplier))])),
+    );
   };
 
   const clearNumbers = () => {
     setGrossInput("");
     setNetInput("");
     setRatioInputs({});
+    setInclude(new Set());
+    setShareOpen(false);
   };
 
   const metricInputs: BenchmarkMetricInput[] = [
@@ -179,7 +218,7 @@ function YoursComparison({
     ...ratios.map((r) => ({
       shortLabel: r.label.split(" ")[0],
       typical: Math.round(r.typical * r.multiplier),
-      value: parseNum(ratioInputs[r.id] ?? ""),
+      value: ratioValues[r.id] ?? null,
       range: [
         Math.round(r.range[0] * r.multiplier),
         Math.round(r.range[1] * r.multiplier),
@@ -187,6 +226,86 @@ function YoursComparison({
     })),
   ];
   const sikiRead = synthesizeBenchmarkRead(metricInputs, sectorLabel);
+
+  const artefactMetrics: BenchmarkMetricInput[] = metricInputs.filter((m, i) => {
+    if (i === 0) return include.has("g") && m.value != null;
+    if (i === 1) return include.has("n") && m.value != null;
+    const id = ratios[i - 2]?.id;
+    return Boolean(id && include.has(id) && m.value != null);
+  });
+  const artefactRead = include.has("read")
+    ? synthesizeBenchmarkRead(artefactMetrics, sectorLabel)
+    : null;
+
+  const shareChoices: { id: string; label: string; enabled: boolean }[] = [
+    { id: "g", label: "Gross", enabled: gross != null },
+    { id: "n", label: "Net", enabled: net != null },
+    ...ratios.map((r) => ({
+      id: r.id,
+      label: r.label.split(" ")[0],
+      enabled: ratioValues[r.id] != null,
+    })),
+    { id: "read", label: "Siki's read", enabled: Boolean(sikiRead) },
+  ];
+
+  const openShare = () => {
+    setInclude(
+      new Set([
+        ...(gross != null ? ["g"] : []),
+        ...(net != null ? ["n"] : []),
+        ...ratios.filter((r) => ratioValues[r.id] != null).map((r) => r.id),
+        ...(sikiRead ? ["read"] : []),
+      ]),
+    );
+    setShareOpen(true);
+  };
+
+  const toggleInclude = (id: string) => {
+    setInclude((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const shareQuery = buildCheckShareQuery({
+    g: gross,
+    n: net,
+    ratioValues,
+    include,
+  });
+  const sharePath = buildCheckSharePath(slug, shareQuery);
+  const shareUrl =
+    typeof window !== "undefined" ? `${window.location.origin}${sharePath}` : `https://sikizana.persidian.com${sharePath}`;
+
+  const blurbLines: string[] = [];
+  if (include.has("g") && gross != null) blurbLines.push(`gross ${gross}%`);
+  if (include.has("n") && net != null) blurbLines.push(`net ${net}%`);
+  for (const r of ratios) {
+    const val = ratioValues[r.id];
+    if (include.has(r.id) && val != null) blurbLines.push(`${r.label.split(" ")[0].toLowerCase()} ${val}${r.unit}`);
+  }
+  const blurb = buildCheckShareBlurb({
+    researchLabel,
+    sectorLabel,
+    lines: blurbLines,
+    read: artefactRead,
+    includeRead: include.has("read"),
+    url: shareUrl,
+  });
+
+  const copyShare = async (mode: "link" | "note") => {
+    try {
+      await navigator.clipboard.writeText(mode === "link" ? shareUrl : blurb);
+      setCopied(mode);
+      window.setTimeout(() => setCopied(null), 1800);
+    } catch {
+      /* blocked */
+    }
+  };
+
+  const hasAnyInput = gross != null || net != null || Object.values(ratioValues).some((v) => v != null);
 
   return (
     <div className="fade-in-up">
@@ -209,14 +328,14 @@ function YoursComparison({
           typical={benchmarks.gross_margin}
           unit="%"
           value={grossInput}
-          onChange={setGrossInput}
+          onChange={setGross}
         />
         <BenchmarkCard
           label="Net margin"
           typical={benchmarks.net_margin}
           unit="%"
           value={netInput}
-          onChange={setNetInput}
+          onChange={setNet}
           nearBand={3}
         />
         {ratios.map((r) => (
@@ -230,17 +349,22 @@ function YoursComparison({
               Math.round(r.range[1] * r.multiplier),
             ]}
             value={ratioInputs[r.id] ?? ""}
-            onChange={(v) => setRatioInputs((prev) => ({ ...prev, [r.id]: v }))}
+            onChange={(v) => setRatio(r.id, v)}
           />
         ))}
       </div>
 
       <p className="mt-2 text-[10px] text-stone-400">
-        Tick = typical · dot = yours
+        Drag each bar · ballpark is fine · tick = typical
         {ratios.length > 0 ? " · green = typical band" : ""}
       </p>
+      <p className="mt-1 text-[10px] leading-snug text-stone-400">
+        {initialShare.inbound
+          ? "This link only includes what the sender chose to share. Tweaks stay in your browser."
+          : "Nothing is stored until you copy a link — this stays in your browser."}
+      </p>
 
-      {sikiRead && (
+      {allowRead && sikiRead && (
         <div className="mt-3 flex items-start gap-2 fade-in-up">
           <SikiMascot size={26} mood="look" />
           <div className="min-w-0 pt-0.5">
@@ -256,6 +380,65 @@ function YoursComparison({
               Clear my numbers
             </button>
           </div>
+        </div>
+      )}
+
+      {hasAnyInput && (
+        <div className="mt-3 fade-in-up">
+          {!shareOpen ? (
+            <button
+              type="button"
+              onClick={openShare}
+              className="text-[11px] font-semibold text-sky-700 underline-offset-2 hover:underline"
+            >
+              Share this comparison →
+            </button>
+          ) : (
+            <div className="rounded-xl border border-stone-200 bg-white px-3.5 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                In the note
+              </p>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Untick anything you don&rsquo;t want in the link.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {shareChoices.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={!c.enabled}
+                    onClick={() => toggleInclude(c.id)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                      !c.enabled
+                        ? "cursor-not-allowed border-stone-100 text-stone-300"
+                        : include.has(c.id)
+                          ? "border-sky-300 bg-sky-50 text-sky-800"
+                          : "border-stone-200 bg-white text-stone-500"
+                    }`}
+                  >
+                    {include.has(c.id) && c.enabled ? "✓ " : ""}
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void copyShare("link")}
+                  className="rounded-lg bg-stone-950 px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-stone-800"
+                >
+                  {copied === "link" ? "Link copied" : "Copy link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void copyShare("note")}
+                  className="text-[11px] font-semibold text-stone-600 underline-offset-2 hover:underline"
+                >
+                  {copied === "note" ? "Note copied" : "Copy note"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -282,40 +465,48 @@ function BenchmarkCard({
   const parsed = parseNum(value);
   const tone = parsed !== null ? compareMetricTone({ typical, value: parsed, range, nearBand }) : null;
 
+  const unitSuffix = unit === "%" ? "%" : unit;
+
   return (
-    <div className="rounded-xl border border-stone-200 bg-white px-3.5 py-3 transition-shadow hover:shadow-sm">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-semibold text-stone-500">{label}</span>
-        <span className="text-[10px] text-stone-400">
-          Typical{" "}
-          <span className="ml-0.5 font-bold tabular-nums text-stone-700">
-            {typical}{unit === "%" ? "%" : unit}
-          </span>
-        </span>
-      </div>
-
-      <div className="relative mt-2">
-        <input
-          inputMode="decimal"
-          placeholder="Yours"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1.5 pr-8 text-right text-sm font-bold tabular-nums text-stone-950 outline-none transition placeholder:font-normal placeholder:text-stone-300 focus:border-sky-400 focus:bg-white focus:ring-2 focus:ring-sky-100"
+    <div className="rounded-xl border border-stone-200 bg-white px-3 py-3 transition-shadow hover:shadow-sm">
+      <div className="flex gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold text-stone-500 leading-snug">{label}</p>
+          <p className="mt-0.5 text-[10px] text-stone-400">
+            Typical{" "}
+            <span className="font-bold tabular-nums text-stone-700">
+              {typical}{unitSuffix}
+            </span>
+          </p>
+          <div className="relative mt-2">
+            <input
+              inputMode="decimal"
+              placeholder="Ballpark"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="w-full border-0 border-b border-stone-200 bg-transparent py-0.5 pr-6 text-2xl font-bold tabular-nums tracking-tight text-stone-950 outline-none placeholder:text-xl placeholder:font-semibold placeholder:text-stone-300 focus:border-sky-500"
+            />
+            {unit === "%" && (
+              <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-stone-400">
+                %
+              </span>
+            )}
+          </div>
+          <p className={`mt-1.5 text-[11px] font-semibold ${tone ? METRIC_TONE_CLASSES[tone].text : "text-stone-400"}`}>
+            {tone ? METRIC_STATUS_LABEL[tone] : "Drag the bar"}
+          </p>
+        </div>
+        <BenchmarkCompareBar
+          typical={typical}
+          yours={parsed}
+          range={range}
+          tone={tone}
+          unit={unit}
+          orientation="vertical"
+          onChange={(n) => onChange(String(n))}
+          ariaLabel={`${label} yours`}
         />
-        {unit === "%" && (
-          <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-stone-400">
-            %
-          </span>
-        )}
       </div>
-
-      <BenchmarkCompareBar typical={typical} yours={parsed} range={range} tone={tone} unit={unit} />
-
-      {tone && (
-        <p className={`mt-1.5 text-[11px] font-semibold ${METRIC_TONE_CLASSES[tone].text}`}>
-          {METRIC_STATUS_LABEL[tone]}
-        </p>
-      )}
     </div>
   );
 }
@@ -341,9 +532,11 @@ function parseNum(raw: string): number | null {
 export function QuickCheck({
   slug,
   hint,
+  initialShare,
 }: {
   slug: string;
   hint: ResolvedSnapshot | null;
+  initialShare: CheckShareState;
 }) {
   const [phase, setPhase] = useState<Phase>("ready");
   const [benchData, setBenchData] = useState<BenchmarksResponse | null>(null);
@@ -470,7 +663,7 @@ export function QuickCheck({
               </h1>
               {phase === "ready" && (
                 <p className="mt-1 text-xs text-stone-500">
-                  Typical UK ranges — type yours to compare. No signup.
+                  Typical UK ranges — ballpark is enough. No signup.
                 </p>
               )}
               {phase === "scanning" && (
@@ -496,6 +689,9 @@ export function QuickCheck({
                   benchmarks={benchData.benchmarks}
                   ratios={benchData.ratios}
                   sectorLabel={benchData.sector_label}
+                  slug={slug}
+                  researchLabel={researchLabelFromSlug(slug)}
+                  initialShare={initialShare}
                 />
               </div>
 
@@ -508,7 +704,7 @@ export function QuickCheck({
                   Run Siki&rsquo;s check on sample books
                 </button>
                 <p className="mt-2 text-center text-[11px] text-stone-400">
-                  Duplicates, overdue invoices, and payment risks — demo books.
+                  Still not your books — a demo scan for duplicates, overdue invoices, and payment risks.
                 </p>
               </div>
             </>
@@ -663,7 +859,9 @@ export function QuickCheck({
 
           {/* Trust line */}
           <p className="mt-6 text-[10px] leading-relaxed text-stone-400 text-center">
-            Benchmarks are typical UK ranges — not a peer dataset.
+            {phase === "ready"
+              ? "Figures stay in this browser until you copy a link. Benchmarks are typical UK ranges — not a peer dataset."
+              : "Benchmarks are typical UK ranges — not a peer dataset."}
             {phase !== "ready" && phase !== "scanning" && " Siki remembers your sector for next time."}
           </p>
         </div>

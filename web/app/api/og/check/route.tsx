@@ -22,6 +22,10 @@ export async function GET(request: Request) {
   }
 
   const { label, bench } = resolved;
+  const queryLabel = searchParams.get("q")?.trim() || label;
+  const gross = searchParams.get("g");
+  const net = searchParams.get("n");
+  const hasYours = gross != null || net != null;
 
   return new ImageResponse(
     (
@@ -59,10 +63,10 @@ export async function GET(request: Request) {
               lineHeight: 1.1,
             }}
           >
-            {`Siki's ${label.toLowerCase()} check`}
+            {`Siki's ${queryLabel.toLowerCase()} check`}
           </div>
           <div style={{ marginTop: 12, fontSize: 24, fontWeight: 500, color: "#57534e" }}>
-            AI finance assistant · 3 findings in seconds
+            {hasYours ? "A comparison someone chose to share · indicative" : "AI finance assistant · 3 findings in seconds"}
           </div>
         </div>
 
@@ -85,7 +89,9 @@ export async function GET(request: Request) {
               paddingLeft: 16,
             }}
           >
-            <div style={{ fontSize: 16, fontWeight: 700, color: "#0c4a6e" }}>Typical margins</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "#0c4a6e" }}>
+              {hasYours ? "Yours vs typical" : "Typical margins"}
+            </div>
             <div
               style={{
                 marginTop: 8,
@@ -95,9 +101,15 @@ export async function GET(request: Request) {
                 letterSpacing: "-0.03em",
               }}
             >
-              {formatPct(bench.avgGrossMargin)} / {formatPct(bench.avgNetMargin)}
+              {hasYours
+                ? `${gross != null ? `${gross}%` : "—"} / ${net != null ? `${net}%` : "—"}`
+                : `${formatPct(bench.avgGrossMargin)} / ${formatPct(bench.avgNetMargin)}`}
             </div>
-            <div style={{ marginTop: 4, fontSize: 16, color: "#78716c" }}>gross / net</div>
+            <div style={{ marginTop: 4, fontSize: 16, color: "#78716c" }}>
+              {hasYours
+                ? `typical ${formatPct(bench.avgGrossMargin)} / ${formatPct(bench.avgNetMargin)}`
+                : "gross / net"}
+            </div>
           </div>
 
           {/* Finding 2 */}

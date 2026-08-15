@@ -59,22 +59,30 @@ function MarginCompare({
       <p className="mt-0.5 text-4xl font-bold tabular-nums tracking-tight text-stone-950 leading-none">
         {typicalPct}%
       </p>
-      <label className="mt-3 block">
-        <span className="text-[11px] font-semibold text-sky-800">Yours</span>
-        <input
-          inputMode="decimal"
-          placeholder="—"
-          value={input}
-          onChange={(e) => onChange(e.target.value)}
-          className="mt-1 w-full border-0 border-b border-stone-300 bg-transparent px-0 py-1.5 text-lg font-bold tabular-nums text-stone-950 outline-none placeholder:text-stone-300 focus:border-sky-500"
+      <div className="mt-3 flex items-end gap-3">
+        <label className="block min-w-0 flex-1">
+          <span className="text-[11px] font-semibold text-sky-800">Yours</span>
+          <input
+            inputMode="decimal"
+            placeholder="—"
+            value={input}
+            onChange={(e) => onChange(e.target.value)}
+            className="mt-1 w-full border-0 border-b border-stone-300 bg-transparent px-0 py-1.5 text-lg font-bold tabular-nums text-stone-950 outline-none placeholder:text-stone-300 focus:border-sky-500"
+          />
+        </label>
+        <BenchmarkCompareBar
+          typical={typicalPct}
+          yours={value}
+          tone={tone}
+          unit="%"
+          orientation="vertical"
+          onChange={(n) => onChange(String(n))}
+          ariaLabel={`${label} yours`}
         />
-      </label>
-      <BenchmarkCompareBar typical={typicalPct} yours={value} tone={tone} unit="%" />
-      {tone && (
-        <p className={`mt-1.5 text-[11px] font-semibold ${METRIC_TONE_CLASSES[tone].text}`}>
-          {METRIC_STATUS_LABEL[tone]}
-        </p>
-      )}
+      </div>
+      <p className={`mt-1.5 text-[11px] font-semibold ${tone ? METRIC_TONE_CLASSES[tone].text : "text-stone-400"}`}>
+        {tone ? METRIC_STATUS_LABEL[tone] : "Drag the bar"}
+      </p>
     </div>
   );
 }
@@ -221,7 +229,7 @@ export function MarginSnapshot({
                 nearBand={3}
               />
             </div>
-            <p className="mt-3 text-[10px] text-stone-400">Tick = typical · dot = yours</p>
+            <p className="mt-3 text-[10px] text-stone-400">Drag each bar · tick = typical</p>
           </div>
 
           {hasYours && (
