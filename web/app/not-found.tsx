@@ -7,6 +7,7 @@ import { Search, ArrowRight, BookOpen, Sparkles, Coffee } from "lucide-react";
 import { SikiMascot } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { MarketingFooter } from "@/components/MarketingFooter";
+import { checkPathFromQuery } from "@/components/SectorCheckEntry";
 
 const POPULAR_SECTOR_CHECKS = [
   { label: "Hospitality / Café", slug: "hospitality" },
@@ -37,10 +38,7 @@ export default function NotFound() {
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const trimmed = searchQuery.trim();
-    if (trimmed) {
-      router.push(`/check/${encodeURIComponent(trimmed.toLowerCase())}`);
-    }
+    router.push(checkPathFromQuery(searchQuery));
   };
 
   return (

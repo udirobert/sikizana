@@ -30,6 +30,7 @@ from __future__ import annotations
 import os
 
 from src.services.logging import get_logger
+from src.services.sector_catalogue import benchmarks_map, keyword_pairs
 
 log = get_logger("sikizana.accounting_tools")
 
@@ -1077,108 +1078,8 @@ def get_savings_opportunities() -> str:
 # Sector benchmarking — compare the user's numbers against sector averages
 # ---------------------------------------------------------------------------
 
-# Curated typical ranges for UK small businesses, informed by ONS "UK
-# business data" and DBT SME finance reports. These are INDICATIVE, not
-# live official statistics — every surface that shows them must say so
-# (see get_sector_benchmarks). Update alongside the annual DBT survey.
-_SECTOR_BENCHMARKS: dict[str, dict[str, float]] = {
-    "retail": {
-        "avg_receivables_days": 52,
-        "avg_overdue_rate": 0.08,
-        "avg_gross_margin": 0.22,
-        "avg_net_margin": 0.04,
-        "avg_invoice_value": 850,
-        "chasing_threshold_days": 45,
-    },
-    "construction": {
-        "avg_receivables_days": 65,
-        "avg_overdue_rate": 0.15,
-        "avg_gross_margin": 0.18,
-        "avg_net_margin": 0.03,
-        "avg_invoice_value": 4200,
-        "chasing_threshold_days": 60,
-    },
-    "professional_services": {
-        "avg_receivables_days": 48,
-        "avg_overdue_rate": 0.06,
-        "avg_gross_margin": 0.45,
-        "avg_net_margin": 0.12,
-        "avg_invoice_value": 3200,
-        "chasing_threshold_days": 45,
-    },
-    "hospitality": {
-        "avg_receivables_days": 18,
-        "avg_overdue_rate": 0.04,
-        "avg_gross_margin": 0.35,
-        "avg_net_margin": 0.08,
-        "avg_invoice_value": 420,
-        "chasing_threshold_days": 21,
-    },
-    "manufacturing": {
-        "avg_receivables_days": 58,
-        "avg_overdue_rate": 0.10,
-        "avg_gross_margin": 0.28,
-        "avg_net_margin": 0.06,
-        "avg_invoice_value": 5600,
-        "chasing_threshold_days": 55,
-    },
-    "wholesale": {
-        "avg_receivables_days": 42,
-        "avg_overdue_rate": 0.07,
-        "avg_gross_margin": 0.15,
-        "avg_net_margin": 0.03,
-        "avg_invoice_value": 2800,
-        "chasing_threshold_days": 40,
-    },
-    "music": {
-        "avg_receivables_days": 60,
-        "avg_overdue_rate": 0.14,
-        "avg_gross_margin": 0.40,
-        "avg_net_margin": 0.07,
-        "avg_invoice_value": 1600,
-        "chasing_threshold_days": 45,
-    },
-    "default": {
-        "avg_receivables_days": 50,
-        "avg_overdue_rate": 0.09,
-        "avg_gross_margin": 0.25,
-        "avg_net_margin": 0.06,
-        "avg_invoice_value": 1800,
-        "chasing_threshold_days": 45,
-    },
-}
-
-# Keyword mapping from org name / industry hints to sector
-_SECTOR_KEYWORDS: list[tuple[str, str]] = [
-    ("retail", "retail"),
-    ("shop", "retail"),
-    ("store", "retail"),
-    ("cafe", "hospitality"),
-    ("restaurant", "hospitality"),
-    ("bar", "hospitality"),
-    ("hotel", "hospitality"),
-    ("catering", "hospitality"),
-    ("coffee", "hospitality"),
-    ("construct", "construction"),
-    ("build", "construction"),
-    ("contractor", "construction"),
-    ("consult", "professional_services"),
-    ("law", "professional_services"),
-    ("account", "professional_services"),
-    ("agency", "professional_services"),
-    ("design", "professional_services"),
-    ("tech", "professional_services"),
-    ("manufactur", "manufacturing"),
-    ("factory", "manufacturing"),
-    ("wholesale", "wholesale"),
-    ("distribut", "wholesale"),
-    ("music", "music"),
-    ("band", "music"),
-    ("artist", "music"),
-    ("studio", "music"),
-    ("label", "music"),
-    ("record", "music"),
-]
+_SECTOR_BENCHMARKS = benchmarks_map()
+_SECTOR_KEYWORDS = keyword_pairs()
 
 
 def _detect_sector(org_name: str = "", industry: str = "") -> str:

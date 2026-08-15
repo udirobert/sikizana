@@ -28,125 +28,25 @@ from fastapi.responses import JSONResponse
 
 from src.api.session import _check_rate_limit
 from src.services.logging import get_logger
+from src.services.sector_catalogue import (
+    benchmarks_map,
+    canonical_ids,
+    demo_meta,
+    display_label,
+    ratios_for,
+    resolve_sync,
+    sector_labels,
+    watch_for,
+)
 
 log = get_logger("sikizana.api.check")
 
 router = APIRouter()
 
-# ─── Canonical sectors ───────────────────────────────────────────────────────
+CANONICAL_SECTORS = canonical_ids()
+SECTOR_LABELS = sector_labels()
+_SECTOR_BENCHMARKS = benchmarks_map()
 
-CANONICAL_SECTORS = [
-    "retail",
-    "construction",
-    "professional_services",
-    "hospitality",
-    "manufacturing",
-    "wholesale",
-    "music",
-]
-
-SECTOR_LABELS: dict[str, str] = {
-    "retail": "Retail",
-    "construction": "Construction",
-    "professional_services": "Services",
-    "hospitality": "Hospitality",
-    "manufacturing": "Manufacturing",
-    "wholesale": "Wholesale",
-    "music": "Music",
-}
-
-# ─── Sector resolution: tier 1 (exact aliases) ──────────────────────────────
-
-_SECTOR_ALIASES: dict[str, str] = {
-    "catering": "hospitality",
-    "cafe": "hospitality",
-    "café": "hospitality",
-    "restaurant": "hospitality",
-    "restaurants": "hospitality",
-    "hospitality": "hospitality",
-    "hotel": "hospitality",
-    "hotels": "hospitality",
-    "pub": "hospitality",
-    "bar": "hospitality",
-    "accommodation": "hospitality",
-    "music": "music",
-    "services": "professional_services",
-    "professional_services": "professional_services",
-    "agency": "professional_services",
-    "consulting": "professional_services",
-    "retail": "retail",
-    "shop": "retail",
-    "ecommerce": "retail",
-    "construction": "construction",
-    "builder": "construction",
-    "trades": "construction",
-    "manufacturing": "manufacturing",
-    "factory": "manufacturing",
-    "wholesale": "wholesale",
-    "distribution": "wholesale",
-}
-
-# ─── Sector resolution: tier 2 (keyword substring match) ────────────────────
-# Mirrors _SECTOR_KEYWORDS in src/tools/accounting_tools.py (single source
-# of truth there; this is the lead-magnet copy that stays in sync).
-
-_SECTOR_KEYWORDS: list[tuple[str, str]] = [
-    ("retail", "retail"),
-    ("shop", "retail"),
-    ("store", "retail"),
-    ("ecommerce", "retail"),
-    ("e-commerce", "retail"),
-    ("cafe", "hospitality"),
-    ("café", "hospitality"),
-    ("restaurant", "hospitality"),
-    ("bar", "hospitality"),
-    ("hotel", "hospitality"),
-    ("catering", "hospitality"),
-    ("coffee", "hospitality"),
-    ("pub", "hospitality"),
-    ("hostel", "hospitality"),
-    ("lodge", "hospitality"),
-    ("bnb", "hospitality"),
-    ("b&b", "hospitality"),
-    ("food", "hospitality"),
-    ("kitchen", "hospitality"),
-    ("bakery", "hospitality"),
-    ("takeaway", "hospitality"),
-    ("construct", "construction"),
-    ("build", "construction"),
-    ("contractor", "construction"),
-    ("plumb", "construction"),
-    ("electri", "construction"),
-    ("roofing", "construction"),
-    ("joiner", "construction"),
-    ("carpent", "construction"),
-    ("consult", "professional_services"),
-    ("law", "professional_services"),
-    ("account", "professional_services"),
-    ("agency", "professional_services"),
-    ("design", "professional_services"),
-    ("tech", "professional_services"),
-    ("architect", "professional_services"),
-    ("market", "professional_services"),
-    ("solicit", "professional_services"),
-    ("recruit", "professional_services"),
-    ("manufactur", "manufacturing"),
-    ("factory", "manufacturing"),
-    ("production", "manufacturing"),
-    ("engineer", "manufacturing"),
-    ("wholesale", "wholesale"),
-    ("distribut", "wholesale"),
-    ("import", "wholesale"),
-    ("export", "wholesale"),
-    ("music", "music"),
-    ("band", "music"),
-    ("artist", "music"),
-    ("studio", "music"),
-    ("label", "music"),
-    ("record", "music"),
-    ("promot", "music"),
-    ("festival", "music"),
-]
 
 # ─── Sector resolution: tier 3 (LLM + cache) ────────────────────────────────
 
@@ -253,27 +153,13 @@ Respond with ONLY the sector name (one word/phrase), nothing else."""
 
 
 def _resolve_sector(slug: str) -> str | None:
-    """Three-tier sector resolution: alias → keyword → cache.
-
-    Returns canonical sector ID or None. Does NOT call LLM (that's async).
-    """
+    """Alias → keyword → cache. No LLM."""
+    resolved = resolve_sync(slug)
+    if resolved:
+        return resolved
     key = slug.lower().strip().replace(" ", "_").replace("-", "_")
-
-    # Tier 1: exact alias
-    if key in _SECTOR_ALIASES:
-        return _SECTOR_ALIASES[key]
-
-    # Tier 2: keyword substring match
-    for keyword, sector in _SECTOR_KEYWORDS:
-        if keyword in key:
-            return sector
-
-    # Tier 3: check cache (previously LLM-resolved)
     cached = _cache_lookup(key)
-    if cached:
-        return cached
-
-    return None
+    return cached if cached in CANONICAL_SECTORS else None
 
 
 async def _resolve_sector_with_llm(slug: str) -> str | None:
@@ -293,147 +179,6 @@ async def _resolve_sector_with_llm(slug: str) -> str | None:
     return None
 
 
-# ─── Sector-specific ratios ──────────────────────────────────────────────────
-# Key operational ratios that matter most for each sector. These are the
-# "novel indicators" a bookkeeper actually tracks — beyond gross/net margin.
-
-SECTOR_RATIOS: dict[str, list[dict[str, Any]]] = {
-    "hospitality": [
-        {
-            "id": "staff_cost",
-            "label": "Staff cost % of revenue",
-            "typical": 0.30,
-            "range": [0.25, 0.35],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "rent_cost",
-            "label": "Rent % of revenue",
-            "typical": 0.10,
-            "range": [0.06, 0.15],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-    "retail": [
-        {
-            "id": "rent_cost",
-            "label": "Rent % of revenue",
-            "typical": 0.12,
-            "range": [0.08, 0.18],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "shrinkage",
-            "label": "Shrinkage % of stock",
-            "typical": 0.015,
-            "range": [0.01, 0.03],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-    "construction": [
-        {
-            "id": "labour_cost",
-            "label": "Labour % of revenue",
-            "typical": 0.35,
-            "range": [0.28, 0.45],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "materials_cost",
-            "label": "Materials % of revenue",
-            "typical": 0.40,
-            "range": [0.30, 0.50],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-    "professional_services": [
-        {
-            "id": "staff_cost",
-            "label": "Staff cost % of revenue",
-            "typical": 0.55,
-            "range": [0.45, 0.65],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "utilisation",
-            "label": "Utilisation rate",
-            "typical": 0.70,
-            "range": [0.60, 0.80],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-    "manufacturing": [
-        {
-            "id": "materials_cost",
-            "label": "Materials % of revenue",
-            "typical": 0.45,
-            "range": [0.35, 0.55],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "energy_cost",
-            "label": "Energy % of revenue",
-            "typical": 0.08,
-            "range": [0.04, 0.12],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-    "wholesale": [
-        {
-            "id": "logistics_cost",
-            "label": "Logistics % of revenue",
-            "typical": 0.08,
-            "range": [0.05, 0.12],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "inventory_days",
-            "label": "Inventory days",
-            "typical": 35,
-            "range": [20, 50],
-            "unit": "days",
-            "multiplier": 1,
-        },
-    ],
-    "music": [
-        {
-            "id": "production_cost",
-            "label": "Production % of revenue",
-            "typical": 0.25,
-            "range": [0.15, 0.40],
-            "unit": "%",
-            "multiplier": 100,
-        },
-        {
-            "id": "marketing_cost",
-            "label": "Marketing % of revenue",
-            "typical": 0.15,
-            "range": [0.08, 0.25],
-            "unit": "%",
-            "multiplier": 100,
-        },
-    ],
-}
-
-# ─── Which demo scenario to use ─────────────────────────────────────────────
-
-_SECTOR_TO_SCENARIO: dict[str, str] = {
-    "hospitality": "cafe",
-    "music": "music",
-}
-
-
 # ─── Core analysis logic ─────────────────────────────────────────────────────
 
 
@@ -441,9 +186,10 @@ def _compute_facts(sector: str) -> dict[str, Any]:
     """Run deterministic analysis over demo data for the sector."""
     from src.services.demo_scenarios import scenario_data
     from src.services.ap_integrity.service import build_ap_findings_stateless
-    from src.tools.accounting_tools import _SECTOR_BENCHMARKS
 
-    scenario_key = _SECTOR_TO_SCENARIO.get(sector, "cafe")
+    sector_label = SECTOR_LABELS.get(sector, sector.replace("_", " ").title())
+    demo = demo_meta(sector, sector_label)
+    scenario_key = demo["scenario"]
     data = scenario_data(scenario_key)
     bench = _SECTOR_BENCHMARKS.get(sector, _SECTOR_BENCHMARKS["default"])
 
@@ -517,6 +263,8 @@ def _compute_facts(sector: str) -> dict[str, Any]:
         "gross_margin": gross_margin,
         "net_margin": net_margin,
         "net_profit": net_profit,
+        "demo": demo,
+        "sector_label": sector_label,
     }
 
 
@@ -583,7 +331,12 @@ def _deterministic_findings(facts: dict[str, Any]) -> list[dict[str, Any]]:
                 "label": "Payment exception",
                 "detail": f"{first_ap.get('title', 'Possible duplicate')} · £{amount:,.0f}",
                 "tone": "risk",
-                "evidence": first_ap.get(
+                "evidence": (
+                    facts.get("demo", {}).get("scan_note") + " "
+                    if not (facts.get("demo") or {}).get("fits_sector", True)
+                    else ""
+                )
+                + first_ap.get(
                     "description", "A payment anomaly was detected that warrants review."
                 ),
             }
@@ -608,10 +361,19 @@ async def _enrich_with_llm(facts: dict[str, Any]) -> list[dict[str, Any]] | None
     Each provider is OpenAI-compatible. Tries them in order; first success wins.
     Returns None if all fail, signalling deterministic fallback.
     """
-    sector_label = facts["sector"].replace("_", " ").title()
+    sector_label = facts.get("sector_label") or facts["sector"].replace("_", " ").title()
     bench = facts["benchmarks"]
+    demo = facts.get("demo") or {}
+    books_line = (
+        f"You scanned {demo.get('scan_note', 'demo books')} for a visitor researching {sector_label.lower()} ({facts['org_name']})."
+    )
+    if not demo.get("fits_sector", True):
+        books_line += (
+            f" These are café-shaped sample books to show the scan — not {sector_label.lower()} invoices. "
+            "Say that plainly. Do not imply the suppliers or duplicates are typical of this sector."
+        )
 
-    prompt = f"""You are Siki, an AI finance assistant. You just scanned demo books for a {sector_label.lower()} business ({facts["org_name"]}).
+    prompt = f"""You are Siki, an AI finance assistant. {books_line}
 
 Here are the computed facts from your analysis:
 - Revenue: £{facts["revenue"]:,.0f}, Gross margin: {round(facts["gross_margin"] * 100)}%, Net margin: {round(facts["net_margin"] * 100)}%, Net profit: £{facts["net_profit"]:,.0f}
@@ -824,16 +586,21 @@ async def quick_check_benchmarks(sector: str, request: Request):
             headers={"Cache-Control": "public, max-age=86400"},
         )
 
-    from src.tools.accounting_tools import _SECTOR_BENCHMARKS
-
     bench = _SECTOR_BENCHMARKS.get(resolved, _SECTOR_BENCHMARKS["default"])
-    ratios = SECTOR_RATIOS.get(resolved, [])
+
+    sector_label = SECTOR_LABELS.get(resolved, resolved.replace("_", " ").title())
+    research = display_label(sector, resolved)
+    demo = demo_meta(resolved, sector_label)
+    ratios = ratios_for(resolved)
 
     return JSONResponse(
         content={
             "resolved": True,
             "sector": resolved,
-            "sector_label": SECTOR_LABELS.get(resolved, resolved.replace("_", " ").title()),
+            "sector_label": sector_label,
+            "research_label": research,
+            "watch_for": watch_for(resolved),
+            "demo": demo,
             "benchmarks": {
                 "gross_margin": round(bench["avg_gross_margin"] * 100),
                 "net_margin": round(bench["avg_net_margin"] * 100),
@@ -890,12 +657,19 @@ async def quick_check(sector: str, request: Request):
         findings = _deterministic_findings(facts)
         source = "rules"
 
-    ratios = SECTOR_RATIOS.get(resolved, [])
+    ratios = ratios_for(resolved)
+    sector_label = facts.get("sector_label") or SECTOR_LABELS.get(
+        resolved, resolved.replace("_", " ").title()
+    )
+    demo = facts.get("demo") or demo_meta(resolved, sector_label)
 
     response_data = {
         "resolved": True,
         "sector": resolved,
-        "sector_label": SECTOR_LABELS.get(resolved, resolved.replace("_", " ").title()),
+        "sector_label": sector_label,
+        "research_label": display_label(sector, resolved),
+        "watch_for": watch_for(resolved),
+        "demo": demo,
         "org_name": facts["org_name"],
         "findings": findings,
         "source": source,

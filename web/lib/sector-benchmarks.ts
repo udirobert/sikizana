@@ -1,10 +1,9 @@
 /**
- * Curated UK SME indicative ranges — kept in sync with
- * `_SECTOR_BENCHMARKS` in `src/tools/accounting_tools.py`.
- *
- * Surfaces must label these as "typical UK ranges · indicative"
- * (see docs/BRAND.md). They are not live ONS statistics.
+ * Sector typicals — reads ``sector-catalogue.json`` (shared with the API).
+ * Surfaces must label these as "typical UK ranges · indicative".
  */
+
+import catalogue from "./sector-catalogue.json";
 
 export type SectorId =
   | "retail"
@@ -18,120 +17,60 @@ export type SectorId =
 export interface SectorBenchmark {
   id: SectorId;
   label: string;
-  /** One line: the lever that most often moves you off the median. */
   watchFor: string;
   avgGrossMargin: number;
   avgNetMargin: number;
   avgReceivablesDays: number;
   avgOverdueRate: number;
-  /** Optional demo scenario when handing off to /books. */
   demoScenario?: string;
 }
 
-/** Friendly URL slugs that map onto a canonical sector id. */
-const SECTOR_ALIASES: Record<string, SectorId> = {
-  catering: "hospitality",
-  cafe: "hospitality",
-  café: "hospitality",
-  restaurant: "hospitality",
-  restaurants: "hospitality",
-  hospitality: "hospitality",
-  music: "music",
-  services: "professional_services",
-  professional_services: "professional_services",
-  agency: "professional_services",
-  retail: "retail",
-  construction: "construction",
-  manufacturing: "manufacturing",
-  wholesale: "wholesale",
-};
+type CatalogueSector = (typeof catalogue.sectors)[number];
 
-/** Display label when the URL used an alias (e.g. /b/catering). */
-const ALIAS_LABELS: Record<string, string> = {
-  catering: "Catering",
-  cafe: "Café",
-  café: "Café",
-  restaurant: "Restaurant",
-  restaurants: "Restaurants",
-  services: "Services",
-  agency: "Agency",
-};
+const ALIAS_TO_ID: Record<string, SectorId> = (() => {
+  const out: Record<string, SectorId> = {};
+  for (const s of catalogue.sectors) {
+    const id = s.id as SectorId;
+    out[id] = id;
+    for (const alias of s.aliases) {
+      out[alias.toLowerCase()] = id;
+    }
+  }
+  return out;
+})();
 
-export const SECTOR_BENCHMARKS: SectorBenchmark[] = [
-  {
-    id: "hospitality",
-    label: "Hospitality",
-    watchFor: "Wages, rent, and energy move net more than menu prices.",
-    avgGrossMargin: 0.35,
-    avgNetMargin: 0.08,
-    avgReceivablesDays: 18,
-    avgOverdueRate: 0.04,
-  },
-  {
-    id: "music",
-    label: "Music",
-    watchFor: "One late promoter can skew overdue for months.",
-    avgGrossMargin: 0.4,
-    avgNetMargin: 0.07,
-    avgReceivablesDays: 60,
-    avgOverdueRate: 0.14,
-    demoScenario: "music",
-  },
-  {
-    id: "professional_services",
-    label: "Services",
-    watchFor: "Bench time and thin retainers crush net before costs show.",
-    avgGrossMargin: 0.45,
-    avgNetMargin: 0.12,
-    avgReceivablesDays: 48,
-    avgOverdueRate: 0.06,
-  },
-  {
-    id: "retail",
-    label: "Retail",
-    watchFor: "Shrinkage and promotions eat gross before rent hits.",
-    avgGrossMargin: 0.22,
-    avgNetMargin: 0.04,
-    avgReceivablesDays: 52,
-    avgOverdueRate: 0.08,
-  },
-  {
-    id: "construction",
-    label: "Construction",
-    watchFor: "Retention and stage payments delay cash after recognition.",
-    avgGrossMargin: 0.18,
-    avgNetMargin: 0.03,
-    avgReceivablesDays: 65,
-    avgOverdueRate: 0.15,
-  },
-  {
-    id: "manufacturing",
-    label: "Manufacturing",
-    watchFor: "Capacity and input costs swing gross more than list price.",
-    avgGrossMargin: 0.28,
-    avgNetMargin: 0.06,
-    avgReceivablesDays: 58,
-    avgOverdueRate: 0.1,
-  },
-  {
-    id: "wholesale",
-    label: "Wholesale",
-    watchFor: "Rebates and freight rewrite reported gross overnight.",
-    avgGrossMargin: 0.15,
-    avgNetMargin: 0.03,
-    avgReceivablesDays: 42,
-    avgOverdueRate: 0.07,
-  },
-];
+const ALIAS_LABELS: Record<string, string> = {};
+for (const s of catalogue.sectors) {
+  for (const [alias, label] of Object.entries(s.aliasLabels ?? {})) {
+    ALIAS_LABELS[alias] = label;
+  }
+}
+
+function toBenchmark(s: CatalogueSector): SectorBenchmark {
+  return {
+    id: s.id as SectorId,
+    label: s.label,
+    watchFor: s.watchFor,
+    avgGrossMargin: s.avgGrossMargin,
+    avgNetMargin: s.avgNetMargin,
+    avgReceivablesDays: s.avgReceivablesDays,
+    avgOverdueRate: s.avgOverdueRate,
+    demoScenario: s.demoScenario === "cafe" && s.id !== "hospitality" ? undefined : s.demoScenario,
+  };
+}
+
+export const SECTOR_BENCHMARKS: SectorBenchmark[] = catalogue.sectors.map(toBenchmark);
+
+export const SECTOR_FAMILY_OPTIONS: { id: SectorId; label: string }[] = SECTOR_BENCHMARKS.map((s) => ({
+  id: s.id,
+  label: s.label,
+}));
 
 export const SECTOR_IDS = SECTOR_BENCHMARKS.map((s) => s.id);
 
 export interface ResolvedSnapshot {
-  /** Canonical sector used for numbers + prefs. */
   id: SectorId;
-  /** URL slug (may be an alias like "catering"). */
   slug: string;
-  /** Human label for the card ("Catering" vs "Hospitality"). */
   label: string;
   bench: SectorBenchmark;
 }
@@ -139,7 +78,7 @@ export interface ResolvedSnapshot {
 export function getSectorBenchmark(id: string | null | undefined): SectorBenchmark | undefined {
   if (!id) return undefined;
   const key = id.toLowerCase().replace(/ /g, "_");
-  const canonical = SECTOR_ALIASES[key] ?? ((SECTOR_IDS as readonly string[]).includes(key) ? (key as SectorId) : null);
+  const canonical = ALIAS_TO_ID[key] ?? ((SECTOR_IDS as readonly string[]).includes(key) ? (key as SectorId) : null);
   if (!canonical) return undefined;
   return SECTOR_BENCHMARKS.find((s) => s.id === canonical);
 }
@@ -147,16 +86,39 @@ export function getSectorBenchmark(id: string | null | undefined): SectorBenchma
 export function resolveSnapshotSector(slug: string | null | undefined): ResolvedSnapshot | null {
   if (!slug) return null;
   const key = decodeURIComponent(slug).toLowerCase().trim().replace(/ /g, "_");
-  const id = SECTOR_ALIASES[key];
+  let id = ALIAS_TO_ID[key];
+  if (!id) {
+    for (const [keyword, sector] of catalogue.keywords) {
+      if (key.includes(keyword)) {
+        id = sector as SectorId;
+        break;
+      }
+    }
+  }
   if (!id) return null;
   const bench = SECTOR_BENCHMARKS.find((s) => s.id === id);
   if (!bench) return null;
   return {
     id,
     slug: key,
-    label: ALIAS_LABELS[key] ?? bench.label,
+    label: ALIAS_LABELS[key] ?? titleCaseSlug(key, bench.label),
     bench,
   };
+}
+
+function titleCaseSlug(slug: string, fallback: string): string {
+  const words = slug.replace(/_/g, " ").trim();
+  if (!words) return fallback;
+  return words.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function researchLabelFromResolved(resolved: ResolvedSnapshot | null, rawSlug: string): string {
+  if (resolved) return resolved.label;
+  try {
+    return decodeURIComponent(rawSlug).replace(/[-_]/g, " ").trim();
+  } catch {
+    return rawSlug.replace(/[-_]/g, " ").trim();
+  }
 }
 
 export function formatPct(rate: number): string {
@@ -204,7 +166,6 @@ export function marginNoteRead(
     return "Gross sits below typical — mix or COGS is the first look.";
   }
 
-  // net only
   if (net != null && near(net, tn)) return "Net is near typical for this sector.";
   if (net != null && net > tn) return "Net sits above typical — nice place to start a deeper check.";
   return "Net sits below typical — overheads usually explain it.";
@@ -249,7 +210,7 @@ export function sectorCheckHref(
     sample: "benchmark",
     persona: opts.persona ?? "siki",
   });
-  if (bench?.demoScenario) params.set("demo", bench.demoScenario);
+  if (bench?.demoScenario && bench.demoScenario !== "cafe") params.set("demo", bench.demoScenario);
   if (opts.connect) params.set("connect", "1");
   return `/books?${params.toString()}`;
 }

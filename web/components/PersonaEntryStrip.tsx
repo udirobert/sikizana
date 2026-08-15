@@ -30,7 +30,7 @@ export function PersonaEntryStrip({
                 <p className="text-base font-bold text-stone-900">{path.name}</p>
                 <p className="mt-1 text-sm text-stone-600 leading-snug">{path.description}</p>
                 <p className="mt-3 text-xs font-semibold text-stone-400 group-hover:text-current">
-                  Open {path.name} →
+                  See {path.name} in sample books →
                 </p>
               </div>
             </Link>

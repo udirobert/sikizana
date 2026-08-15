@@ -18,6 +18,10 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import {
+  COMPARE_TYPICALS_HREF,
+  SAMPLE_BOOKS_HREF,
+} from "@/components/MarketingCtas";
 import { SikiMascot } from "@/components/SikiMascot";
 import { PlanBadge } from "@/components/PlanBadge";
 import { useMe } from "@/hooks/useMe";
@@ -69,26 +73,20 @@ export function SiteNav({ variant = "marketing", subtitle, links, children }: Si
           </Link>
           <div className="flex items-center gap-2">
             <Link
-              href="/books?flow=check"
+              href={COMPARE_TYPICALS_HREF}
               className="bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition btn-press"
             >
-              Try sample books
+              Compare typicals
             </Link>
             <Link
-              href="/check/catering"
+              href={SAMPLE_BOOKS_HREF}
               className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
-              Quick check
-            </Link>
-            <Link
-              href="/music"
-              className="hidden sm:inline-flex bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
-            >
-              Music
+              Sample books
             </Link>
             <Link
               href="/pricing"
-              className="bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
+              className="hidden sm:inline-flex bg-white hover:bg-stone-50 text-stone-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-stone-200 btn-press"
             >
               Pricing
             </Link>

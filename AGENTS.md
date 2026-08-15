@@ -197,7 +197,7 @@ cd web && npx tsc --noEmit
 | `web/components/ThinkingTrace.tsx` | Reusable agent-working indicator with `forceComplete` for honest timing |
 | `web/app/check/[sector]/page.tsx` | Dynamic route for `/check/{slug}` — tolerant resolution, never 404s |
 | `src/api/routes/check.py` | `GET /api/check/{sector}` — fuzzy sector resolution + real AP scan + LLM enrichment |
-| `web/app/page.tsx` | Landing — finance-check entry paths via `getLandingPersonaPaths()` |
+| `web/app/page.tsx` | Landing — typicals field → `/check/{slug}`, then sample books / Xero |
 | `web/lib/sector-tips.ts` | Sector intelligence tips data layer (`SectorTip[]` + `getSectorTips`) — client-side, no backend |
 | `web/components/SectorTipsCard.tsx` | Post-findings "Siki knows" card on `/check` (collapsible, after review) |
 | `web/components/SectorNoteCard.tsx` | Rotating "Siki's sector note" in `/books` sidebar + mobile panel (1 per visit) |
@@ -270,8 +270,7 @@ Rules:
   classification, not a dead end.
 - Old `/b/{sector}` URLs permanently redirect to `/check/{sector}` via
   `next.config.ts`.
-- `SECTOR_RATIOS` in `check.py` is the single source for sector-specific
-  operational ratios. Add new sectors/ratios there.
+- Extra operational ratios live in [`web/lib/sector-catalogue.json`](web/lib/sector-catalogue.json) (shared with the API via `src/services/sector_catalogue.py`). A sector with an empty `ratios` array shows gross/net only. Do not invent long-tail typicals.
 
 **Metric snapshots:** `GET /api/metrics/snapshots` returns periodic financial
 metrics for trend charts. Passive capture is throttled to once per day;

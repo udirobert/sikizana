@@ -1,13 +1,15 @@
 import Link from "next/link";
+import { COMPARE_TYPICALS_HREF } from "@/components/MarketingCtas";
 import { SikiMascot } from "@/components/SikiMascot";
 
 const LINKS = [
+  { href: COMPARE_TYPICALS_HREF, label: "Compare typicals" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/music", label: "Music" },
   { href: "/security", label: "Security" },
   { href: "/privacy", label: "Privacy" },
   { href: "/terms", label: "Terms" },
   { href: "/cookies", label: "Cookies" },
-  { href: "/music", label: "Music" },
-  { href: "/pricing", label: "Pricing" },
 ] as const;
 
 export function MarketingFooter() {

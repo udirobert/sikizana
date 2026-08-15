@@ -144,6 +144,8 @@ export default function PricingPage() {
             Or connect Xero →
           </Link>
           <p className="text-center text-[11px] text-stone-400">
+            <Link href="/check/hospitality" className="hover:text-sky-700">Compare typicals</Link>
+            {" · "}
             <Link href={tryLinks.sikiDemo} className="hover:text-sky-700">Siki</Link>
             {" · "}
             <Link href={tryLinks.zanaDemo} className="hover:text-rose-700">Zana</Link>

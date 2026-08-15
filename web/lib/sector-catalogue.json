@@ -1,0 +1,316 @@
+{
+  "default": {
+    "id": "default",
+    "label": "Small business",
+    "watchFor": "Cash and exceptions usually move the needle before vanity margins.",
+    "avgGrossMargin": 0.25,
+    "avgNetMargin": 0.06,
+    "avgReceivablesDays": 50,
+    "avgOverdueRate": 0.09,
+    "avgInvoiceValue": 1800,
+    "chasingThresholdDays": 45,
+    "demoScenario": "cafe",
+    "ratios": []
+  },
+  "sectors": [
+    {
+      "id": "retail",
+      "label": "Retail",
+      "watchFor": "Shrinkage and promotions eat gross before rent hits.",
+      "avgGrossMargin": 0.22,
+      "avgNetMargin": 0.04,
+      "avgReceivablesDays": 52,
+      "avgOverdueRate": 0.08,
+      "avgInvoiceValue": 850,
+      "chasingThresholdDays": 45,
+      "demoScenario": "cafe",
+      "aliases": ["retail", "shop", "ecommerce"],
+      "aliasLabels": {},
+      "ratios": [
+        {
+          "id": "rent_cost",
+          "label": "Rent % of revenue",
+          "typical": 0.12,
+          "range": [0.08, 0.18],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "shrinkage",
+          "label": "Shrinkage % of stock",
+          "typical": 0.015,
+          "range": [0.01, 0.03],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "construction",
+      "label": "Construction",
+      "watchFor": "Retention and stage payments delay cash after recognition.",
+      "avgGrossMargin": 0.18,
+      "avgNetMargin": 0.03,
+      "avgReceivablesDays": 65,
+      "avgOverdueRate": 0.15,
+      "avgInvoiceValue": 4200,
+      "chasingThresholdDays": 60,
+      "demoScenario": "cafe",
+      "aliases": ["construction", "builder", "trades"],
+      "aliasLabels": {},
+      "ratios": [
+        {
+          "id": "labour_cost",
+          "label": "Labour % of revenue",
+          "typical": 0.35,
+          "range": [0.28, 0.45],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "materials_cost",
+          "label": "Materials % of revenue",
+          "typical": 0.4,
+          "range": [0.3, 0.5],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "professional_services",
+      "label": "Services",
+      "watchFor": "Bench time and thin retainers crush net before costs show.",
+      "avgGrossMargin": 0.45,
+      "avgNetMargin": 0.12,
+      "avgReceivablesDays": 48,
+      "avgOverdueRate": 0.06,
+      "avgInvoiceValue": 3200,
+      "chasingThresholdDays": 45,
+      "demoScenario": "cafe",
+      "aliases": ["services", "professional_services", "agency", "consulting"],
+      "aliasLabels": { "services": "Services", "agency": "Agency" },
+      "ratios": [
+        {
+          "id": "staff_cost",
+          "label": "Staff cost % of revenue",
+          "typical": 0.55,
+          "range": [0.45, 0.65],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "utilisation",
+          "label": "Utilisation rate",
+          "typical": 0.7,
+          "range": [0.6, 0.8],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "hospitality",
+      "label": "Hospitality",
+      "watchFor": "Wages, rent, and energy move net more than menu prices.",
+      "avgGrossMargin": 0.35,
+      "avgNetMargin": 0.08,
+      "avgReceivablesDays": 18,
+      "avgOverdueRate": 0.04,
+      "avgInvoiceValue": 420,
+      "chasingThresholdDays": 21,
+      "demoScenario": "cafe",
+      "aliases": [
+        "catering",
+        "cafe",
+        "café",
+        "restaurant",
+        "restaurants",
+        "hospitality",
+        "hotel",
+        "hotels",
+        "pub",
+        "bar",
+        "accommodation"
+      ],
+      "aliasLabels": {
+        "catering": "Catering",
+        "cafe": "Café",
+        "café": "Café",
+        "restaurant": "Restaurant",
+        "restaurants": "Restaurants"
+      },
+      "ratios": [
+        {
+          "id": "staff_cost",
+          "label": "Staff cost % of revenue",
+          "typical": 0.3,
+          "range": [0.25, 0.35],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "rent_cost",
+          "label": "Rent % of revenue",
+          "typical": 0.1,
+          "range": [0.06, 0.15],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "manufacturing",
+      "label": "Manufacturing",
+      "watchFor": "Capacity and input costs swing gross more than list price.",
+      "avgGrossMargin": 0.28,
+      "avgNetMargin": 0.06,
+      "avgReceivablesDays": 58,
+      "avgOverdueRate": 0.1,
+      "avgInvoiceValue": 5600,
+      "chasingThresholdDays": 55,
+      "demoScenario": "cafe",
+      "aliases": ["manufacturing", "factory"],
+      "aliasLabels": {},
+      "ratios": [
+        {
+          "id": "materials_cost",
+          "label": "Materials % of revenue",
+          "typical": 0.45,
+          "range": [0.35, 0.55],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "energy_cost",
+          "label": "Energy % of revenue",
+          "typical": 0.08,
+          "range": [0.04, 0.12],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    },
+    {
+      "id": "wholesale",
+      "label": "Wholesale",
+      "watchFor": "Rebates and freight rewrite reported gross overnight.",
+      "avgGrossMargin": 0.15,
+      "avgNetMargin": 0.03,
+      "avgReceivablesDays": 42,
+      "avgOverdueRate": 0.07,
+      "avgInvoiceValue": 2800,
+      "chasingThresholdDays": 40,
+      "demoScenario": "cafe",
+      "aliases": ["wholesale", "distribution"],
+      "aliasLabels": {},
+      "ratios": [
+        {
+          "id": "logistics_cost",
+          "label": "Logistics % of revenue",
+          "typical": 0.08,
+          "range": [0.05, 0.12],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "inventory_days",
+          "label": "Inventory days",
+          "typical": 35,
+          "range": [20, 50],
+          "unit": "days",
+          "multiplier": 1
+        }
+      ]
+    },
+    {
+      "id": "music",
+      "label": "Music",
+      "watchFor": "One late promoter can skew overdue for months.",
+      "avgGrossMargin": 0.4,
+      "avgNetMargin": 0.07,
+      "avgReceivablesDays": 60,
+      "avgOverdueRate": 0.14,
+      "avgInvoiceValue": 1600,
+      "chasingThresholdDays": 45,
+      "demoScenario": "music",
+      "aliases": ["music"],
+      "aliasLabels": {},
+      "ratios": [
+        {
+          "id": "production_cost",
+          "label": "Production % of revenue",
+          "typical": 0.25,
+          "range": [0.15, 0.4],
+          "unit": "%",
+          "multiplier": 100
+        },
+        {
+          "id": "marketing_cost",
+          "label": "Marketing % of revenue",
+          "typical": 0.15,
+          "range": [0.08, 0.25],
+          "unit": "%",
+          "multiplier": 100
+        }
+      ]
+    }
+  ],
+  "keywords": [
+    ["retail", "retail"],
+    ["shop", "retail"],
+    ["store", "retail"],
+    ["ecommerce", "retail"],
+    ["e-commerce", "retail"],
+    ["cafe", "hospitality"],
+    ["café", "hospitality"],
+    ["restaurant", "hospitality"],
+    ["bar", "hospitality"],
+    ["hotel", "hospitality"],
+    ["catering", "hospitality"],
+    ["coffee", "hospitality"],
+    ["pub", "hospitality"],
+    ["hostel", "hospitality"],
+    ["lodge", "hospitality"],
+    ["bnb", "hospitality"],
+    ["b&b", "hospitality"],
+    ["food", "hospitality"],
+    ["kitchen", "hospitality"],
+    ["bakery", "hospitality"],
+    ["takeaway", "hospitality"],
+    ["construct", "construction"],
+    ["build", "construction"],
+    ["contractor", "construction"],
+    ["plumb", "construction"],
+    ["electri", "construction"],
+    ["roofing", "construction"],
+    ["joiner", "construction"],
+    ["carpent", "construction"],
+    ["consult", "professional_services"],
+    ["law", "professional_services"],
+    ["account", "professional_services"],
+    ["agency", "professional_services"],
+    ["design", "professional_services"],
+    ["tech", "professional_services"],
+    ["architect", "professional_services"],
+    ["market", "professional_services"],
+    ["solicit", "professional_services"],
+    ["recruit", "professional_services"],
+    ["manufactur", "manufacturing"],
+    ["factory", "manufacturing"],
+    ["production", "manufacturing"],
+    ["engineer", "manufacturing"],
+    ["wholesale", "wholesale"],
+    ["distribut", "wholesale"],
+    ["import", "wholesale"],
+    ["export", "wholesale"],
+    ["music", "music"],
+    ["band", "music"],
+    ["artist", "music"],
+    ["studio", "music"],
+    ["label", "music"],
+    ["record", "music"],
+    ["promot", "music"],
+    ["festival", "music"]
+  ]
+}

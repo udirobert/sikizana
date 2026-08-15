@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { type MascotMood } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
-import { MarketingCtas } from "@/components/MarketingCtas";
+import {
+  BooksNextLinks,
+  COMPARE_TYPICALS_HREF,
+  CONNECT_XERO_HREF,
+  SAMPLE_BOOKS_HREF,
+} from "@/components/MarketingCtas";
+import { SectorCheckEntry } from "@/components/SectorCheckEntry";
 import { MarketingFooter } from "@/components/MarketingFooter";
 import {
   AgeingEvidence,
@@ -38,20 +44,25 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[1.02fr_0.98fr] gap-10 items-center">
           <div className="text-left">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700 fade-in-up">
-              Read-only Xero checks
+              Typicals first · then your books
             </div>
             <h1 className="mt-5 text-4xl sm:text-6xl font-bold text-stone-950 leading-[1.03] tracking-tight fade-in-up fade-in-up-delay-1">
-              Find money hiding in your Xero books.
+              See how your numbers sit vs typical UK ranges.
             </h1>
             <p className="mt-5 text-lg text-stone-600 max-w-xl leading-relaxed fade-in-up fade-in-up-delay-2">
-              Duplicate payments, overdue customers, tax flags — Siki finds them. You approve every fix.
+              Type what you run, drag a ballpark, then check sample books or connect Xero.
+              Siki finds duplicates and overdue — you approve every fix.
             </p>
-            <MarketingCtas />
+            <SectorCheckEntry />
+            <BooksNextLinks />
+            <p className="mt-3 text-xs text-stone-500 fade-in-up fade-in-up-delay-4">
+              No signup · Figures stay in your browser until you share · Nothing changes without approval
+            </p>
           </div>
 
           <div className="fade-in-up fade-in-up-delay-3">
             <CheckProofCard
-              eyebrow="This week's Xero check"
+              eyebrow="Then in the books"
               title="3 things to review"
               sikiMood={mood}
               findings={[
@@ -157,9 +168,9 @@ export default function LandingPage() {
 
       <JobStrip
         jobs={[
-          { title: "Recover overdue", href: "/books?flow=check&persona=zana" },
-          { title: "Catch duplicates", href: "/books?flow=check&persona=siki" },
-          { title: "Quick sector check", href: "/check/catering" },
+          { title: "Compare typicals", href: COMPARE_TYPICALS_HREF },
+          { title: "Sample books", href: SAMPLE_BOOKS_HREF },
+          { title: "Connect Xero", href: CONNECT_XERO_HREF },
         ]}
       />
       <PersonaEntryStrip />

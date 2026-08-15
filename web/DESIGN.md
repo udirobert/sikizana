@@ -58,9 +58,21 @@ Persisted persona: `PERSONA_STORAGE_KEY` / `usePersona()`. Chat messages carry o
 
 ## Finance-check entry flow
 
-Landing, pricing, and Xero OAuth callback paths converge on `/books?flow=check`.
-That flow should feel like the user has arrived inside the product, not a
-second landing page. The page may show a focused handoff panel and `TodaySummary`,
+One ladder, not competing doors:
+
+1. **Compare typicals** — homepage field (`SectorCheckEntry`) and nav go to
+   `/check/{slug}`. Empty submit uses `/check/hospitality`. Figures stay in the
+   browser until the visitor shares.
+2. **Sample books** — `/books?flow=check` (demo café or music flavour).
+3. **Connect Xero** — `/books?flow=check&connect=1`. OAuth callbacks return here.
+
+Landing hero primary action is the sector field. Sample books and Connect Xero
+are the next step, not a second primary pair. Music keeps sample/connect as
+primary (beachhead) plus a music quick-check link. Nav does not list Music;
+footer does.
+
+`/books?flow=check` should feel like arrival inside the product, not a second
+landing page. The page may show a focused handoff panel and `TodaySummary`,
 but both must read from canonical findings and send users into existing finding
 actions.
 
@@ -92,10 +104,12 @@ One visual language across `/check`, `/b` margin notes, and chat sector cards:
 - **Status** = three words on the card (`In band`), not a recap sentence.
 - **Siki's read** = one sentence on the *outlier*, only after the visitor types numbers. If everything is in band: “You're in the typical {sector} shape.”
 - **Copy once.** Headline + one teaching `watchFor` line. Do not also explain the comparison in a bubble, a subtitle, per-card prose, *and* a recap.
-- Lead-magnet CTAs: one primary action to run the sample-books check. Skip-links that repeat the same action are noise.
+- Lead-magnet CTAs: after the bars, one sample-books action (honest if demo doesn’t fit). Homepage already offered typicals → books; don’t stack a second pair of primary buttons.
 - **Privacy:** dragged/typed figures stay in the browser until the visitor copies a link. Encourage ballpark numbers. Do not write figures into the URL while they play.
 - **Artefact:** share is opt-in per metric (and Siki's read). The link keeps their research slug and only the ticked numbers. Recipients can keep dragging — still local until they share.
 - **Nudge:** deterministic bars → one-line Siki read → sample-books scan → connect Xero. Each step is optional and still not "your books" until connect.
+- **Catalogue:** `web/lib/sector-catalogue.json` is the single source for aliases, typicals, extra ratios, and which demo books to use. Headline = research slug; typicals = canonical family. Extra bars only when the row has ratios. Sample-books CTA must say when the demo is café-shaped and not this sector.
+- **Switch family** with one dotted select (`SectorFamilySelect`), not a chip cloud. Changing family navigates to `/check/{id}` and does not carry previous numbers.
 
 ## Metric snapshot cadence
 

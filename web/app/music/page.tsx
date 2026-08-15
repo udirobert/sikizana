@@ -106,9 +106,9 @@ export default function MusicLandingPage() {
 
       <JobStrip
         jobs={[
-          { title: "Recover overdue", href: "/books?flow=check&persona=zana&demo=music" },
-          { title: "Catch duplicates", href: "/books?flow=check&persona=siki&demo=music" },
-          { title: "Quick sector check", href: "/check/music" },
+          { title: "Compare music typicals", href: "/check/music" },
+          { title: "Sample books", href: "/books?flow=check&demo=music" },
+          { title: "Connect Xero", href: "/books?flow=check&demo=music&connect=1" },
         ]}
       />
       <PersonaEntryStrip

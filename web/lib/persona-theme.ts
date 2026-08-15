@@ -405,7 +405,7 @@ export type LandingPersonaPath = {
   quote: string;
 };
 
-/** Dual entry paths on the landing page — Siki explain vs Zana chase. */
+/** Dual entry paths on the landing page — who you’ll meet in sample books. */
 export function getLandingPersonaPaths(): LandingPersonaPath[] {
   return [
     {

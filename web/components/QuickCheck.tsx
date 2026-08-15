@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BenchmarkCompareBar } from "@/components/BenchmarkCompareBar";
+import { SectorFamilySelect } from "@/components/SectorFamilySelect";
 import { SikiMascot } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { ThinkingTrace, type TraceStep } from "@/components/ThinkingTrace";
@@ -46,10 +48,20 @@ interface SectorRatio {
   multiplier: number;
 }
 
+interface DemoMeta {
+  scenario: string;
+  fits_sector: boolean;
+  cta: string;
+  scan_note: string;
+}
+
 interface BenchmarksResponse {
   resolved: true;
   sector: string;
   sector_label: string;
+  research_label?: string;
+  watch_for?: string;
+  demo?: DemoMeta;
   benchmarks: {
     gross_margin: number;
     net_margin: number;
@@ -71,6 +83,9 @@ interface ScanResponse {
   resolved: true;
   sector: string;
   sector_label: string;
+  research_label?: string;
+  watch_for?: string;
+  demo?: DemoMeta;
   org_name: string;
   findings: QuickFinding[];
   source: "agent" | "rules";
@@ -538,6 +553,7 @@ export function QuickCheck({
   hint: ResolvedSnapshot | null;
   initialShare: CheckShareState;
 }) {
+  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("ready");
   const [benchData, setBenchData] = useState<BenchmarksResponse | null>(null);
   const [scanData, setScanData] = useState<ScanResponse | null>(null);
@@ -599,7 +615,9 @@ export function QuickCheck({
     return <SectorPicker slug={unresolved.slug} suggestions={unresolved.suggestions} />;
   }
 
-  const sectorLabel = benchData?.sector_label ?? hint?.label ?? decodeURIComponent(slug).replace(/[-_]/g, " ");
+  const researchLabel =
+    benchData?.research_label ?? hint?.label ?? researchLabelFromSlug(slug);
+  const sectorLabel = researchLabel;
   const resolvedSector = benchData?.sector ?? hint?.id;
   const booksHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId, { connect: true }) : "/books?flow=check&connect=1";
   const demoHref = resolvedSector ? sectorCheckHref(resolvedSector as SectorId) : "/books?flow=check";
@@ -629,7 +647,7 @@ export function QuickCheck({
   };
 
   const traceSteps = buildTraceSteps(sectorLabel);
-  const watchTip = hint?.bench?.watchFor;
+  const watchTip = benchData?.watch_for ?? hint?.bench?.watchFor;
 
   return (
     <main className="min-h-screen bg-stone-50 flex flex-col">
@@ -656,14 +674,22 @@ export function QuickCheck({
               <p className="text-sm font-bold tracking-tight text-stone-950">SIKIZANA</p>
               <h1 className="mt-1 text-2xl sm:text-[1.75rem] font-bold text-stone-950 tracking-tight leading-tight">
                 {phase === "scanning"
-                  ? `Checking ${sectorLabel.toLowerCase()}…`
+                  ? `Checking ${researchLabel.toLowerCase()}…`
                   : phase === "findings" || phase === "handoff"
-                    ? `Siki's ${sectorLabel.toLowerCase()} check`
-                    : `${sectorLabel} benchmarks`}
+                    ? `Siki's ${researchLabel.toLowerCase()} check`
+                    : `${researchLabel} benchmarks`}
               </h1>
-              {phase === "ready" && (
+              {phase !== "scanning" && resolvedSector && (
                 <p className="mt-1 text-xs text-stone-500">
-                  Typical UK ranges — ballpark is enough. No signup.
+                  Typical UK ranges for{" "}
+                  <SectorFamilySelect
+                    value={resolvedSector}
+                    onChange={(id) => {
+                      if (id === resolvedSector) return;
+                      router.push(`/check/${id}`);
+                    }}
+                  />
+                  {phase === "ready" ? " — ballpark is enough. No signup." : "."}
                 </p>
               )}
               {phase === "scanning" && (
@@ -690,7 +716,7 @@ export function QuickCheck({
                   ratios={benchData.ratios}
                   sectorLabel={benchData.sector_label}
                   slug={slug}
-                  researchLabel={researchLabelFromSlug(slug)}
+                  researchLabel={researchLabel}
                   initialShare={initialShare}
                 />
               </div>
@@ -704,7 +730,8 @@ export function QuickCheck({
                   Run Siki&rsquo;s check on sample books
                 </button>
                 <p className="mt-2 text-center text-[11px] text-stone-400">
-                  Still not your books — a demo scan for duplicates, overdue invoices, and payment risks.
+                  {benchData.demo?.cta ??
+                    "Still not your books — a demo scan for duplicates, overdue invoices, and payment risks."}
                 </p>
               </div>
             </>
@@ -739,6 +766,9 @@ export function QuickCheck({
                 {scanData.findings.length} findings · {scanData.org_name}
                 {scanData.source === "agent" ? " · Siki's voice" : " · demo books"}
               </p>
+              {scanData.demo && !scanData.demo.fits_sector && (
+                <p className="text-[11px] leading-snug text-stone-500">{scanData.demo.scan_note}</p>
+              )}
 
               {scanData.findings.map((f) => {
                 const tone = (["info", "watch", "risk"].includes(f.tone) ? f.tone : "info") as QuickFinding["tone"];
