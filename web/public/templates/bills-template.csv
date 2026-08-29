@@ -1,0 +1,2 @@
+Contact,Invoice number,Invoice date,Due date,Reference,Total,Paid,Due,Status
+Example Supplier Ltd,INV-0001,01/06/2026,01/07/2026,,500.00,0.00,500.00,AUTHORISED

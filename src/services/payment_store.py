@@ -320,6 +320,25 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         """,
     ),
+    (
+        16,
+        # Anonymous funnel telemetry — which steps of the trust ladder
+        # visitors reach (check started/completed, export uploaded, connect
+        # clicked, OAuth completed). No PII and no financial data: event
+        # names plus a small JSON meta blob. Powers the funnel block in
+        # /api/impact. See docs/TRUST_FUNNEL_PLAN.md.
+        """
+        CREATE TABLE IF NOT EXISTS funnel_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            event TEXT NOT NULL,
+            meta TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_funnel_event ON funnel_events(event);
+        CREATE INDEX IF NOT EXISTS idx_funnel_created ON funnel_events(created_at);
+        """,
+    ),
 ]
 
 
@@ -356,6 +375,57 @@ def get_db_version() -> int:
     row = conn.execute("SELECT COALESCE(MAX(version), 0) AS v FROM schema_version").fetchone()
     conn.close()
     return row["v"]
+
+
+# ---- Funnel events (anonymous trust-ladder telemetry) ----
+
+# Allowlist so a stray client can't fill the table with junk event names.
+FUNNEL_EVENTS = frozenset(
+    {
+        "check_start",
+        "check_complete",
+        "scan_upload",
+        "scan_upload_complete",
+        "connect_click",
+        "oauth_start",
+        "oauth_complete",
+        "first_finding_viewed",
+        "write_scope_escalated",
+    }
+)
+
+_FUNNEL_META_MAX = 1024  # bytes of JSON — meta is a small blob, never content
+
+
+def record_funnel_event(session_id: str, event: str, meta: dict | None = None) -> bool:
+    """Record one funnel step. Unknown event names are dropped (returns False)."""
+    import json
+
+    if event not in FUNNEL_EVENTS:
+        return False
+    meta_json = json.dumps(meta or {}, separators=(",", ":"))[:_FUNNEL_META_MAX]
+    init_db()
+    conn = _get_db()
+    conn.execute(
+        "INSERT INTO funnel_events (session_id, event, meta, created_at) VALUES (?, ?, ?, ?)",
+        (session_id, event, meta_json, datetime.now(timezone.utc).isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_funnel_counts(days: int = 30) -> dict:
+    """Event counts for the last N days, for our own funnel review."""
+    init_db()
+    conn = _get_db()
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    rows = conn.execute(
+        "SELECT event, COUNT(*) AS n FROM funnel_events WHERE created_at >= ? GROUP BY event",
+        (since,),
+    ).fetchall()
+    conn.close()
+    return {"days": days, "counts": {row["event"]: row["n"] for row in rows}}
 
 
 # ---- Feedback ----

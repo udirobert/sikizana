@@ -35,6 +35,7 @@ from src.api.routes import (
     check,
     context,
     data,
+    export_scan,
     memory,
     prefs,
     xero,
@@ -126,6 +127,7 @@ app.include_router(data.router)
 app.include_router(automation.router)
 app.include_router(cafe.router)  # hackathon spike: café Monday Briefing
 app.include_router(check.router)  # agentic quick check lead magnet
+app.include_router(export_scan.router)  # no-login CSV export scan (trust ladder)
 
 # Backwards-compatibility re-exports: existing tests import these helpers
 # from `src.api.main`, so keep them available here even though they now

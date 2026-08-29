@@ -116,6 +116,8 @@ export interface ImpactMetrics {
     net_margin: number;
     total_revenue: number;
   }>;
+  /** Anonymous funnel telemetry counts (last 30 days) — for our own review. */
+  funnel?: { days: number; counts: Record<string, number> };
 }
 
 /** Contextual HMRC/tax content from /api/context/search (Exa-powered). */
@@ -237,6 +239,39 @@ export interface Finding {
     confirmed_amount?: number;
     dismissal_reason?: string;
     updated_at?: string;
+  };
+}
+
+/** One finding card from the no-login export-upload scan (QuickCheck shape). */
+export interface ScanUploadFinding {
+  id: string;
+  label: string;
+  detail: string;
+  tone: "info" | "watch" | "risk";
+  evidence: string;
+}
+
+/** Response of POST /api/check/scan-upload — parsed in memory, never stored. */
+export interface ScanUploadResponse {
+  findings: ScanUploadFinding[];
+  coverage: {
+    duplicate_bills: boolean;
+    overdue_receivables: boolean;
+    duplicate_payments: boolean;
+    supplier_detail_changes: boolean;
+  };
+  coverage_notes: string[];
+  stats: {
+    bills: number;
+    sales_invoices: number;
+    payments: number;
+    date_from: string | null;
+    date_to: string | null;
+    currency: string | null;
+    flagged: number;
+    truncated: number;
+    ap_at_risk: number;
+    overdue_total: number;
   };
 }
 
@@ -420,6 +455,47 @@ export const endpoints = {
     }>(`/api/tax/rag?q=${encodeURIComponent(q)}&region=${encodeURIComponent(region)}`),
 
   impact: () => api.get<ImpactMetrics>("/api/impact"),
+
+  /**
+   * Anonymous funnel telemetry — fire-and-forget, never awaited, never
+   * throws. Event names are allowlisted server-side.
+   */
+  trackEvent: (event: string, meta?: Record<string, unknown>) => {
+    fetch(`${API_BASE}/api/metrics/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, meta: meta ?? null }),
+      credentials: "include",
+      keepalive: true,
+    }).catch(() => {});
+  },
+
+  /**
+   * No-login export scan: upload Xero CSV exports (bills required, sales +
+   * payments optional) and get real findings. Files are parsed in memory
+   * on the server and discarded — never persisted.
+   */
+  scanUpload: (files: { bills: File; sales?: File | null; payments?: File | null }) => {
+    const formData = new FormData();
+    formData.append("bills", files.bills);
+    if (files.sales) formData.append("sales", files.sales);
+    if (files.payments) formData.append("payments", files.payments);
+    return fetch(`${API_BASE}/api/check/scan-upload`, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    }).then(async (res) => {
+      if (!res.ok) {
+        let detail = res.statusText;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch { /* keep statusText */ }
+        throw new ApiError(res.status, detail);
+      }
+      return res.json() as Promise<ScanUploadResponse>;
+    });
+  },
 
   /** This session's audit trail — journals posted/reversed, newest first. */
   activity: () => api.get<{ events: ActivityEvent[]; aggregate: AggregateActivity }>("/api/activity"),
@@ -699,13 +775,21 @@ export const endpoints = {
         }>;
         total: number;
       }>(`/api/xero/webhook/events?since=${since}`),
-    // OAuth: Connect Your Xero flow
-    auth: (session?: string) =>
-      api.get<{
+    // OAuth: Connect Your Xero flow. tier "base" = read-only connect;
+    // "actions" = escalate with the journal write scope at the Approve
+    // moment. returnTo is an in-app path the OAuth callback returns to.
+    auth: (opts?: { session?: string; tier?: "base" | "actions"; returnTo?: string }) => {
+      const params = new URLSearchParams();
+      if (opts?.session) params.set("session", opts.session);
+      if (opts?.tier) params.set("tier", opts.tier);
+      if (opts?.returnTo) params.set("return_to", opts.returnTo);
+      const q = params.toString();
+      return api.get<{
         configured: boolean;
         auth_url: string | null;
         message?: string;
-      }>(`/api/xero/auth${session ? `?session=${session}` : ""}`),
+      }>(`/api/xero/auth${q ? `?${q}` : ""}`);
+    },
     connection: (session?: string) =>
       api.get<{
         connected: boolean;

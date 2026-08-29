@@ -25,7 +25,9 @@ import {
   type CheckShareState,
 } from "@/lib/check-share";
 import { getSectorTips } from "@/lib/sector-tips";
-import { api } from "@/lib/api";
+import { api, endpoints } from "@/lib/api";
+import { ExportScan } from "@/components/ExportScan";
+import { useImpactMetrics } from "@/hooks/useRevenue";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -562,6 +564,9 @@ export function QuickCheck({
   const [reviewed, setReviewed] = useState<Set<string>>(new Set());
   const [scanError, setScanError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Live impact numbers for the handoff proof strip (honest: hidden while
+  // the only numbers are demo-derived).
+  const impact = useImpactMetrics(60_000);
 
   // Fetch lightweight benchmarks on mount (static, cached 24h, no LLM)
   useEffect(() => {
@@ -584,6 +589,18 @@ export function QuickCheck({
     return () => { cancelled = true; };
   }, [slug]);
 
+  // Deep link: /check/{slug}?mode=upload (landing JobStrip, concierge
+  // outreach) jumps straight to the no-login export scan in the handoff.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("mode") !== "upload") return;
+    setPhase("handoff");
+    const t = setTimeout(() => {
+      document.getElementById("export-scan")?.scrollIntoView({ behavior: "smooth" });
+    }, 300);
+    return () => clearTimeout(t);
+  }, []);
+
   // Scan trigger (user-initiated)
   const [apiDone, setApiDone] = useState(false);
   const forceTraceComplete = apiDone;
@@ -592,11 +609,13 @@ export function QuickCheck({
     setPhase("scanning");
     setApiDone(false);
     setScanError(null);
+    endpoints.trackEvent("check_start", { sector: slug });
 
     async function doScan() {
       try {
         const res = await api.get<ScanResponse>(`/api/check/${encodeURIComponent(slug)}`);
         setScanData(res);
+        endpoints.trackEvent("check_complete", { sector: slug, findings: res.findings.length });
       } catch {
         setScanError("Siki couldn't complete the scan right now. Try again or explore sample books.");
       } finally {
@@ -833,19 +852,35 @@ export function QuickCheck({
           {/* ─── Handoff ─── */}
           {phase === "handoff" && (
             <div className="mt-6 space-y-3 fade-in-up">
+              {/* Live proof: real aggregate numbers once any connected books
+                  exist; hidden while the only numbers are demo-derived. */}
+              {impact && impact.mode !== "demo" && impact.money_found > 0 && (
+                <div className="flex items-center justify-between rounded-xl border border-stone-200 bg-white px-4 py-2.5">
+                  <p className="text-xs font-semibold text-stone-900 tabular-nums">
+                    £{Math.round(impact.money_found).toLocaleString()} found ·{" "}
+                    {impact.discrepancies_found} issue{impact.discrepancies_found === 1 ? "" : "s"} caught
+                  </p>
+                  <p className="text-[10px] text-stone-400">across connected books so far</p>
+                </div>
+              )}
               {handoffTips.length > 0 && (
                 <SectorTipsCard tips={handoffTips} sectorLabel={sectorLabel} />
               )}
+              {/* Primary: real findings on THEIR data, no trust ask.
+                  The connect card below is the "keep watching" upgrade. */}
+              <ExportScan connectHref={booksHref} />
               <div className="rounded-xl border border-sky-200 bg-gradient-to-br from-sky-50/60 to-white p-5">
                 <p className="text-sm font-semibold text-stone-900">
-                  That was demo data. Imagine this on <em>your</em> books.
+                  Or connect Xero — Siki checks continuously
                 </p>
                 <p className="mt-1.5 text-xs text-stone-500 leading-relaxed">
-                  Connect Xero and Siki runs the same scan on your actual invoices,
-                  payments, and P&L — real numbers, real risks, same format.
+                  Read-only at connect: Siki scans your actual invoices, payments,
+                  and P&L as they change — nothing posts without your approval,
+                  and disconnecting is one click.
                 </p>
                 <Link
                   href={booksHref}
+                  onClick={() => endpoints.trackEvent("connect_click", { surface: "quickcheck_handoff" })}
                   className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 btn-press"
                 >
                   Connect Xero — check my books
@@ -871,6 +906,7 @@ export function QuickCheck({
             <div className="mt-6 flex flex-col items-center gap-2.5 fade-in-up fade-in-up-delay-2">
               <Link
                 href={booksHref}
+                onClick={() => endpoints.trackEvent("connect_click", { surface: "quickcheck_findings" })}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-stone-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-stone-800 btn-press"
               >
                 Connect Xero — Siki checks your actual books

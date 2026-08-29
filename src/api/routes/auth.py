@@ -312,6 +312,27 @@ async def activity(session_id: str = Depends(get_session_id)):
     return await asyncio.to_thread(_fetch)
 
 
+class FunnelEventRequest(BaseModel):
+    event: str = Field(..., min_length=1, max_length=64)
+    meta: dict | None = None
+
+
+@router.post("/api/metrics/event")
+async def metrics_event(
+    req: FunnelEventRequest, request: Request, session_id: str = Depends(get_session_id)
+):
+    """Anonymous funnel telemetry (check started, connect clicked, ...).
+
+    Event names are allowlisted server-side; meta is size-capped JSON with
+    no PII. This powers our own funnel review — it is never financial data.
+    """
+    from src.services.payment_store import record_funnel_event
+
+    _check_rate_limit(request)
+    recorded = await asyncio.to_thread(record_funnel_event, session_id, req.event, req.meta)
+    return {"ok": True, "recorded": recorded}
+
+
 @router.get("/api/impact")
 async def impact_metrics(session_id: str = Depends(get_session_id)):
     """
@@ -322,7 +343,7 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
     from src.services.connectors import get_connector
 
     def _metrics():
-        from src.services.payment_store import get_metric_snapshots
+        from src.services.payment_store import get_funnel_counts, get_metric_snapshots
         from src.tools.metric_snapshots import capture_metric_snapshot
         from src.tools.session import set_current_session
 
@@ -351,6 +372,7 @@ async def impact_metrics(session_id: str = Depends(get_session_id)):
             "feedback": feedback,
             "events": get_impact_summary(),
             "snapshots": snapshots,
+            "funnel": get_funnel_counts(30),
         }
 
     return await asyncio.to_thread(_metrics)

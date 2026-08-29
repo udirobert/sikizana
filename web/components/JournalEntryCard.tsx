@@ -69,6 +69,28 @@ export function JournalEntryCard({
   const [reverseKey] = useState(newIdempotencyKey);
   const copy = getJournalCardCopy(persona);
   const isZana = persona === "zana";
+  // 428 escalation: connected read-only, Xero needs one more permission
+  // before this Approve can post. The card explains and re-runs OAuth.
+  const [scopeNeeded, setScopeNeeded] = useState(false);
+  const [escalating, setEscalating] = useState(false);
+
+  const grantWriteAccess = async () => {
+    setEscalating(true);
+    try {
+      const returnTo = `${window.location.pathname}${window.location.search}`;
+      const res = await endpoints.xero.auth({ tier: "actions", returnTo });
+      if (res.configured && res.auth_url) {
+        window.location.href = res.auth_url;
+        return;
+      }
+      setEscalating(false);
+      setError("Couldn't start the Xero permission step — try again.");
+    } catch {
+      setEscalating(false);
+      setError("Couldn't start the Xero permission step — try again.");
+    }
+  };
+
 
   const handleApprove = async () => {
     if (status === "posting") return;
@@ -89,6 +111,11 @@ export function JournalEntryCard({
     } catch (e) {
       // Entry stays approvable so the user can retry.
       setStatus("pending");
+      if (e instanceof ApiError && e.status === 428) {
+        // Read-only connection — ask for the write scope with context.
+        setScopeNeeded(true);
+        return;
+      }
       setError(
         e instanceof ApiError
           ? `Posting failed (${e.status}): ${e.message}`
@@ -130,6 +157,10 @@ export function JournalEntryCard({
       setReverseState("reversed");
     } catch (e) {
       setReverseState("confirm");
+      if (e instanceof ApiError && e.status === 428) {
+        setScopeNeeded(true);
+        return;
+      }
       setReverseError(
         e instanceof ApiError
           ? e.status === 403
@@ -222,6 +253,40 @@ export function JournalEntryCard({
             is categorised in your books.
           </p>
         </div>
+
+        {/* Write-scope escalation — the moment-of-value permission ask */}
+        {scopeNeeded && (
+          <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50/70 px-3.5 py-3 fade-in-up">
+            <p className="text-xs font-semibold text-stone-900">
+              One more Xero permission to post this
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-stone-600">
+              You connected read-only — which is why nothing in your books could change
+              until now. To post this correction, Xero asks you to add{" "}
+              <span className="font-semibold">write access for transactions</span>. It only
+              ever gets used when you click Approve on a card like this one, and anything
+              posted can be reversed with one tap.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void grantWriteAccess()}
+                disabled={escalating}
+                className="rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 btn-press disabled:opacity-50"
+              >
+                {escalating ? "Opening Xero…" : "Grant write access on Xero →"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setScopeNeeded(false)}
+                disabled={escalating}
+                className="rounded-lg bg-white border border-stone-200 px-3.5 py-2 text-xs font-semibold text-stone-600 transition hover:bg-stone-50 btn-press disabled:opacity-50"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Post error — entry stays approvable */}
         {error && (

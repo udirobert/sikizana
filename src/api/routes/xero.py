@@ -243,14 +243,23 @@ async def xero_status(session_id: str = Depends(get_session_id)):
 
 
 @router.get("/api/xero/auth")
-async def xero_auth(session_id: str = Depends(get_session_id)):
+async def xero_auth(
+    session_id: str = Depends(get_session_id),
+    tier: str = "base",
+    return_to: str | None = None,
+):
     """
     Initiate the Xero OAuth flow.
 
     Returns a JSON response with the authorization URL.
     The frontend should redirect the user to this URL.
+
+    `tier=base` (default) requests read-only scopes — the honest connect ask.
+    `tier=actions` adds the journal write scope and is only used when the
+    user has just clicked Approve on a correction (the permission ask at the
+    moment of value). `return_to` is an in-app path the callback returns to.
     """
-    from src.services.xero_oauth import is_configured, get_authorization_url
+    from src.services.xero_oauth import get_authorization_url, is_configured
 
     if not is_configured():
         # OAuth not configured — fall back to demo mode
@@ -260,10 +269,19 @@ async def xero_auth(session_id: str = Depends(get_session_id)):
             "message": "Xero OAuth not configured. Using demo data.",
         }
 
+    if tier not in {"base", "actions"}:
+        raise HTTPException(status_code=422, detail="tier must be 'base' or 'actions'.")
+
     # Connecting is deliberately FREE: the read-only audit of the user's
     # real books is the product's conversion moment. The paywall sits on
     # the fixes (journal write-back), not on seeing the problems.
-    auth_url = await asyncio.to_thread(get_authorization_url, session_id)
+    auth_url = await asyncio.to_thread(get_authorization_url, session_id, tier, return_to)
+    from src.services.payment_store import record_funnel_event
+
+    await asyncio.to_thread(record_funnel_event, session_id, "oauth_start", None)
+    if tier == "actions":
+        # The user just chose to grant write access at the Approve moment.
+        await asyncio.to_thread(record_funnel_event, session_id, "write_scope_escalated", None)
     return {"configured": True, "auth_url": auth_url}
 
 
@@ -277,9 +295,12 @@ async def xero_callback(code: str, state: str, request: Request):
     the flow started) is what maps the callback to the session that
     initiated it. We exchange the code for tokens and redirect to /books.
     """
-    from src.services.xero_oauth import exchange_code, consume_state
     from fastapi.responses import RedirectResponse
 
+    from src.services.xero_oauth import consume_state, exchange_code, peek_state_return_to
+
+    # Peek at return_to before consume_state deletes the state row.
+    return_to = await asyncio.to_thread(peek_state_return_to, state)
     state_result = await asyncio.to_thread(consume_state, state)
     if state_result is None:
         raise HTTPException(
@@ -316,8 +337,11 @@ async def xero_callback(code: str, state: str, request: Request):
                 # They just won't have a Sikizana account (anonymous session with Xero).
 
         # Record the platform connection for multi-connector support
-        from src.services.payment_store import record_platform_connection
-        from src.services.payment_store import get_user_for_session
+        from src.services.payment_store import (
+            get_user_for_session,
+            record_funnel_event,
+            record_platform_connection,
+        )
 
         _user = get_user_for_session(session_id)
         record_platform_connection(
@@ -337,13 +361,19 @@ async def xero_callback(code: str, state: str, request: Request):
                 bootstrap_metric_snapshots_on_connect(),
             )[1]
         )
+        await asyncio.to_thread(record_funnel_event, session_id, "oauth_complete", None)
         # A fresh connection should always land on the first finance check,
         # not an empty workspace. The page still keeps the user in control of
-        # any follow-up action after the read-only scan completes.
-        return RedirectResponse(
-            url=f"/books?connected=true&flow=check&org={result.get('tenant_name', '')}",
-            status_code=302,
-        )
+        # any follow-up action after the read-only scan completes. A scoped
+        # escalation (tier=actions) instead returns to the exact screen that
+        # asked for the extra permission.
+        tenant = result.get("tenant_name", "")
+        if return_to:
+            sep = "&" if "?" in return_to else "?"
+            target = f"{return_to}{sep}connected=true&org={tenant}"
+        else:
+            target = f"/books?connected=true&flow=check&org={tenant}"
+        return RedirectResponse(url=target, status_code=302)
     except Exception as exc:
         log.error("xero_oauth_callback_failed", extra={"error": str(exc)})
         return RedirectResponse(
@@ -479,6 +509,23 @@ async def xero_contacts(session_id: str = Depends(get_session_id)):
 # ---- Journal write-back (the approve flow) ----
 
 
+def _require_write_scope(session_id: str) -> None:
+    """Gate journal writes on the escalated scope (trust-ladder Phase 2a).
+
+    Connections made read-only at connect get 428 Precondition Required —
+    the frontend responds with the one-more-permission modal and re-runs
+    OAuth with tier="actions". Demo sessions (no tokens) and legacy
+    connections (pre-scope-tracking) pass through.
+    """
+    from src.services.xero_oauth import write_scope_missing
+
+    if write_scope_missing(session_id):
+        raise HTTPException(
+            status_code=428,
+            detail="write_scope_required",
+        )
+
+
 class JournalEntryRequest(BaseModel):
     description: str = Field(..., min_length=1, max_length=500)
     debit_account_code: str = Field(..., min_length=1, max_length=20)
@@ -506,9 +553,9 @@ async def xero_post_journal(
     Requires an authenticated Sikizana account — journal posting is a
     write operation that affects the user's real books.
     """
+    from src.services.accounts import require_paid_plan
     from src.services.connectors import get_connector
     from src.services.xero_api import XeroApiError
-    from src.services.accounts import require_paid_plan
 
     _check_rate_limit(request)
     allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
@@ -517,6 +564,7 @@ async def xero_post_journal(
             status_code=403,
             detail="Posting journal entries to Xero requires the Pro plan.",
         )
+    _require_write_scope(session_id)
 
     def _post():
         svc = get_connector(session_id)
@@ -533,7 +581,9 @@ async def xero_post_journal(
             debit_account_code=req.debit_account_code,
             credit_account_code=req.credit_account_code,
             amount=req.amount,
-            idempotency_key=req.idempotency_key,
+            # The connector protocol calls it `reference`; XeroConnector maps
+            # it to the Idempotency-Key header internally.
+            reference=req.idempotency_key,
         )
 
     try:
@@ -593,9 +643,9 @@ async def xero_reverse_journal(
     (debit and credit swapped). The one-tap undo that makes the
     write-back safe to trust. Pass the ORIGINAL entry's fields.
     """
+    from src.services.accounts import require_paid_plan
     from src.services.connectors import get_connector
     from src.services.xero_api import XeroApiError
-    from src.services.accounts import require_paid_plan
 
     _check_rate_limit(request)
     allowed, _plan = await asyncio.to_thread(require_paid_plan, session_id)
@@ -604,6 +654,7 @@ async def xero_reverse_journal(
             status_code=403,
             detail="Posting journal entries to Xero requires the Pro plan.",
         )
+    _require_write_scope(session_id)
 
     reversal_description = f"Reversal: {req.description}"[:500]
 
@@ -615,7 +666,7 @@ async def xero_reverse_journal(
             debit_account_code=req.credit_account_code,
             credit_account_code=req.debit_account_code,
             amount=req.amount,
-            idempotency_key=req.idempotency_key,
+            reference=req.idempotency_key,
         )
 
     try:
