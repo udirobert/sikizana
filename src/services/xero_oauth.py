@@ -68,23 +68,32 @@ _XERO_REDIRECT_URI = os.environ.get(
     "https://sikizana.persidian.com/api/xero/callback",
 )
 
-# Scopes: granular per Xero's certification requirements (apps created
-# after March 2026 must use granular scopes). We request the minimum
-# needed for each function:
-#   - accounting.transactions.read  → list invoices, bank txns, journals
-#   - accounting.transactions.write → post manual journals (write-back)
-#   - accounting.reports.read       → P&L, Balance Sheet, Trial Balance
-#   - accounting.contacts.read      → list customers/suppliers
-#   - accounting.settings.read      → org details, chart of accounts
-#   - accounting.settings.taxrates  → fetch tax rates (replaces hardcoding)
-_XERO_SCOPES = (
+# Scopes: two tiers, so the connect moment is honestly read-only.
+#
+# BASE (connect time) is read-only: the consent screen shows no write
+# permission, matching the product's "read-only" promise. ACTIONS adds the
+# transactions write scope and is only requested when the user approves a
+# journal posting — the permission ask happens at the moment of value, with
+# context (see xero.py's 428 escalation and docs/TRUST_FUNNEL_PLAN.md).
+#
+# Scope strings verified against public usage (GitHub code search, Aug 2026):
+# granular `.read` variants are widely attested; `accounting.transactions.write`
+# and `accounting.settings.taxrates` appear nowhere public — write access uses
+# the classic full `accounting.transactions` scope, and tax-rate reads are
+# covered by `accounting.settings.read`. Verify against the Xero app console
+# during marketplace certification (docs/XERO_APP_STORE_CHECKLIST.md).
+_XERO_SCOPES_BASE = (
     "openid profile email "
-    "accounting.transactions.read accounting.transactions.write "
+    "accounting.transactions.read "
     "accounting.reports.read "
     "accounting.contacts.read "
-    "accounting.settings.read accounting.settings.taxrates "
+    "accounting.settings.read "
     "offline_access"
 )
+_XERO_SCOPES_ACTIONS = f"{_XERO_SCOPES_BASE} accounting.transactions"
+
+# The scope a session must hold before we attempt a journal write.
+WRITE_SCOPE = "accounting.transactions"
 
 # Xero OAuth endpoints
 _AUTH_URL = "https://login.xero.com/identity/connect/authorize"
@@ -112,6 +121,7 @@ def _get_db() -> sqlite3.Connection:
             expires_at REAL NOT NULL,
             tenant_id TEXT,
             tenant_name TEXT,
+            scope TEXT NOT NULL DEFAULT '',
             created_at REAL NOT NULL,
             updated_at REAL NOT NULL,
             UNIQUE(session_id)
@@ -122,9 +132,17 @@ def _get_db() -> sqlite3.Connection:
             state TEXT PRIMARY KEY,
             session_id TEXT NOT NULL,
             code_verifier TEXT,
+            return_to TEXT,
             created_at REAL NOT NULL
         )
     """)
+    # Existing databases: add the newer columns without a payment_store
+    # migration — these tables are owned here, created lazily, and a
+    # payment_store migration could run before they exist on a fresh DB.
+    for table, column in (("xero_tokens", "scope"), ("oauth_states", "return_to")):
+        cols = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
     conn.commit()
     return conn
 
@@ -151,27 +169,35 @@ def is_configured() -> bool:
     return bool(_XERO_CLIENT_ID and _XERO_CLIENT_SECRET)
 
 
-def get_authorization_url(session_id: str) -> str:
+def get_authorization_url(
+    session_id: str, tier: str = "base", return_to: str | None = None
+) -> str:
     """
     Generate the Xero OAuth authorization URL.
 
     The user is redirected to Xero's login page, where they select
     their organisation and authorize our app. Xero then redirects
     back to our callback URL with an authorization code.
+
+    `tier="base"` requests read-only scopes (the honest connect ask).
+    `tier="actions"` adds the transactions write scope — used only when
+    the user has just clicked Approve on a journal entry. `return_to` is
+    an in-app path ("/books?...") the callback redirects to afterwards.
     """
     if not is_configured():
         raise ValueError("Xero OAuth not configured. Set XERO_CLIENT_ID and XERO_CLIENT_SECRET.")
 
+    scopes = _XERO_SCOPES_ACTIONS if tier == "actions" else _XERO_SCOPES_BASE
     state = secrets.token_urlsafe(32)
     code_verifier, code_challenge = _generate_pkce_pair()
     # Store state + PKCE verifier for CSRF validation and token exchange
-    _save_state(session_id, state, code_verifier)
+    _save_state(session_id, state, code_verifier, return_to)
 
     params = {
         "response_type": "code",
         "client_id": _XERO_CLIENT_ID,
         "redirect_uri": _XERO_REDIRECT_URI,
-        "scope": _XERO_SCOPES,
+        "scope": scopes,
         "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
@@ -220,7 +246,7 @@ def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[s
     # Extract user identity from the id_token (JWT) for "Sign in with Xero"
     user_email = _extract_email_from_id_token(tokens.get("id_token", ""))
 
-    # Store tokens
+    # Store tokens (including the granted scope string Xero echoes back)
     expires_at = time.time() + tokens.get("expires_in", 1800)
     _store_tokens(
         session_id=session_id,
@@ -229,6 +255,7 @@ def exchange_code(code: str, session_id: str, code_verifier: str = "") -> dict[s
         expires_at=expires_at,
         tenant_id=tenant_id,
         tenant_name=tenant_name,
+        scope=tokens.get("scope", ""),
     )
 
     log.info(
@@ -332,9 +359,36 @@ def refresh_if_needed(session_id: str) -> str | None:
             expires_at=expires_at,
             tenant_id=row["tenant_id"],
             tenant_name=row["tenant_name"],
+            scope=tokens.get("scope", ""),
         )
         log.info("xero_token_refreshed", extra={"session_id": session_id})
         return tokens["access_token"]
+
+
+def has_scope(session_id: str, required: str) -> bool:
+    """True when the session's granted scope string includes `required`."""
+    row = _get_tokens(session_id)
+    if not row:
+        return False
+    return required in (row.get("scope") or "").split()
+
+
+def write_scope_missing(session_id: str) -> bool:
+    """True when a live connection lacks the journal write scope and must
+    escalate (re-consent) before posting.
+
+    Rows with an empty scope predate scope tracking: those sessions granted
+    the old all-in-one scope set at connect, so they are treated as having
+    write access (accurate for the legacy grant) rather than being forced
+    through a surprise re-consent.
+    """
+    row = _get_tokens(session_id)
+    if not row:
+        return False  # no connection at all — the caller handles demo/disconnected
+    scope = row.get("scope") or ""
+    if not scope:
+        return False  # legacy connection, granted the old broad set
+    return WRITE_SCOPE not in scope.split()
 
 
 def disconnect(session_id: str) -> bool:
@@ -429,13 +483,23 @@ def _generate_pkce_pair() -> tuple[str, str]:
     return verifier, challenge
 
 
-def _save_state(session_id: str, state: str, code_verifier: str) -> None:
+def _save_state(
+    session_id: str, state: str, code_verifier: str, return_to: str | None = None
+) -> None:
     """Store OAuth state + PKCE verifier for CSRF validation, keyed by state.
 
     Xero's redirect URI is fixed and carries no session parameter, so the
     state value itself is how the callback recovers which session started
     the flow. The code_verifier is needed to complete the PKCE exchange.
+    `return_to` (in-app path only) lets the callback send the user back to
+    the exact screen that asked for the escalation.
     """
+    # Open-redirect guard: only same-site paths ever get stored.
+    safe_return_to = (
+        return_to
+        if return_to and return_to.startswith("/") and not return_to.startswith("//")
+        else None
+    )
     db = _get_db()
     # Opportunistically clear expired states
     db.execute(
@@ -443,11 +507,22 @@ def _save_state(session_id: str, state: str, code_verifier: str) -> None:
         (time.time() - _STATE_TTL_SECONDS,),
     )
     db.execute(
-        "INSERT OR REPLACE INTO oauth_states (state, session_id, code_verifier, created_at) VALUES (?, ?, ?, ?)",
-        (state, session_id, code_verifier, time.time()),
+        "INSERT OR REPLACE INTO oauth_states (state, session_id, code_verifier, return_to, created_at) VALUES (?, ?, ?, ?, ?)",
+        (state, session_id, code_verifier, safe_return_to, time.time()),
     )
     db.commit()
     db.close()
+
+
+def peek_state_return_to(state: str) -> str | None:
+    """Read the return_to path for a state WITHOUT consuming it (the caller
+    consumes the state separately once the callback is validated)."""
+    db = _get_db()
+    row = db.execute(
+        "SELECT return_to FROM oauth_states WHERE state = ?", (state,)
+    ).fetchone()
+    db.close()
+    return (row["return_to"] or None) if row else None
 
 
 def consume_state(state: str) -> tuple[str, str] | None:
@@ -504,22 +579,29 @@ def _store_tokens(
     expires_at: float,
     tenant_id: str,
     tenant_name: str,
+    scope: str = "",
 ) -> None:
-    """Store or update tokens for a session. Tokens are encrypted at rest."""
+    """Store or update tokens for a session. Tokens are encrypted at rest.
+
+    `scope` is the granted scope string echoed by Xero's token endpoint. An
+    empty scope never overwrites a known one (older token responses and
+    legacy rows predate scope tracking).
+    """
     from src.services.crypto import encrypt
 
     db = _get_db()
     now = time.time()
     db.execute(
         """
-        INSERT INTO xero_tokens (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO xero_tokens (session_id, access_token, refresh_token, expires_at, tenant_id, tenant_name, scope, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(session_id) DO UPDATE SET
             access_token = excluded.access_token,
             refresh_token = excluded.refresh_token,
             expires_at = excluded.expires_at,
             tenant_id = excluded.tenant_id,
             tenant_name = excluded.tenant_name,
+            scope = CASE WHEN excluded.scope <> '' THEN excluded.scope ELSE xero_tokens.scope END,
             updated_at = excluded.updated_at
     """,
         (
@@ -529,6 +611,7 @@ def _store_tokens(
             expires_at,
             tenant_id,
             tenant_name,
+            scope,
             now,
             now,
         ),

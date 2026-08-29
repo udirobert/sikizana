@@ -490,6 +490,7 @@ function BooksView() {
    * trust questions BEFORE the scary permissions page.
    */
   const handleConnectXero = () => {
+    endpoints.trackEvent("connect_click", { surface: "books" });
     setShowConnectConfirm(true);
   };
 
@@ -1999,6 +2000,35 @@ function BooksView() {
                   that means:
                 </p>
               </div>
+            </div>
+
+            {/* Exactly what Xero's permission screen will say — connecting is
+                read-only, so this list must match _XERO_SCOPES_BASE. If a
+                screenshot of the live consent screen is ever preferred, drop
+                it at web/public/trust/xero-consent.png — but this text list
+                can never go stale. */}
+            <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50/70 px-4 py-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">
+                Xero will ask you to allow:
+              </p>
+              <ul className="mt-1.5 space-y-1 text-xs text-stone-600">
+                <li className="flex gap-2">
+                  <span className="text-emerald-600">✓</span> Read your transactions and invoices
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-emerald-600">✓</span> Read your reports (P&amp;L, balance sheet)
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-emerald-600">✓</span> Read your contacts and organisation settings
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-stone-400">✗</span>
+                  <span>
+                    <span className="font-semibold">No write access at connect.</span> If you ever
+                    approve a correction, Xero asks for that one permission separately, at that moment.
+                  </span>
+                </li>
+              </ul>
             </div>
 
             <ul className="space-y-2.5 mb-5 text-xs text-stone-700">

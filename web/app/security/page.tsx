@@ -23,7 +23,7 @@ const QUESTIONS = [
   },
   {
     q: "What can Sikizana change?",
-    a: "Nothing, without you. Every write is behind an explicit approval: a journal entry only posts to Xero when you click Approve on its card (the AI literally has no ability to post — the button is the only path), and chase emails — Zana's department — only go out for invoices where you clicked Auto-chase. Anything posted can be reversed with one tap.",
+    a: "Nothing, without you. Connecting is read-only — the Xero permission screen at connect shows read access only. Every write is behind an explicit approval: a journal entry only posts to Xero when you click Approve on its card (the AI literally has no ability to post — the button is the only path), and the first time you do that, Xero asks you for the one extra write permission, right there at that moment. Chase emails — Zana's department — only go out for invoices where you clicked Auto-chase. Anything posted can be reversed with one tap.",
   },
   {
     q: "Who else sees my data?",

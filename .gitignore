@@ -50,6 +50,8 @@ venv_new/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+# Local crypto key auto-generated next to the DB when TOKEN_ENCRYPTION_KEY is unset
+data/.token_key
 
 # Supermemory Local — encrypted local storage + model weights (not for git)
 .supermemory/

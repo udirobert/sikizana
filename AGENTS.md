@@ -119,10 +119,13 @@ else imports that module.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 15 (see `MIGRATIONS` list).
+Current schema version: 16 (see `MIGRATIONS` list).
 
 Key tables:
 - `memories`, `memories_fts` — local memory store + FTS5 mirror (migration 15)
+- `funnel_events` — anonymous trust-ladder telemetry (migration 16): allowlisted
+  event names + small JSON meta, no PII, no financial data. Powers the funnel
+  block in `/api/impact`. See `docs/TRUST_FUNNEL_PLAN.md`.
 - `users`, `auth_sessions` — accounts and session→user links
   - User profile columns (migration 11): `name`, `business_name`, `timezone`,
     `language`, `industry` — user-scoped, persists across sessions
@@ -197,6 +200,8 @@ cd web && npx tsc --noEmit
 | `web/components/ThinkingTrace.tsx` | Reusable agent-working indicator with `forceComplete` for honest timing |
 | `web/app/check/[sector]/page.tsx` | Dynamic route for `/check/{slug}` — tolerant resolution, never 404s |
 | `src/api/routes/check.py` | `GET /api/check/{sector}` — fuzzy sector resolution + real AP scan + LLM enrichment |
+| `src/api/routes/export_scan.py` | `POST /api/check/scan-upload` — no-login CSV export scan (trust ladder middle rung) |
+| `src/services/export_scan/` | Tolerant CSV parsing + `scan_exports` adapter into `build_ap_findings_stateless` |
 | `web/app/page.tsx` | Landing — typicals field → `/check/{slug}`, then sample books / Xero |
 | `web/lib/sector-tips.ts` | Sector intelligence tips data layer (`SectorTip[]` + `getSectorTips`) — client-side, no backend |
 | `web/components/SectorTipsCard.tsx` | Post-findings "Siki knows" card on `/check` (collapsible, after review) |
@@ -266,6 +271,14 @@ The page renders in phases:
 Rules:
 - The quick check must deliver immediate value (benchmarks + comparison)
   without waiting for the LLM. Deeper findings are a bonus, not a gate.
+- The handoff leads with the **export-upload scan** (`ExportScan.tsx`):
+  visitors drop Xero CSV exports (bills required; sales/payments optional)
+  and get real findings on their own data — no account, no OAuth, and files
+  are parsed in memory and never persisted. Connect Xero is the "keep
+  watching" upgrade below it. `?mode=upload` deep-links straight there.
+- Funnel events (`endpoints.trackEvent`, allowlisted server-side) mark each
+  ladder step: check_start/complete, scan_upload(_complete), connect_click
+  (with surface), oauth_start/complete.
 - Sector resolution must never 404 — unknown slugs get the picker or LLM
   classification, not a dead end.
 - Old `/b/{sector}` URLs permanently redirect to `/check/{sector}` via
@@ -284,6 +297,11 @@ Daily cron: `python -m src.jobs.capture_metrics` (06:00 UTC recommended).
 
 - Passwords hashed with scrypt (stdlib, no dependencies)
 - Xero tokens encrypted at rest with Fernet
+- Two-tier Xero scopes: connect requests read-only scopes only; the journal
+  write scope (`accounting.transactions`) is requested at the first Approve
+  click via a 428 → `tier=actions` re-consent, with `return_to` restoring
+  context. Granted scopes are stored on `xero_tokens.scope`; legacy
+  connections (empty scope) are treated as holding the old broad grant.
 - Session cookies: HttpOnly, SameSite=lax, 30-day sliding expiry
 - CSRF protection on OAuth callback via state parameter
 - Session fixation protection: query param session IDs never written to cookie

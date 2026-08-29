@@ -1,0 +1,2 @@
+Contact,Invoice number,Invoice date,Due date,Total,Paid,Due,Status
+Example Customer Ltd,INV-0101,01/05/2026,31/05/2026,1200.00,0.00,1200.00,AUTHORISED

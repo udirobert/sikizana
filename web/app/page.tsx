@@ -8,6 +8,7 @@ import {
   COMPARE_TYPICALS_HREF,
   CONNECT_XERO_HREF,
   SAMPLE_BOOKS_HREF,
+  UPLOAD_EXPORT_HREF,
 } from "@/components/MarketingCtas";
 import { SectorCheckEntry } from "@/components/SectorCheckEntry";
 import { MarketingFooter } from "@/components/MarketingFooter";
@@ -170,6 +171,7 @@ export default function LandingPage() {
         jobs={[
           { title: "Compare typicals", href: COMPARE_TYPICALS_HREF },
           { title: "Sample books", href: SAMPLE_BOOKS_HREF },
+          { title: "Upload an export", href: UPLOAD_EXPORT_HREF },
           { title: "Connect Xero", href: CONNECT_XERO_HREF },
         ]}
       />
