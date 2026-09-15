@@ -1,6 +1,6 @@
 # Kaggle Kernel submission bundle
 
-This private Kaggle script runs a pinned offline snapshot of the canonical `src.hsbc.run_phase1` entry point on Kaggle Linux CPU infrastructure. Kaggle mounts `mlg-ulb/creditcardfraud` beneath `/kaggle/input/`; the wrapper resolves the one expected `creditcard.csv` instead of relying on a provider-specific mount-folder alias. The CSV is never uploaded from this repository. The snapshot exists because Kaggle may disable outbound DNS despite `enable_internet`; its source revision is recorded in `meta.json`.
+This private Kaggle script is a self-contained, pinned copy of the canonical `src.hsbc.run_phase1` protocol for Kaggle Linux CPU infrastructure. Kaggle uploads only the declared `code_file`, so sibling modules are not available at runtime. Kaggle mounts `mlg-ulb/creditcardfraud` beneath `/kaggle/input/`; the script resolves the one expected `creditcard.csv` instead of relying on a provider-specific mount-folder alias. The CSV is never uploaded from this repository. The pinned source revision is recorded in `meta.json`.
 
 ## Preflight
 
