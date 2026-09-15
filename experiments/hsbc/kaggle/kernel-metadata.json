@@ -1,6 +1,6 @@
 {
   "id": "udingethe/hsbc-phase1-baseline",
-  "title": "HSBC Quantum + AI Challenge — Phase 1 Classical Baseline",
+  "title": "HSBC Phase 1 Baseline",
   "code_file": "main.py",
   "language": "python",
   "kernel_type": "script",
