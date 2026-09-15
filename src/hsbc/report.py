@@ -67,6 +67,51 @@ def load_and_validate_run(run_directory: str | Path) -> dict[str, dict[str, Any]
     return artifacts
 
 
+def load_and_validate_phase2a_run(
+    run_directory: str | Path,
+) -> dict[str, dict[str, Any]]:
+    """Load a Phase 2a QSVC run only when its declared controls and cohorts pass."""
+    directory = Path(run_directory)
+    files = {path.name for path in directory.glob("*.json")}
+    missing = REQUIRED_ARTIFACTS.difference(files)
+    if missing:
+        raise ArtifactValidationError(f"Missing required artifacts: {sorted(missing)}")
+    artifacts = {
+        filename: json.loads((directory / filename).read_text(encoding="utf-8"))
+        for filename in REQUIRED_ARTIFACTS
+    }
+    meta, facts, provenance = (
+        artifacts["meta.json"],
+        artifacts["facts.json"],
+        artifacts["provenance.json"],
+    )
+    if not isinstance(meta.get("run_id"), str) or not meta["run_id"]:
+        raise ArtifactValidationError("meta.json requires a non-empty run_id")
+    if not isinstance(provenance.get("sha256"), str) or len(provenance["sha256"]) != 64:
+        raise ArtifactValidationError("provenance.json requires a SHA-256 checksum")
+
+    models = facts.get("models")
+    required_models = {"qsvc", "rbf_svc", "logistic", "xgboost"}
+    if not isinstance(models, dict) or required_models.difference(models):
+        raise ArtifactValidationError("facts.json requires all Phase 2a controls")
+    quantum = facts.get("quantum")
+    if not isinstance(quantum, dict) or quantum.get("algorithm") != "QSVC":
+        raise ArtifactValidationError("facts.json requires QSVC quantum metadata")
+    if int(quantum.get("qubits", 0)) < 2:
+        raise ArtifactValidationError("QSVC quantum metadata requires at least two qubits")
+    gates = facts.get("gates")
+    if not isinstance(gates, dict):
+        raise ArtifactValidationError("facts.json requires Phase 2a gates")
+    for gate in (
+        "all_controls_completed",
+        "validation_case_control_passed",
+        "test_case_control_passed",
+    ):
+        if gates.get(gate) is not True:
+            raise ArtifactValidationError(f"Phase 2a {gate} gate did not pass")
+    return artifacts
+
+
 def render_metrics_summary(artifacts: dict[str, dict[str, Any]]) -> str:
     """Render a compact Markdown table from validated run artifacts."""
     facts = artifacts["facts.json"]
