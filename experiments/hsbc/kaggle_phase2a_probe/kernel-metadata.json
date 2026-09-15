@@ -1,0 +1,14 @@
+{
+  "id": "udingethe/hsbc-phase-2a-qsvc-probe",
+  "title": "HSBC Phase 2a QSVC Probe",
+  "code_file": "main.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["mlg-ulb/creditcardfraud"],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": []
+}
