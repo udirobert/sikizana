@@ -1,13 +1,12 @@
 # Kaggle Kernel submission bundle
 
-This private Kaggle script runs the canonical `src.hsbc.run_phase1` entry point on Kaggle Linux CPU infrastructure. Kaggle mounts `mlg-ulb/creditcardfraud` beneath `/kaggle/input/`; the wrapper resolves the one expected `creditcard.csv` instead of relying on a provider-specific mount-folder alias. The CSV is never uploaded from this repository.
+This private Kaggle script runs a pinned offline snapshot of the canonical `src.hsbc.run_phase1` entry point on Kaggle Linux CPU infrastructure. Kaggle mounts `mlg-ulb/creditcardfraud` beneath `/kaggle/input/`; the wrapper resolves the one expected `creditcard.csv` instead of relying on a provider-specific mount-folder alias. The CSV is never uploaded from this repository. The snapshot exists because Kaggle may disable outbound DNS despite `enable_internet`; its source revision is recorded in `meta.json`.
 
 ## Preflight
 
 1. Commit and push the HSBC workstream to `https://github.com/udirobert/sikizana`.
-2. Replace `REPLACE_WITH_PUSHED_COMMIT_SHA` in `main.py` with that immutable pushed commit SHA.
-3. Replace the placeholder `id` in `kernel-metadata.json` with `<your-kaggle-username>/hsbc-phase1-baseline`.
-4. Confirm the Kernel remains private, GPU remains disabled, and the ULB dataset input is listed.
+2. Confirm the pinned runner snapshot matches the canonical `src/hsbc/` implementation and its `SOURCE_REVISION` names the source commit.
+3. Confirm the Kernel remains private, GPU remains disabled, and the ULB dataset input is listed.
 
 ## Submit and retrieve
 
