@@ -31,8 +31,8 @@ class QSVCConfig:
     temporal_test_fraction: float = 0.20
     validation_fraction: float = 0.20
     feature_count: int = 8
-    train_size: int = 256
-    evaluation_size: int = 1000
+    train_size: int = 64
+    evaluation_size: int = 200
     evaluation_fraud_cases: int = 10
     legitimate_per_fraud: int = 4
     feature_map_reps: int = 2

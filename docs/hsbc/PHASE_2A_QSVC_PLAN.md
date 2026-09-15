@@ -31,9 +31,9 @@ Thresholds for probabilistic controls are selected only on their corresponding v
 
 ## Resource bounds and gates
 
-- Start at 256 training rows: at most 65,536 training-kernel entries before symmetry reuse.
-- Do not move to 512 training rows (262,144 entries) unless the 256-row simulator run completes, produces artifacts, and fits the remote execution budget.
-- Keep each first validation/test cohort at 1,000 rows, yielding at most 256,000 kernel entries per 256-row train-to-cohort evaluation.
+- Start at 64 training rows: at most 4,096 training-kernel entries before symmetry reuse.
+- Use 200-row case-control validation and test cohorts, yielding at most 12,800 kernel entries per train-to-cohort evaluation. This retry replaces a 256-row / 1,000-row Kernel that stalled without producing artifacts.
+- Do not move to 256 training rows (65,536 entries) unless the 64-row simulator run completes, produces artifacts, and fits the remote execution budget.
 - A Phase 2a run is valid only if artifacts include all required provenance/facts metadata, the predefined positive-count gate passes, and all same-sample controls finish.
 
 ## Interpretation gate

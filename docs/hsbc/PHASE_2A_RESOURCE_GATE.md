@@ -4,4 +4,4 @@ The current 8 GB RAM Mac has approximately 37 GiB free, with the HSBC virtual en
 
 The measured Qiskit simulator wheel set is approximately 47 MB; it is installed only in `.venv-hsbc`, which now occupies about 537 MB. This is within the local resource policy. The full Phase 2a benchmark remains intended for remote execution because local XGBoost cannot load against the available mismatched-architecture OpenMP runtime.
 
-The first remote configuration is bounded to 256 QSVC training examples and at most 1,000 temporal test examples. The next 512-row experiment is gated on an artifact-backed successful 256-row run.
+The first successful remote retry is bounded to 64 QSVC training examples and separate 200-row case-control validation/test cohorts. The prior 256-row / 1,000-row run remained stalled and was deleted after approval without producing artifacts. Any return to 256 rows is gated on an artifact-backed successful 64-row run.
