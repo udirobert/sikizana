@@ -16,7 +16,7 @@ Evaluate a quantum-kernel support-vector classifier (QSVC) against classical con
 1. Draw a fixed-seed, fraud-enriched training subset from the Phase 1 training partition. Start with 256 rows and record both class counts and prevalence.
 2. Draw separate fixed-seed **case-control** validation and test cohorts of 1,000 rows from their respective held-out partitions, each with 10 sampled frauds and 990 sampled legitimate transactions. The validation cohort remains in the pre-test validation partition; the test cohort remains in the untouched latest-time temporal test partition. Their 1% fraud prevalence is intentionally enriched from production prevalence and is recorded in artifacts; therefore their AUPRC/F1 values are same-cohort model comparisons, not production-prevalence estimates.
 3. Fit `MinMaxScaler(feature_range=(0, 1))` on QSVC training features only. Apply it unchanged to validation/test data. This bounds feature-map rotations and prevents information leakage.
-4. Train QSVC with a linear-entanglement, two-repetition ZZ feature map. Report the feature map, qubit count, repetitions, entanglement, simulator backend, and kernel matrix dimensions.
+4. Train QSVC with a linear-entanglement, two-repetition ZZ feature map and a seeded, fixed 1,024-shot `StatevectorSampler` fidelity estimate. Report the feature map, qubit count, repetitions, entanglement, shots, seed, simulator backend, and kernel matrix dimensions.
 
 ## Fair controls
 

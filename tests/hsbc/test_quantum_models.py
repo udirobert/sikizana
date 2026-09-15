@@ -17,4 +17,5 @@ def test_quantum_model_facts_records_circuit_shape() -> None:
     facts = quantum_model_facts(4, reps=2, entanglement="linear")
     assert facts["qubits"] == 4
     assert facts["circuit_depth"] > 0
-    assert facts["backend"] == "local_statevector_fidelity_simulator"
+    assert facts["backend"] == "StatevectorSampler"
+    assert facts["shots"] == 1024

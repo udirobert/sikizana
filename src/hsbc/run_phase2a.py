@@ -109,6 +109,7 @@ def run(
             feature_count,
             reps=qsvc_config.feature_map_reps,
             entanglement=qsvc_config.entanglement,
+            seed=qsvc_config.seed,
         ),
         scaled_train,
         scaled_validation,
@@ -149,7 +150,16 @@ def run(
             "logistic": linear_metrics,
             "xgboost": xgboost_metrics,
         },
-        "quantum": {**quantum_model_facts(feature_count, reps=qsvc_config.feature_map_reps, entanglement=qsvc_config.entanglement), **workload, "qsvc_wall_clock_seconds": qsvc_seconds},
+        "quantum": {
+            **quantum_model_facts(
+                feature_count,
+                reps=qsvc_config.feature_map_reps,
+                entanglement=qsvc_config.entanglement,
+                seed=qsvc_config.seed,
+            ),
+            **workload,
+            "qsvc_wall_clock_seconds": qsvc_seconds,
+        },
         "gates": {
             "evaluation_fraud_cases": qsvc_config.evaluation_fraud_cases,
             "validation_case_control_passed": int(qsvc_validation["Class"].sum()) == qsvc_config.evaluation_fraud_cases,
