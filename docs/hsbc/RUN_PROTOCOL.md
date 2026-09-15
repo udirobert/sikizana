@@ -15,3 +15,7 @@ Each run writes `data/hsbc/runs/<run-id>/`:
 - `facts.json`: metrics for both full baselines and the reduced-feasibility model; selected features; class counts; native and feasibility sample design; exact gate calculation and boolean result.
 
 A run ID must be unique. The runner creates artifacts atomically and refuses to overwrite a completed directory. JSON is deterministic (`sort_keys=True`) so differences are reviewable. No report may claim a result unless it links to a concrete run ID and its `facts.json`.
+
+## Evidence review
+
+Use `src.hsbc.report.load_and_validate_run()` before reporting a completed run. It checks that the required artifact set exists, verifies checksum/run-ID presence, recomputes relative AUPRC degradation, and confirms that the recorded gate result follows the declared criteria. `render_metrics_summary()` produces the compact Markdown comparison table used in reviewer material.
