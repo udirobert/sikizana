@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 
@@ -28,7 +30,16 @@ def xgboost_baseline(seed: int, scale_pos_weight: float) -> XGBClassifier:
     )
 
 
-def logistic_baseline(seed: int) -> LogisticRegression:
-    return LogisticRegression(
-        class_weight="balanced", max_iter=2000, random_state=seed, n_jobs=1
+def logistic_baseline(seed: int) -> Pipeline:
+    """Return a weighted linear baseline with train-fitted feature scaling."""
+    return Pipeline(
+        [
+            ("scale", StandardScaler()),
+            (
+                "model",
+                LogisticRegression(
+                    class_weight="balanced", max_iter=2000, random_state=seed, n_jobs=1
+                ),
+            ),
+        ]
     )

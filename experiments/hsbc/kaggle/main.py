@@ -31,6 +31,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
 SOURCE_REVISION = "2768dffc22c53ace429a21cc754d279531bf2687"
@@ -262,8 +264,19 @@ def main() -> None:
         full_xgboost, train, validation, test, FEATURE_COLUMNS
     )
     linear_metrics = fit_and_evaluate(
-        LogisticRegression(
-            class_weight="balanced", max_iter=2000, random_state=config.seed, n_jobs=1
+        Pipeline(
+            [
+                ("scale", StandardScaler()),
+                (
+                    "model",
+                    LogisticRegression(
+                        class_weight="balanced",
+                        max_iter=2000,
+                        random_state=config.seed,
+                        n_jobs=1,
+                    ),
+                ),
+            ]
         ),
         train,
         validation,

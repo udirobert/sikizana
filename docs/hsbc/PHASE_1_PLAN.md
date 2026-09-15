@@ -8,7 +8,7 @@ Phase 1 establishes the classical comparison point and quantum-encoding design o
 
 1. Order ULB rows by `Time` and reserve the latest 20% as the untouched temporal test set.
 2. Split the earlier 80% into stratified train and validation sets. Class weights are computed from the train partition only.
-3. Fit full-feature XGBoost and weighted logistic-regression baselines. Choose each operating threshold from validation F1 only, then report the untouched-test AUC-ROC, AUPRC, F1, precision, recall, and confusion matrix.
+3. Fit full-feature XGBoost and a weighted logistic-regression baseline. The linear baseline is standardized with a scaler fitted only on training data. Choose each operating threshold from validation F1 only, then report the untouched-test AUC-ROC, AUPRC, F1, precision, recall, and confusion matrix.
 4. Select the top 8–10 XGBoost importance-ranked features fitted on training data only.
 5. Make two fixed-seed training-only quantum-design datasets:
    - **Native-ratio sample:** 1,500 rows sampled stratified at the source class prevalence. It preserves the real fraud rate for kernel workload planning.
