@@ -1,6 +1,6 @@
 # Kaggle Kernel submission bundle
 
-This private Kaggle script runs the canonical `src.hsbc.run_phase1` entry point on Kaggle Linux CPU infrastructure. Kaggle mounts `mlg-ulb/creditcardfraud` at `/kaggle/input/creditcardfraud/creditcard.csv`; the CSV is never uploaded from this repository.
+This private Kaggle script runs the canonical `src.hsbc.run_phase1` entry point on Kaggle Linux CPU infrastructure. Kaggle mounts `mlg-ulb/creditcardfraud` beneath `/kaggle/input/`; the wrapper resolves the one expected `creditcard.csv` instead of relying on a provider-specific mount-folder alias. The CSV is never uploaded from this repository.
 
 ## Preflight
 

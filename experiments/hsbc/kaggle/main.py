@@ -14,8 +14,19 @@ from pathlib import Path
 
 REPOSITORY_URL = "https://github.com/udirobert/sikizana.git"
 SIKIZANA_REPO_REF = "bc87e2838cab0809c37b0f2cfa7f14751b75fbdb"
-DATASET_PATH = Path("/kaggle/input/creditcardfraud/creditcard.csv")
+INPUT_ROOT = Path("/kaggle/input")
 OUTPUT_ROOT = Path("/kaggle/working/data/hsbc/runs")
+
+
+def mounted_dataset_path() -> Path:
+    """Find the ULB CSV without depending on Kaggle's mount-folder alias."""
+    matches = sorted(INPUT_ROOT.rglob("creditcard.csv")) if INPUT_ROOT.is_dir() else []
+    if len(matches) != 1:
+        raise FileNotFoundError(
+            "Expected exactly one mounted ULB creditcard.csv; "
+            f"found {len(matches)} under {INPUT_ROOT}: {matches}"
+        )
+    return matches[0]
 
 
 def run(command: list[str], cwd: Path | None = None) -> None:
@@ -27,8 +38,7 @@ def main() -> None:
         raise RuntimeError(
             "Set SIKIZANA_REPO_REF to the pushed commit containing the HSBC workstream."
         )
-    if not DATASET_PATH.is_file():
-        raise FileNotFoundError(f"Expected Kaggle dataset input is absent: {DATASET_PATH}")
+    dataset_path = mounted_dataset_path()
 
     checkout = Path("/kaggle/working/sikizana")
     run(["git", "clone", "--no-checkout", REPOSITORY_URL, str(checkout)])
@@ -42,7 +52,7 @@ def main() -> None:
             "-m",
             "src.hsbc.run_phase1",
             "--input",
-            str(DATASET_PATH),
+            str(dataset_path),
             "--run-id",
             run_id,
             "--output-root",
