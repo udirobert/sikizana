@@ -14,8 +14,8 @@ class QSVCDataConfig:
 
     seed: int = 2026
     train_size: int = 256
-    test_limit: int = 1000
-    min_test_fraud_cases: int = 10
+    evaluation_size: int = 1000
+    evaluation_fraud_cases: int = 10
     legitimate_per_fraud: int = 4
     feature_map_reps: int = 2
     entanglement: str = "linear"
@@ -42,18 +42,32 @@ def bounded_feasibility_sample(
     return sampled.sample(frac=1, random_state=config.seed).reset_index(drop=True)
 
 
-def bounded_temporal_test_sample(
-    temporal_test: pd.DataFrame, config: QSVCDataConfig
+def bounded_temporal_case_control_sample(
+    temporal_partition: pd.DataFrame, config: QSVCDataConfig
 ) -> pd.DataFrame:
-    """Take the earliest bounded portion of an already temporally held-out set."""
-    sample = temporal_test.sort_values("Time", kind="stable").head(config.test_limit).copy()
-    fraud_count = int(sample["Class"].sum())
-    if fraud_count < config.min_test_fraud_cases:
+    """Draw a fixed case-control cohort from one already held-out temporal partition.
+
+    The cohort preserves temporal partition membership but intentionally enriches
+    fraud cases so AUPRC/F1 can be estimated at a bounded quantum-kernel cost.
+    Its changed prevalence must never be presented as production prevalence.
+    """
+    fraud = temporal_partition.loc[temporal_partition["Class"] == 1]
+    legitimate = temporal_partition.loc[temporal_partition["Class"] == 0]
+    if len(fraud) < config.evaluation_fraud_cases:
         raise ValueError(
-            "QSVC test sample has insufficient fraud cases: "
-            f"{fraud_count} < {config.min_test_fraud_cases}"
+            "QSVC evaluation partition has insufficient fraud cases: "
+            f"{len(fraud)} < {config.evaluation_fraud_cases}"
         )
-    return sample
+    legitimate_count = config.evaluation_size - config.evaluation_fraud_cases
+    if len(legitimate) < legitimate_count:
+        raise ValueError("QSVC evaluation partition lacks legitimate examples")
+    sample = pd.concat(
+        [
+            fraud.sample(n=config.evaluation_fraud_cases, random_state=config.seed),
+            legitimate.sample(n=legitimate_count, random_state=config.seed),
+        ]
+    )
+    return sample.sample(frac=1, random_state=config.seed).reset_index(drop=True)
 
 
 def fit_quantum_scaler(train: pd.DataFrame, feature_names: list[str]) -> MinMaxScaler:
@@ -69,9 +83,10 @@ def quantum_data_facts(
         "train_rows": len(train),
         "train_fraud_count": int(train["Class"].sum()),
         "train_fraud_prevalence": float(train["Class"].mean()),
-        "test_rows": len(test),
-        "test_fraud_count": int(test["Class"].sum()),
-        "test_fraud_prevalence": float(test["Class"].mean()),
+        "evaluation_rows": len(test),
+        "evaluation_fraud_count": int(test["Class"].sum()),
+        "evaluation_fraud_prevalence": float(test["Class"].mean()),
+        "evaluation_sampling": "case_control_temporal_holdout",
         "features": feature_names,
         "qubits": len(feature_names),
         "feature_map_reps": config.feature_map_reps,

@@ -19,6 +19,12 @@ hsbc-dev = [
   "sikizana[hsbc]",
   "pytest>=8,<9",
 ]
+hsbc-quantum = [
+  "sikizana[hsbc]",
+  "qiskit>=2.5,<3",
+  "qiskit-aer>=0.17,<1",
+  "qiskit-machine-learning>=0.9,<1",
+]
 
 [tool.setuptools.packages.find]
 include = ["src*", "src.*"]

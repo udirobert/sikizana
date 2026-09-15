@@ -6,7 +6,7 @@ from src.hsbc.data import FEATURE_COLUMNS
 from src.hsbc.quantum_data import (
     QSVCDataConfig,
     bounded_feasibility_sample,
-    bounded_temporal_test_sample,
+    bounded_temporal_case_control_sample,
     fit_quantum_scaler,
     quantum_data_facts,
 )
@@ -29,16 +29,16 @@ def test_bounded_feasibility_sample_is_deterministic_and_exact_size() -> None:
     assert int(first["Class"].sum()) == 20
 
 
-def test_test_sample_rejects_insufficient_positive_cases() -> None:
-    config = QSVCDataConfig(test_limit=100, min_test_fraud_cases=11)
+def test_case_control_sample_rejects_insufficient_positive_cases() -> None:
+    config = QSVCDataConfig(evaluation_size=100, evaluation_fraud_cases=61)
     with pytest.raises(ValueError, match="insufficient fraud"):
-        bounded_temporal_test_sample(frame(), config)
+        bounded_temporal_case_control_sample(frame(), config)
 
 
 def test_quantum_scaler_is_train_fitted_and_workload_is_recorded() -> None:
-    config = QSVCDataConfig(train_size=100, test_limit=100, min_test_fraud_cases=10)
+    config = QSVCDataConfig(train_size=100, evaluation_size=100, evaluation_fraud_cases=10)
     train = bounded_feasibility_sample(frame(), config)
-    test = bounded_temporal_test_sample(frame(), config)
+    test = bounded_temporal_case_control_sample(frame(), config)
     features = FEATURE_COLUMNS[:8]
     scaler = fit_quantum_scaler(train, features)
     scaled_train = scaler.transform(train[features])
