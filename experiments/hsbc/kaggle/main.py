@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 REPOSITORY_URL = "https://github.com/udirobert/sikizana.git"
-SIKIZANA_REPO_REF = "bc87e2838cab0809c37b0f2cfa7f14751b75fbdb"
+SIKIZANA_REPO_REF = "edd44428"
 INPUT_ROOT = Path("/kaggle/input")
 OUTPUT_ROOT = Path("/kaggle/working/data/hsbc/runs")
 
