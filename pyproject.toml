@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sikizana"
+version = "0.0.0"
+description = "Sikizana AI finance assistant with isolated HSBC research extras"
+requires-python = ">=3.11"
+
+[project.optional-dependencies]
+hsbc = [
+  "pandas>=2.2,<3",
+  "scikit-learn>=1.5,<2",
+  "xgboost>=2.1,<4",
+  "shap>=0.46,<1",
+]
+hsbc-dev = [
+  "sikizana[hsbc]",
+  "pytest>=8,<9",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*", "src.*"]

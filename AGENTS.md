@@ -31,6 +31,10 @@ of truth is [`docs/AP_INTEGRITY_PLAN.md`](docs/AP_INTEGRITY_PLAN.md).
   not a product fork). See [`docs/MUSIC_BEACHHEAD.md`](docs/MUSIC_BEACHHEAD.md);
   keep AP rules and connectors sector-agnostic while it is tested.
 
+## Local resource constraints
+
+This development Mac is resource-constrained (8 GB RAM and limited local storage). Before downloading, generating, or retaining large datasets, model checkpoints, package environments, build outputs, or experiment artifacts, estimate the required disk and memory footprint. Ask the user for options and explicit approval when the work may materially consume available resources; prefer streaming, sampling, compression, and ignored local-only artifacts. Small inputs and routine dependencies may proceed without a separate approval.
+
 ## Architecture
 
 ### Auth model (two-layer)

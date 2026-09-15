@@ -8,6 +8,15 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.env.hsbc
+
+# Isolated HSBC research environment and locally acquired data
+.venv-hsbc/
+*.egg-info/
+data/hsbc/raw/
+data/hsbc/processed/
+data/hsbc/runs/**
+!data/hsbc/README.md
 
 # OS
 .DS_Store
