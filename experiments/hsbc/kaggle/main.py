@@ -35,7 +35,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 
-SOURCE_REVISION = "2768dffc22c53ace429a21cc754d279531bf2687"
+SOURCE_REVISION = "6704ad083ace13ea4758417732cae9f1b156bd61"
 DATASET_URL = "https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud"
 DATASET_LICENSE = (
     "Database Contents License (DbCL) 1.0; "
