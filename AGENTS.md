@@ -75,8 +75,12 @@ Visitor (anonymous session, HttpOnly cookie)
   based on the session's active platform connection
 
 Xero is always registered. `seapoint.py` (Seapoint sandbox, read-only,
-`mode() == "seapoint-sandbox"`) registers only when `SEAPOINT_ENABLED=1`;
-unset, it is invisible and sessions fall back to the default. That keeps
+`mode() == "seapoint-sandbox"`) is dormant: sandbox access ended with the
+Oct 2026 FinOps event. It stays in the tree as the reference second-connector
+implementation — it registered only when `SEAPOINT_ENABLED=1` and showed the
+whole pipeline works against a second vendor. Registration stays env-gated
+and off by default; unset, it is invisible and sessions fall back to the
+default. That keeps
 vendor connectors opt-in, with no lock-in. Seapoint env: `SEAPOINT_MCP_URL`
 (streamable HTTP; SSE if the URL ends `/sse`) or `SEAPOINT_MCP_COMMAND`
 (stdio). Auth: OAuth via `python -m src.jobs.seapoint_login` (token in

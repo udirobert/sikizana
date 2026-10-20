@@ -1,12 +1,13 @@
 # Seapoint / FinOps Hackathon — 2026-10-20
 
-> **Status: built, opt-in, unproven against the live server.** The Seapoint
-> connector (`src/services/connectors/seapoint.py`) exists and is registered
-> only when `SEAPOINT_ENABLED=1`. It follows the real seapoint-staging tool
-> schemas. Real sandbox data has run end to end via a read-only snapshot
-> (`SEAPOINT_SNAPSHOT_DIR`, badge "Seapoint sandbox snapshot"); the backend's
-> own live OAuth sign-in is not yet proven (`python -m src.jobs.seapoint_smoke`).
-> See the progress log at the top of [`BUILD_PLAN.md`](./BUILD_PLAN.md).
+> **Status: event complete — connector dormant.** The hackathon ended and the
+> account was sandboxed, so there is no Seapoint access going forward.
+> `src/services/connectors/seapoint.py` stays in the tree (opt-in via
+> `SEAPOINT_ENABLED=1`, off by default) as a working reference for the second
+> connector — it already normalizes a real vendor's API onto the
+> `AccountingConnector` contract, and real sandbox data ran through the full
+> findings pipeline end to end. If access returns, `python -m
+> src.jobs.seapoint_login` + `seapoint_smoke` is the bring-up.
 >
 > **Event:** FinOps Hackathon, Tuesday 20 October 2026, London. Hosted by
 > Seapoint and 13books Capital, supported by Claude. **Code freeze 20:20
