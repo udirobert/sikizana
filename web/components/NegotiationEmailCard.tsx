@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { getNegotiationCardCopy, type Persona } from "@/lib/persona-theme";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 
 /**
  * NegotiationEmailCard — renders a drafted chasing email with the

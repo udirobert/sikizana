@@ -47,6 +47,7 @@ __pycache__/
 *.sublime-project
 *.sublime-workspace
 .commandcode/
+.qoder/
 
 # Caches
 .cache/
@@ -69,3 +70,4 @@ sikizana-demo/
 # Runtime-generated café spike data (debug dumps, telemetry)
 data/manus_debug/
 data/cafe_locality_interest.jsonl
+data/seapoint_oauth.json

@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from src.services.ap_integrity.models import ApFinding, Evidence, PayableBill, Payment
 from src.services.ap_integrity.rules._common import days_between, stable_id
+from src.services.finding_kinds import AP_DUPLICATE_PAYMENT
 
 
 def find_duplicate_payments(payments: list[Payment], bills: list[PayableBill]) -> list[ApFinding]:
@@ -30,7 +31,7 @@ def find_duplicate_payments(payments: list[Payment], bills: list[PayableBill]) -
             findings.append(
                 ApFinding(
                     id=stable_id("ap-duplicate-payment", bill_id, left.id, right.id),
-                    kind="ap_duplicate_payment",
+                    kind=AP_DUPLICATE_PAYMENT,
                     severity="high" if left.amount >= 500 else "medium",
                     title=f"Possible duplicate payment: {left.supplier_name}",
                     amount=min(left.amount, right.amount),

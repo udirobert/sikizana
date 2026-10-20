@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";

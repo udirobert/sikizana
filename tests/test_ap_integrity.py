@@ -157,3 +157,71 @@ def test_ap_integrity_user_allowlist(monkeypatch):
 
     assert build_ap_findings("session-not-allowed", _connector(), user_id=7) == []
     assert build_ap_findings("session-allowed", _connector(), user_id=42)
+
+
+# ---- review decision → audit trail ----
+
+
+def test_review_endpoint_logs_decision_to_audit_trail():
+    import asyncio
+
+    from src.api.routes.xero import ApFindingReviewRequest, review_ap_finding
+    from src.services.payment_store import get_audit_history
+
+    session_id = "session-review-audit"
+    finding_id = "ap-duplicate-bill:abcdef0123456789"
+
+    asyncio.run(
+        review_ap_finding(
+            finding_id=finding_id,
+            req=ApFindingReviewRequest(
+                state="confirmed",
+                confirmed_amount=420.0,
+                title="Possible duplicate payment — Notion £420",
+            ),
+            session_id=session_id,
+            user={"id": 1},
+        )
+    )
+
+    rows = [r for r in get_audit_history(session_id) if r["action"] == "finding_reviewed"]
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["description"] == "Confirmed: Possible duplicate payment — Notion £420"
+    assert row["journal_id"] == finding_id
+    assert row["amount"] == 420.0
+    assert row["session_id"] == session_id
+
+
+def test_review_audit_includes_reason_and_caps_title():
+    import asyncio
+
+    from src.api.routes.xero import ApFindingReviewRequest, review_ap_finding
+    from src.services.payment_store import get_audit_history
+
+    session_id = "session-review-audit-dismiss"
+    finding_id = "ap-duplicate-payment:0123456789abcdef"
+    long_title = "x" * 200
+
+    asyncio.run(
+        review_ap_finding(
+            finding_id=finding_id,
+            req=ApFindingReviewRequest(
+                state="dismissed",
+                dismissal_reason="supplier credit note",
+                title=long_title,
+                amount=680.0,
+            ),
+            session_id=session_id,
+            user={"id": 1},
+        )
+    )
+
+    row = next(
+        r for r in get_audit_history(session_id) if r["action"] == "finding_reviewed"
+    )
+    assert row["description"] == (
+        "Dismissed: " + "x" * 160 + " — reason: supplier credit note"
+    )
+    # amount falls back to the client-supplied display amount
+    assert row["amount"] == 680.0

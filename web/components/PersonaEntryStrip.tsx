@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { getLandingPersonaPaths } from "@/lib/persona-theme";
 
 export function PersonaEntryStrip({

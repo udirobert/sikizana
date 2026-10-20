@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.services.ap_integrity.models import ReviewOutcome
+from src.services.finding_kinds import FindingKind
 
 
 @dataclass(frozen=True)
@@ -54,7 +55,7 @@ class CafeFinding:
     """One café nudge as a canonical finding (mirrors `ApFinding`)."""
 
     id: str
-    kind: str
+    kind: FindingKind
     severity: str
     title: str
     amount: float

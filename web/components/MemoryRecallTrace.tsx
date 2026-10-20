@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { MemoryRecallData } from "@/lib/types";
 import { getPersonaCopy, type Persona } from "@/lib/persona-theme";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { endpoints } from "@/lib/api";
 
 interface MemoryRecallTraceProps {

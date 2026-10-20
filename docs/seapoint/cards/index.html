@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sikizana — FinOps demo cards</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1920px; height:1080px; overflow:hidden; background:#0a0f1a;
+    font-family:"Instrument Sans", system-ui, sans-serif; }
+  #root { position:relative; width:1920px; height:1080px; overflow:hidden; }
+  .clip { position:absolute; inset:0; overflow:hidden; }
+  .serif { font-family:"DM Serif Display", Georgia, serif; }
+  .mono { font-family:"JetBrains Mono", monospace; }
+
+  .bg { position:absolute; inset:0;
+    background:linear-gradient(135deg,#0a0f1a 0%,#0d1420 45%,#080d16 100%); }
+  .grid { position:absolute; inset:0;
+    background-image:linear-gradient(rgba(14,165,233,.055) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(14,165,233,.055) 1px,transparent 1px);
+    background-size:80px 80px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(110px); pointer-events:none; }
+
+  /* ---------- shared bits ---------- */
+  .kicker { position:absolute; left:120px; top:150px; font-size:22px; letter-spacing:.22em;
+    text-transform:uppercase; color:rgba(148,180,210,.75); font-weight:600; }
+  .kicker .dot { color:#13B5EA; }
+
+  /* ---------- card 0 : the mystery ---------- */
+  .ev-row { position:absolute; left:120px; width:1560px; padding:30px 52px;
+    background:rgba(255,255,255,.035); border:1px solid rgba(14,165,233,.32);
+    border-radius:16px; font-size:34px; line-height:1.2; color:#EAF2F8;
+    box-shadow:0 0 70px rgba(14,165,233,.08); }
+  #ev-r1 { top:300px; }
+  #ev-r2 { top:422px; }
+  .ref { position:relative; display:inline-block; color:#EAF2F8; }
+  .hlbox { position:absolute; left:-14px; right:-14px; top:-10px; bottom:-10px;
+    border:2px solid #13B5EA; border-radius:8px; background:rgba(19,181,234,.10);
+    transform-origin:left center; pointer-events:none; }
+  #mystery-head { position:absolute; left:120px; top:600px; width:1560px;
+    font-size:92px; line-height:1.1; color:#F4F8FB; }
+  #mystery-sub { position:absolute; left:122px; top:760px; font-size:30px; color:#8fa6bb; }
+
+  /* ---------- card A : the question ---------- */
+  #prompt-chip { position:absolute; left:120px; top:400px; width:1560px; padding:44px 52px;
+    background:rgba(255,255,255,.035); border:1px solid rgba(14,165,233,.35);
+    border-radius:20px; box-shadow:0 0 90px rgba(14,165,233,.10); }
+  #prompt-chip .who { font-size:20px; letter-spacing:.18em; text-transform:uppercase;
+    color:rgba(148,180,210,.7); margin-bottom:18px; }
+  #prompt-text { font-size:60px; line-height:1.18; color:#EAF2F8; font-weight:500; }
+  #prompt-text .ch { display:inline-block; opacity:0; }
+  #prompt-text .sp { display:inline-block; width:.28em; }
+  #prompt-text .hl { color:#13B5EA; }
+  #caret { display:inline-block; width:4px; height:56px; background:#13B5EA;
+    vertical-align:-8px; margin-left:10px; }
+  #subline { position:absolute; left:122px; top:740px; font-size:30px; color:#8fa6bb; }
+  #subline b { color:#00D4AA; font-weight:600; }
+
+  /* ---------- card B : the handoff ---------- */
+  .persona { position:absolute; top:330px; width:620px; text-align:center; }
+  #siki-side { left:110px; }
+  #zana-side { right:110px; }
+  .persona svg { width:300px; height:300px; display:block; margin:0 auto 34px; }
+  .persona .name { font-size:74px; color:#EAF2F8; font-weight:600; }
+  .persona .verb { font-size:34px; margin-top:12px; }
+  #siki-side .verb { color:#00D4AA; }
+  #zana-side .verb { color:#FB7185; }
+  #handoff-rule { position:absolute; left:959px; top:300px; width:2px; height:470px;
+    background:linear-gradient(180deg,rgba(0,212,170,0),rgba(255,107,107,.9),rgba(225,29,72,0)); }
+  #handoff-cap { position:absolute; left:0; right:0; top:880px; text-align:center;
+    font-size:31px; color:#8fa6bb; letter-spacing:.02em; }
+  #handoff-cap b { color:#EAF2F8; font-weight:600; }
+
+  /* ---------- card C : the lockup ---------- */
+  #found { position:absolute; left:0; right:0; top:150px; text-align:center; }
+  #found-amount { font-size:132px; line-height:1.04; color:#00D4AA; letter-spacing:-.01em; }
+  #found-label { margin-top:14px; font-size:26px; letter-spacing:.2em; text-transform:uppercase;
+    color:#8fa6bb; font-weight:600; }
+  #lockup { position:absolute; left:0; right:0; top:390px; text-align:center; }
+  #wordmark { font-size:118px; color:#F4F8FB; letter-spacing:-.01em; }
+  #wordmark .siki { color:#00D4AA; }
+  #wordmark .zana { color:#FB7185; }
+  #tagline { margin-top:34px; font-size:38px; color:#9fb4c7; }
+  #pillars { position:absolute; left:0; right:0; top:660px; display:flex;
+    justify-content:center; gap:26px; }
+  .pillar { padding:18px 34px; border:1px solid rgba(14,165,233,.32); border-radius:999px;
+    font-size:29px; color:#cfe0ee; background:rgba(14,165,233,.06); }
+  #fineprint { position:absolute; left:0; right:0; top:980px; text-align:center;
+    font-size:24px; color:rgba(143,166,187,.72); letter-spacing:.04em; }
+
+  /* mascots */
+  .owl-body-s { fill:#1A2740; }
+  .owl-eye { fill:#F4F8FB; }
+  .owl-pupil-s { fill:#00D4AA; }
+  .owl-beak { fill:#E8954A; }
+  .owl-body-z { fill:#2D3748; }
+  .owl-pupil-z { fill:#E11D48; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="17.5" data-width="1920" data-height="1080">
+
+  <!-- ================= CARD 0 — the mystery (0–4.5s) ================= -->
+  <div id="card0" class="clip" data-start="0" data-duration="4.5" data-track-index="3">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:860px;height:860px;top:-220px;right:-180px;background:radial-gradient(circle,rgba(19,181,234,.13),transparent 70%)"></div>
+    <div class="glow" style="width:680px;height:680px;bottom:-240px;left:-140px;background:radial-gradient(circle,rgba(225,29,72,.10),transparent 70%)"></div>
+
+    <div class="kicker" id="kick0">The payment run <span class="dot">·</span> two lines, one apart</div>
+
+    <div id="ev-r1" class="ev-row mono">26 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
+    <div id="ev-r2" class="ev-row mono">27 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
+
+    <div id="mystery-head" class="serif">One of these was paid twice.</div>
+    <div id="mystery-sub">The agent says possible — and shows you both.</div>
+  </div>
+
+  <!-- ================= CARD A — the kickoff question (4.5–9.5s) ================= -->
+  <div id="cardA" class="clip" data-start="4.5" data-duration="5" data-track-index="0">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:820px;height:820px;top:-180px;left:-140px;background:radial-gradient(circle,rgba(19,181,234,.13),transparent 70%)"></div>
+    <div class="glow" style="width:640px;height:640px;bottom:-220px;right:-120px;background:radial-gradient(circle,rgba(0,212,170,.10),transparent 70%)"></div>
+
+    <svg id="siki-a" viewBox="0 0 120 120" style="position:absolute;left:120px;top:200px;width:170px;height:170px">
+      <ellipse class="owl-body-s" cx="60" cy="70" rx="40" ry="42"/>
+      <path class="owl-body-s" d="M22 40 L34 18 L46 38 Z M98 40 L86 18 L74 38 Z"/>
+      <circle class="owl-eye" cx="45" cy="58" r="17"/><circle class="owl-eye" cx="75" cy="58" r="17"/>
+      <circle id="pupilA1" class="owl-pupil-s" cx="45" cy="58" r="8"/>
+      <circle id="pupilA2" class="owl-pupil-s" cx="75" cy="58" r="8"/>
+      <path class="owl-beak" d="M60 66 L52 80 L68 80 Z"/>
+    </svg>
+
+    <div class="kicker" id="kickA">FinOps Hackathon <span class="dot">·</span> sample books <span class="dot">·</span> read-only</div>
+
+    <div id="prompt-chip">
+      <div class="who">The brief's own first prompt</div>
+      <div id="prompt-text" class="mono"></div>
+    </div>
+    <div id="subline">One question. <b>Real books.</b> The agent picks the tools.</div>
+  </div>
+
+  <!-- ================= CARD B — Siki → Zana (9.5–13s) ================= -->
+  <div id="cardB" class="clip" data-start="9.5" data-duration="3.5" data-track-index="1">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" id="glowB1" style="width:700px;height:700px;top:60px;left:-160px;background:radial-gradient(circle,rgba(0,212,170,.12),transparent 70%)"></div>
+    <div class="glow" id="glowB2" style="width:700px;height:700px;top:60px;right:-160px;background:radial-gradient(circle,rgba(225,29,72,.14),transparent 70%)"></div>
+    <div class="kicker" id="kickB">Two roles <span class="dot">·</span> one workflow <span class="dot">·</span> a human in the middle</div>
+
+    <div class="persona" id="siki-side">
+      <svg viewBox="0 0 120 120">
+        <ellipse class="owl-body-s" cx="60" cy="70" rx="40" ry="42"/>
+        <path class="owl-body-s" d="M22 40 L34 18 L46 38 Z M98 40 L86 18 L74 38 Z"/>
+        <circle class="owl-eye" cx="45" cy="58" r="17"/><circle class="owl-eye" cx="75" cy="58" r="17"/>
+        <circle class="owl-pupil-s" cx="45" cy="58" r="8"/><circle class="owl-pupil-s" cx="75" cy="58" r="8"/>
+        <path class="owl-beak" d="M60 66 L52 80 L68 80 Z"/>
+      </svg>
+      <div class="name serif">Siki</div><div class="verb">explains the books</div>
+    </div>
+
+    <div id="handoff-rule"></div>
+
+    <div class="persona" id="zana-side">
+      <svg viewBox="0 0 120 120">
+        <ellipse class="owl-body-z" cx="60" cy="70" rx="40" ry="42"/>
+        <path class="owl-body-z" d="M22 40 L34 18 L46 38 Z M98 40 L86 18 L74 38 Z"/>
+        <circle class="owl-eye" cx="45" cy="58" r="17"/><circle class="owl-eye" cx="75" cy="58" r="17"/>
+        <circle class="owl-pupil-z" cx="45" cy="58" r="8"/><circle class="owl-pupil-z" cx="75" cy="58" r="8"/>
+        <path class="owl-beak" d="M60 66 L52 80 L68 80 Z"/>
+      </svg>
+      <div class="name serif">Zana</div><div class="verb">chases, drafts, never acts alone</div>
+    </div>
+
+    <div id="handoff-cap">Detection without evidence is noise. <b>Nothing happens without approval.</b></div>
+  </div>
+
+  <!-- ================= CARD C — end lockup (13–17.5s) ================= -->
+  <div id="cardC" class="clip" data-start="13" data-duration="4.5" data-track-index="2">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:900px;height:900px;top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(14,165,233,.10),transparent 70%)"></div>
+    <div id="found">
+      <div id="found-amount" class="serif">£0</div>
+      <div id="found-label">found in one pass · sample books</div>
+    </div>
+    <div id="lockup">
+      <div id="wordmark" class="serif"><span class="siki">Siki</span><span class="zana">zana</span></div>
+      <div id="tagline">Find money. Stop leaks. Get paid.</div>
+    </div>
+    <div id="pillars">
+      <div class="pillar" id="p1">Read-only by design</div>
+      <div class="pillar" id="p2">Evidence on every finding</div>
+      <div class="pillar" id="p3">A human approves</div>
+    </div>
+    <div id="fineprint" class="mono">Seapoint FinOps Hackathon · sample books · illustrative output</div>
+  </div>
+
+</div>
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // ---- Card 0: two lines, one reference ----
+  tl.from("#kick0", { y: -14, opacity: 0, duration: 0.45, ease: "power2.out" }, 0.1)
+    .fromTo("#ev-r1", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.3)
+    .fromTo("#ev-r2", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 1.1)
+    .from(".hlbox", { scaleX: 0, opacity: 0, duration: 0.5, stagger: 0.12, ease: "power2.out" }, 1.9)
+    .from("#mystery-head", { opacity: 0, y: 26, duration: 0.55, ease: "power3.out" }, 2.4)
+    .from("#mystery-sub", { opacity: 0, y: 16, duration: 0.5, ease: "power2.out" }, 3.0);
+
+  // ---- Card A: type the prompt, character by character ----
+  const PROMPT = "What did we spend last month, broken down by category?";
+  const host = document.getElementById("prompt-text");
+  PROMPT.split("").forEach((c) => {
+    const s = document.createElement("span");
+    if (c === " ") { s.className = "sp"; s.innerHTML = "&nbsp;"; }
+    else { s.className = "ch"; s.textContent = c; }
+    host.appendChild(s);
+  });
+  const caret = document.createElement("span");
+  caret.id = "caret"; caret.style.opacity = "0";
+  host.appendChild(caret);
+
+  tl.from("#kickA", { y: -14, opacity: 0, duration: 0.45, ease: "power2.out" }, 4.6)
+    .from("#siki-a", { scale: 0.82, opacity: 0, duration: 0.6, ease: "back.out(1.5)" }, 4.65)
+    .to("#siki-a", { y: -14, duration: 1.6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 5.4)
+    .fromTo("#prompt-chip", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 5.2)
+    .to("#caret", { opacity: 1, duration: 0.05 }, 5.45)
+    .to("#prompt-text .ch", { opacity: 1, duration: 0.02, stagger: 0.055, ease: "none" }, 5.5)
+    .to("#caret", { opacity: 0, duration: 0.05 }, 8.0)
+    .from("#subline", { y: 16, opacity: 0, duration: 0.5, ease: "power2.out" }, 8.1);
+
+  // ---- Card B: handoff sweep ----
+  tl.from("#kickB", { opacity: 0, duration: 0.35 }, 9.6)
+    .fromTo("#siki-side", { opacity: 0, x: -70 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 9.65)
+    .fromTo("#handoff-rule", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.4, ease: "power2.out" }, 10.1)
+    .fromTo("#zana-side", { opacity: 0, x: 70, scale: 0.94 }, { opacity: 1, x: 0, scale: 1, duration: 0.55, ease: "back.out(1.3)" }, 10.4)
+    .to("#zana-side", { y: -10, duration: 1.1, ease: "sine.inOut", yoyo: true, repeat: 1 }, 11.0)
+    .from("#handoff-cap", { opacity: 0, y: 14, duration: 0.45, ease: "power2.out" }, 11.2);
+
+  // ---- Card C: lockup + count-up ----
+  const foundAmount = document.getElementById("found-amount");
+  tl.fromTo("#found", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 13.1)
+    .to({ v: 0 }, {
+      v: 1930, duration: 1.4, ease: "power2.out",
+      onUpdate: function () {
+        foundAmount.textContent = "£" + Math.round(this.targets()[0].v).toLocaleString("en-GB");
+      }
+    }, 13.2)
+    .fromTo("#wordmark", { opacity: 0, y: 30, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }, 13.2)
+    .from("#tagline", { opacity: 0, y: 16, duration: 0.45, ease: "power2.out" }, 13.6)
+    .from("#pillars .pillar", { opacity: 0, y: 20, duration: 0.4, stagger: 0.22, ease: "power2.out" }, 14.1)
+    .from("#fineprint", { opacity: 0, duration: 0.5 }, 15.1)
+    .to("#cardC", { opacity: 0.94, duration: 1.2, ease: "none" }, 15.9);
+
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>

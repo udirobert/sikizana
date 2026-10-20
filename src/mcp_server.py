@@ -74,13 +74,21 @@ _TOOL_DESCRIPTION = (
     "No source data is mutated; the caller owns any review workflow."
 )
 
-app = Server(SERVER_NAME, version=SERVER_VERSION)
-
-
-@app.list_tools()
-async def list_tools() -> list:
+def _tool_model():
     from mcp.types import Tool
 
+    class _Tool(Tool):
+        # mcp 2.x renamed the field to input_schema; keep the wire alias
+        # readable for callers that predate the rename.
+        @property
+        def inputSchema(self):  # noqa: N802 — wire name
+            return self.input_schema
+
+    return _Tool
+
+
+async def list_tools() -> list:
+    Tool = _tool_model()
     return [
         Tool(
             name="ap_integrity_scan",
@@ -90,7 +98,6 @@ async def list_tools() -> list:
     ]
 
 
-@app.call_tool()
 async def call_tool(name: str, arguments: dict[str, Any] | None) -> list:
     from mcp.types import TextContent
 
@@ -122,6 +129,34 @@ def _count_by_kind(findings: list[dict]) -> dict[str, int]:
     for finding in findings:
         counts[finding["kind"]] = counts.get(finding["kind"], 0) + 1
     return counts
+
+
+def _make_server() -> "Server":
+    """Adapt the plain async functions above to the mcp 2.x handler API —
+    list_tools/call_tool stay importable for tests and the HTTP shim."""
+    from mcp.types import CallToolResult, ListToolsResult, TextContent
+
+    async def _on_list_tools(_ctx, _params) -> ListToolsResult:
+        return ListToolsResult(tools=await list_tools())
+
+    async def _on_call_tool(_ctx, params) -> CallToolResult:
+        try:
+            content = await call_tool(params.name, params.arguments)
+        except Exception as exc:  # noqa: BLE001 — report as tool error
+            return CallToolResult(
+                content=[TextContent(type="text", text=str(exc))], isError=True
+            )
+        return CallToolResult(content=content)
+
+    return Server(
+        SERVER_NAME,
+        version=SERVER_VERSION,
+        on_list_tools=_on_list_tools,
+        on_call_tool=_on_call_tool,
+    )
+
+
+app = _make_server()
 
 
 async def _main() -> None:

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
+from src.services.finding_kinds import FindingKind
+
 ReviewState = Literal["safe", "investigating", "confirmed", "dismissed"]
 
 
@@ -60,7 +62,7 @@ class Evidence:
 @dataclass(frozen=True)
 class ApFinding:
     id: str
-    kind: str
+    kind: FindingKind
     severity: str
     title: str
     amount: float

@@ -15,6 +15,15 @@ from typing import Any
 
 from src.services.connectors import get_connector
 from src.services.connectors.base import AccountingConnector
+from src.services.finding_kinds import (
+    AP_KINDS,
+    CAFE_KINDS,
+    OVERDUE_BILL,
+    OVERDUE_INVOICE,
+    OVERDUE_KINDS,
+    TAX_FLAG,
+    UNRECONCILED,
+)
 from src.services.rates import daily_statutory_interest
 from src.services.logging import get_logger
 from src.services.memory import get_chase_policy_for_session, is_available as sm_available
@@ -39,9 +48,9 @@ def build_findings(session_id: str) -> dict[str, Any]:
         amount = float(inv.get("amountDue", inv.get("total", 0)) or 0)
         if inv.get("type") == "ACCPAY":
             # Bills the business owes — flag, but they aren't "money found"
-            kind = "overdue_bill"
+            kind = OVERDUE_BILL
         else:
-            kind = "overdue_invoice"
+            kind = OVERDUE_INVOICE
             money_found += amount
         days = _days_overdue(inv.get("dueDate", ""), today)
         number = inv.get("invoiceNumber", "?")
@@ -64,7 +73,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
 
         # --- Memory-driven action: if we have a chase policy for this customer, surface it ---
         memory_action = None
-        if kind == "overdue_invoice" and sm_available():
+        if kind == OVERDUE_INVOICE and sm_available():
             try:
                 policy = get_chase_policy_for_session(session_id, contact)
                 if policy:
@@ -81,7 +90,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
             except Exception:
                 pass
 
-        if kind == "overdue_invoice":
+        if kind == OVERDUE_INVOICE:
             finding["action"] = {
                 "type": "chase",
                 "label": "Chase now",
@@ -113,7 +122,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         findings.append(
             {
                 "id": f"txn-{txn.get('id', ref)}",
-                "kind": "unreconciled",
+                "kind": UNRECONCILED,
                 "severity": "high" if amount >= 500 else "medium",
                 "title": ref,
                 "amount": amount,
@@ -161,11 +170,11 @@ def build_findings(session_id: str) -> dict[str, Any]:
     findings.extend(_tax_flags(svc))
 
     counts = {
-        "overdue": sum(1 for f in findings if f["kind"] in ("overdue_invoice", "overdue_bill")),
-        "unreconciled": sum(1 for f in findings if f["kind"] == "unreconciled"),
-        "tax_flags": sum(1 for f in findings if f["kind"] == "tax_flag"),
-        "ap_risks": sum(1 for f in findings if str(f["kind"]).startswith("ap_")),
-        "cafe": sum(1 for f in findings if str(f["kind"]).startswith("cafe_")),
+        "overdue": sum(1 for f in findings if f["kind"] in OVERDUE_KINDS),
+        "unreconciled": sum(1 for f in findings if f["kind"] == UNRECONCILED),
+        "tax_flags": sum(1 for f in findings if f["kind"] == TAX_FLAG),
+        "ap_risks": sum(1 for f in findings if f["kind"] in AP_KINDS),
+        "cafe": sum(1 for f in findings if f["kind"] in CAFE_KINDS),
     }
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     findings.sort(key=lambda f: (severity_rank.get(f["severity"], 3), -f.get("amount", 0)))
@@ -246,7 +255,7 @@ def _tax_flags(svc: AccountingConnector) -> list[dict[str, Any]]:
             flags.append(
                 {
                     "id": f"tax-{lower.replace(' ', '-')}",
-                    "kind": "tax_flag",
+                    "kind": TAX_FLAG,
                     "severity": "medium",
                     "title": f"{label}: not deductible",
                     "amount": value,
@@ -265,7 +274,7 @@ def _tax_flags(svc: AccountingConnector) -> list[dict[str, Any]]:
             flags.append(
                 {
                     "id": f"tax-{lower.replace(' ', '-')}",
-                    "kind": "tax_flag",
+                    "kind": TAX_FLAG,
                     "severity": "low",
                     "title": f"{label}: keep receipts",
                     "amount": value,

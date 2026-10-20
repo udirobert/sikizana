@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { getPersonaTheme, type Persona } from "@/lib/persona-theme";
 
 interface ProactiveAlertProps {

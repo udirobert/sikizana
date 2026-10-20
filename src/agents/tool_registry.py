@@ -33,6 +33,7 @@ from src.tools.accounting_tools import (
     get_invoices,
     get_organisation,
     get_profit_and_loss,
+    get_spend_by_category,
     get_bank_transactions,
     match_receipt_to_transaction,
     propose_journal_entry,
@@ -109,6 +110,27 @@ _TOOL_DEFS = [
             "name": "get_profit_and_loss",
             "description": "Get the profit and loss report from Xero. Returns revenue, expenses, and net profit for the current period.",
             "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_spend_by_category",
+            "description": "Break down what the business spent, grouped by expense category, with a month-on-month comparison where available. Call this when the user asks 'what did we spend', 'spend by category', 'where is the money going', or for an expenses/cost breakdown. Defaults to last calendar month; pass ISO dates for other periods.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "from_date": {
+                        "type": "string",
+                        "description": "Start of period, ISO YYYY-MM-DD. Empty = previous calendar month.",
+                    },
+                    "to_date": {
+                        "type": "string",
+                        "description": "End of period, ISO YYYY-MM-DD. Empty = previous calendar month.",
+                    },
+                },
+                "required": [],
+            },
         },
     },
     {
@@ -326,6 +348,7 @@ _TOOL_FUNCS = {
     "get_invoices": get_invoices,
     "get_chart_of_accounts": get_chart_of_accounts,
     "get_profit_and_loss": get_profit_and_loss,
+    "get_spend_by_category": get_spend_by_category,
     "get_balance_sheet": get_balance_sheet,
     "get_contacts": get_contacts,
     "match_receipt_to_transaction": match_receipt_to_transaction,

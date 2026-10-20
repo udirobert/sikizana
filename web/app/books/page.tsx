@@ -33,7 +33,8 @@ import { MemoryBadge } from "@/components/MemoryBadge";
 import { useBackendHealth } from "@/hooks/useBackendHealth";
 import { MemoryRecallTrace } from "@/components/MemoryRecallTrace";
 import { FeedbackButtons } from "@/components/FeedbackButtons";
-import { SikiMascot, SikiMascotAnimated, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot, SikiMascotAnimated } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import { SECTOR_IDS, type SectorId } from "@/lib/sector-benchmarks";
@@ -128,6 +129,12 @@ function BooksView() {
   // Post-connect moment: full-attention staging after the OAuth return.
   const [connectStage, setConnectStage] = useState<"analyzing" | "reveal" | null>(null);
   const [xeroMode, setXeroMode] = useState<XeroMode | "unknown">("unknown");
+  const [provenance, setProvenance] = useState<"live" | "sandbox" | "sample" | "unknown">("unknown");
+  const [platformName, setPlatformName] = useState<string>("Xero");
+  // Seapoint sandbox offer: shown when the connector is registered AND
+  // reachable (signed in) — the judge's self-serve entry point.
+  const [seapointOffered, setSeapointOffered] = useState(false);
+  const [sandboxSwitching, setSandboxSwitching] = useState(false);
   const [orgData, setOrgData] = useState<OrgData | null>(null);
   const [profitAndLoss, setProfitAndLoss] = useState<ProfitAndLossData | null>(null);
   const [pnLoading, setPnLoading] = useState(true);
@@ -199,6 +206,21 @@ function BooksView() {
   const copy = getPersonaCopy(persona);
   const recoveredCopy = getRecoveredCelebrationCopy(persona);
   const connectCopy = getConnectMomentCopy(persona, xeroMode === "demo");
+  // Kickoff question for the sandbox walk — verbatim prompt, always first.
+  const starterQueries =
+    provenance === "sandbox"
+      ? [
+          {
+            id: "seapoint-spend",
+            title: "Last month's spend",
+            description: "What did we spend last month, broken down by category?",
+            hint: "try this first",
+          },
+          ...(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES),
+        ]
+      : persona === "siki"
+        ? SAMPLE_QUERIES
+        : ZANA_QUERIES;
   const { memory } = useBackendHealth();
 
   const refreshMetricSnapshots = useCallback((force = false) => {
@@ -315,7 +337,14 @@ function BooksView() {
     if (!demoScenarioReady) return;
     void endpoints.xero
       .status()
-      .then((s) => setXeroMode(s.mode))
+      .then((s) => {
+        setXeroMode(s.mode);
+        // Older backends have no provenance field — derive it from mode.
+        setProvenance(
+          s.provenance ?? (s.mode === "demo" ? "sample" : s.live ? "live" : "sandbox"),
+        );
+        if (s.platform_display_name) setPlatformName(s.platform_display_name);
+      })
       .catch(() => {});
     void endpoints.xero
       .organisation()
@@ -354,7 +383,93 @@ function BooksView() {
         }
       })
       .catch(() => {});
+
+    // Platform-agnostic status: is the Seapoint sandbox offered + reachable?
+    void endpoints.connection
+      .status()
+      .then((c) => {
+        const offered =
+          (c.available_platforms ?? []).some((p) => p.platform === "seapoint") &&
+          c.seapoint_ready === true;
+        setSeapointOffered(offered);
+        if (c.connected && c.mode === "seapoint-sandbox") {
+          setUserConnection({ connected: true, tenant_name: c.tenant_name ?? undefined });
+        }
+      })
+      .catch(() => {});
   }, [demoScenarioReady, loadFindings, refreshMetricSnapshots, searchParams]);
+
+  /**
+   * Judge self-serve: attach the session to the Seapoint sandbox and
+   * refetch everything in place — no reload flash.
+   */
+  const handleConnectSeapoint = useCallback(async () => {
+    setSandboxSwitching(true);
+    try {
+      await endpoints.connection.seapointSandbox();
+      const [status] = await Promise.all([
+        endpoints.xero.status(),
+        endpoints.xero.organisation().then((o) => setOrgData(o as unknown as OrgData)).catch(() => {}),
+        endpoints.xero
+          .profitAndLoss()
+          .then((p) => setProfitAndLoss(p as unknown as ProfitAndLossData))
+          .catch(() => {}),
+      ]);
+      setXeroMode(status.mode);
+      setProvenance(
+        status.provenance ?? (status.mode === "demo" ? "sample" : status.live ? "live" : "sandbox"),
+      );
+      if (status.platform_display_name) setPlatformName(status.platform_display_name);
+      setUserConnection({ connected: true, tenant_name: "Seapoint sandbox" });
+      await loadFindings();
+    } catch {
+      setErrorBanner("Couldn't reach the Seapoint sandbox — staying on the sample books.");
+    } finally {
+      setSandboxSwitching(false);
+    }
+  }, [loadFindings]);
+
+  /** Exit the sandbox — back to the sample books, same in-place refetch. */
+  const handleLeaveSeapoint = useCallback(async () => {
+    setSandboxSwitching(true);
+    try {
+      await endpoints.connection.leaveSeapointSandbox();
+      const [status] = await Promise.all([
+        endpoints.xero.status(),
+        endpoints.xero.organisation().then((o) => setOrgData(o as unknown as OrgData)).catch(() => {}),
+        endpoints.xero
+          .profitAndLoss()
+          .then((p) => setProfitAndLoss(p as unknown as ProfitAndLossData))
+          .catch(() => {}),
+      ]);
+      setXeroMode(status.mode);
+      setProvenance(
+        status.provenance ?? (status.mode === "demo" ? "sample" : status.live ? "live" : "sandbox"),
+      );
+      if (status.platform_display_name) setPlatformName(status.platform_display_name);
+      setUserConnection({ connected: false });
+      await loadFindings();
+    } catch {
+      setErrorBanner("Couldn't leave the sandbox — try again.");
+    } finally {
+      setSandboxSwitching(false);
+    }
+  }, [loadFindings]);
+
+  // Deep link: /books?source=seapoint connects once on load (ref-guarded
+  // like the demo-scenario seeding), then strips the param.
+  const seapointDeepLinkRef = useRef(false);
+  useEffect(() => {
+    if (seapointDeepLinkRef.current) return;
+    if (searchParams.get("source") !== "seapoint") return;
+    if (!seapointOffered || provenance === "sandbox") return;
+    seapointDeepLinkRef.current = true;
+    void handleConnectSeapoint();
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("source");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
+  }, [searchParams, seapointOffered, provenance, handleConnectSeapoint, pathname]);
 
   // Seed demo memories when running in demo mode so first-time judges see
   // proactive memory alerts and cross-session recall without a warm-up chat.
@@ -452,9 +567,10 @@ function BooksView() {
     if (findings && !findings.clean && findings.findings.length > 0) {
       setFinanceCheckOpen(true);
     }
-    // Free plan + money on the table → frame the upgrade.
-    if (findings && findings.money_found > 0 && (!me || me.plan === "free")) {
-      const label = xeroMode === "demo" ? "the sample books" : "your books";
+    // Free plan + money on the table → frame the upgrade. Never on a
+    // read-only sandbox — no upsell inside a third-party demo frame.
+    if (provenance !== "sandbox" && findings && findings.money_found > 0 && (!me || me.plan === "free")) {
+      const label = provenance === "sample" ? "the sample books" : "your books";
       setUpgradeBanner(
         copy.upgradeBanner(
           Math.round(findings.money_found).toLocaleString(),
@@ -498,6 +614,7 @@ function BooksView() {
       await endpoints.xero.disconnect();
       setUserConnection({ connected: false });
       setXeroMode("demo");
+      setProvenance("sample");
     } catch {
       setErrorBanner("Failed to disconnect.");
     }
@@ -696,7 +813,7 @@ function BooksView() {
     }
     setReviewingFindingIds((prev) => new Set(prev).add(finding.id));
     try {
-      await endpoints.xero.reviewFinding(finding.id, { state, ...outcome });
+      await endpoints.xero.reviewFinding(finding, { state, ...outcome });
       await loadFindings();
     } catch (e) {
       setErrorBanner(e instanceof ApiError ? e.message : "Couldn't save the AP review. Try again.");
@@ -867,21 +984,32 @@ function BooksView() {
                 className={`text-xs font-medium px-2 py-1 rounded-lg transition-opacity-quick ${
                   xeroMode === "live-oauth" || xeroMode === "live-cli"
                     ? "bg-emerald-50 text-emerald-700"
-                    : xeroMode === "demo"
+                    : provenance === "sandbox" || xeroMode === "demo"
                       ? "bg-amber-50 text-amber-700"
                       : "bg-stone-100 text-stone-500"
                 }`}
               >
                 {xeroMode === "live-oauth" || xeroMode === "live-cli"
                   ? "● Xero Live"
-                  : xeroMode === "demo"
-                    ? demoScenario === "music"
-                      ? "● Demo · Music books"
-                      : demoScenario === "cafe"
-                        ? "● Demo · Café books"
-                        : "● Demo Data"
-                    : "○ Connecting..."}
+                  : provenance === "sandbox"
+                    ? `● ${platformName} sandbox · read-only`
+                    : xeroMode === "demo"
+                      ? demoScenario === "music"
+                        ? "● Demo · Music books"
+                        : demoScenario === "cafe"
+                          ? "● Demo · Café books"
+                          : "● Demo Data"
+                      : "○ Connecting..."}
               </span>
+            )}
+            {provenance === "sandbox" && (
+              <button
+                onClick={() => void handleLeaveSeapoint()}
+                disabled={sandboxSwitching}
+                className="text-xs font-medium text-stone-500 hover:text-stone-700 hover:bg-stone-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {sandboxSwitching ? "Switching…" : "Switch to sample books"}
+              </button>
             )}
             {/* Nav links — inline from sm up; collapsed behind a menu button
                 on phones so the Connect button never gets squeezed off-screen. */}
@@ -990,7 +1118,11 @@ function BooksView() {
           <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {xeroMode === "demo" ? "Your sample finance check" : "Your finance check"}
+                {provenance === "sandbox"
+                  ? `Your ${platformName} sandbox check`
+                  : xeroMode === "demo"
+                    ? "Your sample finance check"
+                    : "Your finance check"}
               </p>
               <h2 className="mt-1 text-2xl font-bold tracking-tight text-stone-950">
                 Start with the issue that needs attention.
@@ -998,6 +1130,20 @@ function BooksView() {
               <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-600">
                 Sikizana has ranked this first because it is material, actionable, and linked to the records behind it.
               </p>
+              {provenance === "sample" && seapointOffered && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => void handleConnectSeapoint()}
+                    disabled={sandboxSwitching}
+                    className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
+                  >
+                    {sandboxSwitching ? "Connecting…" : "Try it on the Seapoint sandbox"}
+                  </button>
+                  <p className="mt-1 text-xs text-stone-500">
+                    Read-only · dummy data · nothing is written
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="border-y border-stone-200 py-4 lg:border-l lg:border-y-0 lg:pl-6">
@@ -1085,7 +1231,7 @@ function BooksView() {
               setInput(prompt);
               inputRef.current?.focus();
             }}
-            suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+            suggestions={starterQueries.slice(0, 3)}
             compact
             persona={persona}
           />
@@ -1110,7 +1256,11 @@ function BooksView() {
                       : "bg-amber-50 text-amber-600"
                   }`}
                 >
-                  {xeroMode === "live-oauth" || xeroMode === "live-cli" ? "LIVE" : "DEMO"}
+                  {xeroMode === "live-oauth" || xeroMode === "live-cli"
+                    ? "LIVE"
+                    : provenance === "sandbox"
+                      ? "SANDBOX"
+                      : "DEMO"}
                 </span>
               )}
             </div>
@@ -1215,7 +1365,7 @@ function BooksView() {
                 setInput(prompt);
                 inputRef.current?.focus();
               }}
-              suggestions={(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).slice(0, 3)}
+              suggestions={starterQueries.slice(0, 3)}
               compact
               persona={persona}
             />
@@ -1500,9 +1650,11 @@ function BooksView() {
                           <li>📈 <span className="font-medium">Explain your books</span> — P&amp;L, tax estimate, fixes — plain English</li>
                         </ul>
                         <p className="text-xs text-sky-600 mt-2.5">
-                          {xeroMode === "demo"
-                            ? "The sidebar shows a demo business so you can explore. Try a question below, then connect your Xero to see your real numbers →"
-                            : "The sidebar shows a live snapshot of your books. Try a question below to see me in action →"}
+                          {provenance === "sandbox"
+                            ? `The sidebar shows the ${platformName} sandbox books — read-only data, so I can explain and review but never write. Try a question below →`
+                            : xeroMode === "demo"
+                              ? "The sidebar shows a demo business so you can explore. Try a question below, then connect your Xero to see your real numbers →"
+                              : "The sidebar shows a live snapshot of your books. Try a question below to see me in action →"}
                         </p>
 
                         {/* The one onboarding question: their sector. Personalizes
@@ -1570,7 +1722,7 @@ function BooksView() {
                   <p className="t-stagger-line t-stagger-line--3 text-xs uppercase tracking-wide text-stone-500 font-semibold text-left">
                     {showWelcome ? "Try one of these to get started" : "Try a sample query"}
                   </p>
-                  {(persona === "siki" ? SAMPLE_QUERIES : ZANA_QUERIES).map((sample, i) => (
+                  {starterQueries.map((sample, i) => (
                     <button
                       key={sample.id}
                       onClick={() => handleStartSample(sample.description)}

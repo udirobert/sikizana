@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { endpoints, type MemoryEntry } from "@/lib/api";
 import { MemoryBadge } from "@/components/MemoryBadge";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { usePersona } from "@/hooks/usePersona";
 import { getPersonaCopy } from "@/lib/persona-theme";
 

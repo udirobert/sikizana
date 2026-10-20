@@ -74,7 +74,20 @@ Visitor (anonymous session, HttpOnly cookie)
 - `registry.py` — `get_connector(session_id)` dispatches to the right connector
   based on the session's active platform connection
 
-Today only Xero is registered. Adding QuickBooks/Sage means:
+Xero is always registered. `seapoint.py` (Seapoint sandbox, read-only,
+`mode() == "seapoint-sandbox"`) registers only when `SEAPOINT_ENABLED=1`;
+unset, it is invisible and sessions fall back to the default. That keeps
+vendor connectors opt-in, with no lock-in. Seapoint env: `SEAPOINT_MCP_URL`
+(streamable HTTP; SSE if the URL ends `/sse`) or `SEAPOINT_MCP_COMMAND`
+(stdio). Auth: OAuth via `python -m src.jobs.seapoint_login` (token in
+gitignored `data/seapoint_oauth.json`) or a `SEAPOINT_MCP_TOKEN` bearer.
+Live proof: `python -m src.jobs.seapoint_smoke`. Connectors may override the
+non-abstract `get_spend_by_category` (the default derives it from the P&L).
+Data provenance has three states (`/api/xero/status` → `provenance: live |
+sandbox | sample`). UI copy must branch on provenance, not on
+`mode === "demo"`.
+
+Adding QuickBooks/Sage means:
 1. Create `quickbooks.py` implementing `AccountingConnector`
 2. Add one entry to `_REGISTRY` in `registry.py`
 3. Nothing else changes
@@ -190,10 +203,13 @@ cd web && npx tsc --noEmit
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
 | `web/lib/persona-theme.ts` | Siki/Zana copy, theme tokens, analysis-card + chase labels |
+| `src/services/finding_kinds.py` | Canonical `finding.kind` vocabulary (constants + Literal + domain sets); emitters import from here |
+| `web/lib/finding-kinds.ts` | `FINDING_KIND_META` — per-kind icon, label, gloss, `reviewable`, `chaseable`, `domain`; exhaustive `Record<FindingKind>` so a new kind is a compile error without an entry |
+| `web/components/SikiMascot.tsx` | Siki owl mascot + `MascotMood` type (Zana lives in `ZanaMascot.tsx`) |
 | `web/hooks/usePersona.ts` | Reads persisted persona from localStorage |
 | `web/DESIGN.md` | Three-zone UI guardrails (signature / proof / delight) |
 | `web/components/dither-kit/` | Selective dither charts (impact hero, sidebar sparkline) |
-| `web/components/ImpactHeroChart.tsx` | Dither area chart + Siki trend caption on `/impact` |
+| `web/components/OverdueTrendChart.tsx` | Dither area chart + Siki trend caption on `/impact` — overdue-specific, not a generic hero |
 | `web/components/ProfitTrendChart.tsx` | Dither sparkline in `/books` sidebar P&L |
 | `web/components/AutoChaseNotice.tsx` | Signature moment when a chase sequence is armed |
 | `web/components/TodaySummary.tsx` | Compact return-state summary for the priority finding on `/books` |

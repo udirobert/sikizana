@@ -18,6 +18,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Any
 
+from src.services import finding_kinds as kinds
 from src.services.findings import build_findings
 from src.services.logging import get_logger
 
@@ -26,14 +27,17 @@ log = get_logger("sikizana.digest")
 _APP_BASE_URL = os.environ.get("APP_BASE_URL", "https://sikizana.persidian.com")
 
 _KIND_ICONS = {
-    "overdue_invoice": "💰",
-    "overdue_bill": "📮",
-    "unreconciled": "⚠️",
-    "tax_flag": "📋",
-    "ap_duplicate_bill": "🔍",
-    "ap_duplicate_payment": "🔍",
-    "ap_supplier_detail_change": "🔒",
-    "ap_payment_anomaly": "🔎",
+    kinds.OVERDUE_INVOICE: "💰",
+    kinds.OVERDUE_BILL: "📮",
+    kinds.UNRECONCILED: "⚠️",
+    kinds.TAX_FLAG: "📋",
+    kinds.AP_DUPLICATE_BILL: "🔍",
+    kinds.AP_DUPLICATE_PAYMENT: "🔍",
+    kinds.AP_SUPPLIER_DETAIL_CHANGE: "🔒",
+    kinds.AP_PAYMENT_ANOMALY: "🔎",
+    kinds.CAFE_RISING_ITEM: "📈",
+    kinds.CAFE_DECLINING_ITEM: "📉",
+    kinds.CAFE_ATTACH_GAP: "🥐",
 }
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /**
  * AnalysisCard — renders structured analysis data from three tools:
@@ -18,7 +18,8 @@ import {
   type Persona,
 } from "@/lib/persona-theme";
 import { BenchmarkCompareBar } from "@/components/BenchmarkCompareBar";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { verdictToTone } from "@/lib/benchmark-compare";
 
 interface BenchmarkMetric {
@@ -101,7 +102,26 @@ interface AgingData {
   dso_sample: number;
 }
 
-type AnalysisData = BenchmarkData | ScorecardData | TrendData | AgingData;
+interface SpendCategory {
+  name: string;
+  amount: number;
+  prior_amount: number | null;
+}
+
+interface SpendData {
+  type: "spend_breakdown";
+  period: { from: string | null; to: string | null };
+  currency: string;
+  total: number;
+  categories: SpendCategory[];
+}
+
+type AnalysisData =
+  | BenchmarkData
+  | ScorecardData
+  | TrendData
+  | AgingData
+  | SpendData;
 
 // parseAnalysisData is no longer used — cards are now delivered via
 // streaming events, not parsed from LLM text. Kept for backward compat.
@@ -476,6 +496,103 @@ function TrendChart({ data, persona }: { data: TrendData; persona: Persona }) {
   );
 }
 
+// ─── Spend Breakdown ─────────────────────────────────────────────────
+
+function spendPeriodLabel(period: SpendData["period"]): string {
+  const from = period?.from;
+  if (!from) return "this period";
+  const d = new Date(`${String(from).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return String(from);
+  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+function SpendBreakdownCard({ data, persona }: { data: SpendData; persona: Persona }) {
+  const top = data.categories.slice(0, 6);
+  const rest = data.categories.slice(6);
+  const restHavePriors = rest.length > 0 && rest.every((c) => c.prior_amount != null);
+  const rows: SpendCategory[] =
+    rest.length > 0
+      ? [
+          ...top,
+          {
+            name: "Other",
+            amount: rest.reduce((s, c) => s + c.amount, 0),
+            prior_amount: restHavePriors
+              ? rest.reduce((s, c) => s + (c.prior_amount ?? 0), 0)
+              : null,
+          },
+        ]
+      : top;
+  const max = Math.max(...rows.map((r) => r.amount), 0.001);
+  // Bars grow in on mount (gated by state so SSR/first paint is width 0).
+  const [grow, setGrow] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setGrow(true));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+  const spikeThreshold = 25;
+
+  return (
+    <div className="mt-2 rounded-xl border border-stone-200 bg-white overflow-hidden fade-in-up">
+      <AnalysisCardHeader
+        persona={persona}
+        type="spend_breakdown"
+        subtitle={
+          <span className="text-xs text-stone-500">
+            {spendPeriodLabel(data.period)} ·{" "}
+            <span className="font-semibold text-stone-700">{fmtMoney2(data.total)}</span> total
+          </span>
+        }
+      />
+      <div className="px-3 py-2.5 space-y-2">
+        {rows.map((c, i) => {
+          const prior = c.prior_amount;
+          const delta =
+            prior != null && prior > 0 ? ((c.amount - prior) / prior) * 100 : null;
+          const spiked = delta !== null && delta >= spikeThreshold;
+          return (
+            <div key={c.name} className="flex items-center gap-2 text-xs">
+              <span className="text-stone-600 w-36 shrink-0 truncate" title={c.name}>
+                {c.name}
+              </span>
+              <div className="flex-1 h-3 bg-stone-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-amber-500 motion-reduce:transition-none"
+                  style={{
+                    width: grow ? `${Math.max((c.amount / max) * 100, 2)}%` : "0%",
+                    transition:
+                      "width var(--duration-very-slow) var(--ease-smooth-out)",
+                    transitionDelay: `${i * 60}ms`,
+                  }}
+                />
+              </div>
+              <span className="font-semibold text-stone-700 w-16 text-right shrink-0">
+                {fmtMoney(c.amount)}
+              </span>
+              <span className="w-12 shrink-0 text-right">
+                {delta !== null && (
+                  <span
+                    className={`text-xs font-medium ${
+                      delta > 0 ? "text-rose-600" : "text-emerald-600"
+                    } ${spiked ? "bg-rose-50 px-1.5 rounded" : ""}`}
+                  >
+                    {delta > 0 ? "↑" : "↓"} {Math.abs(delta).toFixed(0)}%
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {rows.some((c) => c.prior_amount != null) && (
+        <div className="px-3 py-2 border-t border-stone-100 bg-stone-50/50">
+          <p className="text-xs text-stone-500">vs the previous month.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────
 
 interface AnalysisCardProps {
@@ -495,6 +612,9 @@ export function AnalysisCard({ data, persona = "siki" }: AnalysisCardProps) {
   }
   if (data.type === "receivables_aging") {
     return <AgingCard data={data as unknown as AgingData} persona={persona} />;
+  }
+  if (data.type === "spend_breakdown") {
+    return <SpendBreakdownCard data={data as unknown as SpendData} persona={persona} />;
   }
   return null;
 }

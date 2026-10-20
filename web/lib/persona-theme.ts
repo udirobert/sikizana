@@ -1,4 +1,5 @@
 import type { FindingKind } from "@/lib/api";
+import { FINDING_KIND_META } from "@/lib/finding-kinds";
 
 export type Persona = "siki" | "zana";
 
@@ -134,7 +135,7 @@ export function findingActionLabel(
   kind: FindingKind
 ): string {
   if (persona === "zana") {
-    if (label === "Chase now" || kind === "overdue_invoice") return "Draft chase";
+    if (label === "Chase now" || FINDING_KIND_META[kind].chaseable) return "Draft chase";
     if (label === "Explain") return "Investigate";
     if (label === "Fix now") return "Fix this";
     return label;
@@ -155,7 +156,8 @@ export type AnalysisCardType =
   | "sector_benchmark"
   | "customer_scorecard"
   | "trend_analysis"
-  | "receivables_aging";
+  | "receivables_aging"
+  | "spend_breakdown";
 
 type AnalysisCardMeta = {
   title: string;
@@ -186,6 +188,10 @@ const ANALYSIS_CARD_SIKI: Record<
     title: "Siki's aged receivables",
     badgeClass: "bg-emerald-100 text-emerald-700",
   },
+  spend_breakdown: {
+    title: "Siki's spend breakdown",
+    badgeClass: "bg-amber-100 text-amber-700",
+  },
 };
 
 const ANALYSIS_CARD_ZANA: Record<
@@ -207,6 +213,10 @@ const ANALYSIS_CARD_ZANA: Record<
   receivables_aging: {
     title: "Zana's overdue snapshot",
     badgeClass: "bg-rose-100 text-rose-700",
+  },
+  spend_breakdown: {
+    title: "Where the money went",
+    badgeClass: "bg-stone-200 text-stone-700",
   },
 };
 
@@ -533,7 +543,8 @@ export type ActivityAction =
   | "tool_called"
   | "chase_sent"
   | "chase_recovered"
-  | "chase_exhausted";
+  | "chase_exhausted"
+  | "finding_reviewed";
 
 /** Persona-aware badge label for /activity event rows. */
 export function getActivityEventStyle(
@@ -549,6 +560,7 @@ export function getActivityEventStyle(
     chase_sent: { label: "Chase Email Sent", badge: "bg-amber-100 text-amber-700", icon: "✉️" },
     chase_recovered: { label: "Invoice Paid", badge: "bg-emerald-100 text-emerald-700", icon: "💰" },
     chase_exhausted: { label: "Chase Ladder Finished", badge: "bg-rose-100 text-rose-700", icon: "⚠️" },
+    finding_reviewed: { label: "Finding Reviewed", badge: "bg-emerald-100 text-emerald-700", icon: "🛡️" },
   };
 
   if (persona !== "zana") {
@@ -590,6 +602,8 @@ export function getActivityEventStyle(
       return { label: "Zana query", badge: "bg-stone-100 text-stone-600", icon: "💬" };
     case "tool_called":
       return { label: "Zana tool call", badge: "bg-violet-100 text-violet-700", icon: "🔧" };
+    case "finding_reviewed":
+      return { label: "Finding reviewed", badge: "bg-emerald-100 text-emerald-700", icon: "🛡️" };
     default:
       return sikiDefaults[action];
   }

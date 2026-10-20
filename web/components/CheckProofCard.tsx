@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { SikiMascot, ZanaMascot, type MascotMood } from "@/components/SikiMascot";
+import { SikiMascot, type MascotMood } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 
 export interface CheckProofFinding {
   id: string;

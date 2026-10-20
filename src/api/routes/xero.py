@@ -63,6 +63,28 @@ class ApFindingReviewRequest(BaseModel):
     state: Literal["safe", "investigating", "confirmed", "dismissed"]
     confirmed_amount: float | None = None
     dismissal_reason: str | None = None
+    # Display fields for the audit trail — the server only has the opaque
+    # finding ID, so the client supplies the human-readable title/amount.
+    title: str | None = None
+    amount: float | None = None
+
+
+_REVIEW_STATE_LABELS = {
+    "safe": "Marked safe",
+    "investigating": "Investigating",
+    "confirmed": "Confirmed",
+    "dismissed": "Dismissed",
+}
+
+
+def _review_audit_description(
+    state: str, title: str | None, finding_id: str, dismissal_reason: str | None
+) -> str:
+    subject = title or finding_id
+    description = f"{_REVIEW_STATE_LABELS[state]}: {subject}"
+    if state == "dismissed" and dismissal_reason:
+        description += f" — reason: {dismissal_reason}"
+    return description
 
 
 @router.put("/api/ap-integrity/findings/{finding_id}/review")
@@ -86,6 +108,7 @@ async def review_ap_finding(
     if confirmed_amount is not None and confirmed_amount < 0:
         raise HTTPException(status_code=400, detail="Confirmed amount must be zero or more.")
     dismissal_reason = (req.dismissal_reason or "").strip()[:240] or None
+    title = (req.title or "").strip()[:160] or None
 
     await asyncio.to_thread(
         set_review_outcome,
@@ -95,15 +118,15 @@ async def review_ap_finding(
         confirmed_amount=confirmed_amount,
         dismissal_reason=dismissal_reason,
     )
-    outcome = f"{finding_id} marked {req.state}"
-    if req.state == "confirmed" and confirmed_amount is not None:
-        outcome += f" with £{confirmed_amount:,.2f} confirmed"
-    if req.state == "dismissed" and dismissal_reason:
-        outcome += f" because {dismissal_reason}"
+    # The review decision IS the human approval on a read-only connector —
+    # it belongs in the audit trail alongside journal posts.
     record_audit(
-        action="ap_finding_reviewed",
-        description=outcome,
-        amount=confirmed_amount if req.state == "confirmed" else None,
+        action="finding_reviewed",
+        description=_review_audit_description(
+            req.state, title, finding_id, dismissal_reason
+        ),
+        amount=confirmed_amount if confirmed_amount is not None else req.amount,
+        journal_id=finding_id,
         session_id=session_id,
     )
     return {
@@ -135,6 +158,7 @@ async def review_cafe_finding(
     if confirmed_amount is not None and confirmed_amount < 0:
         raise HTTPException(status_code=400, detail="Confirmed amount must be zero or more.")
     dismissal_reason = (req.dismissal_reason or "").strip()[:240] or None
+    title = (req.title or "").strip()[:160] or None
 
     await asyncio.to_thread(
         set_review_outcome,
@@ -144,15 +168,13 @@ async def review_cafe_finding(
         confirmed_amount=confirmed_amount,
         dismissal_reason=dismissal_reason,
     )
-    outcome = f"{finding_id} marked {req.state}"
-    if req.state == "confirmed" and confirmed_amount is not None:
-        outcome += f" with £{confirmed_amount:,.2f} confirmed"
-    if req.state == "dismissed" and dismissal_reason:
-        outcome += f" because {dismissal_reason}"
     record_audit(
-        action="cafe_finding_reviewed",
-        description=outcome,
-        amount=confirmed_amount if req.state == "confirmed" else None,
+        action="finding_reviewed",
+        description=_review_audit_description(
+            req.state, title, finding_id, dismissal_reason
+        ),
+        amount=confirmed_amount if confirmed_amount is not None else req.amount,
+        journal_id=finding_id,
         session_id=session_id,
     )
     return {
@@ -225,16 +247,25 @@ async def xero_bs(as_of: str | None = None, session_id: str = Depends(get_sessio
 
 @router.get("/api/xero/status")
 async def xero_status(session_id: str = Depends(get_session_id)):
-    """Data provenance for this session: live-oauth | live-cli | demo."""
+    """Data provenance for this session: live | sandbox | sample."""
     from src.services.connectors import get_connector
     from src.services.xero_oauth import get_connection_status
 
     def _status():
-        mode = get_connector(session_id).mode()
+        connector = get_connector(session_id)
+        mode = connector.mode()
         tenant_name = None
         if mode == "live-oauth":
             tenant_name = get_connection_status(session_id).get("tenant_name")
-        return {"live": mode != "demo", "mode": mode, "tenant_name": tenant_name}
+        live = connector.is_live()
+        provenance = "sample" if mode == "demo" else "live" if live else "sandbox"
+        return {
+            "live": live,
+            "mode": mode,
+            "tenant_name": tenant_name,
+            "provenance": provenance,
+            "platform_display_name": connector.info().display_name,
+        }
 
     return await asyncio.to_thread(_status)
 
@@ -416,6 +447,38 @@ async def list_user_orgs(
 # ---- Generic connection endpoints (platform-agnostic) ----
 
 
+def _seapoint_ready() -> bool:
+    """Whether the sandbox can be reached without user action — False when
+    the optional mcp/oauth deps aren't installed or nobody signed in."""
+    try:
+        from src.services.connectors.seapoint_auth import seapoint_ready
+
+        return seapoint_ready()
+    except Exception:
+        return False
+
+
+def _connection_payload(session_id: str) -> dict:
+    """Shared shape for /api/connection/status + the sandbox connect/leave
+    endpoints — the frontend reads one contract regardless of platform."""
+    from src.services.connectors import get_connector, list_available_platforms
+
+    connector = get_connector(session_id)
+    status = connector.get_connection_status()
+    platforms = list_available_platforms()
+    return {
+        **status,
+        "platform": connector.info().platform,
+        "platform_display_name": connector.info().display_name,
+        "mode": connector.mode(),
+        "seapoint_ready": _seapoint_ready(),
+        "available_platforms": [
+            {"platform": p.platform, "display_name": p.display_name, "auth_type": p.auth_type}
+            for p in platforms
+        ],
+    }
+
+
 @router.get("/api/connection/status")
 async def connection_status(session_id: str = Depends(get_session_id)):
     """Check the active platform connection — works for any connector.
@@ -423,21 +486,46 @@ async def connection_status(session_id: str = Depends(get_session_id)):
     Returns the connected platform, tenant info, and available platforms.
     This is the platform-agnostic replacement for /api/xero/connection.
     """
-    from src.services.connectors import get_connector, list_available_platforms
+    return await asyncio.to_thread(_connection_payload, session_id)
 
-    connector = get_connector(session_id)
-    status = await asyncio.to_thread(connector.get_connection_status)
-    platforms = list_available_platforms()
-    return {
-        **status,
-        "platform": connector.info().platform,
-        "platform_display_name": connector.info().display_name,
-        "mode": connector.mode(),
-        "available_platforms": [
-            {"platform": p.platform, "display_name": p.display_name, "auth_type": p.auth_type}
-            for p in platforms
-        ],
-    }
+
+@router.post("/api/connection/seapoint-sandbox")
+async def seapoint_sandbox_connect(session_id: str = Depends(get_session_id)):
+    """Attach this session to the Seapoint sandbox (judge self-serve path).
+
+    Anonymous sessions are fine — the connector is read-only over dummy
+    data, so there is nothing to consent to and nothing can be written.
+    """
+    from src.services.connectors import list_available_platforms
+    from src.services.payment_store import record_platform_connection
+
+    if not any(p.platform == "seapoint" for p in list_available_platforms()):
+        raise HTTPException(status_code=404, detail="Seapoint connector is not enabled.")
+
+    def _connect() -> dict:
+        record_platform_connection(
+            session_id=session_id,
+            platform="seapoint",
+            tenant_id="seapoint-sandbox",
+            tenant_name="Seapoint sandbox",
+        )
+        return _connection_payload(session_id)
+
+    return await asyncio.to_thread(_connect)
+
+
+@router.post("/api/connection/seapoint-sandbox/leave")
+async def seapoint_sandbox_leave(session_id: str = Depends(get_session_id)):
+    """Detach from the sandbox — the session falls back to sample books.
+    (The Xero disconnect endpoint revokes OAuth tokens and doesn't touch
+    platform_connections, so sandbox needs its own exit.)"""
+    from src.services.payment_store import disconnect_platform_connection
+
+    def _leave() -> dict:
+        disconnect_platform_connection(session_id, platform="seapoint")
+        return _connection_payload(session_id)
+
+    return await asyncio.to_thread(_leave)
 
 
 @router.get("/api/connection/platforms")

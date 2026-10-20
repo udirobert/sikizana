@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { endpoints, type ActivityEvent, type AggregateActivity } from "@/lib/api";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { useXeroMode } from "@/hooks/useXeroMode";
 import { usePersona } from "@/hooks/usePersona";

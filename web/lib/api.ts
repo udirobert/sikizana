@@ -12,6 +12,7 @@
  */
 
 import type { AgentEvent } from "@/lib/types";
+import { FINDING_KIND_META } from "@/lib/finding-kinds";
 
 export class ApiError extends Error {
   constructor(
@@ -108,8 +109,9 @@ export interface ImpactMetrics {
   money_found: number;
   overdue_count: number;
   discrepancies_found: number;
-  estimated_tax_savings: number;
   feedback: { up: number; down: number; total: number };
+  /** Event-sourced totals from impact_events, keyed by event_type. */
+  events?: Record<string, { count: number; total_amount: number }>;
   snapshots?: Array<{
     captured_at: string;
     total_overdue: number;
@@ -137,7 +139,10 @@ export interface MemoryEntry {
 }
 
 /** How the backend is talking to the accounting platform. "demo" means no real write happens. */
-export type XeroMode = "live-oauth" | "live-cli" | "demo";
+export type XeroMode = "live-oauth" | "live-cli" | "demo" | "seapoint-sandbox";
+
+/** Where the numbers on screen actually come from. */
+export type DataProvenance = "live" | "sandbox" | "sample";
 
 /** Platform-agnostic connection mode (same values, forward-compatible name). */
 export type ConnectionMode = XeroMode;
@@ -146,6 +151,9 @@ export interface XeroStatus {
   live: boolean;
   mode: XeroMode;
   tenant_name: string | null;
+  /** live = real org · sandbox = read-only third-party data · sample = demo books. */
+  provenance?: DataProvenance;
+  platform_display_name?: string;
 }
 
 /** Platform-agnostic connection status — works with any connector. */
@@ -157,6 +165,8 @@ export interface ConnectionStatus {
   tenant_id?: string;
   tenant_name?: string | null;
   available_platforms?: AvailablePlatform[];
+  /** True when the Seapoint sandbox is signed in / reachable headlessly. */
+  seapoint_ready?: boolean;
 }
 
 export interface AvailablePlatform {
@@ -186,6 +196,8 @@ export interface JournalPostResponse {
 
 // ---- Structured audit findings (books-page panel) ----
 
+// A new kind must also land in FINDING_KIND_META and src/services/finding_kinds.py —
+// tests/test_finding_kinds.py links the two.
 export type FindingKind =
   | "overdue_invoice"
   | "overdue_bill"
@@ -205,6 +217,9 @@ export interface FindingReviewPayload {
   state: Exclude<FindingReviewState, "open">;
   confirmed_amount?: number;
   dismissal_reason?: string;
+  /** Display fields for the audit-trail row — the server only has the opaque ID. */
+  title?: string;
+  amount?: number;
 }
 
 export interface FindingAction {
@@ -324,7 +339,8 @@ export interface ActivityEvent {
     | "tool_called"
     | "chase_sent"
     | "chase_recovered"
-    | "chase_exhausted";
+    | "chase_exhausted"
+    | "finding_reviewed";
   description: string;
   amount: number | null;
   journal_id: string;
@@ -461,6 +477,12 @@ export const endpoints = {
     /** List all available accounting platform connectors. */
     platforms: () =>
       api.get<{ platforms: AvailablePlatform[] }>("/api/connection/platforms"),
+    /** Attach this session to the Seapoint sandbox (read-only demo data). */
+    seapointSandbox: () =>
+      api.post<ConnectionStatus>("/api/connection/seapoint-sandbox"),
+    /** Detach from the sandbox — the session returns to sample books. */
+    leaveSeapointSandbox: () =>
+      api.post<ConnectionStatus>("/api/connection/seapoint-sandbox/leave"),
     /** List all Xero orgs the signed-in user has connected (practice mode). */
     orgs: () =>
       api.get<{
@@ -624,17 +646,33 @@ export const endpoints = {
     /** Structured audit findings — the books-page findings panel. */
     findings: () => api.get<FindingsResponse>("/api/xero/findings"),
     /** Human review only; this never changes bills, suppliers, payments, or
-     *  POS data. Routes to the café or AP endpoint by finding-ID prefix. */
-    reviewFinding: (findingId: string, review: FindingReviewPayload) => {
-      const base = findingId.startsWith("cafe-")
-        ? "/api/cafe-brief/findings"
-        : "/api/ap-integrity/findings";
+     *  POS data. Routes to the domain's review endpoint via
+     *  FINDING_KIND_META (the ID prefix is only the URL component). */
+    reviewFinding: (finding: Finding, review: FindingReviewPayload) => {
+      const domain = FINDING_KIND_META[finding.kind].domain;
+      const base =
+        domain === "cafe"
+          ? "/api/cafe-brief/findings"
+          : domain === "ap"
+            ? "/api/ap-integrity/findings"
+            : null;
+      if (!base) {
+        return Promise.reject(
+          new ApiError(400, `Finding kind "${finding.kind}" is not reviewable`),
+        );
+      }
+      const findingId = finding.id;
+      const payload: FindingReviewPayload = {
+        title: finding.title,
+        ...(finding.amount > 0 ? { amount: finding.amount } : {}),
+        ...review,
+      };
       return api.put<{
         finding_id: string;
         state: FindingReviewState;
         confirmed_amount?: number | null;
         dismissal_reason?: string | null;
-      }>(`${base}/${encodeURIComponent(findingId)}/review`, review);
+      }>(`${base}/${encodeURIComponent(findingId)}/review`, payload);
     },
     profitAndLoss: (from_date?: string, to_date?: string) => {
       const search = new URLSearchParams();

@@ -26,6 +26,7 @@ from src.services.cafe_brief.facts import build_sales_facts, build_spend_facts
 from src.services.cafe_brief.models import CafeFinding, Evidence
 from src.services.cafe_brief.pos_ingest import SaleRow, load_item_sales
 from src.services.connectors.base import AccountingConnector
+from src.services.finding_kinds import CAFE_ATTACH_GAP, CAFE_DECLINING_ITEM, CAFE_RISING_ITEM
 from src.services.logging import get_logger
 
 log = get_logger("sikizana.cafe_brief")
@@ -73,7 +74,7 @@ def _build_candidates(sales: Any, spend: Any) -> list[CafeFinding]:
         out.append(
             CafeFinding(
                 id=_nudge_id("riser", r["item"], period),
-                kind="cafe_rising_item",
+                kind=CAFE_RISING_ITEM,
                 severity="low",
                 title=f"{r['item']} is taking off",
                 amount=0.0,
@@ -102,7 +103,7 @@ def _build_candidates(sales: Any, spend: Any) -> list[CafeFinding]:
         out.append(
             CafeFinding(
                 id=_nudge_id("faller", f["item"], period),
-                kind="cafe_declining_item",
+                kind=CAFE_DECLINING_ITEM,
                 severity="low",
                 title=f"Cut the {f['item']} order",
                 amount=0.0,
@@ -130,7 +131,7 @@ def _build_candidates(sales: Any, spend: Any) -> list[CafeFinding]:
         out.append(
             CafeFinding(
                 id=_nudge_id("attach", period),
-                kind="cafe_attach_gap",
+                kind=CAFE_ATTACH_GAP,
                 severity="medium",
                 title="Bundle cake with matcha",
                 amount=annual,

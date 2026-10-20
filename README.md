@@ -132,6 +132,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Security**: `web/app/security/page.tsx` — Siki-voiced plain-English trust page
 - **Components**: SikiMascot, ZanaMascot, JournalEntryCard, NegotiationEmailCard, AnalysisCard (benchmarks/scorecard/trends/aging), ReceiptUpload, ProactiveAlert, FindingsPanel, WhileAgentWorks, ResponseSummary, MemoryBadge, MemoryRecallTrace, etc.
 - **Brand**: [`docs/BRAND.md`](docs/BRAND.md) — the Siki/Zana duo rule, honesty rules, canonical copy
+- **Event notes**: [`docs/seapoint/`](docs/seapoint/README.md) — FinOps hackathon (Seapoint + 13books Capital, London 2026-10-20) plan and run sheet. **Opt-in connector, unproven live**: `SEAPOINT_ENABLED=1` registers a read-only Seapoint sandbox connector; no end-to-end run against the live server is recorded yet
 
 ### Deployment
 - Docker Compose on VPS (Traefik reverse proxy)

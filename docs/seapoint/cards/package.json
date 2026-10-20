@@ -1,0 +1,9 @@
+{
+  "name": "finops-cards",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "npx --yes hyperframes@0.7.52 render",
+    "check": "npx --yes hyperframes@0.7.52 check"
+  }
+}

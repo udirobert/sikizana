@@ -179,6 +179,52 @@ def get_profit_and_loss(
     return summary
 
 
+def get_spend_by_category(from_date: str = "", to_date: str = "") -> str:
+    """Break down what the business spent in a period, grouped by expense
+    category — for "what did we spend last month / by category" questions.
+
+    Empty dates default to the previous calendar month. Returns a ranked
+    category list with month-on-month comparison where the connector
+    provides it, plus a spend_breakdown ANALYSIS_DATA card for the UI.
+    """
+    from datetime import date as _date, timedelta as _td
+
+    if not (from_date and to_date):
+        today = _date.today()
+        last_of_prev = today.replace(day=1) - _td(days=1)
+        from_date = last_of_prev.replace(day=1).isoformat()
+        to_date = last_of_prev.isoformat()
+
+    data = _svc().get_spend_by_category(from_date=from_date, to_date=to_date)
+    categories = data.get("categories") or []
+    if not categories:
+        return f"No spend recorded between {from_date} and {to_date}."
+
+    total = float(data.get("total") or sum(c["amount"] for c in categories))
+    currency = data.get("currency") or "GBP"
+    symbol = "£" if currency == "GBP" else f"{currency} "
+
+    lines = [f"Spend by category ({from_date} to {to_date}) — total {symbol}{total:,.2f}:"]
+    for c in categories[:8]:
+        line = f"- {c['name']}: {symbol}{c['amount']:,.2f}"
+        prior = c.get("prior_amount")
+        if prior:
+            delta = ((c["amount"] - prior) / prior) * 100
+            line += f" ({'↑' if delta > 0 else '↓'} {abs(delta):.0f}% vs prior period)"
+        lines.append(line)
+
+    import json as _json
+
+    card_data = {
+        "type": "spend_breakdown",
+        "period": data.get("period") or {"from": from_date, "to": to_date},
+        "currency": currency,
+        "total": total,
+        "categories": categories,
+    }
+    return "\n".join(lines) + "\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
+
+
 def get_balance_sheet(as_of: str = "") -> str:
     """Retrieve the Balance Sheet as of a date. Empty = today."""
     bs = _svc().get_balance_sheet(as_of=as_of or None)
@@ -503,11 +549,23 @@ def create_journal_entry(
         )
 
     if not result["posted"]:
-        # Demo mode — be explicit that nothing was written
+        svc = _svc()
+        if svc.mode() == "demo":
+            # Demo mode — be explicit that nothing was written
+            return (
+                f"Journal entry SIMULATED (demo mode — nothing was written to Xero):\n"
+                f"{lines}\n"
+                f"  Status: Simulated. Tell the user to connect their Xero to post real entries."
+            )
+        # Sandbox/read-only connector — nothing was written and nothing can
+        # be; the approval path is the review decision on the finding.
+        display_name = svc.info().display_name
+        reason = (result.get("message") or f"{display_name} is connected read-only").rstrip(". ")
         return (
-            f"Journal entry SIMULATED (demo mode — nothing was written to Xero):\n"
+            f"Journal entry NOT posted — {reason}, so nothing was written.\n"
             f"{lines}\n"
-            f"  Status: Simulated. Tell the user to connect their Xero to post real entries."
+            f"  Status: Not posted. Tell the user {display_name} is read-only — "
+            f"record the decision on the finding instead."
         )
 
     from src.services.payment_store import record_audit, record_impact_event

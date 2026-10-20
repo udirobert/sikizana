@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { ApiError, endpoints, type JournalPostResponse } from "@/lib/api";
 import { getJournalCardCopy, type Persona } from "@/lib/persona-theme";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 
 /** Stable per-card keys so a retried or double-submitted post/reversal can
  * never create a duplicate journal in Xero (backend passes them through as
@@ -163,10 +164,18 @@ export function JournalEntryCard({
         {status === "posted" && (
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
-              isDemo ? "text-amber-700 bg-amber-50" : isZana ? "text-rose-600 bg-rose-50" : "text-emerald-600 bg-emerald-50"
+              isDemo || result?.posted === false
+                ? "text-amber-700 bg-amber-50"
+                : isZana
+                  ? "text-rose-600 bg-rose-50"
+                  : "text-emerald-600 bg-emerald-50"
             }`}
           >
-            {isDemo ? copy.postedDemo : copy.postedLive}
+            {result?.posted === false
+              ? "Not posted — read-only"
+              : isDemo
+                ? copy.postedDemo
+                : copy.postedLive}
           </span>
         )}
         {status === "rejected" && (

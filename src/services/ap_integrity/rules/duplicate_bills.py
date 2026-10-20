@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from src.services.ap_integrity.models import ApFinding, Evidence, PayableBill
 from src.services.ap_integrity.rules._common import days_between, normalized, stable_id
+from src.services.finding_kinds import AP_DUPLICATE_BILL
 
 
 def find_duplicate_bills(bills: list[PayableBill]) -> list[ApFinding]:
@@ -37,7 +38,7 @@ def find_duplicate_bills(bills: list[PayableBill]) -> list[ApFinding]:
                 id=stable_id(
                     "ap-duplicate-bill", supplier_id, number, *(bill.id for bill in ordered)
                 ),
-                kind="ap_duplicate_bill",
+                kind=AP_DUPLICATE_BILL,
                 severity="high" if exposure >= 500 else "medium",
                 title=f"Possible duplicate bill: {supplier}",
                 amount=exposure,
@@ -76,7 +77,7 @@ def find_duplicate_bills(bills: list[PayableBill]) -> list[ApFinding]:
                     id=stable_id(
                         "ap-near-duplicate-bill", supplier_id, reference, left.id, right.id
                     ),
-                    kind="ap_duplicate_bill",
+                    kind=AP_DUPLICATE_BILL,
                     severity="medium",
                     title=f"Similar bills need review: {left.supplier_name}",
                     amount=min(left.total, right.total),

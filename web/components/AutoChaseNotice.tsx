@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { getAutoChaseCopy, type Persona } from "@/lib/persona-theme";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import { SuccessCheck } from "@/components/SuccessCheck";
 
 export interface AutoChaseNoticeState {

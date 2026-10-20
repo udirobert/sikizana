@@ -142,6 +142,40 @@ class AccountingConnector(ABC):
         """P&L report: revenue, expenses, net profit."""
         ...
 
+    def get_spend_by_category(
+        self, from_date: str | None = None, to_date: str | None = None
+    ) -> dict[str, Any]:
+        """Spend grouped by expense category for a period.
+
+        Non-abstract: the default derives categories from the P&L report so
+        every connector gets the tool for free. Returns::
+
+            {"period": {"from": ..., "to": ...}, "currency": "GBP",
+             "total": float,
+             "categories": [{"name": str, "amount": float,
+                             "prior_amount": float | None}]}
+
+        sorted descending by amount. Connectors with a native aggregation
+        endpoint (e.g. Seapoint's aggregate mode) override this rather than
+        paging rows client-side.
+        """
+        pl = self.get_profit_and_loss(from_date=from_date, to_date=to_date) or {}
+        categories = _pl_expense_categories(pl)
+        return {
+            "period": {
+                "from": from_date or pl.get("fromDate"),
+                "to": to_date or pl.get("toDate"),
+            },
+            "currency": "GBP",
+            "total": round(sum(categories.values()), 2),
+            "categories": [
+                {"name": name, "amount": round(amount, 2), "prior_amount": None}
+                for name, amount in sorted(
+                    categories.items(), key=lambda kv: kv[1], reverse=True
+                )
+            ],
+        }
+
     @abstractmethod
     def get_balance_sheet(self, as_of: str | None = None) -> dict[str, Any]:
         """Balance sheet: assets, liabilities, equity."""
@@ -196,3 +230,100 @@ class AccountingConnector(ABC):
     def get_connection_status(self) -> dict[str, Any]:
         """Check connection: {'connected': bool, 'tenant_id': ..., 'tenant_name': ...}"""
         ...
+
+
+# ---------------------------------------------------------------------------
+# P&L → spend-by-category derivation (default for get_spend_by_category).
+# ---------------------------------------------------------------------------
+
+_EXPENSE_SECTION_WORDS = ("expense", "cost", "overhead", "direct")
+_INCOME_SECTION_WORDS = ("income", "revenue", "sales")
+
+
+def _rget(obj: dict[str, Any], key: str, default: Any = None) -> Any:
+    """CamelCase-or-PascalCase field read (Xero CLI vs API report shapes)."""
+    if key in obj:
+        return obj[key]
+    return obj.get(key[:1].upper() + key[1:], default)
+
+
+def _to_float(value: Any) -> float:
+    try:
+        return float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _expense_items_from_report(raw: dict[str, Any]) -> dict[str, float]:
+    """Collect line items that live under an expense/cost section of a raw
+    Xero report. Returns {} when the report has no section structure."""
+    categories: dict[str, float] = {}
+
+    def walk(rows: list[dict[str, Any]], in_expense: bool) -> None:
+        for row in rows:
+            row_type = _rget(row, "rowType", "")
+            cells = _rget(row, "cells", []) or []
+            title = str(_rget(cells[0], "value", "") or "") if cells else ""
+            nested = _rget(row, "rows") or []
+            if row_type == "Section":
+                lowered = title.lower()
+                if any(w in lowered for w in _INCOME_SECTION_WORDS):
+                    walk(nested, False)
+                else:
+                    walk(
+                        nested,
+                        in_expense
+                        or any(w in lowered for w in _EXPENSE_SECTION_WORDS),
+                    )
+                continue
+            if row_type == "Row" and len(cells) >= 2 and in_expense and title:
+                categories[title] = categories.get(title, 0.0) + abs(
+                    _to_float(_rget(cells[1], "value", "0"))
+                )
+            if nested:
+                walk(nested, in_expense)
+
+    walk(_rget(raw, "rows", []) or [], False)
+    return categories
+
+
+def _pl_expense_categories(pl: dict[str, Any]) -> dict[str, float]:
+    """Best-effort expense-name → amount map from a normalized P&L.
+
+    Two shapes exist: the mock report exposes `rows` where expenses carry
+    negative values, and the parsed live report exposes `lineItems` plus the
+    raw sectioned report under `raw`.
+    """
+    categories: dict[str, float] = {}
+    rows = pl.get("rows")
+    if isinstance(rows, list) and rows and isinstance(rows[0], dict) and "value" in rows[0]:
+        # Mock shape: positive rows are revenue, negative rows are spend.
+        for row in rows:
+            value = _to_float(row.get("value", 0))
+            if value < 0:
+                name = str(row.get("account") or "Other")
+                categories[name] = categories.get(name, 0.0) + abs(value)
+        return categories
+
+    # Parsed live report — prefer the section structure in the raw payload
+    # so income lines never get counted as spend.
+    categories = _expense_items_from_report(pl.get("raw") or {})
+    if categories:
+        return categories
+
+    # Fallback without sections: only negative line items count as spend;
+    # if none exist (flat unsigned exports), take all items as expenses.
+    items = pl.get("lineItems") or []
+    for item in items:
+        value = _to_float(item.get("value", 0))
+        if value < 0:
+            name = str(item.get("label") or "Other")
+            categories[name] = categories.get(name, 0.0) + abs(value)
+    if categories:
+        return categories
+    for item in items:
+        value = abs(_to_float(item.get("value", 0)))
+        name = str(item.get("label") or "Other")
+        if name and value:
+            categories[name] = categories.get(name, 0.0) + value
+    return categories

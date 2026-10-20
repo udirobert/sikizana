@@ -78,17 +78,20 @@ function sikiTrendCaption(
   };
 }
 
-interface ImpactHeroChartProps {
+interface OverdueTrendChartProps {
   snapshots: MetricSnapshot[];
   isDemo: boolean;
   currentOverdue: number;
 }
 
 /**
- * Impact page hero — dithered area chart of overdue exposure over time.
+ * OverdueTrendChart — the impact page hero: a dithered area chart of
+ * overdue exposure over time. Named for what it plots, not where it sits —
+ * the series, caption, and copy are all overdue-specific, so reuse for
+ * another metric means more than a relabel.
  * Uses real snapshots when available; demo mode shows a labeled sample curve.
  */
-export function ImpactHeroChart({ snapshots, isDemo, currentOverdue }: ImpactHeroChartProps) {
+export function OverdueTrendChart({ snapshots, isDemo, currentOverdue }: OverdueTrendChartProps) {
   const fromSnapshots: ChartRow[] = snapshots.map((s) => ({
     label: formatShortDate(s.captured_at),
     overdue: s.total_overdue,

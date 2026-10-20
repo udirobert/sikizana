@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.services.ap_integrity.models import ApFinding, Evidence, SupplierProfile
 from src.services.ap_integrity.rules._common import stable_id
+from src.services.finding_kinds import AP_SUPPLIER_DETAIL_CHANGE
 
 
 def find_supplier_detail_changes(
@@ -18,7 +19,7 @@ def find_supplier_detail_changes(
                 id=stable_id(
                     "ap-supplier-detail-change", supplier.id, supplier.bank_details_fingerprint
                 ),
-                kind="ap_supplier_detail_change",
+                kind=AP_SUPPLIER_DETAIL_CHANGE,
                 severity="high",
                 title=f"Supplier payment details changed: {supplier.name}",
                 amount=0,

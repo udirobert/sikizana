@@ -6,12 +6,13 @@ import { endpoints, type ImpactMetrics } from "@/lib/api";
 import { SiteNav } from "@/components/SiteNav";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { ModeBadge } from "@/components/ModeBadge";
-import { ImpactHeroChart } from "@/components/ImpactHeroChart";
+import { DemoBadge, ModeBadge } from "@/components/ModeBadge";
+import { OverdueTrendChart } from "@/components/OverdueTrendChart";
+import { StatCard } from "@/components/StatCard";
 
 /**
- * Impact — aggregate social proof: money found, issues caught, tax
- * savings, feedback. Styled to the same stone/sky system as the rest of
+ * Impact — aggregate social proof: money found, issues caught, money
+ * recovered, feedback. Styled to the same stone/sky system as the rest of
  * the site (this page used to be visually off-brand). Personal impact
  * lives on /account; this page is the public story.
  */
@@ -39,12 +40,15 @@ export default function ImpactPage() {
   const moneyFound = data?.money_found ?? 0;
   const overdueCount = data?.overdue_count ?? 0;
   const discrepanciesFound = data?.discrepancies_found ?? 0;
-  const taxSavings = data?.estimated_tax_savings ?? 0;
+  const chaseRecovered = data?.events?.chase_recovered;
+  const recovered = chaseRecovered?.total_amount ?? 0;
+  const recoveredCount = chaseRecovered?.count ?? 0;
   const feedbackTotal = data?.feedback?.total ?? 0;
   const feedbackUp = data?.feedback?.up ?? 0;
   const feedbackRatio =
     feedbackTotal > 0 ? Math.round((feedbackUp / feedbackTotal) * 100) : null;
   const isDemo = data?.mode === "demo";
+  const isSandbox = !!data?.mode && data.mode !== "demo" && !data.mode.startsWith("live");
 
   const steps = [
     {
@@ -76,12 +80,20 @@ export default function ImpactPage() {
         <header className="mb-7 fade-in-up">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-stone-900">Siki&apos;s Impact</h2>
-            {data && <ModeBadge isDemo={isDemo} />}
+            {data && !isSandbox && <ModeBadge isDemo={isDemo} />}
+            {data && isSandbox && (
+              <DemoBadge
+                size="sm"
+                label={`${String(data?.mode).replace(/-sandbox$/, "").replace(/^./, (c) => c.toUpperCase())} sandbox · read-only`}
+              />
+            )}
           </div>
           <p className="text-sm text-stone-500 mt-1">
-            {isDemo
-              ? "These numbers are from demo data — connect your Xero to see your real impact."
-              : "Live numbers from Sikizana's Xero reconciliation engine. Updated every 30 seconds."}
+            {isSandbox
+              ? "These numbers are from a read-only sandbox — connect your accounting platform to see your real impact."
+              : isDemo
+                ? "These numbers are from demo data — connect your Xero to see your real impact."
+                : "Live numbers from Sikizana's Xero reconciliation engine. Updated every 30 seconds."}
           </p>
         </header>
 
@@ -91,7 +103,7 @@ export default function ImpactPage() {
           </div>
         )}
 
-        <ImpactHeroChart
+        <OverdueTrendChart
           snapshots={data?.snapshots ?? []}
           isDemo={isDemo}
           currentOverdue={moneyFound}
@@ -107,8 +119,11 @@ export default function ImpactPage() {
           <StatCard label="Issues Caught" sub="Discrepancies flagged before accountant">
             <AnimatedNumber value={discrepanciesFound} />
           </StatCard>
-          <StatCard label="Est. Tax Savings" sub="From deductible expenses identified">
-            <AnimatedNumber prefix="£" value={Math.round(taxSavings)} />
+          <StatCard
+            label="Money Recovered"
+            sub={`${recoveredCount} invoice${recoveredCount === 1 ? "" : "s"} paid after a chase`}
+          >
+            <AnimatedNumber prefix="£" value={Math.round(recovered)} />
           </StatCard>
           <StatCard
             label="Thumbs-up Rate"
@@ -157,25 +172,5 @@ export default function ImpactPage() {
         </p>
       </footer>
     </main>
-  );
-}
-
-function StatCard({
-  label,
-  sub,
-  children,
-}: {
-  label: string;
-  sub?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-      <div className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold mb-1">
-        {label}
-      </div>
-      <div className="text-2xl font-bold text-stone-900">{children}</div>
-      {sub && <div className="text-[11px] text-stone-500 mt-1">{sub}</div>}
-    </div>
   );
 }

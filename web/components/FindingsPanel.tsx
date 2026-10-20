@@ -1,20 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  AlertTriangle,
-  Bird,
-  Clock,
-  Coffee,
-  Copy,
-  FileText,
-  Landmark,
-  ShieldAlert,
-  TrendingDown,
-  TrendingUp,
-  Unlink,
-  type LucideIcon,
-} from "lucide-react";
+import Link from "next/link";
+import { Bird, ShieldCheck } from "lucide-react";
 import {
   cleanFindingsCopy,
   findingActionLabel,
@@ -23,7 +11,8 @@ import {
 } from "@/lib/persona-theme";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { SkeletonReveal } from "@/components/SkeletonReveal";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 import type {
   Finding,
   FindingKind,
@@ -31,20 +20,7 @@ import type {
   FindingReviewState,
   FindingsResponse,
 } from "@/lib/api";
-
-const KIND_ICON_MAP: Record<FindingKind, LucideIcon> = {
-  overdue_invoice:          Clock,
-  overdue_bill:             FileText,
-  unreconciled:             Unlink,
-  tax_flag:                 Landmark,
-  ap_duplicate_bill:        Copy,
-  ap_duplicate_payment:     Copy,
-  ap_supplier_detail_change: ShieldAlert,
-  ap_payment_anomaly:       AlertTriangle,
-  cafe_rising_item:         TrendingUp,
-  cafe_declining_item:      TrendingDown,
-  cafe_attach_gap:          Coffee,
-};
+import { FINDING_KIND_META } from "@/lib/finding-kinds";
 
 /** Renders the per-kind icon sized and tinted by finding severity. */
 function KindIcon({
@@ -56,7 +32,7 @@ function KindIcon({
   severity: Finding["severity"];
   className?: string;
 }) {
-  const Icon = KIND_ICON_MAP[kind];
+  const Icon = FINDING_KIND_META[kind].icon;
   const color =
     severity === "high" ? "text-amber-600" : "text-stone-400";
   return (
@@ -80,33 +56,6 @@ function KindIcon({
  * so all state (asked findings, loading) is lifted to the page.
  */
 
-
-const KIND_LABELS: Record<FindingKind, string> = {
-  overdue_invoice: "Overdue invoice",
-  overdue_bill: "Overdue bill",
-  unreconciled: "Unreconciled",
-  tax_flag: "Tax flag",
-  ap_duplicate_bill: "Possible duplicate bill",
-  ap_duplicate_payment: "Possible duplicate payment",
-  ap_supplier_detail_change: "Supplier detail change",
-  ap_payment_anomaly: "Payment anomaly",
-  cafe_rising_item: "Rising item",
-  cafe_declining_item: "Declining item",
-  cafe_attach_gap: "Attach-rate gap",
-};
-
-/** Plain-English gloss per kind — the target user isn't an accountant. */
-const KIND_GLOSS: Partial<Record<FindingKind, string>> = {
-  unreconciled: "A bank transaction Xero can't match to an invoice or bill yet",
-  tax_flag: "An expense that may affect what tax you owe",
-  ap_duplicate_bill: "Review the matching source bills before paying or requesting a credit",
-  ap_duplicate_payment: "Review the matching payment records before requesting a credit or refund",
-  ap_supplier_detail_change: "Verify through a supplier contact channel you already trust",
-  ap_payment_anomaly: "A conservative prompt to check a high-value first payment",
-  cafe_rising_item: "A menu item trending up — stock up before the weekend rush",
-  cafe_declining_item: "A menu item trending down — cut the order to avoid waste",
-  cafe_attach_gap: "Few customers add a treat to their drink — an easy upsell at the till",
-};
 
 function severityClasses(severity: Finding["severity"]): string {
   // High = amber/red-tinted left accent; medium/low = stone.
@@ -217,12 +166,16 @@ export function FindingsPanel({
         {data && (
           <span
             className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-              data.mode === "demo"
-                ? "bg-amber-50 text-amber-600"
-                : "bg-emerald-50 text-emerald-600"
+              data.mode.startsWith("live")
+                ? "bg-emerald-50 text-emerald-600"
+                : "bg-amber-50 text-amber-600"
             }`}
           >
-            {data.mode === "demo" ? "DEMO" : "LIVE"}
+            {data.mode.startsWith("live")
+              ? "LIVE"
+              : data.mode === "demo"
+                ? "DEMO"
+                : "SANDBOX"}
           </span>
         )}
       </div>
@@ -344,9 +297,9 @@ export function FindingsPanel({
           {visibleFindings.map((finding, i) => {
             const asked = askedIds.has(finding.id);
             const chased = chasedIds?.has(finding.id) ?? false;
-            const chaseable =
-              finding.kind === "overdue_invoice" && !!finding.invoice_number && !!onAutoChase;
-            const reviewable = finding.kind.startsWith("ap_") && !!onReview;
+            const meta = FINDING_KIND_META[finding.kind];
+            const chaseable = meta.chaseable && !!finding.invoice_number && !!onAutoChase;
+            const reviewable = meta.reviewable && !!onReview;
             const reviewing = reviewingIds?.has(finding.id) ?? false;
             const reviewState = finding.review?.state ?? "open";
             const confirmedAmount = confirmedAmounts[finding.id] ?? String(finding.amount || "");
@@ -381,7 +334,7 @@ export function FindingsPanel({
                         )}
                       </div>
                       <p className="text-xs text-stone-500 mt-0.5 truncate">
-                        {KIND_LABELS[finding.kind]} · {finding.detail}
+                        {meta.label} · {finding.detail}
                       </p>
                       {finding.memory_action && !asked && (
                         <p className="text-xs text-violet-600 mt-0.5 truncate">
@@ -467,11 +420,11 @@ export function FindingsPanel({
                       )}
                     </div>
                     <p className="text-xs text-stone-500 mt-0.5">
-                      {KIND_LABELS[finding.kind]} · {finding.detail}
+                      {meta.label} · {finding.detail}
                     </p>
-                    {KIND_GLOSS[finding.kind] && (
+                    {meta.gloss && (
                       <p className="text-xs text-stone-400 mt-0.5 italic">
-                        {KIND_GLOSS[finding.kind]}
+                        {meta.gloss}
                       </p>
                     )}
                     {finding.evidence && finding.evidence.length > 0 && (
@@ -489,6 +442,15 @@ export function FindingsPanel({
                           ? ` · ${finding.review.dismissal_reason}`
                           : ""}
                       </p>
+                    )}
+                    {reviewState !== "open" && (
+                      <Link
+                        href="/activity"
+                        className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 fade-in-up hover:bg-emerald-100 transition-colors"
+                      >
+                        <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                        Logged to audit trail →
+                      </Link>
                     )}
                   </div>
                 </div>

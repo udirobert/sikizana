@@ -14,6 +14,8 @@ instance. They never import a specific connector directly.
 
 from __future__ import annotations
 
+import os
+
 from src.services.connectors.base import AccountingConnector, ConnectorInfo
 from src.services.connectors.xero import XeroConnector
 from src.services.logging import get_logger
@@ -25,6 +27,17 @@ log = get_logger("sikizana.connectors")
 _REGISTRY: dict[str, type[AccountingConnector]] = {
     "xero": XeroConnector,
 }
+
+# Seapoint is opt-in: SEAPOINT_ENABLED=1 registers it. When unset, the platform
+# isn't listed in the UI and sessions pointing at it fall back to the default —
+# the connector code can stay dormant with no vendor lock-in.
+if os.environ.get("SEAPOINT_ENABLED"):
+    try:
+        from src.services.connectors.seapoint import SeapointConnector
+
+        _REGISTRY["seapoint"] = SeapointConnector
+    except ImportError:
+        log.warning("seapoint_enabled_but_connector_missing")
 
 # The default platform when a session has no explicit connection.
 # This is the platform the app was built on and the one demo mode uses.

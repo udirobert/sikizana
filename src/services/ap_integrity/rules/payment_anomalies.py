@@ -6,6 +6,7 @@ from collections import Counter
 
 from src.services.ap_integrity.models import ApFinding, Evidence, Payment
 from src.services.ap_integrity.rules._common import stable_id
+from src.services.finding_kinds import AP_PAYMENT_ANOMALY
 
 _FIRST_PAYMENT_REVIEW_THRESHOLD = 1_000.0
 
@@ -19,7 +20,7 @@ def find_payment_anomalies(payments: list[Payment]) -> list[ApFinding]:
         findings.append(
             ApFinding(
                 id=stable_id("ap-first-payment", payment.supplier_id, payment.id),
-                kind="ap_payment_anomaly",
+                kind=AP_PAYMENT_ANOMALY,
                 severity="low",
                 title=f"First recorded payment: {payment.supplier_name}",
                 amount=payment.amount,

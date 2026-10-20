@@ -5,7 +5,8 @@ import type { ContextResult, FindingsResponse } from "@/lib/api";
 import { endpoints } from "@/lib/api";
 import { getTipsForTool, getPersonalizedInsight, type EduTip } from "@/lib/edu-tips";
 import { getPersonaTheme, type Persona } from "@/lib/persona-theme";
-import { SikiMascot, ZanaMascot } from "@/components/SikiMascot";
+import { SikiMascot } from "@/components/SikiMascot";
+import { ZanaMascot } from "@/components/ZanaMascot";
 
 interface WhileAgentWorksProps {
   /** The user's original query — used for Exa search. */
