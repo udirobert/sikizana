@@ -75,3 +75,6 @@ data/seapoint_oauth.json
 # Raw Seapoint staging snapshot (personal email, payee names, bank account ids)
 data/seapoint_snapshot/
 docs/seapoint/cards/.hyperframes/
+# Seapoint film build outputs (regenerable: ElevenLabs TTS cache, intermediate cuts)
+docs/seapoint/vo/
+docs/seapoint/cards/confirm_cut.mp4
