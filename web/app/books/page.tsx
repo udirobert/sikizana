@@ -807,7 +807,7 @@ function BooksView() {
     state: Exclude<FindingReviewState, "open">,
     outcome?: { confirmed_amount?: number; dismissal_reason?: string },
   ) => {
-    if (!me?.authenticated) {
+    if (!me?.authenticated && provenance === "live") {
       setErrorBanner("Sign in to save an AP review decision.");
       return;
     }
@@ -1243,7 +1243,7 @@ function BooksView() {
         </div>
 
         {/* Dashboard Sidebar */}
-        <aside className="hidden lg:flex flex-col w-72 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
+        <aside className="hidden lg:flex flex-col w-72 lg:h-[78vh] [&>*]:shrink-0 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
           {/* Org header — skeleton uses SkeletonReveal for consistency */}
           <div className="pb-3 border-b border-stone-100">
             <div className="flex items-center gap-2 mb-1">

@@ -355,8 +355,11 @@ class SeapointConnector(AccountingConnector):
             cid = item.get("id") or item.get("category_id")
             if not cid:
                 continue
+            # Prefer the leaf ("Subscriptions"): full names all share a group
+            # prefix ("Operating Expenses › …") and truncate identically.
             label = (
-                item.get("name")
+                item.get("leaf")
+                or item.get("name")
                 or item.get("full_name")
                 or item.get("path")
                 or self._join_label(

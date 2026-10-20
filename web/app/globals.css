@@ -236,6 +236,11 @@ body {
   opacity: 1;
   filter: blur(0);
 }
+/* Once revealed, real content takes over layout: the placeholder height is
+   only a loading reserve, and absolute content taller than it would paint
+   over the next section. */
+.t-skel.is-revealed { height: auto; }
+.t-skel.is-revealed .t-skel-content { position: relative; inset: auto; }
 .t-skel.is-resetting .t-skel-skeleton,
 .t-skel.is-resetting .t-skel-content {
   transition: none !important;

@@ -117,11 +117,11 @@
 
     <div class="kicker" id="kick0">The payment run <span class="dot">·</span> two lines, one apart</div>
 
-    <div id="ev-r1" class="ev-row mono">26 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
-    <div id="ev-r2" class="ev-row mono">27 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
+    <div id="ev-r1" class="ev-row mono">Forwarded · Snowflake Computing UK Ltd · £21,800.00 · <span class="ref">SNF-INV-2026-10<span class="hlbox"></span></span></div>
+    <div id="ev-r2" class="ev-row mono">Scanned · Snowflake Computing UK Ltd · £21,800.00 · <span class="ref">SNF-INV-2026-10<span class="hlbox"></span></span></div>
 
     <div id="money" class="mono">£680</div>
-    <div id="mystery-head">Paid twice.</div>
+    <div id="mystery-head">Due twice.</div>
     <div id="mystery-sub">Siki calls it a <b>possible</b> duplicate — and shows you both.</div>
   </div>
 
@@ -134,7 +134,7 @@
     <div id="siki-a" class="mascot">__OWLS_SIKI_180__</div>
     <div id="lblA">Siki · reading the books</div>
 
-    <div class="kicker" id="kickA">FinOps Hackathon <span class="dot">·</span> sample books <span class="dot">·</span> read-only</div>
+    <div class="kicker" id="kickA">FinOps Hackathon <span class="dot">·</span> Seapoint sandbox snapshot <span class="dot">·</span> read-only</div>
 
     <div id="prompt-chip">
       <div class="who">The brief's own first prompt</div>
@@ -179,7 +179,7 @@
 
     <div id="found">
       <div id="found-amount" class="mono">£0</div>
-      <div id="found-label">flagged for review in one pass · sample books</div>
+      <div id="found-label">possible duplicate · flagged before the payment run</div>
     </div>
     <div id="lockup">
       <div id="wordmark"><span class="siki">Siki</span><span class="zana">zana</span></div>
@@ -191,7 +191,7 @@
       <div class="pillar" id="p3">A human approves</div>
     </div>
     <div id="cta"><span>Open Sikizana</span></div>
-    <div id="fineprint" class="mono">Seapoint FinOps Hackathon · sample books · illustrative output</div>
+    <div id="fineprint" class="mono">Seapoint FinOps Hackathon · Seapoint sandbox data, captured read-only via MCP</div>
   </div>
 
 </div>
@@ -263,7 +263,7 @@
   const foundAmount = document.getElementById("found-amount");
   tl.fromTo("#found", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 13.1)
     .to({ v: 0 }, {
-      v: 680, duration: 1.4, ease: "power2.out",
+      v: 21800, duration: 1.4, ease: "power2.out",
       onUpdate: function () {
         foundAmount.textContent = "£" + Math.round(this.targets()[0].v).toLocaleString("en-GB");
       }

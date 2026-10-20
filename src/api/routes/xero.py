@@ -77,6 +77,17 @@ _REVIEW_STATE_LABELS = {
 }
 
 
+def require_user_for_live_data(session_id: str = Depends(get_session_id)) -> dict | None:
+    """Reviews on live books need an account; on sample or sandbox data they
+    are session-scoped decisions that change nothing at the source, so an
+    anonymous visitor (e.g. a judge walking the sandbox) may record them."""
+    from src.services.connectors import get_connector
+
+    if get_connector(session_id).is_live():
+        return require_authenticated_user(session_id)
+    return None
+
+
 def _review_audit_description(
     state: str, title: str | None, finding_id: str, dismissal_reason: str | None
 ) -> str:
@@ -94,7 +105,7 @@ async def review_ap_finding(
     ),
     req: ApFindingReviewRequest = ...,
     session_id: str = Depends(get_session_id),
-    user: dict = Depends(require_authenticated_user),
+    user: dict | None = Depends(require_user_for_live_data),
 ):
     """Persist a human review disposition for an AP exception.
 
@@ -144,7 +155,7 @@ async def review_cafe_finding(
     ),
     req: ApFindingReviewRequest = ...,
     session_id: str = Depends(get_session_id),
-    user: dict = Depends(require_authenticated_user),
+    user: dict | None = Depends(require_user_for_live_data),
 ):
     """Persist a human review disposition for a café nudge.
 

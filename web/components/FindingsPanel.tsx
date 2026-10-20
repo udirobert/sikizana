@@ -394,6 +394,15 @@ export function FindingsPanel({
                         </button>
                       </div>
                     )}
+                    {reviewState !== "open" && (
+                      <Link
+                        href="/activity"
+                        className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 fade-in-up hover:bg-emerald-100 transition-colors"
+                      >
+                        <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                        Logged to audit trail →
+                      </Link>
+                    )}
                   </div>
                 </li>
               );
