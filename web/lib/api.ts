@@ -139,7 +139,7 @@ export interface MemoryEntry {
 }
 
 /** How the backend is talking to the accounting platform. "demo" means no real write happens. */
-export type XeroMode = "live-oauth" | "live-cli" | "demo" | "seapoint-sandbox";
+export type XeroMode = "live-oauth" | "live-cli" | "demo" | "seapoint-sandbox" | "seapoint-snapshot";
 
 /** Where the numbers on screen actually come from. */
 export type DataProvenance = "live" | "sandbox" | "sample";

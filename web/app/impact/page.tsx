@@ -84,7 +84,7 @@ export default function ImpactPage() {
             {data && isSandbox && (
               <DemoBadge
                 size="sm"
-                label={`${String(data?.mode).replace(/-sandbox$/, "").replace(/^./, (c) => c.toUpperCase())} sandbox · read-only`}
+                label={`${String(data?.mode).replace(/-(sandbox|snapshot)$/, "").replace(/^./, (c) => c.toUpperCase())} sandbox${String(data?.mode).endsWith("-snapshot") ? " snapshot" : ""} · read-only`}
               />
             )}
           </div>

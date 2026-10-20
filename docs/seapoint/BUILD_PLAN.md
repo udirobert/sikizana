@@ -46,23 +46,65 @@
   "Switch to sample books" to leave, and the kickoff prompt as the first chip.
 - **Brand cards.** `cards/` holds the A/B/C stings and `assemble.sh`.
 
-**Not yet proven:**
+**Real sandbox data through the pipeline (~20:00): snapshot mode.**
 
-1. A live run: `seapoint_login`, then `seapoint_smoke`. Still unconfirmed: the
-   aggregate response envelope and the `query_categories` record shape (both
-   parsed tolerantly).
-2. Whether the sandbox data contains any duplicate-payment findings. If not,
-   Shot 2 uses the banked café take.
-3. The backend on :8080 must be restarted with `SEAPOINT_ENABLED=1` and
-   `SEAPOINT_MCP_URL`.
+The backend's own OAuth sign-in didn't land in the window, so the sandbox was
+captured read-only through Claude's Seapoint MCP connection (no `set_*`,
+`update_*` or `approve_*` calls). The raw responses sit in
+`data/seapoint_snapshot/` (gitignored, since it contains the account email).
+`SEAPOINT_SNAPSHOT_DIR` makes the connector read those files; `mode()`
+reports `seapoint-snapshot` and the badge reads
+**"● Seapoint sandbox snapshot · read-only"**, so it never claims a live
+connection.
 
-**Bring-up:**
+- Live shapes, now parsed: list envelope `{object, data, has_more,
+  next_cursor}` (25 per page; the connector follows `next_cursor` up to 10
+  pages). Aggregate rows are `{metrics: {total, txns}, group: {category_id},
+  money}`. Categories are `{id, name: "Group › Leaf", group, leaf}`. Invoices
+  nest `vendor{name}`, `amounts{total, currency}`, `dates{invoice_date,
+  due_date}`. Payments nest `payee{kind, name}`.
+- Non-GBP invoices without a reporting amount (Nordhaus €9,000, Anthropic
+  $1,385.20) are left out rather than shown as £.
+- Org: "Hackathon - tieout". Numbers match Claude's independent read of the
+  same MCP:
+  - **Shot 1:** September spend is **£162,333.84** (203 txns).
+    Subscriptions are **+97%** (£4,500 → £8,848 on 7 → 14 txns): lead with
+    this. Rent is +187%, but that's lumpy timing (1 txn → 3), so don't
+    narrate it. Legal is +28%.
+  - **Shot 2:** **"Possible duplicate bill: Snowflake Computing UK Ltd —
+    £21,800. 2 bills share invoice number SNF-INV-2026-10"** (one copy
+    forwarded by email, one scanned, both unpaid). Second finding: Clearview
+    Media £3,400 (CM-2026-114). Nine overdue supplier bills, all shown as
+    bills, none as chases. No executed duplicate payments: the risk is in the
+    unpaid queue, caught *before* the payment run.
+  - **Shot 3:** Confirm the Snowflake duplicate-bill card (not the overdue
+    rows) → *"Confirmed: Possible duplicate bill: Snowflake Computing UK Ltd —
+    £21,800"* in `/activity`.
+  - **End-card count-up:** £21,800, "possible duplicate, flagged before the
+    payment run". Card 0 must show the two `SNF-INV-2026-10` records, not the
+    café BACS lines.
+- **Disclosure line:** "This is Seapoint's sandbox, pulled read-only through
+  their MCP tonight. Our backend's live sign-in didn't land in time, so the
+  connector reads that capture."
+
+**Not yet proven:** the backend's own live OAuth (`seapoint_login`, then
+`seapoint_smoke`) against `https://mcp.seapoint.dev/mcp`.
+
+**Bring-up (recording):**
 
 ```bash
-export SEAPOINT_MCP_URL=<seapoint-staging URL>
+SEAPOINT_ENABLED=1 SEAPOINT_SNAPSHOT_DIR=data/seapoint_snapshot \
+  python -m uvicorn src.api.main:app --reload --port 8080
+# open http://127.0.0.1:3000/books?source=seapoint
+```
+
+**Bring-up (live, once OAuth works):**
+
+```bash
+export SEAPOINT_MCP_URL=https://mcp.seapoint.dev/mcp
 python -m src.jobs.seapoint_login
 SEAPOINT_ENABLED=1 python -m src.jobs.seapoint_smoke
-SEAPOINT_ENABLED=1 python -m uvicorn src.api.main:app --port 8080
+SEAPOINT_ENABLED=1 python -m uvicorn src.api.main:app --reload --port 8080
 ```
 
 ---

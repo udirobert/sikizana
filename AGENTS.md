@@ -81,7 +81,10 @@ vendor connectors opt-in, with no lock-in. Seapoint env: `SEAPOINT_MCP_URL`
 (streamable HTTP; SSE if the URL ends `/sse`) or `SEAPOINT_MCP_COMMAND`
 (stdio). Auth: OAuth via `python -m src.jobs.seapoint_login` (token in
 gitignored `data/seapoint_oauth.json`) or a `SEAPOINT_MCP_TOKEN` bearer.
-Live proof: `python -m src.jobs.seapoint_smoke`. Connectors may override the
+Live proof: `python -m src.jobs.seapoint_smoke`. `SEAPOINT_SNAPSHOT_DIR`
+serves raw read-only tool responses from disk instead (`mode()` →
+`seapoint-snapshot`, badge says "snapshot"); `data/seapoint_snapshot/` is
+gitignored because it contains account details. Connectors may override the
 non-abstract `get_spend_by_category` (the default derives it from the P&L).
 Data provenance has three states (`/api/xero/status` → `provenance: live |
 sandbox | sample`). UI copy must branch on provenance, not on

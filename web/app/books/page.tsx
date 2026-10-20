@@ -992,7 +992,9 @@ function BooksView() {
                 {xeroMode === "live-oauth" || xeroMode === "live-cli"
                   ? "● Xero Live"
                   : provenance === "sandbox"
-                    ? `● ${platformName} sandbox · read-only`
+                    ? xeroMode === "seapoint-snapshot"
+                      ? `● ${platformName} sandbox snapshot · read-only`
+                      : `● ${platformName} sandbox · read-only`
                     : xeroMode === "demo"
                       ? demoScenario === "music"
                         ? "● Demo · Music books"

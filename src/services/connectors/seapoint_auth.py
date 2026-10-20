@@ -38,7 +38,11 @@ def token_path() -> str:
 def seapoint_ready() -> bool:
     """Whether the backend can talk to the sandbox without user action:
     a static bearer token, a stdio command, or a stored OAuth token."""
-    if os.environ.get("SEAPOINT_MCP_TOKEN") or os.environ.get("SEAPOINT_MCP_COMMAND"):
+    if (
+        os.environ.get("SEAPOINT_MCP_TOKEN")
+        or os.environ.get("SEAPOINT_MCP_COMMAND")
+        or os.environ.get("SEAPOINT_SNAPSHOT_DIR")
+    ):
         return True
     return _read_file().get("tokens") is not None
 

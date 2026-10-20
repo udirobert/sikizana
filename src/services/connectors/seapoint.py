@@ -97,6 +97,50 @@ def _previous_period(
     return prev_start.isoformat(), prev_end.isoformat()
 
 
+_MAX_PAGES = 10
+
+# Snapshot mode: SEAPOINT_SNAPSHOT_DIR points at raw read-only tool responses
+# captured from the sandbox (one JSON file per call, `<prefix>*.json` pages
+# merged). mode() then reports "seapoint-snapshot" so the UI never claims a
+# live connection it doesn't have.
+_SNAPSHOT_PREFIX = {
+    "organisation": "user",
+    "categories": "categories",
+    "contacts": "participants",
+    "payments": "payments",
+    "invoices": "invoices",
+}
+
+
+def _snapshot_dir() -> str:
+    return os.environ.get("SEAPOINT_SNAPSHOT_DIR", "")
+
+
+def _snapshot_read(directory: str, need: str, arguments: dict[str, Any]) -> Any:
+    import glob
+
+    if need in ("transactions", "profit_and_loss"):
+        if not arguments.get("aggregate"):
+            return []
+        gte = str(((arguments.get("where") or {}).get("date") or {}).get("gte") or "")
+        paths = [os.path.join(directory, f"spend_{gte[:7]}.json")] if gte else []
+    else:
+        prefix = _SNAPSHOT_PREFIX.get(need)
+        paths = sorted(glob.glob(os.path.join(directory, f"{prefix}*.json"))) if prefix else []
+    merged: Any = None
+    for path in paths:
+        try:
+            with open(path) as f:
+                page = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if merged is None:
+            merged = page
+        elif isinstance(merged, dict) and isinstance(page, dict) and isinstance(page.get("data"), list):
+            merged = {**merged, "data": [*merged.get("data", []), *page["data"]]}
+    return merged if merged is not None else []
+
+
 def _tool_name(need: str) -> str:
     override = os.environ.get("SEAPOINT_MCP_TOOL_MAP")
     if override:
@@ -130,7 +174,7 @@ class SeapointConnector(AccountingConnector):
     # ---- Mode / provenance ----
 
     def mode(self) -> str:
-        return "seapoint-sandbox"
+        return "seapoint-snapshot" if _snapshot_dir() else "seapoint-sandbox"
 
     def is_live(self) -> bool:
         return False
@@ -139,7 +183,13 @@ class SeapointConnector(AccountingConnector):
 
     def _call(self, need: str, arguments: dict[str, Any] | None = None) -> Any:
         """Call the MCP tool mapped to `need`. Returns [] on any failure —
-        AP/findings treat an unreachable sandbox as 'no data', never a crash."""
+        AP/findings treat an unreachable sandbox as 'no data', never a crash.
+
+        List responses are `{object, data, has_more, next_cursor}` paged at
+        25; pages are followed (bounded) and merged into one `data` list."""
+        snapshot = _snapshot_dir()
+        if snapshot:
+            return _snapshot_read(snapshot, need, arguments or {})
         tool = _tool_name(need)
         if not tool:
             log.warning("seapoint_tool_unmapped", extra={"need": need})
@@ -147,7 +197,21 @@ class SeapointConnector(AccountingConnector):
         try:
             if self._mcp is None:
                 self._mcp = _SeapointMcpClient()
-            return self._mcp.call_tool(tool, arguments or {})
+            args = dict(arguments or {})
+            result = self._mcp.call_tool(tool, args)
+            pages = 1
+            while (
+                isinstance(result, dict)
+                and result.get("has_more")
+                and result.get("next_cursor")
+                and pages < _MAX_PAGES
+            ):
+                nxt = self._mcp.call_tool(tool, {**args, "cursor": result["next_cursor"]})
+                if not isinstance(nxt, dict) or not isinstance(nxt.get("data"), list):
+                    break
+                result = {**nxt, "data": [*result.get("data", []), *nxt["data"]]}
+                pages += 1
+            return result
         except Exception as exc:  # noqa: BLE001 — sandbox is best-effort
             log.warning("seapoint_call_failed", extra={"need": need, "tool": tool, "error": str(exc)})
             return []
@@ -158,7 +222,12 @@ class SeapointConnector(AccountingConnector):
         raw = self._call("organisation") or {}
         if isinstance(raw, list):
             raw = raw[0] if raw else {}
-        org = raw.get("organisation") or raw.get("org") or raw
+        orgs = raw.get("organisations")
+        org = (
+            orgs[0]
+            if isinstance(orgs, list) and orgs and isinstance(orgs[0], dict)
+            else raw.get("organisation") or raw.get("org") or raw
+        )
         return {
             "name": org.get("name") or org.get("organisation_name") or "Seapoint sandbox org",
             "country": org.get("country") or org.get("country_code") or "GB",
@@ -184,7 +253,10 @@ class SeapointConnector(AccountingConnector):
         limit: int = 0,
     ) -> list[dict[str, Any]]:
         raw = self._as_list(self._call("invoices"))
-        out = [self._norm_invoice(i) for i in raw]
+        # Findings render amounts in GBP; a native €/$ total shown as £ would
+        # misstate the books, so non-GBP invoices without a reporting amount
+        # are left out rather than mislabelled.
+        out = [n for n in (self._norm_invoice(i) for i in raw) if n.pop("_gbp", True)]
         if status:
             want = status.upper()
             out = [i for i in out if str(i.get("status", "")).upper() == want]
@@ -316,16 +388,20 @@ class SeapointConnector(AccountingConnector):
         for row in cls._rows(raw):
             if not isinstance(row, dict):
                 continue
-            cid = row.get("category_id") or row.get("category") or row.get("id")
+            # Live shape: {"metrics": {"total", "txns"}, "group": {"category_id"}}
+            group = row.get("group") if isinstance(row.get("group"), dict) else {}
+            metrics = row.get("metrics") if isinstance(row.get("metrics"), dict) else {}
+            src = {**row, **group, **metrics}
+            cid = src.get("category_id") or src.get("category") or (None if group else src.get("id"))
             name = labels.get(str(cid)) if cid is not None else None
             if not name:
-                name = str(row.get("category_name") or row.get("name") or "") or (
-                    str(cid) if cid is not None else "Uncategorised"
+                name = str(src.get("category_name") or src.get("name") or "") or (
+                    "Uncategorised" if cid is None else str(cid)
                 )
             amount = (
-                row.get("total")
-                if row.get("total") is not None
-                else row.get("amount", row.get("sum", row.get("value", 0)))
+                src.get("total")
+                if src.get("total") is not None
+                else src.get("amount", src.get("sum", src.get("value", 0)))
             )
             try:
                 amount_f = abs(float(str(amount or 0).replace(",", "")))
@@ -431,14 +507,21 @@ class SeapointConnector(AccountingConnector):
         # due_date, reporting_amount, is_paid. All seapoint invoices are
         # supplier bills (payables) — type stays ACCPAY so a late supplier
         # invoice becomes an overdue_bill, never a chaseable receivable.
+        # Live shape nests: vendor{name}, amounts{total}, dates{invoice_date, due_date}
         contact = i.get("contact") or i.get("supplier") or i.get("customer") or {}
-        vendor = i.get("vendor_name") or contact.get("name") or "Unknown"
+        vendor_obj = i.get("vendor") if isinstance(i.get("vendor"), dict) else {}
+        amounts = i.get("amounts") if isinstance(i.get("amounts"), dict) else {}
+        dates = i.get("dates") if isinstance(i.get("dates"), dict) else {}
+        vendor = i.get("vendor_name") or vendor_obj.get("name") or contact.get("name") or "Unknown"
         contact_id = (
-            str(contact.get("id") or i.get("vendor_id") or "")
+            str(contact.get("id") or i.get("vendor_id") or vendor_obj.get("id") or "")
             or cls._vendor_contact_id(str(vendor))
         )
         amount = i.get("reporting_amount")
+        if amount is None:
+            amount = amounts.get("reporting_total") or amounts.get("total")
         amount_f = float(amount if amount is not None else i.get("amount") or i.get("total") or 0)
+        i = {**dates, **i}
         paid = bool(i.get("is_paid")) or str(i.get("status", "")).upper() == "PAID"
         number = (
             i.get("invoiceNumber")
@@ -458,6 +541,9 @@ class SeapointConnector(AccountingConnector):
             "amountDue": 0.0 if paid else float(i.get("amountDue") or amount_f),
             "status": "PAID" if paid else (i.get("status") or "AUTHORISED"),
             "type": i.get("type") or i.get("direction") or "ACCPAY",
+            "_gbp": i.get("reporting_amount") is not None
+            or amounts.get("reporting_total") is not None
+            or str(amounts.get("currency") or i.get("currency") or "GBP").upper() == "GBP",
         }
 
     @staticmethod
@@ -480,9 +566,16 @@ class SeapointConnector(AccountingConnector):
         # are internal filter flags, popped by list_payments.
         invoice = p.get("invoice") or p.get("bill") or {}
         contact = p.get("contact") or p.get("supplier") or {}
-        payee = p.get("payee_name") or contact.get("name") or ""
+        # Live shape nests the payee: {"kind", "name", "beneficiary_id"|"employee_id"}
+        payee_obj = p.get("payee") if isinstance(p.get("payee"), dict) else {}
+        payee = p.get("payee_name") or payee_obj.get("name") or contact.get("name") or ""
         contact_id = (
-            str(p.get("beneficiary_id") or contact.get("id") or "")
+            str(
+                p.get("beneficiary_id")
+                or payee_obj.get("beneficiary_id")
+                or contact.get("id")
+                or ""
+            )
             or (cls._vendor_contact_id(str(payee)) if payee else "")
         )
         amount = p.get("reporting_amount")

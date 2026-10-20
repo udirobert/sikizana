@@ -71,3 +71,7 @@ sikizana-demo/
 data/manus_debug/
 data/cafe_locality_interest.jsonl
 data/seapoint_oauth.json
+
+# Raw Seapoint staging snapshot (personal email, payee names, bank account ids)
+data/seapoint_snapshot/
+docs/seapoint/cards/.hyperframes/

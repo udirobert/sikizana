@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sikizana — FinOps demo cards</title>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1920px; height:1080px; overflow:hidden; background:#1c1917;
+    font-family:"Geist", system-ui, sans-serif; }
+  #root { position:relative; width:1920px; height:1080px; overflow:hidden; }
+  .clip { position:absolute; inset:0; overflow:hidden; }
+  .mono { font-family:"Geist Mono", ui-monospace, monospace; }
+
+  /* Stone, not navy — the product runs on stone-50 and Zana's bubble is stone-800. */
+  .bg { position:absolute; inset:0;
+    background:linear-gradient(135deg,#1c1917 0%,#292524 46%,#171412 100%); }
+  .grid { position:absolute; inset:0;
+    background-image:linear-gradient(rgba(214,211,209,.045) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(214,211,209,.045) 1px,transparent 1px);
+    background-size:80px 80px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(110px); pointer-events:none; }
+
+  .kicker { position:absolute; left:120px; top:150px; font-size:22px; letter-spacing:.22em;
+    text-transform:uppercase; color:#d6d3d1; font-weight:600; }
+  .kicker .dot { color:#a8a29e; }
+
+  /* ---------- card 0 : the mystery ---------- */
+  .ev-row { position:absolute; left:120px; width:1560px; padding:30px 52px;
+    background:rgba(250,250,249,.04); border:1px solid rgba(168,162,158,.34);
+    border-radius:16px; font-size:34px; line-height:1.2; color:#fafaf9; }
+  #ev-r1 { top:280px; }
+  #ev-r2 { top:402px; }
+  .ref { position:relative; display:inline-block; color:#fafaf9; }
+  .hlbox { position:absolute; left:-14px; right:-14px; top:-10px; bottom:-10px;
+    border:2px solid #fb923c; border-radius:8px; background:rgba(251,146,60,.14);
+    transform-origin:left center; pointer-events:none; }
+  #money { position:absolute; left:120px; top:520px; font-size:150px; line-height:1;
+    font-weight:700; letter-spacing:-.04em; color:#38bdf8; }
+  #mystery-head { position:absolute; left:560px; top:556px; font-size:64px; line-height:1.05;
+    font-weight:600; letter-spacing:-.03em; color:#fafaf9; }
+  #mystery-sub { position:absolute; left:124px; top:760px; font-size:32px; color:#e7e5e4; }
+  #mystery-sub b { color:#fdba74; font-weight:600; }
+
+  /* ---------- card A : the question ---------- */
+  #siki-a { position:absolute; left:120px; top:190px; width:180px; height:180px; }
+  .mascot svg { display:block; }
+  #lblA { position:absolute; left:318px; top:246px; font-size:24px; color:#7dd3fc;
+    letter-spacing:.16em; text-transform:uppercase; font-weight:600; }
+  #prompt-chip { position:absolute; left:120px; top:420px; width:1560px; padding:44px 52px;
+    background:rgba(250,250,249,.04); border:1px solid rgba(56,189,248,.36);
+    border-radius:20px; box-shadow:0 0 90px rgba(14,165,233,.10); }
+  #prompt-chip .who { font-size:20px; letter-spacing:.18em; text-transform:uppercase;
+    color:#7dd3fc; margin-bottom:18px; font-weight:600; }
+  #prompt-text { font-size:60px; line-height:1.18; color:#fafaf9; font-weight:500; }
+  #prompt-text .ch { display:inline-block; opacity:0; }
+  #prompt-text .sp { display:inline-block; width:.28em; }
+  #caret { display:inline-block; width:4px; height:56px; background:#38bdf8;
+    vertical-align:-8px; margin-left:10px; }
+  #subline { position:absolute; left:122px; top:760px; font-size:32px; color:#e7e5e4; }
+  #subline b { color:#7dd3fc; font-weight:600; }
+
+  /* ---------- card B : the handoff ---------- */
+  .persona { position:absolute; top:310px; width:620px; text-align:center; }
+  #siki-side { left:110px; }
+  #zana-side { right:110px; }
+  .persona .mascot { width:280px; height:280px; margin:0 auto 26px; }
+  .persona .name { font-size:68px; color:#fafaf9; font-weight:700; letter-spacing:-.03em; }
+  .persona .role { font-size:21px; letter-spacing:.2em; text-transform:uppercase;
+    margin-top:8px; font-weight:600; }
+  .persona .verb { font-size:31px; margin-top:14px; color:#e7e5e4; font-weight:500; }
+  #siki-side .name span, #siki-side .role { color:#38bdf8; }
+  #zana-side .name span, #zana-side .role { color:#fb7185; }
+  #handoff-rule { position:absolute; left:959px; top:290px; width:2px; height:480px;
+    background:linear-gradient(180deg,rgba(56,189,248,0),rgba(168,162,158,.55) 40%,rgba(251,113,133,0)); }
+  #handoff-cap { position:absolute; left:120px; right:120px; top:880px; text-align:center;
+    font-size:38px; color:#fafaf9; font-weight:600; letter-spacing:-.015em; }
+  #handoff-cap span { color:#d6d3d1; font-weight:400; }
+
+  /* ---------- card C : the lockup ---------- */
+  .owl-c { position:absolute; top:150px; }
+  #siki-c { left:140px; }
+  #zana-c { right:140px; }
+  #found { position:absolute; left:0; right:0; top:120px; text-align:center; }
+  #found-amount { font-size:132px; line-height:1.04; font-weight:700;
+    letter-spacing:-.04em; color:#38bdf8; }
+  #found-label { margin-top:14px; font-size:26px; letter-spacing:.2em; text-transform:uppercase;
+    color:#d6d3d1; font-weight:600; }
+  #lockup { position:absolute; left:0; right:0; top:390px; text-align:center; }
+  #wordmark { font-size:118px; letter-spacing:-.035em; font-weight:700; color:#fafaf9; }
+  #wordmark .siki { color:#7dd3fc; }
+  #wordmark .zana { color:#fda4af; }
+  #tagline { margin-top:30px; font-size:38px; color:#e7e5e4; }
+  #tagline .works { color:#a8a29e; }
+  #pillars { position:absolute; left:0; right:0; top:640px; display:flex;
+    justify-content:center; gap:24px; }
+  .pillar { padding:18px 34px; border:1px solid rgba(168,162,158,.36); border-radius:999px;
+    font-size:29px; color:#fafaf9; background:rgba(250,250,249,.04); }
+  #cta { position:absolute; left:0; right:0; top:762px; text-align:center; }
+  #cta span { display:inline-block; padding:22px 52px; border-radius:14px;
+    background:#0284c7; color:#ffffff; font-size:36px; font-weight:600; letter-spacing:-.01em; }
+  #fineprint { position:absolute; left:0; right:0; top:980px; text-align:center;
+    font-size:24px; color:#a8a29e; letter-spacing:.04em; }
+</style>
+</head>
+<body>
+<div id="root" data-composition-id="main" data-start="0" data-duration="17.5" data-width="1920" data-height="1080">
+
+  <!-- ================= CARD 0 — the mystery (0–4.5s) ================= -->
+  <div id="card0" class="clip" data-start="0" data-duration="4.5" data-track-index="3">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:860px;height:860px;top:-220px;right:-180px;background:radial-gradient(circle,rgba(14,165,233,.14),transparent 70%)"></div>
+    <div class="glow" style="width:680px;height:680px;bottom:-240px;left:-140px;background:radial-gradient(circle,rgba(244,63,94,.10),transparent 70%)"></div>
+
+    <div class="kicker" id="kick0">The payment run <span class="dot">·</span> two lines, one apart</div>
+
+    <div id="ev-r1" class="ev-row mono">26 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
+    <div id="ev-r2" class="ev-row mono">27 Sep 2026 · Bean There Coffee Roasters · £680.00 · <span class="ref">BACS-COFFEE-4521<span class="hlbox"></span></span></div>
+
+    <div id="money" class="mono">£680</div>
+    <div id="mystery-head">Paid twice.</div>
+    <div id="mystery-sub">Siki calls it a <b>possible</b> duplicate — and shows you both.</div>
+  </div>
+
+  <!-- ================= CARD A — the kickoff question (4.5–9.5s) ================= -->
+  <div id="cardA" class="clip" data-start="4.5" data-duration="5" data-track-index="0">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:820px;height:820px;top:-180px;left:-140px;background:radial-gradient(circle,rgba(14,165,233,.14),transparent 70%)"></div>
+    <div class="glow" style="width:640px;height:640px;bottom:-220px;right:-120px;background:radial-gradient(circle,rgba(251,146,60,.09),transparent 70%)"></div>
+
+    <div id="siki-a" class="mascot">__OWLS_SIKI_180__</div>
+    <div id="lblA">Siki · reading the books</div>
+
+    <div class="kicker" id="kickA">FinOps Hackathon <span class="dot">·</span> sample books <span class="dot">·</span> read-only</div>
+
+    <div id="prompt-chip">
+      <div class="who">The brief's own first prompt</div>
+      <div id="prompt-text" class="mono"></div>
+    </div>
+    <div id="subline">One question. <b>The agent picks the tools.</b></div>
+  </div>
+
+  <!-- ================= CARD B — Siki → Zana (9.5–13s) ================= -->
+  <div id="cardB" class="clip" data-start="9.5" data-duration="3.5" data-track-index="1">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:700px;height:700px;top:60px;left:-160px;background:radial-gradient(circle,rgba(14,165,233,.13),transparent 70%)"></div>
+    <div class="glow" style="width:700px;height:700px;top:60px;right:-160px;background:radial-gradient(circle,rgba(244,63,94,.13),transparent 70%)"></div>
+    <div class="kicker" id="kickB">Two roles <span class="dot">·</span> one workflow <span class="dot">·</span> a human in the middle</div>
+
+    <div class="persona" id="siki-side">
+      <div class="mascot" id="siki-b">__OWLS_SIKI_280__</div>
+      <div class="name"><span>Siki</span></div>
+      <div class="role">The Explainer</div>
+      <div class="verb">reads the books, shows the evidence</div>
+    </div>
+
+    <div id="handoff-rule"></div>
+
+    <div class="persona" id="zana-side">
+      <div class="mascot" id="zana-b">__OWLS_ZANA_280__</div>
+      <div class="name"><span>Zana</span></div>
+      <div class="role">The Enforcer</div>
+      <div class="verb">chases, drafts, escalates</div>
+    </div>
+
+    <div id="handoff-cap">Siki can't change anything, Zana can't chase anyone <span>— without you.</span></div>
+  </div>
+
+  <!-- ================= CARD C — end lockup (13–17.5s) ================= -->
+  <div id="cardC" class="clip" data-start="13" data-duration="4.5" data-track-index="2">
+    <div class="bg"></div><div class="grid"></div>
+    <div class="glow" style="width:900px;height:900px;top:50%;left:50%;transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(14,165,233,.11),transparent 70%)"></div>
+
+    <div id="siki-c" class="mascot owl-c">__OWL_C_SIKI__</div>
+    <div id="zana-c" class="mascot owl-c">__OWLS_ZANA_150__</div>
+
+    <div id="found">
+      <div id="found-amount" class="mono">£0</div>
+      <div id="found-label">flagged for review in one pass · sample books</div>
+    </div>
+    <div id="lockup">
+      <div id="wordmark"><span class="siki">Siki</span><span class="zana">zana</span></div>
+      <div id="tagline">Find money. Stop leaks. Get paid. <span class="works">· Works with Xero</span></div>
+    </div>
+    <div id="pillars">
+      <div class="pillar" id="p1">Read-only by design</div>
+      <div class="pillar" id="p2">Evidence on every finding</div>
+      <div class="pillar" id="p3">A human approves</div>
+    </div>
+    <div id="cta"><span>Open Sikizana</span></div>
+    <div id="fineprint" class="mono">Seapoint FinOps Hackathon · sample books · illustrative output</div>
+  </div>
+
+</div>
+
+<script>
+  window.__timelines = window.__timelines || {};
+  const tl = gsap.timeline({ paused: true });
+
+  // Mood vocabulary is the product's own (globals.css: look = working, wave =
+  // welcome, celebrate = win), re-timed onto the render timeline so motion is
+  // seekable frame-by-frame instead of an unbounded CSS loop.
+  function breathe(sel, from) {
+    tl.to(sel + " .siki-group", { y: -2, scale: 1.02, duration: 1.5, ease: "sine.inOut",
+      repeat: -1, yoyo: true, transformOrigin: "center bottom" }, from);
+  }
+  function look(sel, from) {
+    tl.fromTo(sel + " .siki-eye-left", { x: 0 },
+      { x: -3, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: -1 }, from);
+    tl.fromTo(sel + " .siki-eye-right", { x: 0 },
+      { x: 2, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: -1 }, from + 0.08);
+  }
+
+  // ---- Card 0: two lines, one reference ----
+  tl.from("#kick0", { y: -14, opacity: 0, duration: 0.45, ease: "power2.out" }, 0.1)
+    .fromTo("#ev-r1", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.3)
+    .fromTo("#ev-r2", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 1.1)
+    .from(".hlbox", { scaleX: 0, opacity: 0, duration: 0.5, stagger: 0.12, ease: "power2.out" }, 1.9)
+    .from("#money", { opacity: 0, y: 26, duration: 0.5, ease: "power3.out" }, 2.2)
+    .from("#mystery-head", { opacity: 0, x: -20, duration: 0.5, ease: "power3.out" }, 2.35)
+    .from("#mystery-sub", { opacity: 0, y: 16, duration: 0.5, ease: "power2.out" }, 3.0);
+
+  // ---- Card A: type the prompt, character by character ----
+  const PROMPT = "What did we spend last month, broken down by category?";
+  const host = document.getElementById("prompt-text");
+  PROMPT.split("").forEach((c) => {
+    const s = document.createElement("span");
+    if (c === " ") { s.className = "sp"; s.innerHTML = "&nbsp;"; }
+    else { s.className = "ch"; s.textContent = c; }
+    host.appendChild(s);
+  });
+  const caret = document.createElement("span");
+  caret.id = "caret"; caret.style.opacity = "0";
+  host.appendChild(caret);
+
+  tl.from("#kickA", { y: -14, opacity: 0, duration: 0.45, ease: "power2.out" }, 4.6)
+    .from("#siki-a", { scale: 0.82, opacity: 0, duration: 0.6, ease: "back.out(1.5)" }, 4.65)
+    .from("#lblA", { opacity: 0, x: -16, duration: 0.4, ease: "power2.out" }, 5.0);
+  look("#siki-a", 5.0);
+  breathe("#siki-a", 5.0);
+  tl.fromTo("#prompt-chip", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 5.2)
+    .to("#caret", { opacity: 1, duration: 0.05 }, 5.45)
+    .to("#prompt-text .ch", { opacity: 1, duration: 0.02, stagger: 0.055, ease: "none" }, 5.5)
+    .to("#caret", { opacity: 0, duration: 0.05 }, 8.0)
+    .from("#subline", { y: 16, opacity: 0, duration: 0.5, ease: "power2.out" }, 8.1);
+
+  // ---- Card B: Siki waves, Zana walks in ----
+  tl.from("#kickB", { opacity: 0, duration: 0.35 }, 9.6)
+    .fromTo("#siki-side", { opacity: 0, x: -70 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 9.65);
+  look("#siki-b", 9.7);
+  tl.to("#siki-b .siki-wing-right", { rotation: -32, duration: 0.45, ease: "sine.inOut",
+    yoyo: true, repeat: 5, svgOrigin: "91 50" }, 10.0)
+    .fromTo("#handoff-rule", { scaleY: 0, opacity: 0 }, { scaleY: 1, opacity: 1, duration: 0.4, ease: "power2.out" }, 10.1)
+    .fromTo("#zana-side", { opacity: 0, x: 70, scale: 0.94 }, { opacity: 1, x: 0, scale: 1, duration: 0.55, ease: "back.out(1.3)" }, 10.4);
+  tl.to("#zana-b .siki-group", { y: -4, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7 }, 10.5)
+    .to("#zana-b .siki-feet", { y: 2, duration: 0.3, ease: "sine.inOut", yoyo: true, repeat: 7 }, 10.5);
+  tl.from("#handoff-cap", { opacity: 0, y: 14, duration: 0.45, ease: "power2.out" }, 11.2);
+
+  // ---- Card C: lockup + count-up + Siki celebrates ----
+  const foundAmount = document.getElementById("found-amount");
+  tl.fromTo("#found", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 13.1)
+    .to({ v: 0 }, {
+      v: 680, duration: 1.4, ease: "power2.out",
+      onUpdate: function () {
+        foundAmount.textContent = "£" + Math.round(this.targets()[0].v).toLocaleString("en-GB");
+      }
+    }, 13.2)
+    .fromTo("#wordmark", { opacity: 0, y: 30, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }, 13.2)
+    .from("#tagline", { opacity: 0, y: 16, duration: 0.45, ease: "power2.out" }, 13.6)
+    .from("#pillars .pillar", { opacity: 0, y: 20, duration: 0.4, stagger: 0.22, ease: "power2.out" }, 14.1)
+    .from("#cta", { opacity: 0, y: 18, duration: 0.45, ease: "power2.out" }, 15.0)
+    .from("#fineprint", { opacity: 0, duration: 0.5 }, 15.1);
+
+  tl.from("#siki-c", { opacity: 0, x: -40, duration: 0.45, ease: "power3.out" }, 14.5)
+    .to("#siki-c .siki-group", { y: -12, scale: 1.05, duration: 0.5, ease: "sine.inOut",
+      yoyo: true, repeat: 5, transformOrigin: "center bottom" }, 14.6);
+  tl.from(".siki-confetti-piece", { opacity: 0, duration: 0.12 }, 14.6)
+    .to(".siki-confetti-piece", { y: 80, rotation: 180, opacity: 0, duration: 1.0,
+      ease: "power1.in", stagger: 0.1 }, 14.7);
+  tl.from("#zana-c", { opacity: 0, x: 40, duration: 0.45, ease: "power3.out" }, 14.8);
+
+  window.__timelines["main"] = tl;
+</script>
+</body>
+</html>
