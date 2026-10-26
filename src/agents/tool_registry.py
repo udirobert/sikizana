@@ -21,6 +21,7 @@ from src.services.logging import get_logger
 from src.tools.accounting_tools import (
     draft_invoice_reminder,
     find_discrepancies,
+    get_cash_routes,
     get_chasing_strategy,
     get_receivables_aging,
     get_savings_opportunities,
@@ -93,6 +94,14 @@ _TOOL_DEFS = [
         "function": {
             "name": "get_receivables_aging",
             "description": "Aged receivables report — buckets every unpaid sales invoice into not-yet-due / 1-30 / 31-60 / 61-90 / 90+ days overdue, grouped by debtor, with average days-to-get-paid from real payment history. THE standard view of who owes what and how urgently. Call this first when the user asks who owes them money, about cash flow, or about their receivables.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_cash_routes",
+            "description": "The cheapest way to actually get the money out of the books. For every overdue invoice, ranks the routes the business can execute alone — net the balance against what it owes the same counterparty, chase, or agree a payment plan — with the cash each route needs and the statutory interest running while it waits. Also reports net-offset opportunities (same counterparty on both sides of the books) and credit-side exceptions (part-paid, overpaid, or written-off receivables). Call this when the user asks how to get paid faster, whether they can offset what they owe someone against what that someone owes them, or which invoice to chase first.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
     },
@@ -343,6 +352,7 @@ _TOOL_DEFS = [
 _TOOL_FUNCS = {
     "find_discrepancies": find_discrepancies,
     "get_receivables_aging": get_receivables_aging,
+    "get_cash_routes": get_cash_routes,
     "get_organisation": get_organisation,
     "get_bank_transactions": get_bank_transactions,
     "get_invoices": get_invoices,

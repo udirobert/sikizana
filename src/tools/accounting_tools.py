@@ -23,6 +23,8 @@ Tools:
   - get_sector_benchmarks    →  compare receivables/margins vs sector averages
   - score_customers          →  payment reliability + cost-to-serve per customer
   - get_chasing_strategy     →  multi-stage negotiation plan per overdue invoice
+  - get_cash_routes          →  cheapest route to cash per overdue invoice, net
+                                offsets, and credit-side exceptions
 """
 
 from __future__ import annotations
@@ -384,6 +386,93 @@ def get_receivables_aging() -> str:
     summary += "\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA"
 
     return summary
+
+
+def get_cash_routes() -> str:
+    """
+    The cheapest way to actually get the money — from the user's own books.
+
+    For every overdue invoice, the routes the business can execute alone
+    (net the balance against what it owes the same counterparty, chase, or
+    agree a payment plan), ranked by cash needed and by the interest running
+    while it waits. Also reports net-offset opportunities and receivables
+    that are not clean invoices (part-paid, overpaid, written off).
+
+    Read-only and observation-only: this tool never nets, settles, or
+    moves money, and it never names a credit provider. See
+    docs/REGULATORY_PERIMETER.md.
+    """
+    from src.services.cash_routes import build_cash_routes
+
+    data = build_cash_routes(_svc())
+    totals = data["totals"]
+
+    if not data["routes"] and not data["offsets"] and not data["credit_side"]:
+        return (
+            "No overdue invoices, no net offsets, and no credit-side exceptions in "
+            "these books. Nothing to chase and nothing to net."
+        )
+
+    parts: list[str] = []
+
+    if data["offsets"]:
+        parts.append("NET-OFFSET OPPORTUNITIES (same counterparty on both sides):\n")
+        for o in data["offsets"]:
+            parts.append(
+                f"  {o['name']}: you owe £{o['payable_total']:,.2f}, they owe you "
+                f"£{o['receivable_total']:,.2f} → £{o['offsettable']:,.2f} can cancel out "
+                f"instead of cash"
+            )
+            if o["receivable_overdue"] > 0:
+                parts.append(
+                    f"    (£{o['receivable_overdue']:,.2f} of what they owe you is already "
+                    f"overdue)"
+                )
+        parts.append(
+            "  Set-off normally needs the other party's agreement — treat this as a "
+            "proposal to make, not a right to exercise.\n"
+        )
+
+    if data["routes"]:
+        parts.append("CHEAPEST ROUTE PER OVERDUE INVOICE:\n")
+        for r in data["routes"]:
+            parts.append(
+                f"  {r['invoice_number']} — {r['contact']} — £{r['amount']:,.2f}, "
+                f"{r['days_overdue']} days late "
+                f"(interest ~£{r['interest_per_day']:,.2f}/day)"
+            )
+            for opt in r["routes"]:
+                marker = "→" if opt["key"] == r["best"] else " "
+                parts.append(
+                    f"    {marker} {opt['label']}: cash needed £{opt['cash_needed']:,.2f} — "
+                    f"{opt['detail']}"
+                )
+        parts.append("")
+
+    if data["credit_side"]:
+        parts.append("CREDIT-SIDE EXCEPTIONS (receivables that are not clean invoices):\n")
+        for e in data["credit_side"]:
+            parts.append(f"  {e['detail']}")
+        parts.append("")
+
+    parts.append(
+        f"TOTALS: £{totals['cash_at_risk']:,.2f} overdue, "
+        f"£{totals['offsettable_total']:,.2f} of it could be netted, "
+        f"£{totals['credit_side_exposure']:,.2f} exposed on the credit side."
+    )
+
+    import json as _json
+
+    card_data = {
+        "type": "cash_routes",
+        "totals": totals,
+        "offsets": data["offsets"],
+        "routes": data["routes"],
+        "credit_side": data["credit_side"],
+    }
+    parts.append("\nANALYSIS_DATA\n" + _json.dumps(card_data) + "\nEND_ANALYSIS_DATA")
+
+    return "\n".join(parts)
 
 
 def propose_journal_entry(

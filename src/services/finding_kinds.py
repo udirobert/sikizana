@@ -35,6 +35,10 @@ AP_DUPLICATE_PAYMENT = "ap_duplicate_payment"
 AP_SUPPLIER_DETAIL_CHANGE = "ap_supplier_detail_change"
 AP_PAYMENT_ANOMALY = "ap_payment_anomaly"
 
+# --- Cash routes (own-books receivables: offsets, routes, credit side) ---
+NET_OFFSET = "net_offset_opportunity"
+CREDIT_SIDE_EXCEPTION = "credit_side_exception"
+
 # --- Café briefing ---
 CAFE_RISING_ITEM = "cafe_rising_item"
 CAFE_DECLINING_ITEM = "cafe_declining_item"
@@ -52,6 +56,8 @@ FindingKind = Literal[
     "cafe_rising_item",
     "cafe_declining_item",
     "cafe_attach_gap",
+    "net_offset_opportunity",
+    "credit_side_exception",
 ]
 
 OVERDUE_KINDS = frozenset({OVERDUE_INVOICE, OVERDUE_BILL})
@@ -64,9 +70,13 @@ AP_KINDS = frozenset(
     }
 )
 CAFE_KINDS = frozenset({CAFE_RISING_ITEM, CAFE_DECLINING_ITEM, CAFE_ATTACH_GAP})
+RECEIVABLES_KINDS = frozenset({NET_OFFSET, CREDIT_SIDE_EXCEPTION})
 
 ALL_KINDS = frozenset(
-    {OVERDUE_INVOICE, OVERDUE_BILL, UNRECONCILED, TAX_FLAG} | AP_KINDS | CAFE_KINDS
+    {OVERDUE_INVOICE, OVERDUE_BILL, UNRECONCILED, TAX_FLAG}
+    | AP_KINDS
+    | CAFE_KINDS
+    | RECEIVABLES_KINDS
 )
 
 
@@ -76,3 +86,7 @@ def is_ap_kind(kind: str) -> bool:
 
 def is_cafe_kind(kind: str) -> bool:
     return kind in CAFE_KINDS
+
+
+def is_receivables_kind(kind: str) -> bool:
+    return kind in RECEIVABLES_KINDS

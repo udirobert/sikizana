@@ -38,6 +38,8 @@ _KIND_ICONS = {
     kinds.CAFE_RISING_ITEM: "📈",
     kinds.CAFE_DECLINING_ITEM: "📉",
     kinds.CAFE_ATTACH_GAP: "🥐",
+    kinds.NET_OFFSET: "⚖️",
+    kinds.CREDIT_SIDE_EXCEPTION: "↔️",
 }
 
 

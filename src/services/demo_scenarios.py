@@ -65,6 +65,10 @@ _MUSIC_CONTACTS = [
         "name": "Camden Rehearsal Studios",
         "emailAddress": "bookings@camdenstudios.co.uk",
         "isSupplier": True,
+        # Also a customer: the studio hires the band for client showcases
+        # while the band hires rehearsal space. Two-sided relationships are
+        # where the cash-route analysis earns its keep.
+        "isCustomer": True,
     },
     {"id": "c3", "name": "Octopus Energy", "emailAddress": "", "isSupplier": True},
     {
@@ -131,6 +135,21 @@ _MUSIC_INVOICES = [
         "status": "AUTHORISED",
         "total": 2400.00,
         "amountDue": 2400.00,
+        "amountPaid": 0,
+    },
+    {
+        "id": "inv4b",
+        "invoiceNumber": "INV-0005",
+        "type": "ACCREC",
+        # Two-sided: Camden hires the band for a client showcase, and the
+        # band hires rehearsal space from Camden. The band is short on cash,
+        # so the showcase invoice and the studio bill can settle each other.
+        "contact": {"name": "Camden Rehearsal Studios"},
+        "date": _d(28),
+        "dueDate": _d(12),  # 12 days late
+        "status": "AUTHORISED",
+        "total": 600.00,
+        "amountDue": 600.00,
         "amountPaid": 0,
     },
     # ---- Payables (bills the band owes) ----

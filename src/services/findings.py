@@ -21,6 +21,7 @@ from src.services.finding_kinds import (
     OVERDUE_BILL,
     OVERDUE_INVOICE,
     OVERDUE_KINDS,
+    RECEIVABLES_KINDS,
     TAX_FLAG,
     UNRECONCILED,
 )
@@ -38,6 +39,24 @@ def build_findings(session_id: str) -> dict[str, Any]:
     today = date.today()
 
     findings: list[dict[str, Any]] = []
+
+    # --- Cash routes (the user's own books only) ---
+    # Computed once and reused twice: to enrich the overdue-invoice prompts
+    # (chasing the full amount is the wrong advice when the balance can be
+    # netted against what we owe the same counterparty) and to add the
+    # net-offset / credit-side findings. Read-only by construction — see
+    # docs/REGULATORY_PERIMETER.md (R6, R9).
+    cash_routes: dict[str, Any] = {}
+    route_by_invoice: dict[str, dict[str, Any]] = {}
+    offset_by_contact: dict[str, dict[str, Any]] = {}
+    try:
+        from src.services.cash_routes import build_cash_routes
+
+        cash_routes = build_cash_routes(svc)
+        route_by_invoice = {r["invoice_number"]: r for r in cash_routes["routes"]}
+        offset_by_contact = {o["name"].strip().lower(): o for o in cash_routes["offsets"]}
+    except Exception as exc:  # noqa: BLE001 — cash routes are best-effort
+        log.warning("cash_routes_unavailable", extra={"error": str(exc)})
 
     # --- Overdue invoices: money the business is owed ---
     # Loss aversion framing: "£X is slipping away" instead of "£X you're owed"
@@ -102,6 +121,35 @@ def build_findings(session_id: str) -> dict[str, Any]:
             }
             if memory_action:
                 finding["memory_action"] = memory_action
+
+            # --- Cheapest executable route: is this bill nettable? ---
+            # Same counterparty on both legs of the books → part of what they
+            # owe can cancel against what we owe them. The route comparison
+            # replaces the plain "chase the full amount" advice, because
+            # chasing cash we could have cancelled is the worst of both.
+            route = route_by_invoice.get(number)
+            offset = offset_by_contact.get(contact.strip().lower())
+            if route and offset and route.get("cash_needed", route["amount"]) < route["amount"]:
+                saved = round(route["amount"] - route["cash_needed"], 2)
+                finding["detail"] += (
+                    f" · £{saved:,.2f} of it could be netted against the £"
+                    f"{offset['payable_total']:,.2f} we owe them"
+                )
+                finding["action"] = {
+                    "type": "review",
+                    "label": "Compare routes",
+                    "prompt": (
+                        f"Invoice {number} for £{amount:,.2f} from {contact} is {days} days "
+                        f"late. We also owe {contact} £{offset['payable_total']:,.2f}, so "
+                        f"about £{saved:,.2f} of it could be settled against that balance "
+                        f"instead of chasing cash. Compare the routes for getting this money: "
+                        f"(a) net it against what we owe them, (b) chase for the full amount, "
+                        f"(c) agree a written payment plan. Tell me which costs the least, "
+                        f"what I need to check with my accountant before doing it, and draft "
+                        f"the message — but do not commit us to anything beyond the balances "
+                        f"in the books."
+                    ),
+                }
         else:
             finding["action"] = {
                 "type": "explain",
@@ -166,6 +214,16 @@ def build_findings(session_id: str) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — café findings are best-effort
         log.warning("cafe_brief_unavailable", extra={"error": str(exc)})
 
+    # --- Cash-route findings (net offsets, credit-side exceptions) ---
+    # Composed here so the panel, digest, and chat keep one ordered finding
+    # stream. Deterministic rules over the user's own books; no money moves.
+    try:
+        from src.services.cash_routes import build_cash_route_findings
+
+        findings.extend(build_cash_route_findings(svc, data=cash_routes or None))
+    except Exception as exc:  # noqa: BLE001 — cash routes are best-effort
+        log.warning("cash_route_findings_unavailable", extra={"error": str(exc)})
+
     # --- Tax flags from the P&L ---
     findings.extend(_tax_flags(svc))
 
@@ -175,6 +233,7 @@ def build_findings(session_id: str) -> dict[str, Any]:
         "tax_flags": sum(1 for f in findings if f["kind"] == TAX_FLAG),
         "ap_risks": sum(1 for f in findings if f["kind"] in AP_KINDS),
         "cafe": sum(1 for f in findings if f["kind"] in CAFE_KINDS),
+        "receivables": sum(1 for f in findings if f["kind"] in RECEIVABLES_KINDS),
     }
     severity_rank = {"high": 0, "medium": 1, "low": 2}
     findings.sort(key=lambda f: (severity_rank.get(f["severity"], 3), -f.get("amount", 0)))

@@ -210,6 +210,8 @@ cd web && npx tsc --noEmit
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
 | `web/lib/persona-theme.ts` | Siki/Zana copy, theme tokens, analysis-card + chase labels |
+| `src/services/receivables.py` | Aged receivables (buckets, DSO) |
+| `src/services/cash_routes.py` | Cash routes: net offsets, per-invoice routes, credit-side exceptions — the user's own books only |
 | `src/services/finding_kinds.py` | Canonical `finding.kind` vocabulary (constants + Literal + domain sets); emitters import from here |
 | `web/lib/finding-kinds.ts` | `FINDING_KIND_META` — per-kind icon, label, gloss, `reviewable`, `chaseable`, `domain`; exhaustive `Record<FindingKind>` so a new kind is a compile error without an entry |
 | `web/components/SikiMascot.tsx` | Siki owl mascot + `MascotMood` type (Zana lives in `ZanaMascot.tsx`) |
@@ -229,6 +231,8 @@ cd web && npx tsc --noEmit
 | `web/components/SectorTipsCard.tsx` | Post-findings "Siki knows" card on `/check` (collapsible, after review) |
 | `web/components/SectorNoteCard.tsx` | Rotating "Siki's sector note" in `/books` sidebar + mobile panel (1 per visit) |
 | `web/components/SectorChatKnows.tsx` | On-demand chat knowledge bank in `/books` empty state + "Ask Siki" seeding |
+| `docs/REGULATORY_PERIMETER.md` | What Sikizana will never do (money, credit, guarantees, netting, registries) + hard rails R1–R12 + the feature checklist |
+| `docs/UK_COUNSEL_BRIEFING.md` | Open questions to UK counsel, with the real product copy for review |
 
 ### Personalization
 
@@ -328,6 +332,34 @@ Daily cron: `python -m src.jobs.capture_metrics` (06:00 UTC recommended).
   This surface is gated by `MCP_API_KEY`, not the in-product
   `AP_INTEGRITY_DISABLED` kill switch.
 
-### Known gaps (pre-production)
+## Regulatory guardrails
+
+Sikizana is a read-only bookkeeping advisor, not a financial institution.
+The design constraints live in [`docs/REGULATORY_PERIMETER.md`](docs/REGULATORY_PERIMETER.md)
+and bind all work, not just the receivables direction. The primary market
+is the UK; questions to counsel are in
+[`docs/UK_COUNSEL_BRIEFING.md`](docs/UK_COUNSEL_BRIEFING.md).
+
+- Sikizana never holds, moves, or instructs the movement of user money.
+- Sikizana never extends credit, underwrites, or states that a business is
+  creditworthy. It never names, ranks, or introduces a credit provider, and
+  never takes a fee contingent on a financing, settlement, or collection
+  outcome. Revenue is subscription and per-unit vendor fees only.
+- No output may read as a payment promise, guarantee, or surety. Attestations
+  are factual, dated, scoped to a named invoice, and revocable.
+- Counterparties are described by behaviour in the user's own books (late,
+  short-paid, disputed), never by creditworthiness, and never as a "verified
+  business" badge.
+- No netting, assignment, clearing, or cross-user payment instruction. An
+  offset detected inside a single user's books is an observation the user
+  acts on, not an execution.
+- Using one user's books to benefit another user requires specific,
+  informed, revocable consent. Default is no cross-user use, and there is no
+  registry of who owes whom.
+- Any new feature that touches money, credit, or a third party must pass the
+  checklist in `docs/REGULATORY_PERIMETER.md` §7 and record the result in
+  the PR description.
+
+## Known gaps (pre-production)
 
 - Email verification is optional (users can use the app without verifying)

@@ -209,7 +209,9 @@ export type FindingKind =
   | "ap_payment_anomaly"
   | "cafe_rising_item"
   | "cafe_declining_item"
-  | "cafe_attach_gap";
+  | "cafe_attach_gap"
+  | "net_offset_opportunity"
+  | "credit_side_exception";
 export type FindingSeverity = "high" | "medium" | "low";
 export type FindingReviewState = "open" | "safe" | "investigating" | "confirmed" | "dismissed";
 
