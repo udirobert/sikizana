@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Siki &amp; Zana: The Late Market</title>
+    <link rel="stylesheet" href="/src/styles/tokens.css" />
+  </head>
+  <body>
+    <!-- Start overlay is our own audio-unlock surface: itch.io's launch click
+         does NOT unlock Web Audio inside the iframe (GDD App.C). -->
+    <div id="start" class="lm-surface" role="dialog" aria-labelledby="start-title">
+      <h1 id="start-title">Siki &amp; Zana: The Late Market</h1>
+      <p>A night market opens where your uncollected invoices sleep.</p>
+      <button id="start-btn" type="button">▶ Begin — sound on</button>
+      <button id="start-muted" type="button" style="margin-left:8px">Begin — silent first</button>
+      <p style="margin-top:12px"><button id="purge-save" type="button" style="background:none;border:none;color:var(--lm-ink-dim);text-decoration:underline;cursor:pointer;font:inherit;font-size:0.85em">Erase my saved progress</button></p>
+    </div>
+    <main id="game" hidden></main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

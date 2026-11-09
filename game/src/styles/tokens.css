@@ -1,0 +1,112 @@
+/*
+ * The Late Market — design tokens
+ * Palette is colourblind-safe by construction: state is never encoded by
+ * colour alone (always paired with iconography/position per GDD §4).
+ * Contrast: text meets at least WCAG AA on their backgrounds.
+ */
+:root {
+  /* Base: coastal night market */
+  --lm-bg-deep: #141428;       /* indigo night */
+  --lm-bg-mid: #23234a;
+  --lm-surface: #2e2e5a;
+  --lm-ink: #f2efe6;           /* warm paper-white */
+  --lm-ink-dim: #c5c2d8;
+
+  /* Accents (paired with shapes/icons, never colour-only) */
+  --lm-amber: #ffb454;         /* lantern amber */
+  --lm-ledger-green: #6fd08c;  /* money in */
+  --lm-ledger-red: #ff7b72;    /* money out (always paired with ▼) */
+  --lm-violet: #b79bff;        /* the Late Market street */
+  --lm-focus: #ffd166;         /* focus ring — always visible */
+
+  /* Type scale (adjustable via [data-text-scale]) */
+  --lm-text-base: 17px;
+  --lm-text-lg: 21px;
+  --lm-line: 1.55;
+}
+
+[data-text-scale="sm"] { --lm-text-base: 15px; --lm-text-lg: 19px }
+[data-text-scale="lg"] { --lm-text-base: 21px; --lm-text-lg: 26px }
+
+body {
+  margin: 0;
+  background: var(--lm-bg-deep);
+  color: var(--lm-ink);
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: var(--lm-text-base);
+  line-height: var(--lm-line);
+}
+
+:focus-visible {
+  outline: 3px solid var(--lm-focus);
+  outline-offset: 2px;
+}
+
+.lm-surface {
+  background: var(--lm-surface);
+  border: 1px solid var(--lm-ink-dim);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.lm-money-in::after  { content: " ▲"; color: var(--lm-ledger-green) }
+.lm-money-out::after { content: " ▼"; color: var(--lm-ledger-red) }
+
+/* ── Ch.1 chrome ─────────────────────────────────────────────────── */
+.lm-stage { max-width: 640px; margin: 2rem auto; padding: 0 1rem }
+.lm-stage h3 { font-size: var(--lm-text-lg) }
+.lm-hint { color: var(--lm-ink-dim); font-size: 0.92em }
+.lm-line { margin: 0.8rem 0 }
+.lm-line.siki::before { content: "🦉 Siki — "; color: var(--lm-amber) }
+.lm-line.zana::before { content: "🐕 Zana — "; color: var(--lm-violet) }
+
+.lm-choices { display: grid; gap: 0.6rem; margin-top: 1rem }
+.lm-choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem;
+  width: 100%; text-align: left; cursor: pointer;
+  background: var(--lm-bg-mid); color: var(--lm-ink);
+  border: 1px solid var(--lm-ink-dim); border-radius: 10px;
+  padding: 0.8rem 1rem; font: inherit; font-size: var(--lm-text-base);
+}
+.lm-choice:hover, .lm-choice:focus-visible { border-color: var(--lm-amber); background: var(--lm-surface) }
+.lm-choice-decision .lm-choice-label::before { content: "✓ " }
+.lm-choice-label { font-weight: 700 }
+.lm-choice-decision, .lm-choice-decision * { color: var(--lm-ink) }
+
+.lm-lantern {
+  position: fixed; top: 10px; right: 12px; z-index: 10;
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-amber); opacity: 0.85;
+  background: rgba(20,20,40,0.75); border-radius: 8px; padding: 2px 10px;
+}
+.lm-lantern::before { content: "🏮" }
+
+.lm-day-log { padding-left: 1.2rem }
+.lm-day-log li::marker { content: "· " }
+
+/* Persist decision review cards (replays/ledger views). */
+.lm-review-entry { border-left: 3px solid var(--lm-violet); padding: 0.25rem 0 0.25rem 0.75rem; margin: 0.5rem 0 }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important }
+}
+
+/* ── Street strip (defer/pay drive the stalls) ───────────────────── */
+#street-slot { position: sticky; top: 0; z-index: 5; background: var(--lm-bg-mid); padding: 6px 12px; border-bottom: 1px solid var(--lm-ink-dim) }
+.lm-street { display: flex; gap: 8px; align-items: center; max-width: 640px; margin: 0 auto; font-size: 0.9em }
+.lm-stall { font-size: 1.15em }
+.lm-stall.lit  { color: var(--lm-amber); text-shadow: 0 0 6px rgba(255,180,84,.55) }
+.lm-stall.dim  { color: var(--lm-ink-dim) }
+.lm-stall.shut { color: var(--lm-ink-dim); opacity: .45; text-decoration: line-through }
+.lm-street-cap { color: var(--lm-ink-dim) }
+
+/* ── Ch.2 floor chart + numeric inputs ───────────────────────────── */
+.lm-chart { display: grid; gap: .5rem; margin: .6rem 0 }
+.lm-chart-row { display: grid; grid-template-columns: minmax(200px, 1fr); gap: .2rem }
+.lm-bar { height: 14px; background: var(--lm-violet); border-radius: 4px; min-width: 4px }
+.lm-stage input[type="number"] {
+  font: inherit; color: var(--lm-ink); background: var(--lm-bg-mid);
+  border: 1px solid var(--lm-ink-dim); border-radius: 8px; padding: .4rem .6rem;
+  width: 7em; margin-left: .5em;
+}
+label.lm-hint { display: block; margin: .8rem 0 }
