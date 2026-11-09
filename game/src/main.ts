@@ -12,6 +12,8 @@ import { runChapter1 } from "./chapters/ch1screen";
 import type { Ch1State } from "./chapters/ch1";
 import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
+import { buildFinaleView } from "./chapters/finale";
+import { runFinale } from "./chapters/finaleScreen";
 import { renderStreet as renderStreetRow, type StreetCounters } from "./ui/street";
 import type { LedgerEntry } from "./engine/ledger";
 
@@ -42,7 +44,7 @@ function loadCh1Save(): Ch1State | null {
 }
 
 const bus = new AudioBus();
-const ledger = loadLedger();
+let ledger = loadLedger();
 
 /** One spoken line at a time — the speech grows, Bookkeeper-style. */
 function say(speaker: "siki" | "zana", text: string): void {
@@ -62,6 +64,7 @@ function saveLedger(): void {
 function purgeSave(): void {
   localStorage.removeItem(LEDGER_KEY);
   localStorage.removeItem(CH1_SAVE_KEY);
+  localStorage.removeItem(PROFILE_KEY);
 }
 
 const SEED = 20261109; // jam build: one canonical run for judging
@@ -157,16 +160,73 @@ function begin(withSound: boolean): void {
   beginChapter((([1, 2, 3].includes(jump) ? jump : 1) || 1) as 1 | 2 | 3);
 }
 
-/** Finale placeholder (Thu's milestone): honest quiet card, no fake maths. */
+const PROFILE_KEY = "lm.profile.v1";
+
+interface StoredProfile {
+  /** Mean of the three irrationality axes (0–100, lower is better). */
+  score: number;
+  deferral: number;
+  anchoring: number;
+  sunkCost: number;
+  at: string;
+}
+
+function irrationalityScore(p: { deferral: number; anchoring: number; sunkCost: number }): number {
+  return (p.deferral + p.anchoring + p.sunkCost) / 3;
+}
+
+function loadBestProfile(): StoredProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as StoredProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBestProfile(p: StoredProfile): void {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch { /* private-mode */ }
+}
+
+/**
+ * Finale — "You Were the Experiment / Market Close" (GDD A5).
+ * Everything on screen derives from the ledger; the only extra state is the
+ * best-profile record that powers the Rationality Delta across replays.
+ */
 function finale(): void {
-  say("siki", "Market close comes with the next build. The ledger you wrote is safe — and so is the street's arithmetic. Review it while you wait.");
-  const review = document.createElement("section");
-  review.id = "finale";
-  review.append(
-    Object.assign(document.createElement("div"), { className: "lm-surface", textContent: `${ledger.all().length} recorded decisions · to the street: £${[0, ...ledger.all().map((e) => e.npc?.feePaid ?? 0)].reduce((a, b) => a + b).toFixed(0)}` }),
-  );
-  game.append(review);
-  for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = true;
+  const view = buildFinaleView(ledger);
+  const score = irrationalityScore(view.profile);
+  const prev = loadBestProfile();
+  const delta = prev ? { score: prev.score - score, improved: prev.score - score > 0 } : null;
+  // Only a complete run may set the baseline — a partial/jumped run would
+  // post an unbeatable score-0 "best" and poison every future delta.
+  if (!view.partial && (!prev || score < prev.score)) {
+    saveBestProfile({ score, ...view.profile, at: new Date().toISOString() });
+  }
+
+  let review = document.getElementById("finale") as HTMLElement | null;
+  if (!review) {
+    review = document.createElement("section");
+    review.id = "finale";
+    review.className = "lm-chapter"; // hidden automatically by beginChapter
+    game.append(review);
+  }
+  for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "finale";
+  runFinale({
+    root: review,
+    say,
+    view,
+    entries: () => ledger.all(),
+    street: streetCounters(),
+    delta,
+    onRestart: () => {
+      ledger = new DecisionLedger();
+      saveLedger();
+      localStorage.removeItem(CH1_SAVE_KEY);
+      renderStreet();
+      beginChapter(1);
+    },
+  });
 }
 
 document.getElementById("start-btn")?.addEventListener("click", () => begin(true));

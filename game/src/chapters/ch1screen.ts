@@ -168,7 +168,28 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
             el("p", { class: "lm-hint", text: "Same seed. Same invoices. One different default. Improvement is the design: the rule is a commitment device, not discipline." }),
           ),
           el("p", { class: "lm-hint", text: "From Day 14 you can enlist Zana so stage-1 reminders auto-chain — the rule keeps itself. Chapters ahead carry this with you." }),
-          choiceButton("Close the books", "Chapter 1 complete", () => deps.onTool?.("reminder_rule")),
+          choiceButton("Close the books", "Chapter 1 complete", () => {
+            // Chapter-cost summary for the finale's Cost-of-Not-Acting ledger.
+            // experimentId deliberately does NOT start "ch1_" — it must not
+            // dilute the deferral axis in irrationalityProfile.
+            const total = actualForgone;
+            deps.record({
+              chapter: 1,
+              day: CH1_DAYS,
+              experimentId: "cost_of_not_acting_ch1",
+              prompt: "Chapter 1 — the lantern's final reading",
+              optionsShown: [{ id: "run_complete", label: "Run complete", framingVariable: "cost_ledger", isDefault: false }],
+              chosenOptionId: "run_complete",
+              deferred: false,
+              forgoneEntitlement: {
+                interest: state.forgoneInterest,
+                compensation: state.forgoneCompensation,
+                total,
+              },
+              immediateConsequence: `Forgone statutory entitlement this run: ${gbp(total)}.`,
+            });
+            deps.onTool?.("reminder_rule");
+          }),
         );
       },
     ];

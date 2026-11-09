@@ -142,7 +142,7 @@ Every NPC fee, every day of forgone statutory interest, every shipped-off relati
 | Mon 9 | Repo scaffold (game logic is pure TS/Vite, no web/ dependency), decision-ledger schema, colourblind-safe tokens | Schema committed | ✅ done |
 | Tue 10 | Ch.1 complete (loop + pair decisions + debrief + Zana toggle) | Replay with rule = improvement visible | ✅ done — ahead of schedule, verified in browser |
 | Wed 11 | Ch.2 + Ch.3 playable; NPC offers v1 (no polish, honest maths) | Street scene state changes on defer/pay | ✅ playable — Factor/Shark/Collector offers live with honest maths |
-| Thu 12 | Finale + ledger UI + Irrationality Profile; itch page drafted but **unpublished** | Clean private loop from title → reveal |
+| Thu 12 | Finale + ledger UI + Irrationality Profile; itch page drafted but **unpublished** | Clean private loop from title → reveal | 🔶 finale + profile + Rationality Delta done & browser-verified; itch page pending |
 | Fri 13 | Voices generated + cut (ElevenLabs Starter), SFX pass, hit 300–500 line script budget, text-size/mute/skip Options | ~10:1 threshold: watch the ~10:1 day-test clips |
 | Sat 14 | Balance pass + edge cases (zero balance, partial payment, negative, rounding), fresh-eyes playtest, screenshots | "Can a new player explain the trade-off?" = yes |
 | Sun 15 | Submission package: itch page drafted privately (cover 630×500, 3–5 screenshots, AI disclosure), **Zoud: concept-Doc PDF + budget + 2-min actual-gameplay video**; submit before AOE | Done with >6h buffer |

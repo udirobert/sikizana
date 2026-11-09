@@ -110,3 +110,12 @@ body {
   width: 7em; margin-left: .5em;
 }
 label.lm-hint { display: block; margin: .8rem 0 }
+
+/* ── Finale: ledger review, profile axes, stat cards ──────────────── */
+.lm-review-scroll { max-height: 18rem; overflow-y: auto }
+.lm-profile { display: grid; gap: 1rem }
+.lm-axis-head { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem }
+.lm-axis-head strong { font-variant-numeric: tabular-nums; color: var(--lm-amber) }
+.lm-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .8rem 0 }
+.lm-stat-value { font-size: var(--lm-text-lg); font-weight: 700; color: var(--lm-amber); margin: 0 }
+@media (max-width: 480px) { .lm-stat-grid { grid-template-columns: 1fr } }
