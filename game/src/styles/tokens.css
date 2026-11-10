@@ -59,6 +59,8 @@ body {
 .lm-line { margin: 0.8rem 0 }
 .lm-line.siki::before { content: "🦉 Siki — "; color: var(--lm-amber) }
 .lm-line.zana::before { content: "🐕 Zana — "; color: var(--lm-violet) }
+/* Karaoke word highlight — driven by baked timing.json while a line plays. */
+.lm-word-active { color: var(--lm-amber); font-weight: 600 }
 
 .lm-choices { display: grid; gap: 0.6rem; margin-top: 1rem }
 .lm-choice {

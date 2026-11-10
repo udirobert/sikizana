@@ -71,6 +71,14 @@ One JSON per line: `lineId · speaker · displayText · spokenText · performanc
 
 ElevenLabs runs a **gaming grant: 33M characters + 12 months, free**, higher concurrency — separate application from our Pro account, acceptance-gated. A jam-grade pitch for The Late Market could land it for the Chroma build. Non-blocking; not in the budget.
 
+## 7b. Asset storage decision (2026-11-10)
+
+`game/public/audio/` is **gitignored** — baked binaries are regenerable via `scripts/bake-voices.mjs` (~$0.50/pass, needs `ELEVENLABS_API_KEY`) and ship inside the itch zip, same convention as `docs/seapoint/vo/`. Committed source: `design/lines.json`, `design/voices.json`, the bake script, and `src/audio/voice.ts`. Per-line `seed` (FNV-1a of line id) makes re-bakes deterministic-ish.
+
+**Approved-take archive (outside git):** `~/Dev/sikizana-archive/late-market-audio-2026-11-10.zip` — the waveforms that passed review. TTS takes are not bit-reproducible even with seeds, so this zip is the canonical copy of what shipped.
+
+Lens Grove was evaluated and rejected: decentralized IPFS storage with EVM ACLs built for Lens user content — async propagation + a runtime gateway dependency for core game audio days before judging, with zero benefit over bundling.
+
 ## 8. Acceptance gates before baking = auditions for S/Z, then the full-batch render.
 
 - Per-batch: review in scene context (meaning → identity → emotion → pronunciation → pacing → artifacts → clean tails).

@@ -1,3 +1,12 @@
 node_modules/
 dist/
 .DS_Store
+
+# Baked voice assets — regenerable via scripts/bake-voices.mjs (~$0.50,
+# needs ELEVENLABS_API_KEY). Same convention as docs/seapoint/vo/ in root
+# .gitignore: binaries stay out of git; the itch zip carries them.
+# Approved takes are archived outside the repo — see docs/game/VOICE_PIPELINE.md.
+public/audio/
+
+# Audition references — binary, archived outside git (see VOICE_PIPELINE §7b)
+design/auditions/*.mp3

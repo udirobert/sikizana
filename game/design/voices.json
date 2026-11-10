@@ -2,6 +2,12 @@
   "_comment": "Voice Design auditions, freeze ONE id per character via POST /v1/text-to-voice after human pick. See docs/game/VOICE_PIPELINE.md §2.",
   "model": "eleven_ttv_v3",
   "audition_chars": 617,
+  "pronunciation_dictionary": {
+    "id": "86eNgWAzawEGpCoGq7tt",
+    "name": "The Late Market — names",
+    "version_id": "R2bc87hZLkji9FMPpzWh",
+    "rules": "Siki→Sih-kee (SIH-kee), Zana→Zah-nah (ZAH-nah), Sikizana→Sih-kee-zah-nah — user-picked 2026-11-10"
+  },
   "characters": {
     "siki": {
       "role": "Warm narrator / explain persona (owl storyteller)",
@@ -9,10 +15,35 @@
       "previews": {
         "siki_1": "8l6SThtoAnlYQg1bsgfC",
         "siki_2": "hRq3KqRSOGsaHBkGG0lk",
-        "siki_3": "ar9U6MRHSWrSOSkbHBYR"
+        "siki_3": "ar9U6MRHSWrSOSkbHBYR",
+        "siki_4": "rhX9v17InYmWxTffA4dW",
+        "siki_5": "2ji39iRMO5UhqynF3lrL",
+        "siki_6": "j39UePEvRIqrNDN0ns0R",
+        "siki_7": "dPmbPQINp8GqKZWZHiaF",
+        "siki_8": "Urroor0EIRiP5hzClh5j",
+        "siki_9": "GuX7MVlCZjzNyuZUeoBC"
       },
-      "files": ["design/auditions/siki_1.mp3", "design/auditions/siki_2.mp3", "design/auditions/siki_3.mp3"],
-      "production_voice_id": null
+      "files": ["design/auditions/siki_1.mp3", "design/auditions/siki_2.mp3", "design/auditions/siki_3.mp3", "design/auditions/siki_4.mp3", "design/auditions/siki_5.mp3", "design/auditions/siki_6.mp3", "design/auditions/siki_7.mp3", "design/auditions/siki_8.mp3", "design/auditions/siki_9.mp3"],
+      "alt_batch": {
+        "_note": "siki_4/5/6 = female, South African-accented owl storyteller (design call 2026-11-12); audition text ~500 chars covering ack/explain/name/number/urgent/quiet beats",
+        "voice_description": "An adult owl storyteller with a distinctly South African accent — soft, precise consonants with a gentle melodic lilt. Female voice, warm, quietly curious, measured pacing, clear diction. Restrained theatricality, never cartoonish, a distinctive speaking voice — not a celebrity imitation.",
+        "batch2": {
+          "_note": "siki_7/8/9 = stronger African/South African direction after batch-1 accents read too subtle; description pushed 'deep unmistakable South African accent, resonant alto, melodic African lilt'",
+          "voice_description": "An adult African woman storyteller with a deep, unmistakable South African accent — rich rounded vowels, warm resonant alto timbre, melodic African lilt, strong clear consonants. Female voice, quietly curious, measured and deliberate pacing, warm and wise. A distinctive speaking voice with real African character — not a generic narrator, not a celebrity imitation."
+        }
+      },
+      "library_candidates": {
+        "_note": "ElevenLabs shared-voice library (professional category), accent=south african, gender=female — real premade voices, renderable on eleven_v4. Preview files siki_lib_*.mp3 are the creators' samples, NOT Siki lines — short-list first, then render an audition line on v4 before freezing.",
+        "siki_lib_katlego":  { "name": "Katlego - Warm & educational", "voice_id": "GWxVpgZHEljuUpLKSxHI", "age": "middle_aged", "desc": "Middle-aged South African female, deep tones; teaching/audiobooks" },
+        "siki_lib_annabel":  { "name": "Annabel - South African", "voice_id": "nV2afREa5mKDMAIpqMu0", "age": "middle_aged", "desc": "White South African female, grew up in Pretoria; narrative_story" },
+        "siki_lib_mzansi":   { "name": "Mzansi - True crime", "voice_id": "hjmGn69egwbuNEZ8kska", "age": "middle_aged", "desc": "Narrative voice" },
+        "siki_lib_shuratta": { "name": "Shuratta - Emotive, Warm & Calm", "voice_id": "5UkNoRUDhqQOOzSLmd8W", "age": "young", "desc": "Emotive SA female" },
+        "siki_lib_sanks":    { "name": "Sanks - Casual", "voice_id": "iL4qcNYYpSwV3ckrk4ed", "age": "middle_aged", "desc": "Simple, clear founder voice" },
+        "siki_lib_zanb":     { "name": "ZanB - Warm", "voice_id": "IG20ItO4pEHqDjFYFYug", "age": "middle_aged", "desc": "Confident, assuring, warm, conversational" }
+      },
+      "production_voice_id": "Yru1AaCztNSYkMNCbM1k",
+      "frozen_pick": "library:Mwika Kayange - Raw and Deep (african, middle_aged male, informative_educational, en)",
+      "frozen_note": "Male Siki per user direction 2026-11-10; added to account as 'Siki — The Late Market (Mwika)' via POST /v1/voices/add; v4 audition render siki_v4_audition_mwika.mp3 pending user listen. Rejected: Christél Kloppers + Positiva (both added to account, unused)."
     },
     "zana": {
       "role": "Blunt enforcer persona (dog, streetwise)",
@@ -23,7 +54,8 @@
         "zana_3": "isNoxau5C2vooOzOACLd"
       },
       "files": ["design/auditions/zana_1.mp3", "design/auditions/zana_2.mp3", "design/auditions/zana_3.mp3"],
-      "production_voice_id": null
+      "production_voice_id": "sy9S2anY0aQEh2FdIwrx",
+      "frozen_pick": "zana_2"
     }
   }
 }

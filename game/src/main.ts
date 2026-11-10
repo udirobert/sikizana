@@ -7,6 +7,7 @@
  */
 import "./styles/tokens.css";
 import { AudioBus } from "./audio/bus";
+import { VoicePlayer } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
 import { runChapter1 } from "./chapters/ch1screen";
 import type { Ch1State } from "./chapters/ch1";
@@ -44,6 +45,9 @@ function loadCh1Save(): Ch1State | null {
 }
 
 const bus = new AudioBus();
+// Pre-baked dialogue: plays only when the player chose sound on (bus unlocked)
+// and a baked take exists for the exact line. Silent-first runs stay silent.
+const voice = new VoicePlayer(() => bus.unlocked);
 let ledger = loadLedger();
 
 /** One spoken line at a time — the speech grows, Bookkeeper-style. */
@@ -54,6 +58,7 @@ function say(speaker: "siki" | "zana", text: string): void {
   bubble.textContent = text;
   bubble.setAttribute("role", "note");
   game.prepend(bubble);
+  void voice.speak(speaker, text, bubble);
 }
 
 function saveLedger(): void {
