@@ -1,0 +1,30 @@
+{
+  "_comment": "SFX/music generation manifest — regenerate via POST /v1/sound-generation (eleven_text_to_sound_v3) and POST /v1/music (music_v2_5). Outputs land in public/audio/sfx/ (gitignored, ships in itch zip). Generated 2026-11-10.",
+  "sounds": {
+    "ui_confirm": {
+      "file": "ui_confirm.mp3", "api": "sound-generation", "model_id": "eleven_text_to_sound_v3",
+      "text": "single small wooden click then warm glass ping, clean transient, short tail",
+      "duration_seconds": 2, "prompt_influence": 0.7
+    },
+    "siki_stinger": {
+      "file": "siki_stinger.mp3", "api": "sound-generation", "model_id": "eleven_text_to_sound_v3",
+      "text": "One soft feather ruffle plus tiny wooden chime, intimate, dry, isolated, no speech, no music",
+      "duration_seconds": 3, "prompt_influence": 0.7
+    },
+    "zana_stinger": {
+      "file": "zana_stinger.mp3", "api": "sound-generation", "model_id": "eleven_text_to_sound_v3",
+      "text": "One short collar jingle plus dry paw scuff on wood, close, understated, no barking, no music",
+      "duration_seconds": 3, "prompt_influence": 0.7
+    },
+    "market_ambience": {
+      "file": "market_ambience.mp3", "api": "sound-generation", "model_id": "eleven_text_to_sound_v3",
+      "text": "Quiet night market ambience, distant crockery and cloth movement, no intelligible foreground speech, steady warm texture",
+      "duration_seconds": 30, "prompt_influence": 0.5, "note": "30s loop — seam untested, polish on Sat if audible"
+    },
+    "market_music": {
+      "file": "market_music.mp3", "api": "music", "model_id": "music_v2_5",
+      "prompt": "Instrumental underscore for a quiet night market game. Felted plucks, warm low drone, airy texture, sparse and steady pulse. Leave room for a warm narrator and a dry low-mid character voice. No drums up front, no vocals, no big cadence, same texture at start and end so it can loop seamlessly.",
+      "music_length_ms": 60000, "note": "loop seam untested — polish on Sat"
+    }
+  }
+}

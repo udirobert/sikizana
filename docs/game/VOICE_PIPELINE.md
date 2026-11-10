@@ -77,6 +77,8 @@ ElevenLabs runs a **gaming grant: 33M characters + 12 months, free**, higher con
 
 **Approved-take archive (outside git):** `~/Dev/sikizana-archive/late-market-audio-2026-11-10.zip` — the waveforms that passed review. TTS takes are not bit-reproducible even with seeds, so this zip is the canonical copy of what shipped.
 
+**SFX/music (generated 2026-11-10):** all five §6 assets rendered — `public/audio/sfx/{ui_confirm,siki_stinger,zana_stinger,market_ambience,market_music}.mp3` — same gitignore/archive convention. Exact prompts + params in `game/design/sfx.json`. Wired: ambience+music beds loop on sound-on, stingers once per speaker, UI blip per choice; Options (sound/music/text-size) persist to `lm.prefs.v1`. Loop seams flagged for the Sat balance pass.
+
 Lens Grove was evaluated and rejected: decentralized IPFS storage with EVM ACLs built for Lens user content — async propagation + a runtime gateway dependency for core game audio days before judging, with zero benefit over bundling.
 
 ## 8. Acceptance gates before baking = auditions for S/Z, then the full-batch render.

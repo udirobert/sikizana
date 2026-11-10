@@ -6,7 +6,7 @@
  * the title screen, never transmitted anywhere.
  */
 import "./styles/tokens.css";
-import { AudioBus } from "./audio/bus";
+import { AudioBus, type PlayHandle } from "./audio/bus";
 import { VoicePlayer } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
 import { runChapter1 } from "./chapters/ch1screen";
@@ -23,6 +23,23 @@ const game = document.getElementById("game") as HTMLElement;
 
 const LEDGER_KEY = "lm.ledger.v1";
 const CH1_SAVE_KEY = "lm.ch1.v1";
+const PREFS_KEY = "lm.prefs.v1";
+
+interface Prefs { sound: boolean; music: boolean; textScale: "sm" | "md" | "lg" }
+
+function loadPrefs(): Prefs {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    if (raw) return { sound: true, music: true, textScale: "md", ...(JSON.parse(raw) as Partial<Prefs>) };
+  } catch { /* fall through to defaults */ }
+  return { sound: true, music: true, textScale: "md" };
+}
+
+const prefs = loadPrefs();
+function savePrefs(): void {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private-mode */ }
+}
+document.documentElement.dataset.textScale = prefs.textScale;
 
 function loadLedger(): DecisionLedger {
   try {
@@ -45,10 +62,18 @@ function loadCh1Save(): Ch1State | null {
 }
 
 const bus = new AudioBus();
-// Pre-baked dialogue: plays only when the player chose sound on (bus unlocked)
-// and a baked take exists for the exact line. Silent-first runs stay silent.
-const voice = new VoicePlayer(() => bus.unlocked);
+// Pre-baked dialogue: plays only when the player chose sound on (bus unlocked
+// AND the Sound pref is on) and a baked take exists for the exact line.
+const voice = new VoicePlayer(() => bus.unlocked && prefs.sound);
 let ledger = loadLedger();
+
+/** Speaker stingers fire once per speaker per session — punctuation, not wallpaper. */
+const stung = new Set<string>();
+function sting(speaker: "siki" | "zana"): void {
+  if (stung.has(speaker)) return;
+  stung.add(speaker);
+  bus.playOnce(`audio/sfx/${speaker}_stinger.mp3`, 0.8);
+}
 
 /** One spoken line at a time — the speech grows, Bookkeeper-style. */
 function say(speaker: "siki" | "zana", text: string): void {
@@ -58,6 +83,7 @@ function say(speaker: "siki" | "zana", text: string): void {
   bubble.textContent = text;
   bubble.setAttribute("role", "note");
   game.prepend(bubble);
+  sting(speaker);
   void voice.speak(speaker, text, bubble);
 }
 
@@ -143,8 +169,23 @@ function beginChapter(n: 1 | 2 | 3): void {
   }
 }
 
+let musicHandle: PlayHandle | null = null;
+let bedsStarted = false;
+
+/** Ambience always; music bed only while the Music pref is on. Idempotent. */
+async function startBeds(): Promise<void> {
+  if (bedsStarted || !bus.unlocked || !prefs.sound) return;
+  bedsStarted = true;
+  void bus.play("audio/sfx/market_ambience.mp3", { channel: "ambience", loop: true });
+  if (prefs.music) musicHandle = await bus.play("audio/sfx/market_music.mp3", { channel: "music", loop: true });
+}
+
 function begin(withSound: boolean): void {
-  if (withSound) bus.unlock();
+  if (withSound) {
+    bus.unlock();
+    bus.setVolume(prefs.sound ? 1 : 0);
+    void startBeds();
+  }
   start.hidden = true;
   game.hidden = false;
 
@@ -237,5 +278,37 @@ function finale(): void {
 document.getElementById("start-btn")?.addEventListener("click", () => begin(true));
 document.getElementById("start-muted")?.addEventListener("click", () => begin(false));
 document.getElementById("purge-save")?.addEventListener("click", purgeSave);
+
+// ── Options (title screen): sound / music / text size, persisted. ──
+const optSound = document.getElementById("opt-sound") as HTMLInputElement | null;
+const optMusic = document.getElementById("opt-music") as HTMLInputElement | null;
+const optText = document.getElementById("opt-textsize") as HTMLSelectElement | null;
+if (optSound) optSound.checked = prefs.sound;
+if (optMusic) optMusic.checked = prefs.music;
+if (optText) optText.value = prefs.textScale;
+
+optSound?.addEventListener("change", () => {
+  prefs.sound = optSound.checked;
+  savePrefs();
+  bus.setVolume(prefs.sound ? 1 : 0);
+  if (!prefs.sound) { bus.silence(); voice.stop(); bedsStarted = false; musicHandle = null; }
+  else void startBeds();
+});
+optMusic?.addEventListener("change", () => {
+  prefs.music = optMusic.checked;
+  savePrefs();
+  if (!prefs.music) { musicHandle?.stop(); musicHandle = null; }
+  else if (bus.unlocked && prefs.sound) void bus.play("audio/sfx/market_music.mp3", { channel: "music", loop: true }).then((h) => { musicHandle = h; });
+});
+optText?.addEventListener("change", () => {
+  prefs.textScale = (optText.value as Prefs["textScale"]) || "md";
+  savePrefs();
+  document.documentElement.dataset.textScale = prefs.textScale;
+});
+
+// UI confirm blip on every choice click (delegated — covers all chapters).
+game.addEventListener("click", (ev) => {
+  if ((ev.target as HTMLElement).closest(".lm-choice")) bus.playOnce("audio/sfx/ui_confirm.mp3", 0.7);
+});
 
 export {};
