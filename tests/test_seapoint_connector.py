@@ -10,6 +10,10 @@ import importlib
 
 import pytest
 
+# The dormant connector module imports the `mcp` client package — an optional
+# dep (SEAPOINT_* stack) absent from core CI installs.
+mcp = pytest.importorskip("mcp")
+
 from src.services.connectors.seapoint import (
     SeapointConnector,
     spend_aggregate_args,
