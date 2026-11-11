@@ -26,6 +26,14 @@ automatically at startup. Then set in the VPS `.env`:
 | `COOKIE_SECURE` | `true` | HTTPS |
 | `APP_BASE_URL` | `https://sikizana.persidian.com` | Stripe redirect base |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_*_PRICE_ID` | live keys | real checkout; start Stripe verification day 1, it can take a day |
+
+**Billing status (2026-11-11):** TEST-mode values are wired and verified
+end-to-end on prod — products Pro £29/mo (`price_1UajoWCfulKWL5tKpoZN2g18`)
++ Business £79/mo (`price_1UajoYCfulKWL5tKis0aqgKF`), webhook endpoint
+`we_1UajodCfulKWL5tK3HgrQ84z` on the "weft sandbox" test account; a
+`checkout.session.completed` trigger was delivered + processed (200).
+Go-live = swap the four vars for `sk_live_`/live IDs + `BILLING_ENFORCED=true`
+and recreate the api container. Test payments do not count for ProtoRun.
 | `BILLING_ENFORCED` | `true` when checkout goes live | quotas actually gate |
 
 Verify: `curl https://sikizana.persidian.com/api/portal/org` → `401`
