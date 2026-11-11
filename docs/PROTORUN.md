@@ -103,3 +103,5 @@ The submit form asks for:
 5. **Submit** at protorun.build.host/submit (with assets above).
 6. Then launch Meta ads at the build.host site and log each $10 spend in
    Discord for reimbursement.
+
+Execution runbook: [docs/PROTORUN_RUNBOOK.md](PROTORUN_RUNBOOK.md) — deploy env, erp.ai workflow spec, signup bridge, compliance, submission, ads.
