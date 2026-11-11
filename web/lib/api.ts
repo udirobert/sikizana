@@ -387,6 +387,7 @@ export interface UserProfile {
   timezone: string | null;
   language: string | null;
   industry: string | null;
+  persona: string | null;
 }
 
 export interface MeResponse {
@@ -408,6 +409,16 @@ export interface MeResponse {
 }
 
 export type PaidPlan = "pro" | "business";
+
+/** A portal API token — metadata only; the secret is never returned after minting. */
+export interface PortalToken {
+  id: number;
+  session_id: string;
+  label: string;
+  created_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+}
 
 /** Overall wall-clock budget for a single streamed chat response.
  *  Allows for: 30s NVIDIA timeout → Venice fallback → 3-4 tool calls
@@ -572,6 +583,15 @@ export const endpoints = {
     checkout: (plan: PaidPlan) => api.post<{ url: string }>("/api/billing/checkout", { plan }),
     /** Open the Stripe customer portal. 401/503 as above. */
     portal: () => api.post<{ url: string }>("/api/billing/portal", {}),
+  },
+
+  /** Read-only portal API tokens (erp.ai client portal). 401 when not signed in. */
+  portal: {
+    /** Mint a token; the plaintext is returned once — store it server-side only. */
+    createToken: (label: string) =>
+      api.post<{ id: number; token: string; label: string }>("/api/portal/tokens", { label }),
+    listTokens: () => api.get<{ tokens: PortalToken[] }>("/api/portal/tokens"),
+    revokeToken: (id: number) => api.delete<{ revoked: boolean }>(`/api/portal/tokens/${id}`),
   },
 
   // ---- Xero (Bookkeeper mode) ----

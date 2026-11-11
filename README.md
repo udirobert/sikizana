@@ -122,7 +122,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Tests**: `tests/` — 214 tests: report parsing, OAuth state, webhook HMAC, rate limiting, demo-mode tools, chase ladder/scheduling/settlement, caching, data erasure, Supermemory graceful degradation, multi-region tax RAG (UK/AU/US), security hardening, user profiles, connector abstraction, and AP Integrity rules
 
 ### Frontend (Next.js / React / Tailwind)
-- **Chat**: `web/app/books/page.tsx` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration
+- **Chat**: `web/app/books/page.tsx` + presentational sections in `web/components/books/` — streaming agent chat with tool-call visualization, memory recall panels, pre-OAuth consent screen, sector onboarding question, payment-moment celebration
 - **Memory page**: `web/app/memory/page.tsx` — inspect what Siki remembers about your business. Lists all stored memories with delete capability. Makes the memory layer transparent and user-controllable.
 - **Memory badge**: `web/components/MemoryBadge.tsx` — "Memory: ON/OFF" pill in the chat header. Polls `/api/health` for memory-backend status. Flips to OFF when the store is unreachable — making graceful degradation visible.
 - **Memory recall trace**: `web/components/MemoryRecallTrace.tsx` — collapsible "What Siki remembered" panel that appears above the agent's response when the memory store returns past context. Shows recalled facts grouped by source.
@@ -134,6 +134,7 @@ follow-ups only start when the user clicks ⚡ Auto-chase.
 - **Brand**: [`docs/BRAND.md`](docs/BRAND.md) — the Siki/Zana duo rule, honesty rules, canonical copy
 - **Event notes**: [`docs/seapoint/`](docs/seapoint/README.md) — FinOps hackathon (Seapoint + 13books Capital, London 2026-10-20) plan, run sheet, and what was built. **Event over — connector dormant**: `src/services/connectors/seapoint.py` is kept (opt-in via `SEAPOINT_ENABLED=1`) as the reference second-connector implementation; sandbox access ended with the event
 - **Event notes**: [`docs/total-recall/`](docs/total-recall/README.md) — Total Recall (Tatum × Walrus) evaluation, Track 3 consumer finance. **Evaluated, not committed** — recommendation is to hold, decide by 26 Oct
+- **Event notes**: [`docs/PROTORUN.md`](docs/PROTORUN.md) — ProtoRun builders hackathon entry (team `papajams`, deadline 2026-11-20): registration details, the Sikizana client-portal pitch on file, and build/ads/submission plan
 
 ### Deployment
 - Docker Compose on VPS (Traefik reverse proxy)

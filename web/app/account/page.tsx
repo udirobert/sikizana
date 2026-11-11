@@ -7,7 +7,7 @@ import { SikiMascot } from "@/components/SikiMascot";
 import { SiteNav } from "@/components/SiteNav";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { ApiError, endpoints } from "@/lib/api";
-import type { MeResponse, PaidPlan } from "@/lib/api";
+import type { MeResponse, PaidPlan, PortalToken } from "@/lib/api";
 import { useMe } from "@/hooks/useMe";
 import { useXeroMode } from "@/hooks/useXeroMode";
 import { PLAN_LABELS, PlanBadge } from "@/components/PlanBadge";
@@ -319,6 +319,150 @@ function DigestToggle({ initial }: { initial: boolean }) {
   );
 }
 
+function PortalTokensCard() {
+  const [tokens, setTokens] = useState<PortalToken[] | null>(null);
+  const [label, setLabel] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [freshToken, setFreshToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [revokingId, setRevokingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void endpoints.portal
+      .listTokens()
+      .then((r) => setTokens(r.tokens))
+      .catch(() => setTokens([]));
+  }, []);
+
+  const create = async () => {
+    if (creating) return;
+    setCreating(true);
+    setError(null);
+    setCopied(false);
+    try {
+      const res = await endpoints.portal.createToken(label.trim() || "portal");
+      setFreshToken(res.token);
+      setLabel("");
+      const list = await endpoints.portal.listTokens();
+      setTokens(list.tokens);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't create a token. Try again.");
+    }
+    setCreating(false);
+  };
+
+  const copy = async () => {
+    if (!freshToken) return;
+    try {
+      await navigator.clipboard.writeText(freshToken);
+      setCopied(true);
+    } catch {
+      // Clipboard blocked — the token is still selectable in the input.
+    }
+  };
+
+  const revoke = async (id: number) => {
+    if (revokingId !== null) return;
+    setRevokingId(id);
+    setError(null);
+    try {
+      await endpoints.portal.revokeToken(id);
+      const now = new Date().toISOString();
+      setTokens((ts) => ts?.map((t) => (t.id === id ? { ...t, revoked_at: now } : t)) ?? ts);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't revoke the token. Try again.");
+    }
+    setRevokingId(null);
+  };
+
+  const active = (tokens ?? []).filter((t) => !t.revoked_at);
+  const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+
+  return (
+    <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
+      <span className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">
+        Connect portal
+      </span>
+      <p className="text-[11px] text-stone-500 mt-0.5">
+        A read-only key that lets an external portal (e.g. your erp.ai app) read this
+        session&apos;s books. Keep it server-side — never in website code.
+      </p>
+
+      {freshToken && (
+        <div className="mt-2 bg-emerald-50 border border-emerald-200 rounded-lg p-2.5" role="status">
+          <p className="text-[11px] font-semibold text-emerald-800">
+            Token created — shown once, save it now.
+          </p>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <input
+              readOnly
+              value={freshToken}
+              onFocus={(e) => e.target.select()}
+              aria-label="New portal token"
+              className="flex-1 min-w-0 px-2 py-1 border border-emerald-200 rounded bg-white text-[11px] font-mono text-stone-800"
+            />
+            <button
+              onClick={() => void copy()}
+              className="shrink-0 text-[11px] font-semibold px-2.5 py-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 btn-press transition-colors"
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 mt-2">
+        <input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Label (e.g. erp.ai)"
+          maxLength={80}
+          aria-label="New token label"
+          className="flex-1 min-w-0 px-2 py-1.5 border border-stone-200 rounded-md text-xs bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+        />
+        <button
+          onClick={() => void create()}
+          disabled={creating}
+          className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-md bg-sky-600 text-white hover:bg-sky-700 btn-press transition-colors disabled:opacity-50 disabled:cursor-wait"
+        >
+          {creating ? "Creating…" : "Create token"}
+        </button>
+      </div>
+
+      {active.length > 0 && (
+        <ul className="mt-2 space-y-1">
+          {active.map((t) => (
+            <li key={t.id} className="flex items-center justify-between gap-2 text-[11px]">
+              <span className="text-stone-700 font-medium truncate">
+                {t.label || "portal"}
+                <span className="text-stone-400 font-normal">
+                  {" "}
+                  · created {fmtDate(t.created_at)}
+                  {t.last_used_at ? ` · used ${fmtDate(t.last_used_at)}` : " · never used"}
+                </span>
+              </span>
+              <button
+                onClick={() => void revoke(t.id)}
+                disabled={revokingId !== null}
+                className="shrink-0 text-[11px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {revokingId === t.id ? "Revoking…" : "Revoke"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && (
+        <p className="text-[11px] text-red-600 mt-1.5" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function YourImpact() {
   const [journals, setJournals] = useState<{ count: number; total: number } | null>(null);
   const [moneyFound, setMoneyFound] = useState<number | null>(null);
@@ -547,6 +691,7 @@ function AccountView() {
               <UsageMeter usage={me.usage} />
               <YourImpact />
               <DigestToggle initial={me.digest_opt_in} />
+              <PortalTokensCard />
 
               {/* aria-live so billing errors are announced */}
               <div aria-live="polite" role="status">

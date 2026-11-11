@@ -143,11 +143,14 @@ else imports that module.
 ### Database
 
 SQLite (`data/sikizana.db`) with migration system in `payment_store.py`.
-Current schema version: 15 (see `MIGRATIONS` list).
+Current schema version: 17 (see `MIGRATIONS` list).
 
 Key tables:
 - `memories`, `memories_fts` — local memory store + FTS5 mirror (migration 15)
 - `users`, `auth_sessions` — accounts and session→user links
+  - `persona` (migration 17) — user's Siki/Zana preference, cross-device sync
+- `portal_tokens` — hashed Bearer tokens for the read-only `/api/portal/*`
+  client portal (migration 16); deleted with their session's books
   - User profile columns (migration 11): `name`, `business_name`, `timezone`,
     `language`, `industry` — user-scoped, persists across sessions
   - `email_verified` (migration 10) — tracks email verification status
@@ -164,6 +167,8 @@ Key tables:
   review states, confirmed values, and dismissal reasons
 - `cafe_finding_reviews` — café briefing review states, confirmed values,
   and dismissal reasons (migration 14); mirrors `ap_finding_reviews`
+- `portal_tokens` — hashed Bearer tokens for the read-only `/api/portal/*`
+  API (migration 16); each resolves to one session's books, deleted with it
 - `session_prefs` — legacy session-scoped preferences (sector); user profile
   is now the primary source, session_prefs is a fallback
 
@@ -206,6 +211,8 @@ cd web && npx tsc --noEmit
 | `src/services/ap_integrity/service.py` | AP evaluation; `build_ap_findings_stateless` is the stateless entry point |
 | `src/services/cafe_brief/findings.py` | Café evaluation; `build_cafe_findings(session_id, svc, user_id)` composes café nudges into the canonical findings stream (mirrors AP) |
 | `src/services/cafe_brief/service.py` | Café Monday Briefing rich-UX composer (Manus prose + cited trend); the `/cafe` page view over the same facts |
+| `src/api/routes/portal.py` | Token-scoped read-only `/api/portal/*` API for the erp.ai client portal (ProtoRun); contract in `docs/PORTAL_API.md` |
+| `src/services/portal_tokens.py` | Portal token mint/resolve/revoke; SHA-256 hashed, session-scoped |
 | `web/components/RequireAuth.tsx` | Client-side route guard |
 | `web/hooks/useMe.ts` | Session/auth state hook |
 | `web/lib/api.ts` | Typed API client + endpoint definitions |
@@ -216,6 +223,8 @@ cd web && npx tsc --noEmit
 | `web/lib/finding-kinds.ts` | `FINDING_KIND_META` — per-kind icon, label, gloss, `reviewable`, `chaseable`, `domain`; exhaustive `Record<FindingKind>` so a new kind is a compile error without an entry |
 | `web/components/SikiMascot.tsx` | Siki owl mascot + `MascotMood` type (Zana lives in `ZanaMascot.tsx`) |
 | `web/hooks/usePersona.ts` | Reads persisted persona from localStorage |
+| `web/components/books/` | `/books` presentational sections (nav, sidebar, chat chrome, empty state, messages, overlays) — props-driven, state stays in the page |
+| `web/lib/i18n.ts` | UI chrome localization v1 — `t()`/`useT()` honoring `profile.language`, English fallback |
 | `web/DESIGN.md` | Three-zone UI guardrails (signature / proof / delight) |
 | `web/components/dither-kit/` | Selective dither charts (impact hero, sidebar sparkline) |
 | `web/components/OverdueTrendChart.tsx` | Dither area chart + Siki trend caption on `/impact` — overdue-specific, not a generic hero |

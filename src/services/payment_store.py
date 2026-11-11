@@ -320,6 +320,35 @@ MIGRATIONS: list[tuple[int, str]] = [
         );
         """,
     ),
+    (
+        16,
+        # Portal API tokens — scoped Bearer credentials for external read
+        # access (the build.host client portal). Only the SHA-256 hash of the
+        # token is stored; each token resolves to exactly one session's books.
+        """
+        CREATE TABLE IF NOT EXISTS portal_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token_hash TEXT NOT NULL UNIQUE,
+            session_id TEXT NOT NULL,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            label TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            last_used_at TEXT,
+            revoked_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_portal_tokens_session ON portal_tokens(session_id);
+        CREATE INDEX IF NOT EXISTS idx_portal_tokens_user ON portal_tokens(user_id);
+        """,
+    ),
+    (
+        17,
+        # Chat persona (siki|zana) on the user profile — cross-device sync.
+        # localStorage remains the fast-path seed; the profile value wins
+        # once /api/me resolves for a signed-in user.
+        """
+        ALTER TABLE users ADD COLUMN persona TEXT;
+        """,
+    ),
 ]
 
 
@@ -556,6 +585,11 @@ def delete_session_data(session_id: str, *, keep_memories: bool = False) -> dict
         counts["platform_connections"] = conn.execute(
             "UPDATE platform_connections SET disconnected_at = ? WHERE session_id = ? AND disconnected_at IS NULL",
             (datetime.now(timezone.utc).isoformat(), session_id),
+        ).rowcount
+        # Portal tokens are credentials bound to this session's books — they
+        # must not outlive either deletion path.
+        counts["portal_tokens"] = conn.execute(
+            "DELETE FROM portal_tokens WHERE session_id = ?", (session_id,)
         ).rowcount
         conn.commit()
         return counts
@@ -867,7 +901,7 @@ def set_user_plan(user_id: int, plan: str) -> None:
 
 # ---- User profile ----
 
-_PROFILE_FIELDS = ("name", "business_name", "timezone", "language", "industry")
+_PROFILE_FIELDS = ("name", "business_name", "timezone", "language", "industry", "persona")
 
 
 def update_user_profile(user_id: int, **fields) -> None:

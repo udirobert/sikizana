@@ -5,6 +5,7 @@ the public impact metrics."""
 from __future__ import annotations
 
 import asyncio
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -149,6 +150,7 @@ class UpdateProfileRequest(BaseModel):
     timezone: str | None = Field(None, max_length=50)
     language: str | None = Field(None, max_length=10)
     industry: str | None = Field(None, max_length=100)
+    persona: Literal["siki", "zana"] | None = None
 
 
 @router.get("/api/profile")

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, Suspense } from "react";
-import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useXeroThread } from "@/hooks/useXeroThread";
 import {
@@ -14,27 +13,10 @@ import {
   type XeroMode,
 } from "@/lib/api";
 import type { AnalysisCardData, MemoryRecallData } from "@/lib/types";
-import { MarkdownMessage } from "@/components/MarkdownMessage";
-import { AnimatedNumber } from "@/components/AnimatedNumber";
-import { SkeletonReveal } from "@/components/SkeletonReveal";
-import { SuccessCheck } from "@/components/SuccessCheck";
 import { ReceiptUpload } from "@/components/ReceiptUpload";
-import { ProactiveAlert } from "@/components/ProactiveAlert";
-import { ToolCallTrace } from "@/components/ToolCallTrace";
-import { WhileAgentWorks } from "@/components/WhileAgentWorks";
-import { JournalEntryCard, parseJournalEntry } from "@/components/JournalEntryCard";
-import { NegotiationEmailCard, parseNegotiationEmail } from "@/components/NegotiationEmailCard";
-import { AnalysisCard } from "@/components/AnalysisCard";
-import { AutoChaseNotice, type AutoChaseNoticeState } from "@/components/AutoChaseNotice";
-import { FindingsPanel, findingsSummary } from "@/components/FindingsPanel";
-import { ResponseSummary } from "@/components/ResponseSummary";
-import { ApiHealthDot } from "@/components/ApiHealthDot";
-import { MemoryBadge } from "@/components/MemoryBadge";
+import type { AutoChaseNoticeState } from "@/components/AutoChaseNotice";
+import { FindingsPanel } from "@/components/FindingsPanel";
 import { useBackendHealth } from "@/hooks/useBackendHealth";
-import { MemoryRecallTrace } from "@/components/MemoryRecallTrace";
-import { FeedbackButtons } from "@/components/FeedbackButtons";
-import { SikiMascot, SikiMascotAnimated } from "@/components/SikiMascot";
-import { ZanaMascot } from "@/components/ZanaMascot";
 import { RotatedReveal } from "@/components/RotatedReveal";
 import { SAMPLE_QUERIES, ZANA_QUERIES, findQuery } from "@/lib/xero-samples";
 import { SECTOR_IDS, type SectorId } from "@/lib/sector-benchmarks";
@@ -43,32 +25,21 @@ import type { ToolCallEvent } from "@/lib/types";
 import { localStore, StorageKeys } from "@/lib/storage";
 import { getPersonaCopy, getPersonaTheme, getRecoveredCelebrationCopy, getConnectMomentCopy, PERSONA_STORAGE_KEY } from "@/lib/persona-theme";
 import { useMe } from "@/hooks/useMe";
-import { PlanBadge } from "@/components/PlanBadge";
-import { ProfitTrendChart } from "@/components/ProfitTrendChart";
 import { TodaySummary } from "@/components/TodaySummary";
 import { SectorNoteCard } from "@/components/SectorNoteCard";
-import { SectorChatKnows } from "@/components/SectorChatKnows";
+import { BooksNav, DemoBanner } from "@/components/books/BooksNav";
+import { FinanceCheckHandoff } from "@/components/books/FinanceCheckHandoff";
+import { BooksSidebar } from "@/components/books/BooksSidebar";
+import { ChatBanners, ChatHeader } from "@/components/books/ChatChrome";
+import { ChatEmptyState } from "@/components/books/ChatEmptyState";
+import { ChatMessages } from "@/components/books/ChatMessages";
+import { BooksOverlays } from "@/components/books/BooksOverlays";
+import type {
+  FindingsPanelProps,
+  OrgData,
+  ProfitAndLossData,
+} from "@/components/books/types";
 
-interface OrgData {
-  name: string;
-  baseCurrency: string;
-  countryCode: string;
-  isDemoCompany: boolean;
-  registrationNumber?: string;
-  taxNumber?: string;
-  financialYearEndDay?: number;
-  financialYearEndMonth?: number;
-}
-
-interface ProfitAndLossData {
-  revenue?: number;
-  expenses?: number;
-  netProfit: number;
-  reportDate?: string;
-  fromDate?: string;
-  toDate?: string;
-  rows?: { account: string; code: string; value: number }[];
-}
 
 function BooksView() {
   const searchParams = useSearchParams();
@@ -195,13 +166,30 @@ function BooksView() {
     window.history.replaceState(null, "", `${pathname}${qs ? `?${qs}` : ""}`);
   }, [searchParams, pathname]);
   const [persona, setPersona] = useState<"siki" | "zana">(() => {
-    // Persist persona in localStorage so it survives page refreshes
+    // localStorage is the fast-path seed — persona is also stored on the
+    // user profile so a signed-in user keeps their owl across devices
+    // (profile value wins once /api/me resolves; see effect below).
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(PERSONA_STORAGE_KEY);
       if (saved === "siki" || saved === "zana") return saved;
     }
     return "siki";
   });
+  // Cross-device sync: when the session resolves as signed-in, the profile's
+  // persona is the freshest truth — adopt it if it differs from this device.
+  const personaSyncedRef = useRef(false);
+  useEffect(() => {
+    if (personaSyncedRef.current || !me?.authenticated) return;
+    const saved = me.profile?.persona;
+    if (saved === "siki" || saved === "zana") {
+      personaSyncedRef.current = true;
+      if (saved !== persona) {
+        setPersona(saved);
+        setModeHintShown(true);
+        try { localStorage.setItem(PERSONA_STORAGE_KEY, saved); } catch { /* ignore */ }
+      }
+    }
+  }, [me, persona]);
   const theme = getPersonaTheme(persona);
   const copy = getPersonaCopy(persona);
   const recoveredCopy = getRecoveredCelebrationCopy(persona);
@@ -502,6 +490,8 @@ function BooksView() {
     const p = searchParams.get("persona");
     if (p !== "siki" && p !== "zana") return;
     personaFromUrlRef.current = true;
+    // Explicit handoff intent outranks the stored profile persona.
+    personaSyncedRef.current = true;
     setPersona(p);
     setModeHintShown(true);
     try {
@@ -898,6 +888,10 @@ function BooksView() {
     setPersona(next);
     setModeHintShown(true);
     try { localStorage.setItem(PERSONA_STORAGE_KEY, next); } catch { /* ignore */ }
+    // Persist to the profile so the choice follows the user across devices.
+    if (me?.authenticated) {
+      void endpoints.profile.update({ persona: next }).catch(() => {});
+    }
   };
 
   // Auto-hide the mode description a few seconds after switching.
@@ -923,286 +917,75 @@ function BooksView() {
   };
 
   const highlightedFinding = findings?.findings[0];
-  const highlightedEvidence = highlightedFinding?.evidence?.slice(0, 2) ?? [];
-  const highlightedAmount = highlightedFinding?.amount
-    ? `£${highlightedFinding.amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
-    : null;
+
+  // One bundle for both FindingsPanel instances (mobile card + sidebar) —
+  // the surfaces share data path and callbacks, never drift apart.
+  const findingsPanelProps: FindingsPanelProps = {
+    data: findings,
+    loading: findingsLoading,
+    askedIds: askedFindingIds,
+    savedIds: savedFindingIds,
+    disabled: isLoading,
+    chasedIds: chasedFindingIds,
+    reviewingIds: reviewingFindingIds,
+    suggestions: starterQueries.slice(0, 3),
+    persona,
+    onAct: handleFindingAct,
+    onSave: handleFindingSave,
+    onAutoChase: (f) => void handleAutoChase(f),
+    onReview: (f, state) => void handleFindingReview(f, state),
+    onSuggest: (prompt) => {
+      setInput(prompt);
+      inputRef.current?.focus();
+    },
+  };
 
   return (
     <main className="min-h-screen bg-stone-100 flex flex-col">
       {/* Rotated reveal transition — slides away on page load */}
       <RotatedReveal />
-      <nav className="bg-white border-b border-stone-200 px-4 py-3">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-3 group">
-            <SikiMascot size={36} mood="idle" />
-            <div>
-              <h1 className="text-base font-bold text-stone-900 leading-none transition-colors group-hover:text-sky-600">SIKIZANA</h1>
-              <p className="text-xs text-stone-500 leading-none mt-0.5">
-                Get paid faster · Works with Xero
-              </p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-3">
-            {/* Connection status / Connect button */}
-            {userConnection?.connected ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700">
-                  ● {userConnection.tenant_name || "Your Xero"}
-                </span>
-                {/* Switch org — re-runs the Xero OAuth flow so the user can
-                    pick a different org. Minimal practice mode: doesn't
-                    support instant switching (that needs multi-tenant token
-                    storage), but makes multi-org awareness visible for
-                    accountants managing multiple clients. */}
-                <button
-                  onClick={handleConnectXero}
-                  disabled={connecting}
-                  className="text-xs text-stone-500 hover:text-sky-600 px-1.5 py-1 rounded hover:bg-sky-50 btn-press transition-colors"
-                  title="Connect a different Xero org"
-                >
-                  Switch org
-                </button>
-                <button
-                  onClick={handleDisconnect}
-                  className="text-xs text-stone-500 hover:text-red-600 px-1.5 py-1 rounded hover:bg-red-50 btn-press"
-                  title="Disconnect your Xero"
-                >
-                  Disconnect
-                </button>
-              </div>
-            ) : oauthConfigured ? (
-              <button
-                onClick={handleConnectXero}
-                disabled={connecting}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
-              >
-                {connecting ? "Connecting…" : "Connect Xero"}
-              </button>
-            ) : (
-              <span
-                className={`text-xs font-medium px-2 py-1 rounded-lg transition-opacity-quick ${
-                  xeroMode === "live-oauth" || xeroMode === "live-cli"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : provenance === "sandbox" || xeroMode === "demo"
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-stone-100 text-stone-500"
-                }`}
-              >
-                {xeroMode === "live-oauth" || xeroMode === "live-cli"
-                  ? "● Xero Live"
-                  : provenance === "sandbox"
-                    ? xeroMode === "seapoint-snapshot"
-                      ? `● ${platformName} sandbox snapshot · read-only`
-                      : `● ${platformName} sandbox · read-only`
-                    : xeroMode === "demo"
-                      ? demoScenario === "music"
-                        ? "● Demo · Music books"
-                        : demoScenario === "cafe"
-                          ? "● Demo · Café books"
-                          : "● Demo Data"
-                      : "○ Connecting..."}
-              </span>
-            )}
-            {provenance === "sandbox" && (
-              <button
-                onClick={() => void handleLeaveSeapoint()}
-                disabled={sandboxSwitching}
-                className="text-xs font-medium text-stone-500 hover:text-stone-700 hover:bg-stone-100 px-2 py-1 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {sandboxSwitching ? "Switching…" : "Switch to sample books"}
-              </button>
-            )}
-            {/* Nav links — inline from sm up; collapsed behind a menu button
-                on phones so the Connect button never gets squeezed off-screen. */}
-            <div className="hidden sm:flex items-center gap-3">
-              <Link
-                href="/activity"
-                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-              >
-                Activity
-              </Link>
-              <Link
-                href="/account"
-                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press flex items-center gap-1.5"
-              >
-                {me?.authenticated ? (
-                  <>
-                    Account <PlanBadge plan={me.plan} />
-                  </>
-                ) : (
-                  "Sign in"
-                )}
-              </Link>
-              <Link
-                href="/pricing"
-                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-              >
-                Pricing
-              </Link>
-              <Link
-                href="/"
-                className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-              >
-                Home
-              </Link>
-            </div>
-            <div className="relative sm:hidden">
-              <button
-                onClick={() => setNavOpen((v) => !v)}
-                aria-expanded={navOpen}
-                aria-label="Menu"
-                className="p-2 rounded-lg text-stone-600 hover:bg-stone-100 btn-press"
-              >
-                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <path d="M3 6h18M3 12h18M3 18h18" />
-                </svg>
-              </button>
-              {navOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 w-40 bg-white border border-stone-200 rounded-xl shadow-lg py-1 fade-in-up">
-                  {[
-                    { href: "/activity", label: "Activity" },
-                    { href: "/account", label: me?.authenticated ? "Account" : "Sign in" },
-                    { href: "/pricing", label: "Pricing" },
-                    { href: "/", label: "Home" },
-                  ].map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setNavOpen(false)}
-                      className="block px-3 py-2 text-xs text-stone-600 hover:bg-stone-50"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <BooksNav
+        theme={theme}
+        me={me}
+        xeroMode={xeroMode}
+        provenance={provenance}
+        platformName={platformName}
+        demoScenario={demoScenario}
+        userConnection={userConnection}
+        oauthConfigured={oauthConfigured}
+        connecting={connecting}
+        sandboxSwitching={sandboxSwitching}
+        navOpen={navOpen}
+        onToggleNav={() => setNavOpen((v) => !v)}
+        onCloseNav={() => setNavOpen(false)}
+        onConnect={handleConnectXero}
+        onDisconnect={() => void handleDisconnect()}
+        onLeaveSandbox={() => void handleLeaveSeapoint()}
+      />
 
-      {/* Persistent demo mode banner — always visible when in demo mode.
-          Small business owners were confused about demo vs. real data.
-          This banner makes it unmissable and offers a one-click connect. */}
-      {xeroMode === "demo" && !userConnection?.connected && (
-        <div className="w-full bg-amber-50 border-b border-amber-200 px-4 py-2.5">
-          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">👀</span>
-              <div>
-                <p className="text-xs font-semibold text-amber-900">
-                  You&apos;re looking at sample data
-                </p>
-                <p className="text-xs text-amber-700">
-                  This is a demo business so you can explore. Connect your Xero to see your real numbers.
-                </p>
-              </div>
-            </div>
-            {oauthConfigured && (
-              <button
-                onClick={handleConnectXero}
-                disabled={connecting}
-                className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50 whitespace-nowrap`}
-              >
-                {connecting ? "Connecting…" : "Connect My Xero →"}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      <DemoBanner
+        xeroMode={xeroMode}
+        connected={userConnection?.connected ?? false}
+        oauthConfigured={oauthConfigured}
+        connecting={connecting}
+        theme={theme}
+        onConnect={handleConnectXero}
+      />
 
-      {/* Landing-page handoff: a focused first check rather than an empty
-          conversation. It deliberately reuses the canonical finding and its
-          server-supplied action, so demo and live books follow one lifecycle. */}
-      {financeCheckOpen && highlightedFinding && (
-        <section className="w-full border-b border-stone-200 bg-white px-4 py-5">
-          <div className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                {provenance === "sandbox"
-                  ? `Your ${platformName} sandbox check`
-                  : xeroMode === "demo"
-                    ? "Your sample finance check"
-                    : "Your finance check"}
-              </p>
-              <h2 className="mt-1 text-2xl font-bold tracking-tight text-stone-950">
-                Start with the issue that needs attention.
-              </h2>
-              <p className="mt-2 max-w-md text-sm leading-relaxed text-stone-600">
-                Sikizana has ranked this first because it is material, actionable, and linked to the records behind it.
-              </p>
-              {provenance === "sample" && seapointOffered && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => void handleConnectSeapoint()}
-                    disabled={sandboxSwitching}
-                    className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
-                  >
-                    {sandboxSwitching ? "Connecting…" : "Try it on the Seapoint sandbox"}
-                  </button>
-                  <p className="mt-1 text-xs text-stone-500">
-                    Read-only · dummy data · nothing is written
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="border-y border-stone-200 py-4 lg:border-l lg:border-y-0 lg:pl-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Detected</p>
-                  <p className="mt-1 text-sm font-bold text-stone-950">{highlightedFinding.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{highlightedFinding.detail}</p>
-                </div>
-                {highlightedAmount && (
-                  <p className="text-xl font-bold text-stone-950">{highlightedAmount}</p>
-                )}
-              </div>
-
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                <div className="border-l-2 border-sky-300 pl-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Evidence</p>
-                  {highlightedEvidence.length > 0 ? (
-                    highlightedEvidence.map((evidence) => (
-                      <p key={evidence.source_id} className="mt-1 text-xs leading-relaxed text-stone-700">
-                        <span className="font-semibold">{evidence.label}</span> · {evidence.detail}
-                      </p>
-                    ))
-                  ) : (
-                    <p className="mt-1 text-xs leading-relaxed text-stone-700">
-                      The source record is available in the findings panel and chat review.
-                    </p>
-                  )}
-                </div>
-                <div className="border-l-2 border-emerald-300 pl-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-stone-400">Next step</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-700">Review the evidence, then decide whether to chase, investigate, or dismiss it.</p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  onClick={() => {
-                    handleFindingAct(highlightedFinding);
-                    setFinanceCheckOpen(false);
-                  }}
-                  disabled={isLoading}
-                  className={`text-xs font-semibold px-4 py-2 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
-                >
-                  Review this finding
-                </button>
-                <button
-                  onClick={() => setFinanceCheckOpen(false)}
-                  className="text-xs font-medium text-stone-500 transition-colors hover:text-stone-800"
-                >
-                  View all findings
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      <FinanceCheckHandoff
+        open={financeCheckOpen}
+        finding={highlightedFinding}
+        provenance={provenance}
+        platformName={platformName}
+        xeroMode={xeroMode}
+        seapointOffered={seapointOffered}
+        sandboxSwitching={sandboxSwitching}
+        theme={theme}
+        isLoading={isLoading}
+        onConnectSandbox={() => void handleConnectSeapoint()}
+        onReview={handleFindingAct}
+        onViewAll={() => setFinanceCheckOpen(false)}
+      />
 
       <div className="flex-1 flex flex-col items-center lg:flex-row lg:items-stretch lg:justify-center p-4 gap-4">
         {/* Mobile: the findings panel stacks ABOVE the chat — small screens
@@ -1217,385 +1000,64 @@ function BooksView() {
             disabled={isLoading}
             onReviewPriority={handleFindingAct}
           />
-          <FindingsPanel
-            data={findings}
-            loading={findingsLoading}
-            askedIds={askedFindingIds}
-            savedIds={savedFindingIds}
-            disabled={isLoading}
-            onAct={handleFindingAct}
-            onSave={handleFindingSave}
-            onAutoChase={(f) => void handleAutoChase(f)}
-            chasedIds={chasedFindingIds}
-            onReview={(f, state) => void handleFindingReview(f, state)}
-            reviewingIds={reviewingFindingIds}
-            onSuggest={(prompt) => {
-              setInput(prompt);
-              inputRef.current?.focus();
-            }}
-            suggestions={starterQueries.slice(0, 3)}
-            compact
-            persona={persona}
-          />
+          <FindingsPanel {...findingsPanelProps} compact />
 
           {/* Siki's sector note — mirrors the desktop sidebar on small screens */}
           {sector && <SectorNoteCard sector={sector as SectorId} />}
         </div>
 
-        {/* Dashboard Sidebar */}
-        <aside className="hidden lg:flex flex-col w-72 lg:h-[78vh] [&>*]:shrink-0 bg-white rounded-2xl shadow-sm border border-stone-200 p-4 gap-3 overflow-y-auto scroll-thin">
-          {/* Org header — skeleton uses SkeletonReveal for consistency */}
-          <div className="pb-3 border-b border-stone-100">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-xs font-bold text-stone-900 uppercase tracking-wide">
-                Finance check
-              </h2>
-              {xeroMode !== "unknown" && (
-                <span
-                  className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${
-                    xeroMode === "live-oauth" || xeroMode === "live-cli"
-                      ? "bg-emerald-50 text-emerald-600"
-                      : "bg-amber-50 text-amber-600"
-                  }`}
-                >
-                  {xeroMode === "live-oauth" || xeroMode === "live-cli"
-                    ? "LIVE"
-                    : provenance === "sandbox"
-                      ? "SANDBOX"
-                      : "DEMO"}
-                </span>
-              )}
-            </div>
-            <SkeletonReveal isLoading={!orgData} className="h-[40px]" skeletonClassName="rounded-md">
-              {orgData && (
-                <div>
-                  <p className="text-sm font-semibold text-stone-800">{orgData.name}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {orgData.baseCurrency} · {orgData.countryCode}
-                    {orgData.taxNumber ? ` · VAT: ${orgData.taxNumber}` : ""}
-                  </p>
-                </div>
-              )}
-            </SkeletonReveal>
-          </div>
-
-          <TodaySummary
-            data={findings}
-            loading={findingsLoading}
-            persona={persona}
-            disabled={isLoading}
-            onReviewPriority={handleFindingAct}
-          />
-
-          {/* P&L Summary — with contextual hint for first-time users */}
-          <div>
-            <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-xs uppercase tracking-wide text-stone-500 font-semibold">
-                Profit &amp; Loss
-              </span>
-              {showWelcome && (
-                <span className={`text-[9px] ${theme.hintText} font-medium`}>← your money at a glance</span>
-              )}
-            </div>
-            <SkeletonReveal
-              isLoading={pnLoading}
-              className="h-[120px]"
-              skeletonClassName="rounded-xl"
-            >
-              {profitAndLoss && (
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-stone-500">This month</span>
-                    <span className="text-xs text-stone-500">
-                      as of {new Date(profitAndLoss.reportDate || profitAndLoss.toDate || "").toLocaleDateString("en-GB", { month: "short", day: "numeric" })}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <div className="text-xs text-stone-500">Revenue</div>
-                      <div className="text-sm font-bold text-emerald-700">
-                        £{(profitAndLoss.revenue ?? profitAndLoss.rows?.filter(r => r.value > 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-xs text-stone-500">Expenses</div>
-                      <div className="text-sm font-bold text-red-600">
-                        £{Math.abs(profitAndLoss.expenses ?? profitAndLoss.rows?.filter(r => r.value < 0).reduce((s, r) => s + r.value, 0) ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t border-stone-200">
-                    <div className="text-xs text-stone-500">Net Profit</div>
-                    <div className="text-lg font-bold text-stone-900">
-                      £{profitAndLoss.netProfit.toLocaleString(undefined, { minimumFractionDigits: 0 })}
-                    </div>
-                  </div>
-                  <ProfitTrendChart snapshots={metricSnapshots} className="pt-2 mt-2" />
-                </div>
-              )}
-            </SkeletonReveal>
-          </div>
-
-          {/* Siki's sector note — ambient, one rotating tip per visit */}
-          {sector && <SectorNoteCard sector={sector as SectorId} />}
-
-          {/* Findings — the structured audit replaces the old Health Check +
-              Needs Attention + Action Center trio. One source of truth,
-              shared with the mobile panel. Compact enough for the sidebar. */}
-          <div className="flex-1">
-            <div className="flex items-center gap-1 mb-1.5">
-              <span className="text-xs uppercase tracking-wide text-stone-500 font-semibold">
-                Findings
-              </span>
-              {showWelcome && (
-                <span className={`text-[9px] ${theme.hintText} font-medium`}>← things to fix</span>
-              )}
-            </div>
-            <FindingsPanel
-              data={findings}
-              loading={findingsLoading}
-              askedIds={askedFindingIds}
-              savedIds={savedFindingIds}
-              disabled={isLoading}
-              onAct={handleFindingAct}
-              onSave={handleFindingSave}
-              onAutoChase={(f) => void handleAutoChase(f)}
-              chasedIds={chasedFindingIds}
-              onReview={(f, state) => void handleFindingReview(f, state)}
-              reviewingIds={reviewingFindingIds}
-              onSuggest={(prompt) => {
-                setInput(prompt);
-                inputRef.current?.focus();
-              }}
-              suggestions={starterQueries.slice(0, 3)}
-              compact
-              persona={persona}
-            />
-          </div>
-
-          <div className="border-t border-stone-100 pt-3 mt-auto space-y-1.5">
-            <Link href="/memory" className={`block text-xs text-violet-500 hover:text-violet-700 transition-colors`}>
-              {copy.memoryLink}
-            </Link>
-            <Link href="/activity" className={`block text-xs text-stone-500 hover:text-stone-700 transition-colors`}>
-              {copy.activityLink}
-            </Link>
-          </div>
-        </aside>
+        <BooksSidebar
+          xeroMode={xeroMode}
+          provenance={provenance}
+          orgData={orgData}
+          pnLoading={pnLoading}
+          profitAndLoss={profitAndLoss}
+          metricSnapshots={metricSnapshots}
+          showWelcome={showWelcome}
+          theme={theme}
+          copy={copy}
+          sector={sector}
+          persona={persona}
+          findingsLoading={findingsLoading}
+          isLoading={isLoading}
+          onReviewPriority={handleFindingAct}
+          findingsPanel={findingsPanelProps}
+        />
 
         {/* Chat — dvh on mobile so browser chrome doesn't fight the layout */}
         <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl flex flex-col h-[70dvh] lg:h-[78vh] overflow-hidden border border-stone-200">
-          <div className="px-5 py-3 border-b border-stone-100 flex items-center gap-3">
-            <div className="relative">
-              {persona === "siki" ? (
-                <SikiMascot size={40} mood={isLoading ? "look" : "idle"} />
-              ) : (
-                <ZanaMascot size={40} mood={isLoading ? "look" : "idle"} />
-              )}
-              <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${theme.statusDot}`} />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-stone-800">
-                {persona === "siki" ? "Siki · The Explainer" : "Zana · Collections assistant"}
-              </p>
-              <p className="text-xs text-stone-500 flex items-center gap-1">
-                {isLoading ? (
-                  <>
-                    <span className={`w-1.5 h-1.5 rounded-full ${theme.statusPulse}`} />
-                    <span className="t-shimmer">{thinkingMessage || "Thinking…"}</span>
-                  </>
-                ) : (
-                  /* Real backend + Xero status — no hardcoded "Connected" claims */
-                  <span className="flex items-center gap-2">
-                    <ApiHealthDot />
-                    <MemoryBadge />
-                  </span>
-                )}
-              </p>
-            </div>
+          <ChatHeader
+            persona={persona}
+            theme={theme}
+            isLoading={isLoading}
+            thinkingMessage={thinkingMessage}
+            memoryEnabled={memoryEnabled}
+            hasMessages={messages.length > 0}
+            confirmClear={confirmClear}
+            modeHintShown={modeHintShown}
+            memoryAvailable={memory}
+            onPersonaChange={handlePersonaChange}
+            onToggleMemory={() => setMemoryEnabled((m) => !m)}
+            onAskClear={() => setConfirmClear(true)}
+            onConfirmClear={() => { newSession(); setConfirmClear(false); }}
+            onCancelClear={() => setConfirmClear(false)}
+          />
 
-            {/* Persona toggle — explicit modes, described on switch */}
-            <div className="flex items-center gap-1 bg-stone-100 rounded-full p-0.5">
-              <button
-                onClick={() => handlePersonaChange("siki")}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors-quick btn-press ${
-                  persona === "siki"
-                    ? "bg-orange-400 text-white shadow-sm"
-                    : "text-stone-500 hover:text-stone-700"
-                }`}
-                title="Siki — friendly, finds savings, explains in plain English"
-              >
-                Siki
-                <span className={`block text-[8px] font-normal leading-none ${persona === "siki" ? "text-orange-100" : "text-stone-400"}`}>
-                  explain
-                </span>
-              </button>
-              <button
-                onClick={() => handlePersonaChange("zana")}
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors-quick btn-press ${
-                  persona === "zana"
-                    ? `${getPersonaTheme("zana").toggleActive} shadow-sm`
-                    : "text-stone-500 hover:text-stone-700"
-                }`}
-                title="Zana — direct, chases payments, flags uncomfortable truths"
-              >
-                Zana
-                <span className={`block text-[8px] font-normal leading-none ${persona === "zana" ? getPersonaTheme("zana").toggleActiveSub : "text-stone-400"}`}>
-                  chase
-                </span>
-              </button>
-            </div>
-
-            {/* Memory toggle — lets the user compare answers with and without memory recall */}
-            <button
-              onClick={() => setMemoryEnabled((m) => !m)}
-              className={`text-xs font-semibold px-2.5 py-1 rounded-full transition-colors btn-press ${
-                memoryEnabled
-                  ? "bg-violet-100 text-violet-700 hover:bg-violet-200"
-                  : "bg-stone-100 text-stone-500 hover:bg-stone-200"
-              }`}
-              title={memoryEnabled ? "Memory is ON — Siki will recall and remember" : "Memory is OFF — compare what Siki would say without memory"}
-            >
-              {memoryEnabled ? "Memory: ON" : "Memory: OFF"}
-            </button>
-
-            {messages.length > 0 && (
-              confirmClear ? (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => { newSession(); setConfirmClear(false); }}
-                    className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded btn-press"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    onClick={() => setConfirmClear(false)}
-                    className="text-xs text-stone-500 hover:text-stone-700 px-1.5 py-1 rounded btn-press"
-                  >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setConfirmClear(true)}
-                  className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-700 px-2 py-1 rounded hover:bg-stone-100 btn-press"
-                  title="Start a new conversation"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  Clear
-                </button>
-              )
-            )}
-          </div>
-
-          {/* Mode description — appears briefly after switching personas */}
-          {modeHintShown && (
-            <div
-              className={`px-5 py-1.5 border-b text-xs fade-in-up ${theme.modeHintBar}`}
-              role="status"
-            >
-              {persona === "siki"
-                ? "Siki explains — who owes you, what your numbers mean, what's normal for your industry. No jargon."
-                : "Zana enforces — chasing emails, escalation plans, customer scoring, hard truths. Let's get you paid."}
-            </div>
-          )}
-
-          {/* Memory off nudge — when the memory store is unreachable, the agent works without memory. */}
-          {!memory && (
-            <div className="bg-stone-50 border-b border-stone-200 px-5 py-2 text-xs text-stone-500 flex items-center justify-between gap-3 fade-in-up">
-              <span>
-                Memory is unavailable. Siki still works, but will not remember across sessions.
-              </span>
-              <Link
-                href="/memory"
-                className="shrink-0 text-violet-600 hover:text-violet-700 font-medium"
-              >
-                Start it →
-              </Link>
-            </div>
-          )}
-
-          {/* Banner region — only one banner shows at a time, by priority:
-              error > upgrade > chase notice > sign-in nudge. This prevents
-              the stacking problem where 3-4 horizontal banners could eat the
-              chat scroll area. Each banner has its own dismiss, which clears
-              its state so the next-priority one (if any) becomes visible. */}
-          {(() => {
-            // Pick the highest-priority active banner.
-            if (errorBanner) {
-              return (
-                <div className="bg-red-50 border-b border-red-200 px-4 py-2 text-xs text-red-700 flex items-center justify-between fade-in-up">
-                  <span>{errorBanner}</span>
-                  <button
-                    onClick={() => setErrorBanner(null)}
-                    className="text-red-500 hover:text-red-700 btn-press"
-                    aria-label="Dismiss"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            }
-            if (upgradeBanner) {
-              return (
-                <div className={`border-b px-4 py-2.5 text-xs flex items-center justify-between gap-3 fade-in-up ${theme.hintBg} ${theme.toastBorder} ${theme.hintTextOnBg}`}>
-                  <span>{upgradeBanner}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      href="/account?intent=pro"
-                      className={`font-semibold text-white px-2.5 py-1 rounded-lg btn-press transition-colors ${theme.btnPrimary}`}
-                    >
-                      Upgrade
-                    </Link>
-                    <button
-                      onClick={() => setUpgradeBanner(null)}
-                      className={`btn-press ${theme.hintTextStrong}`}
-                      aria-label="Dismiss upgrade prompt"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-            if (chaseNotice) {
-              return (
-                <AutoChaseNotice
-                  persona={persona}
-                  notice={chaseNotice}
-                  onDismiss={() => setChaseNotice(null)}
-                />
-              );
-            }
-            if (signInNudge) {
-              return (
-                <div className="bg-violet-50 border-b border-violet-200 px-4 py-2.5 text-xs text-violet-900 flex items-center justify-between gap-3 fade-in-up">
-                  <span>{signInNudge}</span>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      href="/account"
-                      className="font-semibold text-white bg-violet-600 hover:bg-violet-700 px-2.5 py-1 rounded-lg btn-press transition-colors"
-                    >
-                      Sign in
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setSignInNudge(null);
-                        sessionStorage.setItem("siki_signin_nudged", "1");
-                      }}
-                      className="text-violet-400 hover:text-violet-600 btn-press"
-                      aria-label="Dismiss sign-in prompt"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          })()}
+          <ChatBanners
+            errorBanner={errorBanner}
+            upgradeBanner={upgradeBanner}
+            chaseNotice={chaseNotice}
+            signInNudge={signInNudge}
+            persona={persona}
+            theme={theme}
+            onDismissError={() => setErrorBanner(null)}
+            onDismissUpgrade={() => setUpgradeBanner(null)}
+            onDismissChase={() => setChaseNotice(null)}
+            onDismissNudge={() => {
+              setSignInNudge(null);
+              sessionStorage.setItem("siki_signin_nudged", "1");
+            }}
+          />
 
           {/* The old client-fabricated "Audit Complete" banner is gone —
               the findings panel is the proactive audit now, with real
@@ -1611,352 +1073,53 @@ function BooksView() {
           </div>
           <div className="flex-1 overflow-y-auto p-5 space-y-4 scroll-thin">
             {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center px-8">
-                {/* Mascot in the empty state — animated, cycling moods */}
-                <div className="mb-4 fade-in-up">
-                  {persona === "siki" ? (
-                    <SikiMascotAnimated size={100} />
-                  ) : (
-                    <ZanaMascot size={100} mood="look" />
-                  )}
-                </div>
-                {/* Staggered text reveal for the empty state */}
-                <div className={`t-stagger ${staggerShown ? "is-shown" : ""}`}>
-                  <h2 className="t-stagger-line t-stagger-line--1 text-lg font-semibold text-stone-800 mb-1">
-                    {persona === "siki"
-                      ? (showWelcome ? "Welcome! I'm Siki" : "Hi! I'm Siki, your AI Bookkeeper")
-                      : "I'm Zana. Let's get you paid."}
-                  </h2>
-                  <p className="t-stagger-line t-stagger-line--2 text-sm text-stone-500 max-w-sm">
-                    {persona === "siki"
-                      ? (showWelcome
-                        ? "I'm your AI bookkeeper. I read your Xero data, find what needs fixing, and explain your finances in plain English — no accounting jargon."
-                        : "I reconcile your Xero transactions, find overdue invoices, explain your P&L in plain English, and propose journal entries to fix discrepancies.")
-                      : "I chase overdue invoices, draft reminder emails, flag non-deductible expenses, and find savings you're missing. No sugarcoating."}
-                  </p>
-                </div>
-
-                {/* First-time welcome banner with value prop */}
-                {showWelcome && (
-                  <div className={`mt-4 w-full max-w-sm border rounded-xl p-4 fade-in-up text-left ${theme.hintBg}`}>
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 mt-0.5">
-                        <span className="text-lg">✨</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-sky-900">Here&apos;s what I can do for you</p>
-                        <ul className="text-xs text-sky-700 mt-1.5 space-y-1">
-                          <li>💰 <span className="font-medium">Show who owes you</span> — every unpaid invoice, aged 30/60/90 days</li>
-                          <li>✉️ <span className="font-medium">Chase what you&apos;re owed</span> — escalating reminder emails that work</li>
-                          <li>📊 <span className="font-medium">Show what&apos;s normal</span> — payment norms for your industry</li>
-                          <li>📈 <span className="font-medium">Explain your books</span> — P&amp;L, tax estimate, fixes — plain English</li>
-                        </ul>
-                        <p className="text-xs text-sky-600 mt-2.5">
-                          {provenance === "sandbox"
-                            ? `The sidebar shows the ${platformName} sandbox books — read-only data, so I can explain and review but never write. Try a question below →`
-                            : xeroMode === "demo"
-                              ? "The sidebar shows a demo business so you can explore. Try a question below, then connect your Xero to see your real numbers →"
-                              : "The sidebar shows a live snapshot of your books. Try a question below to see me in action →"}
-                        </p>
-
-                        {/* The one onboarding question: their sector. Personalizes
-                            "is this normal?" against their actual industry instead
-                            of guessing from the org name. */}
-                        <div className="mt-3 pt-3 border-t border-sky-100">
-                          {sector && !sectorSaved ? (
-                            <p className="text-xs text-sky-700">
-                              📊 Comparing you against{" "}
-                              <span className="font-semibold">{sector.replace("_", " ")}</span>{" "}
-                              businesses.
-                            </p>
-                          ) : sectorSaved ? (
-                            <p className="text-xs font-medium text-emerald-700 fade-in-up">
-                              ✓ Noted — I&apos;ll compare your numbers against{" "}
-                              {sector?.replace("_", " ")} businesses.
-                            </p>
-                          ) : (
-                            <>
-                              <p className="text-xs font-semibold text-sky-900 mb-1.5">
-                                One quick question: what&apos;s your line of business?
-                              </p>
-                              <p className="text-xs text-sky-600 mb-2">
-                                So &quot;is this normal?&quot; compares you against YOUR industry.
-                              </p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {[
-                                  ["retail", "Retail"],
-                                  ["construction", "Construction"],
-                                  ["professional_services", "Services"],
-                                  ["hospitality", "Hospitality"],
-                                  ["manufacturing", "Manufacturing"],
-                                  ["wholesale", "Wholesale"],
-                                  ["music", "Music"],
-                                ].map(([value, label]) => (
-                                  <button
-                                    key={value}
-                                    onClick={() => void handleSectorPick(value)}
-                                    className="text-xs font-medium px-2 py-1 rounded-full bg-white border border-sky-200 text-sky-700 hover:bg-sky-100 btn-press transition-colors"
-                                  >
-                                    {label}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={dismissWelcome}
-                      className="text-xs text-sky-600 hover:text-sky-800 mt-2 font-medium"
-                    >
-                      Got it, dismiss
-                    </button>
-                  </div>
-                )}
-
-                {/* Connect Your Xero CTA — now handled by the persistent
-                    demo banner at the top of the page. This was previously
-                    only shown in the empty state, which meant users who
-                    started chatting lost the connect prompt. */}
-
-                <div className="mt-6 grid grid-cols-1 gap-2 w-full max-w-sm">
-                  <p className="t-stagger-line t-stagger-line--3 text-xs uppercase tracking-wide text-stone-500 font-semibold text-left">
-                    {showWelcome ? "Try one of these to get started" : "Try a sample query"}
-                  </p>
-                  {starterQueries.map((sample, i) => (
-                    <button
-                      key={sample.id}
-                      onClick={() => handleStartSample(sample.description)}
-                      className={`text-left text-xs bg-stone-50 hover:bg-stone-100 border rounded-lg px-3 py-2.5 transition-colors btn-press fade-in-up group ${
-                        persona === "siki"
-                          ? "text-stone-600 border-stone-200"
-                          : "text-stone-600 border-stone-300"
-                      }`}
-                      style={{ animationDelay: `${300 + i * 60}ms` }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="font-medium text-stone-800">{sample.title}</div>
-                        {sample.hint && (
-                          <span className={`text-[9px] transition-colors ${
-                            persona === "siki"
-                              ? `text-stone-400 ${theme.sampleHover}`
-                              : "text-stone-400 group-hover:text-rose-500"
-                          }`}>
-                            {sample.hint}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-stone-500 mt-0.5 line-clamp-2">
-                        {sample.description}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {/* Siki knows — on-demand sector methodology (chat phase) */}
-                {sector && (
-                  <SectorChatKnows
-                    sector={sector as SectorId}
-                    onAsk={(q) => {
-                      setInput(q);
-                      inputRef.current?.focus();
-                    }}
-                  />
-                )}
-              </div>
+              <ChatEmptyState
+                persona={persona}
+                theme={theme}
+                staggerShown={staggerShown}
+                showWelcome={showWelcome}
+                provenance={provenance}
+                platformName={platformName}
+                xeroMode={xeroMode}
+                sector={sector}
+                sectorSaved={sectorSaved}
+                starterQueries={starterQueries}
+                onDismissWelcome={dismissWelcome}
+                onSectorPick={(v) => void handleSectorPick(v)}
+                onStartSample={handleStartSample}
+                onAsk={(q) => {
+                  setInput(q);
+                  inputRef.current?.focus();
+                }}
+              />
             )}
 
-            {messages.map((msg, i) => {
-              // Parse for journal entry card if agent message
-              const journal = msg.role === "agent" && msg.content ? parseJournalEntry(msg.content) : null;
-              // Parse for negotiation email card if agent message
-              const negotiationEmail = msg.role === "agent" && msg.content ? parseNegotiationEmail(msg.content) : null;
-              // Analysis cards are now delivered via events, not parsed from text
-              const cards = msg.analysisCards || [];
-              // The text to display (remove the structured block if we're showing it as a card)
-              const displayContent = journal
-                ? msg.content.split(/PROPOSED JOURNAL ENTRY/i)[0].trim()
-                : negotiationEmail
-                ? msg.content.split(/NEGOTIATION EMAIL/i)[0].trim()
-                : msg.content;
-
-              return (
-              <div
-                key={i}
-                className={`flex gap-2.5 fade-in-up ${
-                  msg.role === "user" ? "flex-row-reverse" : "flex-row"
-                }`}
-              >
-                {msg.role === "agent" && (
-                  <div className="shrink-0">
-                    {(msg.persona ?? persona) === "siki" ? <SikiMascot size={32} mood="idle" /> : <ZanaMascot size={32} mood="idle" />}
-                  </div>
-                )}
-                <div className={`max-w-[80%] flex flex-col gap-1 ${msg.role === "user" ? "items-end" : ""}`}>
-                  {msg.role === "agent" && msg.memoryRecall && (
-                    <MemoryRecallTrace data={msg.memoryRecall} persona={msg.persona ?? persona} />
-                  )}
-                  {msg.role === "agent" && msg.toolCalls && msg.toolCalls.length > 0 && (
-                    <ToolCallTrace calls={msg.toolCalls} />
-                  )}
-                  <div
-                    className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === "user"
-                        ? theme.userBubble
-                        : "bg-stone-100 text-stone-800 rounded-tl-sm"
-                    }`}
-                  >
-                    {msg.role === "agent" ? (
-                      displayContent ? (
-                        <MarkdownMessage source={displayContent} />
-                      ) : msg.toolCalls && msg.toolCalls.length > 0 ? (
-                        <span className="text-stone-400 text-xs italic">Analyzing your Xero data...</span>
-                      ) : null
-                    ) : (
-                      msg.content
-                    )}
-                  </div>
-                  {msg.role === "user" && (
-                    <button
-                      onClick={() => handleRemember(i, msg.content)}
-                      disabled={rememberedMessages.has(i)}
-                      className={`text-xs font-medium px-2 py-0.5 rounded transition-colors btn-press ${
-                        rememberedMessages.has(i)
-                          ? "text-emerald-600 bg-emerald-50 cursor-default"
-                          : "text-stone-400 hover:text-violet-600 hover:bg-violet-50"
-                      }`}
-                      title={rememberedMessages.has(i) ? "Saved to memory" : "Remember this for next time"}
-                    >
-                      {rememberedMessages.has(i) ? "Remembered" : "Remember"}
-                    </button>
-                  )}
-                  {journal && (
-                    <JournalEntryCard
-                      description={journal.description}
-                      debitAccount={journal.debitAccount}
-                      debitAccountName={journal.debitAccountName}
-                      creditAccount={journal.creditAccount}
-                      creditAccountName={journal.creditAccountName}
-                      amount={journal.amount}
-                      incomplete={journal.incomplete}
-                      threadId={threadId}
-                      persona={msg.persona ?? persona}
-                      onPosted={(result) => {
-                        if (result.posted && result.mode !== "demo") {
-                          setShowSuccessCheck(true);
-                          setTimeout(() => setShowSuccessCheck(false), 3000);
-                          refreshMetricSnapshots(true);
-                        }
-                      }}
-                      onReject={() => {
-                        // Pre-fill the chat so the user tells the agent what to change.
-                        setInput("Don't post that entry — ");
-                        inputRef.current?.focus();
-                      }}
-                    />
-                  )}
-                  {negotiationEmail && (
-                    <NegotiationEmailCard
-                      email={negotiationEmail}
-                      persona={msg.persona ?? persona}
-                    />
-                  )}
-                  {cards.map((card, ci) => (
-                    <AnalysisCard
-                      key={ci}
-                      data={card}
-                      persona={msg.persona ?? persona}
-                    />
-                  ))}
-                  {/* Feedback on completed agent answers (not while streaming) */}
-                  {msg.role === "agent" && msg.content && threadId &&
-                    !(isLoading && i === messages.length - 1) && (
-                    <FeedbackButtons threadId={threadId} messageIndex={i} initial={msg.feedback} />
-                  )}
-                  {/* Contextual Zana nudge — only on the last agent message,
-                      only in Siki mode, only when not streaming. Detects
-                      overdue invoices, tax, or savings opportunities in the
-                      response and suggests switching to Zana for the action
-                      Zana is better at (chasing, tax bluntness, savings). */}
-                  {msg.role === "agent" && msg.content &&
-                    persona === "siki" &&
-                    !isLoading && i === messages.length - 1 &&
-                    (() => {
-                      const lower = msg.content.toLowerCase();
-                      let nudge: string | null = null;
-                      if (lower.includes("overdue") || lower.includes("owed") || lower.includes("hasn't paid") || lower.includes("haven't paid"))
-                        nudge = "Zana can draft the chasing email for this →";
-                      else if (lower.includes("tax") || lower.includes("deduct") || lower.includes("corporation tax"))
-                        nudge = "Zana can check if you're overpaying tax →";
-                      else if (lower.includes("saving") || lower.includes("expense") || lower.includes("margin") || lower.includes("profit"))
-                        nudge = "Zana can find savings in your expenses →";
-                      if (!nudge) return null;
-                      return (
-                        <button
-                          onClick={() => handlePersonaChange("zana")}
-                          className="self-start mt-1 text-xs font-medium text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-lg btn-press transition-colors fade-in-up flex items-center gap-1.5"
-                        >
-                          <span className="text-rose-400">⚡</span>
-                          {nudge}
-                        </button>
-                      );
-                    })()}
-                  {/* HMRC guidance footnote — persists the context found
-                      during the wait under the agent's response. Only on
-                      the last agent message, only when not streaming. */}
-                  {msg.role === "agent" && msg.content &&
-                    !isLoading && i === messages.length - 1 &&
-                    lastContextResults.length > 0 && (
-                    <div className="mt-1 border-t border-stone-200/60 pt-2 fade-in-up">
-                      <p className="text-xs text-stone-400 font-medium mb-0.5">
-                        📖 Related HMRC guidance
-                      </p>
-                      {lastContextResults.slice(0, 1).map((r) => (
-                        <div key={r.url}>
-                          <p className="text-xs text-stone-600 leading-relaxed">
-                            {r.summary || r.snippet}
-                          </p>
-                          <a
-                            href={r.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-stone-400 hover:text-violet-600 transition-colors text-[9px] mt-0.5 inline-block"
-                          >
-                            {r.title.length > 45 ? r.title.slice(0, 45) + "…" : r.title} ↗
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* Peak-end summary card — a clean, satisfying close
-                      after the agent responds. Shows issues found, money
-                      at stake, and urgent count. Only on the last message. */}
-                  {msg.role === "agent" && msg.content &&
-                    !isLoading && i === messages.length - 1 && (
-                    <ResponseSummary
-                      findings={findings}
-                      isStreaming={isLoading}
-                      persona={persona}
-                    />
-                  )}
-                </div>
-              </div>
-              );
-            })}
-
-            {isLoading && (
-              <div className="bg-stone-100 px-4 py-3 rounded-2xl rounded-tl-sm fade-in-up">
-                <WhileAgentWorks
-                  persona={persona}
-                  userQuery={lastQuery}
-                  currentTool={currentTool}
-                  thinkingMessage={thinkingMessage}
-                  findings={findings}
-                  onContextResults={setLastContextResults}
-                />
-              </div>
-            )}
+            <ChatMessages
+              messages={messages}
+              persona={persona}
+              theme={theme}
+              threadId={threadId}
+              rememberedMessages={rememberedMessages}
+              isLoading={isLoading}
+              lastContextResults={lastContextResults}
+              lastQuery={lastQuery}
+              currentTool={currentTool}
+              thinkingMessage={thinkingMessage}
+              findings={findings}
+              onRemember={(i, c) => void handleRemember(i, c)}
+              onJournalPosted={() => {
+                setShowSuccessCheck(true);
+                setTimeout(() => setShowSuccessCheck(false), 3000);
+                refreshMetricSnapshots(true);
+              }}
+              onJournalReject={() => {
+                // Pre-fill the chat so the user tells the agent what to change.
+                setInput("Don't post that entry — ");
+                inputRef.current?.focus();
+              }}
+              onPersonaChange={handlePersonaChange}
+              onContextResults={setLastContextResults}
+            />
             <div ref={messagesEndRef} />
           </div>
 
@@ -2024,235 +1187,24 @@ function BooksView() {
         </p>
       </footer>
 
-      {/* Success check overlay — plays when a journal entry actually posts to Xero.
-          Escape or a click anywhere dismisses it. */}
-      {showSuccessCheck && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up"
-          onClick={() => setShowSuccessCheck(false)}
-        >
-          <div
-            ref={successDialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Journal entry posted to Xero"
-            tabIndex={-1}
-            className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 focus:outline-none"
-          >
-            <SikiMascot size={80} mood="celebrate" />
-            <SuccessCheck show={showSuccessCheck} size={48} className="text-emerald-600" />
-            <p className="text-sm font-semibold text-stone-800">Journal entry posted to Xero</p>
-            <p className="text-xs text-stone-500">Your books are now reconciled.</p>
-          </div>
-        </div>
-      )}
-
-      {/* Post-connect moment — full-attention staging after the OAuth
-          return: Siki "reads" the fresh books, then reveals what it found
-          with the money number front and centre. */}
-      {connectStage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label={connectCopy.ariaLabel}
-        >
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 flex flex-col items-center gap-3 text-center fade-in-up">
-            {connectStage === "analyzing" ? (
-              <>
-                {persona === "zana" ? (
-                  <ZanaMascot size={80} mood="look" />
-                ) : (
-                  <SikiMascot size={80} mood="look" />
-                )}
-                <p className="text-sm font-semibold text-stone-800">
-                  {connectCopy.analyzingTitle}
-                </p>
-                <p className="text-xs text-stone-500 t-shimmer">
-                  {connectCopy.analyzingSub}
-                </p>
-              </>
-            ) : (
-              <>
-                {persona === "zana" ? (
-                  <ZanaMascot
-                    size={80}
-                    mood={findings && !findings.clean ? "look" : "celebrate"}
-                  />
-                ) : (
-                  <SikiMascot
-                    size={80}
-                    mood={findings && !findings.clean ? "look" : "celebrate"}
-                  />
-                )}
-                {findings && findings.money_found > 0 ? (
-                  <>
-                    <div className={`text-4xl font-bold leading-none ${persona === "zana" ? "text-rose-700" : "text-stone-900"}`}>
-                      <AnimatedNumber prefix="£" value={Math.round(findings.money_found)} />
-                    </div>
-                    <p className="text-sm font-semibold text-stone-800">
-                      {connectCopy.revealMoneySub}
-                    </p>
-                    <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
-                  </>
-                ) : findings && !findings.clean ? (
-                  <>
-                    <p className="text-sm font-semibold text-stone-800">
-                      {connectCopy.revealIssuesTitle}
-                    </p>
-                    <p className="text-xs text-stone-500">{findingsSummary(findings)}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-semibold text-stone-800">
-                      {connectCopy.revealCleanTitle}
-                    </p>
-                    <p className="text-xs text-stone-500">{connectCopy.revealCleanSub}</p>
-                  </>
-                )}
-                <button
-                  onClick={dismissConnectMoment}
-                  className={`mt-2 text-sm font-semibold ${theme.btnPrimary} px-5 py-2 rounded-lg btn-press transition-colors`}
-                >
-                  {connectCopy.showMe}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Pre-OAuth consent — the trust moment. Users are handing over
-          their company's books; answer the five questions they're
-          actually asking BEFORE Xero's permissions page appears. */}
-      {showConnectConfirm && (
-        <div
-          className="fixed inset-0 z-50 bg-stone-900/40 backdrop-blur-sm flex items-center justify-center p-4 fade-in"
-          onClick={() => setShowConnectConfirm(false)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setShowConnectConfirm(false);
-          }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Before you connect your Xero"
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 fade-in-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              {persona === "zana" ? (
-                <ZanaMascot size={40} mood="look" />
-              ) : (
-                <SikiMascot size={40} mood="idle" />
-              )}
-              <div>
-                <h2 className="text-sm font-bold text-stone-900">Before you connect</h2>
-                <p className="text-xs text-stone-600 mt-0.5">
-                  You&apos;re about to share your company&apos;s books. Here&apos;s exactly what
-                  that means:
-                </p>
-              </div>
-            </div>
-
-            <ul className="space-y-2.5 mb-5 text-xs text-stone-700">
-              <li className="flex gap-2.5">
-                <span aria-hidden="true">👀</span>
-                <span>
-                  <span className="font-semibold">Siki reads</span> your invoices, contacts, bank
-                  transactions, and reports — on demand, not bulk-copied.
-                </span>
-              </li>
-              <li className="flex gap-2.5">
-                <span aria-hidden="true">🔒</span>
-                <span>
-                  <span className="font-semibold">Siki can&apos;t change anything, Zana
-                  can&apos;t chase anyone</span> — without you. Every entry and every email
-                  needs your explicit approval first.
-                </span>
-              </li>
-              <li className="flex gap-2.5">
-                <span aria-hidden="true">🤐</span>
-                <span>
-                  <span className="font-semibold">Never sold, never shared</span> with advertisers,
-                  never used to train AI models. Access tokens are encrypted.
-                </span>
-              </li>
-              <li className="flex gap-2.5">
-                <span aria-hidden="true">🚪</span>
-                <span>
-                  <span className="font-semibold">Leave anytime</span> — one click disconnects
-                  instantly, and &quot;Delete my data&quot; erases everything we stored.
-                </span>
-              </li>
-            </ul>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => void startXeroOAuth()}
-                disabled={connecting}
-                className={`flex-1 text-xs font-semibold px-4 py-2.5 rounded-lg ${theme.btnPrimary} btn-press transition-colors disabled:opacity-50`}
-              >
-                {connecting ? "Connecting…" : "Continue to Xero →"}
-              </button>
-              <button
-                onClick={() => setShowConnectConfirm(false)}
-                disabled={connecting}
-                className="text-xs font-semibold px-4 py-2.5 rounded-lg bg-stone-100 text-stone-700 hover:bg-stone-200 btn-press transition-colors disabled:opacity-50"
-              >
-                Not yet
-              </button>
-            </div>
-            <p className="text-xs text-stone-400 mt-3 text-center">
-              Full details:{" "}
-              <Link href="/security" className={`${theme.link} underline`}>
-                how your data is protected
-              </Link>
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* The payment moment — a chased invoice got PAID since the last
-          visit. The product's climax gets the full celebration, not a
-          log line. Click anywhere or Escape to dismiss. */}
-      {recoveredCelebration !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm fade-in-up"
-          onClick={() => setRecoveredCelebration(null)}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") setRecoveredCelebration(null);
-          }}
-          tabIndex={-1}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Money recovered"
-        >
-          <div className={`rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-3 text-center max-w-sm mx-4 ${recoveredCopy.panelClass}`}>
-            {persona === "zana" ? (
-              <ZanaMascot size={90} mood="celebrate" />
-            ) : (
-              <SikiMascot size={90} mood="celebrate" />
-            )}
-            <div className={`text-4xl font-bold leading-none ${recoveredCopy.amountClass}`}>
-              <AnimatedNumber prefix="£" value={Math.round(recoveredCelebration)} />
-            </div>
-            <p className="text-sm font-semibold text-stone-800">
-              {recoveredCopy.headline}
-            </p>
-            <p className="text-xs text-stone-500">{recoveredCopy.subline}</p>
-            <button
-              onClick={() => setRecoveredCelebration(null)}
-              className={`mt-2 text-sm font-semibold px-5 py-2 rounded-lg btn-press transition-colors ${recoveredCopy.buttonClass}`}
-            >
-              {recoveredCopy.button}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Proactive webhook alerts */}
-      <ProactiveAlert persona={persona} />
+      <BooksOverlays
+        persona={persona}
+        theme={theme}
+        findings={findings}
+        showSuccessCheck={showSuccessCheck}
+        successDialogRef={successDialogRef}
+        onDismissSuccess={() => setShowSuccessCheck(false)}
+        connectStage={connectStage}
+        connectCopy={connectCopy}
+        onDismissConnect={dismissConnectMoment}
+        showConnectConfirm={showConnectConfirm}
+        connecting={connecting}
+        onStartOAuth={() => void startXeroOAuth()}
+        onCancelConnect={() => setShowConnectConfirm(false)}
+        recoveredCelebration={recoveredCelebration}
+        recoveredCopy={recoveredCopy}
+        onDismissRecovered={() => setRecoveredCelebration(null)}
+      />
     </main>
   );
 }

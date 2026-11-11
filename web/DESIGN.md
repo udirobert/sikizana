@@ -190,3 +190,60 @@ A `watchFor` field already exists on every `SectorBenchmark` in `sector-benchmar
 2. Would a generic fintech app ship this unchanged? → Add mascot voice or honest copy.
 3. Is Zana's territory (chase, overdue, enforce)? → Rose accent + direct label.
 4. Can the user read the number in 2 seconds? → Numbers win over pixels.
+
+## Component structure (`/books`)
+
+The workspace composes props-driven sections in `web/components/books/`
+— the page (`app/books/page.tsx`) owns state, data loading, and URL
+handoffs; components own presentation:
+
+| File | Surface |
+|------|---------|
+| `BooksNav.tsx` | Top nav (brand, connection status, links) + `DemoBanner` |
+| `FinanceCheckHandoff.tsx` | Landing/OAuth handoff — canonical finding, evidence, next step |
+| `BooksSidebar.tsx` | Desktop sidebar — org, P&L, sector note, findings |
+| `ChatChrome.tsx` | `ChatHeader` (mascot, persona/memory toggles) + `ChatBanners` (one-at-a-time, priority-ordered) |
+| `ChatEmptyState.tsx` | First-run state — mascot, welcome card, sector question, starters |
+| `ChatMessages.tsx` | Message stream, journal/negotiation/analysis cards, working indicator |
+| `BooksOverlays.tsx` | Full-attention moments — post-connect, consent, recovered celebration |
+| `types.ts` | Shared `OrgData`, `ProfitAndLossData`, `FindingsPanelProps` |
+
+Both `FindingsPanel` instances (mobile card + sidebar) consume the same
+`findingsPanelProps` bundle — build it once in the page and spread it, so
+the surfaces can never drift apart.
+
+## Mobile
+
+Mobile is a first-class surface, not a collapsed desktop:
+
+- Findings stack **above** the chat on `<lg` screens — the audit's value
+  first, never a lost sidebar.
+- Chat uses `dvh` so browser chrome doesn't fight layout; the header
+  wraps onto a second row on narrow screens so controls never squeeze
+  the mascot/status.
+- Nav collapses to a menu button under `sm`; the Connect button keeps
+  priority. Long tenant names truncate rather than wrap.
+- Any new `/books` feature must name its mobile behavior at design time
+  (stacked? hidden? moved?), not discover it in review.
+
+## Localization (v1)
+
+The profile `language` field steers both agent replies (server-side) and
+UI chrome: `web/lib/i18n.ts` exposes `t(key)` / `useT()` with an English
+fallback — a missing locale or key can never break the UI. v1 covers
+nav + demo-banner chrome only; grow the dictionary key-by-key as other
+surfaces need it. Agent-generated text stays outside this layer.
+
+## Second surfaces (portal)
+
+The erp.ai/build.host client portal is a second product surface, not a
+separate product — the same rules apply:
+
+- Provenance labels (`live`/`sandbox`/`sample`) appear wherever books
+  data renders; numbers stay scannable (proof zone, no decorative motion).
+- Siki's voice explains; Zana's voice chases. Portal copy uses the same
+  first-person register via the same finding language — a portal finding
+  is "a risk requiring review," never an accusation.
+- The portal reads the same canonical `build_findings()` data via
+  `/api/portal/*` — no parallel metrics, no divergent numbers between
+  the two surfaces.
