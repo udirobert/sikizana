@@ -30,6 +30,15 @@ services:
       # Production security settings
       - ALLOWED_ORIGINS=https://sikizana.persidian.com
       - COOKIE_SECURE=true
+      - APP_BASE_URL=${APP_BASE_URL:-https://sikizana.persidian.com}
+      # Stripe billing — values live in the VPS .env, never in git.
+      # Unset = billing endpoints disabled, free tier unenforced.
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - STRIPE_PRO_PRICE_ID=${STRIPE_PRO_PRICE_ID:-}
+      - STRIPE_BUSINESS_PRICE_ID=${STRIPE_BUSINESS_PRICE_ID:-}
+      - BILLING_ENFORCED=${BILLING_ENFORCED:-false}
+      - FREE_TIER_MONTHLY_QUERIES=${FREE_TIER_MONTHLY_QUERIES:-5}
       - XERO_WEBHOOK_KEY=${XERO_WEBHOOK_KEY}
       - TOKEN_ENCRYPTION_KEY=${TOKEN_ENCRYPTION_KEY}
       # Sessions allowed to read the operator's org via the mounted CLI
