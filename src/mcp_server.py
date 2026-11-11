@@ -74,6 +74,7 @@ _TOOL_DESCRIPTION = (
     "No source data is mutated; the caller owns any review workflow."
 )
 
+
 def _tool_model():
     from mcp.types import Tool
 
@@ -143,9 +144,7 @@ def _make_server() -> "Server":
         try:
             content = await call_tool(params.name, params.arguments)
         except Exception as exc:  # noqa: BLE001 — report as tool error
-            return CallToolResult(
-                content=[TextContent(type="text", text=str(exc))], isError=True
-            )
+            return CallToolResult(content=[TextContent(type="text", text=str(exc))], isError=True)
         return CallToolResult(content=content)
 
     return Server(

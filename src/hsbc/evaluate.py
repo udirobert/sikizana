@@ -20,8 +20,8 @@ def select_f1_threshold(labels: Any, scores: Any) -> float:
     precision, recall, thresholds = precision_recall_curve(labels, scores)
     if not len(thresholds):
         return 0.5
-    f1_values = 2 * precision[:-1] * recall[:-1] / np.clip(
-        precision[:-1] + recall[:-1], 1e-12, None
+    f1_values = (
+        2 * precision[:-1] * recall[:-1] / np.clip(precision[:-1] + recall[:-1], 1e-12, None)
     )
     return float(thresholds[int(np.nanargmax(f1_values))])
 

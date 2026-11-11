@@ -11,9 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-_CATALOGUE_PATH = (
-    Path(__file__).resolve().parents[2] / "web" / "lib" / "sector-catalogue.json"
-)
+_CATALOGUE_PATH = Path(__file__).resolve().parents[2] / "web" / "lib" / "sector-catalogue.json"
 
 
 @lru_cache(maxsize=1)

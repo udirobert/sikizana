@@ -364,9 +364,7 @@ async def _enrich_with_llm(facts: dict[str, Any]) -> list[dict[str, Any]] | None
     sector_label = facts.get("sector_label") or facts["sector"].replace("_", " ").title()
     bench = facts["benchmarks"]
     demo = facts.get("demo") or {}
-    books_line = (
-        f"You scanned {demo.get('scan_note', 'demo books')} for a visitor researching {sector_label.lower()} ({facts['org_name']})."
-    )
+    books_line = f"You scanned {demo.get('scan_note', 'demo books')} for a visitor researching {sector_label.lower()} ({facts['org_name']})."
     if not demo.get("fits_sector", True):
         books_line += (
             f" These are café-shaped sample books to show the scan — not {sector_label.lower()} invoices. "

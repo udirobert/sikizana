@@ -80,9 +80,7 @@ def spend_aggregate_args(date_from: str, date_to: str) -> dict[str, Any]:
     }
 
 
-def _previous_period(
-    from_date: str | None, to_date: str | None
-) -> tuple[str, str] | None:
+def _previous_period(from_date: str | None, to_date: str | None) -> tuple[str, str] | None:
     """The equal-length window ending the day before `from_date`."""
     if not (from_date and to_date):
         return None
@@ -136,7 +134,11 @@ def _snapshot_read(directory: str, need: str, arguments: dict[str, Any]) -> Any:
             continue
         if merged is None:
             merged = page
-        elif isinstance(merged, dict) and isinstance(page, dict) and isinstance(page.get("data"), list):
+        elif (
+            isinstance(merged, dict)
+            and isinstance(page, dict)
+            and isinstance(page.get("data"), list)
+        ):
             merged = {**merged, "data": [*merged.get("data", []), *page["data"]]}
     return merged if merged is not None else []
 
@@ -213,7 +215,9 @@ class SeapointConnector(AccountingConnector):
                 pages += 1
             return result
         except Exception as exc:  # noqa: BLE001 — sandbox is best-effort
-            log.warning("seapoint_call_failed", extra={"need": need, "tool": tool, "error": str(exc)})
+            log.warning(
+                "seapoint_call_failed", extra={"need": need, "tool": tool, "error": str(exc)}
+            )
             return []
 
     # ---- Organisation ----
@@ -330,9 +334,7 @@ class SeapointConnector(AccountingConnector):
             )
             prior_map = {c["name"]: c["amount"] for c in prior}
 
-        out = [
-            {**c, "prior_amount": prior_map.get(c["name"])} for c in categories
-        ]
+        out = [{**c, "prior_amount": prior_map.get(c["name"])} for c in categories]
         return {
             "period": {"from": from_date, "to": to_date},
             "currency": "GBP",
@@ -379,9 +381,7 @@ class SeapointConnector(AccountingConnector):
         return str(parent or child) if (parent or child) else None
 
     @classmethod
-    def _norm_spend_rows(
-        cls, raw: Any, labels: dict[str, str]
-    ) -> list[dict[str, Any]]:
+    def _norm_spend_rows(cls, raw: Any, labels: dict[str, str]) -> list[dict[str, Any]]:
         """Aggregate rows {category_id, total, txns} → {name, amount}.
 
         Envelope is guessed (the sandbox's aggregate response shape isn't
@@ -395,7 +395,9 @@ class SeapointConnector(AccountingConnector):
             group = row.get("group") if isinstance(row.get("group"), dict) else {}
             metrics = row.get("metrics") if isinstance(row.get("metrics"), dict) else {}
             src = {**row, **group, **metrics}
-            cid = src.get("category_id") or src.get("category") or (None if group else src.get("id"))
+            cid = (
+                src.get("category_id") or src.get("category") or (None if group else src.get("id"))
+            )
             name = labels.get(str(cid)) if cid is not None else None
             if not name:
                 name = str(src.get("category_name") or src.get("name") or "") or (
@@ -443,7 +445,11 @@ class SeapointConnector(AccountingConnector):
     def match_bank_to_invoice(self, bank_txn_id: str, invoice_number: str) -> dict[str, Any]:
         for i in self.list_invoices():
             if i.get("invoiceNumber") == invoice_number:
-                return {"matched": True, "invoice_id": i.get("id"), "reason": "invoice number match"}
+                return {
+                    "matched": True,
+                    "invoice_id": i.get("id"),
+                    "reason": "invoice number match",
+                }
         return {"matched": False, "reason": "no invoice with that number"}
 
     # ---- Accounting data (write) — read-only by design ----
@@ -516,10 +522,9 @@ class SeapointConnector(AccountingConnector):
         amounts = i.get("amounts") if isinstance(i.get("amounts"), dict) else {}
         dates = i.get("dates") if isinstance(i.get("dates"), dict) else {}
         vendor = i.get("vendor_name") or vendor_obj.get("name") or contact.get("name") or "Unknown"
-        contact_id = (
-            str(contact.get("id") or i.get("vendor_id") or vendor_obj.get("id") or "")
-            or cls._vendor_contact_id(str(vendor))
-        )
+        contact_id = str(
+            contact.get("id") or i.get("vendor_id") or vendor_obj.get("id") or ""
+        ) or cls._vendor_contact_id(str(vendor))
         amount = i.get("reporting_amount")
         if amount is None:
             amount = amounts.get("reporting_total") or amounts.get("total")
@@ -572,15 +577,9 @@ class SeapointConnector(AccountingConnector):
         # Live shape nests the payee: {"kind", "name", "beneficiary_id"|"employee_id"}
         payee_obj = p.get("payee") if isinstance(p.get("payee"), dict) else {}
         payee = p.get("payee_name") or payee_obj.get("name") or contact.get("name") or ""
-        contact_id = (
-            str(
-                p.get("beneficiary_id")
-                or payee_obj.get("beneficiary_id")
-                or contact.get("id")
-                or ""
-            )
-            or (cls._vendor_contact_id(str(payee)) if payee else "")
-        )
+        contact_id = str(
+            p.get("beneficiary_id") or payee_obj.get("beneficiary_id") or contact.get("id") or ""
+        ) or (cls._vendor_contact_id(str(payee)) if payee else "")
         amount = p.get("reporting_amount")
         return {
             "id": str(p.get("id") or p.get("payment_id") or ""),
@@ -589,7 +588,11 @@ class SeapointConnector(AccountingConnector):
                 "invoiceNumber": invoice.get("invoiceNumber") or invoice.get("number") or "",
             },
             "contact": {"id": contact_id, "name": str(payee)},
-            "date": p.get("scheduled_date") or p.get("created_at") or p.get("date") or p.get("paid_at") or "",
+            "date": p.get("scheduled_date")
+            or p.get("created_at")
+            or p.get("date")
+            or p.get("paid_at")
+            or "",
             "amount": abs(float(amount if amount is not None else p.get("amount") or 0)),
             "reference": p.get("reference") or "",
             "_kind": p.get("type") or "outbound",
@@ -653,7 +656,10 @@ class _SeapointMcpClient:
             from mcp.client.stdio import stdio_client  # noqa: PLC0415
 
             parts = self._command.split()
-            async with stdio_client(StdioServerParameters(command=parts[0], args=parts[1:])) as (r, w):
+            async with stdio_client(StdioServerParameters(command=parts[0], args=parts[1:])) as (
+                r,
+                w,
+            ):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     result = await session.call_tool(name, arguments)
@@ -663,12 +669,8 @@ class _SeapointMcpClient:
         if self._url.endswith("/sse"):
             from mcp.client.sse import sse_client  # noqa: PLC0415
 
-            headers = (
-                {"Authorization": f"Bearer {self._token}"} if self._token else None
-            )
-            async with sse_client(
-                self._url, headers=headers, timeout=_REQUEST_TIMEOUT_S
-            ) as (r, w):
+            headers = {"Authorization": f"Bearer {self._token}"} if self._token else None
+            async with sse_client(self._url, headers=headers, timeout=_REQUEST_TIMEOUT_S) as (r, w):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     result = await session.call_tool(name, arguments)

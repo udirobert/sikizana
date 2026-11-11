@@ -32,9 +32,7 @@ def main() -> None:
         from src.services.connectors.seapoint_auth import build_oauth
 
         auth = build_oauth(url, interactive=True)
-        http_client = create_mcp_http_client(
-            timeout=httpx2.Timeout(30), auth=auth
-        )
+        http_client = create_mcp_http_client(timeout=httpx2.Timeout(30), auth=auth)
         async with streamable_http_client(url, http_client=http_client) as (r, w, _):
             async with ClientSession(r, w) as session:
                 await session.initialize()

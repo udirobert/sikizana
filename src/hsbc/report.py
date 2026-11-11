@@ -50,18 +50,15 @@ def load_and_validate_run(run_directory: str | Path) -> dict[str, dict[str, Any]
         "passed",
     }
     if missing_gate_fields := required_gate_fields.difference(gate):
-        raise ArtifactValidationError(
-            f"gate is missing fields: {sorted(missing_gate_fields)}"
-        )
+        raise ArtifactValidationError(f"gate is missing fields: {sorted(missing_gate_fields)}")
     reference = float(gate["full_reference"])
     candidate = float(gate["reduced_candidate"])
     expected_degradation = (reference - candidate) / reference
     if reference <= 0 or abs(float(gate["relative_degradation"]) - expected_degradation) > 1e-12:
         raise ArtifactValidationError("gate relative degradation does not match its metrics")
-    expected_passed = (
-        expected_degradation <= float(gate["maximum_relative_degradation"])
-        and int(facts.get("test_fraud_count", 0)) >= int(gate["minimum_test_fraud_cases"])
-    )
+    expected_passed = expected_degradation <= float(gate["maximum_relative_degradation"]) and int(
+        facts.get("test_fraud_count", 0)
+    ) >= int(gate["minimum_test_fraud_cases"])
     if gate["passed"] is not expected_passed:
         raise ArtifactValidationError("gate pass value does not match the declared criteria")
     return artifacts

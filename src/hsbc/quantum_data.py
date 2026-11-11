@@ -21,15 +21,11 @@ class QSVCDataConfig:
     entanglement: str = "linear"
 
 
-def bounded_feasibility_sample(
-    frame: pd.DataFrame, config: QSVCDataConfig
-) -> pd.DataFrame:
+def bounded_feasibility_sample(frame: pd.DataFrame, config: QSVCDataConfig) -> pd.DataFrame:
     """Draw an exact-size, fraud-enriched training sample with a fixed seed."""
     fraud = frame.loc[frame["Class"] == 1]
     legitimate = frame.loc[frame["Class"] == 0]
-    desired_fraud = min(
-        len(fraud), config.train_size // (config.legitimate_per_fraud + 1)
-    )
+    desired_fraud = min(len(fraud), config.train_size // (config.legitimate_per_fraud + 1))
     desired_legitimate = config.train_size - desired_fraud
     if desired_fraud == 0 or desired_legitimate > len(legitimate):
         raise ValueError("QSVC training sample cannot satisfy the configured class design")

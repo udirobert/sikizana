@@ -56,9 +56,7 @@ async def portal_org(session_id: str = Depends(require_portal_session)):
         mode = connector.mode()
         live = connector.is_live()
         tenant_name = (
-            get_connection_status(session_id).get("tenant_name")
-            if mode == "live-oauth"
-            else None
+            get_connection_status(session_id).get("tenant_name") if mode == "live-oauth" else None
         )
         return {
             "organisation": connector.get_organisation(),

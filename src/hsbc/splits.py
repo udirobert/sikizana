@@ -33,15 +33,13 @@ def native_ratio_sample(train: pd.DataFrame, config: Phase1Config) -> pd.DataFra
     if legitimate_count > len(legitimate):
         legitimate_count = len(legitimate)
         fraud_count = size - legitimate_count
-    sampled_fraud = train.loc[train["Class"] == 1].sample(
-        n=fraud_count, random_state=config.seed
+    sampled_fraud = train.loc[train["Class"] == 1].sample(n=fraud_count, random_state=config.seed)
+    sampled_legitimate = legitimate.sample(n=legitimate_count, random_state=config.seed)
+    return (
+        pd.concat([sampled_fraud, sampled_legitimate])
+        .sample(frac=1, random_state=config.seed)
+        .reset_index(drop=True)
     )
-    sampled_legitimate = legitimate.sample(
-        n=legitimate_count, random_state=config.seed
-    )
-    return pd.concat([sampled_fraud, sampled_legitimate]).sample(
-        frac=1, random_state=config.seed
-    ).reset_index(drop=True)
 
 
 def feasibility_sample(train: pd.DataFrame, config: Phase1Config) -> pd.DataFrame:
@@ -51,10 +49,10 @@ def feasibility_sample(train: pd.DataFrame, config: Phase1Config) -> pd.DataFram
     if fraud_count == 0:
         raise ValueError("Feasibility sample requires at least one fraud example")
     sampled_fraud = fraud.sample(n=fraud_count, random_state=config.seed)
-    legitimate_count = min(
-        len(legitimate), fraud_count * config.feasibility_legitimate_per_fraud
-    )
+    legitimate_count = min(len(legitimate), fraud_count * config.feasibility_legitimate_per_fraud)
     sampled_legitimate = legitimate.sample(n=legitimate_count, random_state=config.seed)
-    return pd.concat([sampled_fraud, sampled_legitimate]).sample(
-        frac=1, random_state=config.seed
-    ).reset_index(drop=True)
+    return (
+        pd.concat([sampled_fraud, sampled_legitimate])
+        .sample(frac=1, random_state=config.seed)
+        .reset_index(drop=True)
+    )

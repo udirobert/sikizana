@@ -170,9 +170,7 @@ class AccountingConnector(ABC):
             "total": round(sum(categories.values()), 2),
             "categories": [
                 {"name": name, "amount": round(amount, 2), "prior_amount": None}
-                for name, amount in sorted(
-                    categories.items(), key=lambda kv: kv[1], reverse=True
-                )
+                for name, amount in sorted(categories.items(), key=lambda kv: kv[1], reverse=True)
             ],
         }
 
@@ -272,8 +270,7 @@ def _expense_items_from_report(raw: dict[str, Any]) -> dict[str, float]:
                 else:
                     walk(
                         nested,
-                        in_expense
-                        or any(w in lowered for w in _EXPENSE_SECTION_WORDS),
+                        in_expense or any(w in lowered for w in _EXPENSE_SECTION_WORDS),
                     )
                 continue
             if row_type == "Row" and len(cells) >= 2 and in_expense and title:

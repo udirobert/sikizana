@@ -133,9 +133,7 @@ async def review_ap_finding(
     # it belongs in the audit trail alongside journal posts.
     record_audit(
         action="finding_reviewed",
-        description=_review_audit_description(
-            req.state, title, finding_id, dismissal_reason
-        ),
+        description=_review_audit_description(req.state, title, finding_id, dismissal_reason),
         amount=confirmed_amount if confirmed_amount is not None else req.amount,
         journal_id=finding_id,
         session_id=session_id,
@@ -181,9 +179,7 @@ async def review_cafe_finding(
     )
     record_audit(
         action="finding_reviewed",
-        description=_review_audit_description(
-            req.state, title, finding_id, dismissal_reason
-        ),
+        description=_review_audit_description(req.state, title, finding_id, dismissal_reason),
         amount=confirmed_amount if confirmed_amount is not None else req.amount,
         journal_id=finding_id,
         session_id=session_id,

@@ -95,11 +95,7 @@ class FileTokenStorage(TokenStorage):
 
     async def get_client_info(self) -> OAuthClientInformationFull | None:
         raw = self._read().get("client_info")
-        return (
-            OAuthClientInformationFull.model_validate(raw)
-            if isinstance(raw, dict)
-            else None
-        )
+        return OAuthClientInformationFull.model_validate(raw) if isinstance(raw, dict) else None
 
     async def set_client_info(self, client_info: OAuthClientInformationFull) -> None:
         data = self._read()
@@ -148,9 +144,7 @@ async def _await_callback() -> AuthorizationCodeResult:
         server.shutdown()
         server.server_close()
     if not result.get("code"):
-        raise RuntimeError(
-            f"Seapoint OAuth callback not received within {_CALLBACK_TIMEOUT_S}s"
-        )
+        raise RuntimeError(f"Seapoint OAuth callback not received within {_CALLBACK_TIMEOUT_S}s")
     return AuthorizationCodeResult(code=result["code"], state=result.get("state"))
 
 
@@ -163,9 +157,7 @@ def build_oauth(server_url: str, interactive: bool = False) -> OAuthClientProvid
     clear next step instead of hanging on a redirect that can't open.
     """
     if not interactive and not seapoint_ready():
-        raise RuntimeError(
-            "Seapoint not signed in — run: python -m src.jobs.seapoint_login"
-        )
+        raise RuntimeError("Seapoint not signed in — run: python -m src.jobs.seapoint_login")
     metadata = OAuthClientMetadata(
         client_name="Sikizana",
         redirect_uris=[_CALLBACK_URI],

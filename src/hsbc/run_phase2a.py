@@ -33,7 +33,9 @@ from .quantum_models import qsvc_simulator, quantum_model_facts
 from .splits import temporal_train_validation_test
 
 DATASET_URL = "https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud"
-DATASET_LICENSE = "Database Contents License (DbCL) 1.0; verify current Kaggle terms before publication"
+DATASET_LICENSE = (
+    "Database Contents License (DbCL) 1.0; verify current Kaggle terms before publication"
+)
 
 
 def _git_revision() -> str | None:
@@ -85,9 +87,7 @@ def run(
     phase1_config = Phase1Config(seed=qsvc_config.seed)
     train, validation, temporal_test = temporal_train_validation_test(frame, phase1_config)
 
-    feature_selector = xgboost_baseline(
-        qsvc_config.seed, training_scale_pos_weight(train["Class"])
-    )
+    feature_selector = xgboost_baseline(qsvc_config.seed, training_scale_pos_weight(train["Class"]))
     feature_selector.fit(train.drop(columns="Class"), train["Class"])
     selected_features = select_top_features(
         feature_selector, list(train.drop(columns="Class").columns), feature_count
@@ -132,9 +132,7 @@ def run(
         selected_features,
     )
     xgboost_metrics = _evaluate_probability_model(
-        xgboost_baseline(
-            qsvc_config.seed, training_scale_pos_weight(qsvc_train["Class"])
-        ),
+        xgboost_baseline(qsvc_config.seed, training_scale_pos_weight(qsvc_train["Class"])),
         qsvc_train,
         qsvc_validation,
         qsvc_test,
@@ -162,8 +160,10 @@ def run(
         },
         "gates": {
             "evaluation_fraud_cases": qsvc_config.evaluation_fraud_cases,
-            "validation_case_control_passed": int(qsvc_validation["Class"].sum()) == qsvc_config.evaluation_fraud_cases,
-            "test_case_control_passed": int(qsvc_test["Class"].sum()) == qsvc_config.evaluation_fraud_cases,
+            "validation_case_control_passed": int(qsvc_validation["Class"].sum())
+            == qsvc_config.evaluation_fraud_cases,
+            "test_case_control_passed": int(qsvc_test["Class"].sum())
+            == qsvc_config.evaluation_fraud_cases,
             "all_controls_completed": True,
         },
     }
@@ -175,7 +175,10 @@ def run(
         "git_revision": _git_revision(),
         "qsvc_config": qsvc_config.__dict__,
         "feature_count": feature_count,
-        "packages": {name: version(name) for name in ("pandas", "scikit-learn", "xgboost", "qiskit", "qiskit-machine-learning")},
+        "packages": {
+            name: version(name)
+            for name in ("pandas", "scikit-learn", "xgboost", "qiskit", "qiskit-machine-learning")
+        },
     }
     provenance = {
         "input_path": str(input_path),
@@ -185,7 +188,9 @@ def run(
         "input_facts": dataset_facts(frame),
     }
     run_directory = output_root / run_id
-    write_run_artifacts(run_directory, {"meta.json": meta, "facts.json": facts, "provenance.json": provenance})
+    write_run_artifacts(
+        run_directory, {"meta.json": meta, "facts.json": facts, "provenance.json": provenance}
+    )
     return run_directory
 
 
@@ -204,7 +209,13 @@ def main() -> None:
         evaluation_size=arguments.evaluation_size,
         evaluation_fraud_cases=arguments.evaluation_frauds,
     )
-    output = run(arguments.input, arguments.run_id, arguments.output_root, feature_count=arguments.features, qsvc_config=config)
+    output = run(
+        arguments.input,
+        arguments.run_id,
+        arguments.output_root,
+        feature_count=arguments.features,
+        qsvc_config=config,
+    )
     print(f"Phase 2a artifacts written to {output}")
 
 

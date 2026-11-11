@@ -19,7 +19,9 @@ from .models import logistic_baseline, training_scale_pos_weight, xgboost_baseli
 from .splits import feasibility_sample, native_ratio_sample, temporal_train_validation_test
 
 DATASET_URL = "https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud"
-DATASET_LICENSE = "Database Contents License (DbCL) 1.0; verify current Kaggle terms before publication"
+DATASET_LICENSE = (
+    "Database Contents License (DbCL) 1.0; verify current Kaggle terms before publication"
+)
 
 
 def _git_revision() -> str | None:
@@ -43,22 +45,16 @@ def run(input_path: Path, run_id: str, output_root: Path, config: Phase1Config) 
     weight = training_scale_pos_weight(train["Class"])
 
     full_xgboost = xgboost_baseline(config.seed, weight)
-    full_xgboost_metrics = _fit_and_evaluate(
-        full_xgboost, train, validation, test, FEATURE_COLUMNS
-    )
+    full_xgboost_metrics = _fit_and_evaluate(full_xgboost, train, validation, test, FEATURE_COLUMNS)
     linear_metrics = _fit_and_evaluate(
         logistic_baseline(config.seed), train, validation, test, FEATURE_COLUMNS
     )
-    selected_features = select_top_features(
-        full_xgboost, FEATURE_COLUMNS, config.top_feature_count
-    )
+    selected_features = select_top_features(full_xgboost, FEATURE_COLUMNS, config.top_feature_count)
 
     native = native_ratio_sample(train, config)
     feasibility = feasibility_sample(train, config)
     reduced_xgboost_metrics = _fit_and_evaluate(
-        xgboost_baseline(
-            config.seed, training_scale_pos_weight(feasibility["Class"])
-        ),
+        xgboost_baseline(config.seed, training_scale_pos_weight(feasibility["Class"])),
         feasibility,
         validation,
         test,
@@ -94,13 +90,30 @@ def run(input_path: Path, run_id: str, output_root: Path, config: Phase1Config) 
         "split_counts": {"train": len(train), "validation": len(validation), "test": len(test)},
         "test_fraud_count": test_fraud_count,
         "class_weighting": {"xgboost_scale_pos_weight": weight, "linear": "balanced"},
-        "models": {"xgboost_full": full_xgboost_metrics, "logistic_full": linear_metrics, "xgboost_reduced_feasibility": reduced_xgboost_metrics},
+        "models": {
+            "xgboost_full": full_xgboost_metrics,
+            "logistic_full": linear_metrics,
+            "xgboost_reduced_feasibility": reduced_xgboost_metrics,
+        },
         "selected_features": selected_features,
         "feature_importances": feature_importance_facts(full_xgboost, FEATURE_COLUMNS),
-        "samples": {"native_ratio": dataset_facts(native), "feasibility": dataset_facts(feasibility)},
-        "gate": {"metric": "auprc", "full_reference": full_xgboost_metrics["auprc"], "reduced_candidate": reduced_xgboost_metrics["auprc"], "relative_degradation": degradation, "maximum_relative_degradation": config.max_auprc_relative_degradation, "minimum_test_fraud_cases": config.min_test_fraud_cases, "passed": passed},
+        "samples": {
+            "native_ratio": dataset_facts(native),
+            "feasibility": dataset_facts(feasibility),
+        },
+        "gate": {
+            "metric": "auprc",
+            "full_reference": full_xgboost_metrics["auprc"],
+            "reduced_candidate": reduced_xgboost_metrics["auprc"],
+            "relative_degradation": degradation,
+            "maximum_relative_degradation": config.max_auprc_relative_degradation,
+            "minimum_test_fraud_cases": config.min_test_fraud_cases,
+            "passed": passed,
+        },
     }
-    write_run_artifacts(run_directory, {"meta.json": meta, "provenance.json": provenance, "facts.json": facts})
+    write_run_artifacts(
+        run_directory, {"meta.json": meta, "provenance.json": provenance, "facts.json": facts}
+    )
     return run_directory
 
 
@@ -111,7 +124,9 @@ def main() -> None:
     parser.add_argument("--output-root", default=Path("data/hsbc/runs"), type=Path)
     parser.add_argument("--seed", default=Phase1Config.seed, type=int)
     arguments = parser.parse_args()
-    run_directory = run(arguments.input, arguments.run_id, arguments.output_root, Phase1Config(seed=arguments.seed))
+    run_directory = run(
+        arguments.input, arguments.run_id, arguments.output_root, Phase1Config(seed=arguments.seed)
+    )
     print(f"Phase 1 artifacts written to {run_directory}")
 
 

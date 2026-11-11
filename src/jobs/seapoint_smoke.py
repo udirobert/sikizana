@@ -45,6 +45,7 @@ def main() -> None:
     connector = SeapointConnector("seapoint-smoke")
 
     with _step("list_tools"):
+
         async def _tools() -> int:
             from mcp import ClientSession, StdioServerParameters
 
@@ -88,10 +89,10 @@ def main() -> None:
     with _step("spend by category (last calendar month)"):
         today = date.today()
         last = today.replace(day=1) - timedelta(days=1)
-        res = connector.get_spend_by_category(
-            last.replace(day=1).isoformat(), last.isoformat()
+        res = connector.get_spend_by_category(last.replace(day=1).isoformat(), last.isoformat())
+        print(
+            f"    args sent: {json.dumps(spend_aggregate_args(last.replace(day=1).isoformat(), last.isoformat()))}"
         )
-        print(f"    args sent: {json.dumps(spend_aggregate_args(last.replace(day=1).isoformat(), last.isoformat()))}")
         print(f"    total £{res['total']:,.2f} — top 6:")
         for c in res["categories"][:6]:
             prior = c.get("prior_amount")

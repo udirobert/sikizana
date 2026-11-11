@@ -484,9 +484,7 @@ def build_cash_route_findings(
         severity = "medium" if exc["key"] == "part_paid" else "low"
         findings.append(
             {
-                "id": f"credit-side-{exc['key']}-{exc['invoice_number']}"
-                .replace(" ", "-")
-                .lower(),
+                "id": f"credit-side-{exc['key']}-{exc['invoice_number']}".replace(" ", "-").lower(),
                 "kind": CREDIT_SIDE_EXCEPTION,
                 "severity": severity,
                 "title": f"{exc['invoice_number']} — {exc['contact']}",
