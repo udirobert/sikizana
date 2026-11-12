@@ -19,22 +19,29 @@ Companion docs: `RESEARCH_VALIDATION.md` (evidence), `docs/BRAND.md` (voice rule
 
 - **Title:** *The Late Market* (series line: *Siki & Zana*)
 - **Genre:** narrative management/deduction hybrid — chapterified mini-games (day-planner, negotiation, mystery) around one persistent bookkeeping frame
-- **Platform:** browser (HTML5, itch.io; single-player; no install; ~20–25 min)
+- **Platform:** browser (HTML5, itch.io; single-player; no install; ~10–15 min)
 - **Target audience:** adults who own/operate or dream of running a small business; secondary: secondary-school business studies (ages 14+)
-- **What's different:** most FinLit games *explain* biases. This one **runs you through them silently first** — your plays are recorded, replayed to you as experiment data, and only then are the biases named (the Shady Sam "incentive inversion" move, applied to your own psychology instead of a villain's). The second reveal layer is economic: your lateness is the **business model of an entire shadow market**, visualized as a street that visibly shrinks as you get paid.
+- **What's different:** most FinLit games *explain* biases. This one **runs you through them silently first** — your plays are recorded, replayed to you as experiment data, and only then are the biases named (the Shady Sam "incentive inversion" move, applied to your own psychology instead of a villain's). The second reveal layer is economic: your lateness is the **business model of an entire shadow market**, visualized as a street that visibly changes as you act — stalls light when you defer, shutter when you get paid.
 
 **Voice rule (from `docs/BRAND.md`, canon):** Siki explains, Zana enforces. Siki's lines are calm, cited, hedged (*"typical UK ranges · indicative"*). Zana's are short, blunt, action-first, and **never promise payment**. NPCs are fictional composites; the game explains dynamics and never recommends a provider, product, or financing.
 
 ## 2. Core Gameplay
 
-**Player objective:** keep a small business solvent through one business quarter while collecting the money you are owed.
+**Player objective:** keep a small business solvent through one business week while collecting the money you are owed.
 
-**The core loop (repeats daily within chapters, ~25 seconds per day):**
+**The core loop (one persistent stall screen; the whole place is always on screen):**
 
-1. **Plan** — pick today's actions from a small vocabulary: *inspect books (Siki), chase an invoice (Zana stage), serve walk-in work, pay a bill, accept/decline a Midnight Market offer*.
-2. **Watch the ledger age** — unpaid invoices tick 30/60/90; the **"worth today" strip** shows each invoice's market price falling as it ages (the discounting/NPV lesson rendered as one UI element).
+The whole game lives on a single screen that is a place, not a form. Three
+things are always visible at once — the **till** (live cash), the **ledger**
+(one card per open invoice, ageing daily with a "worth today" price that
+grows), and the **street** (the shadow market outside). Each day you pick one
+action from a small vocabulary — serve walk-in work, chase an invoice, pay a
+supplier bill — then watch the till, the ledger, and the street react.
+
+1. **Plan** — pick today's one action: *serve walk-in work, chase an invoice, pay the supplier bill, accept/decline a street offer*.
+2. **Watch the ledger age** — unpaid invoices accrue a "worth today" price every day (the discounting lesson, one UI element); a chase pays in 2 days so money lands in the till inside the week.
 3. **Handle temptation** — each chapter plants one engineered decision exploiting one bias.
-4. **Live the consequence** — cash, stress, and the ledger update; the street's stalls brighten when you defer, shutter when you get paid.
+4. **Live the consequence** — cash and the ledger update; the street's stalls light when you defer and shutter when you get paid; skipping the supplier bill can run the till empty, which ends the week early.
 
 **Challenges/decisions:** chaptered experiments (§A1), each *structurally identical choice pairs* differing in one exploited variable — the design constraint that makes the debrief attribution credible (MACBETH-aligned).
 
@@ -101,13 +108,34 @@ Each offer shows indicative real-world ranges in its Siki card (factoring ~6.75�
 
 Each chapter pairs **structurally symmetric** choices and changes exactly one variable, so the debrief can attribute behaviour honestly. All decisions recorded to the **decision ledger** (JSON): timestamp, chapter, options shown (incl. defaults), framing variable, choice, immediate consequence, deferred consequence. The Irrationality Profile is computed from ledger aggregates, not vibes.
 
-## A2. Chapter 1 — *The Cost of Tomorrow* (present bias)
+## A2. Chapter 1 — *The Cost of Tomorrow* (present bias) — 5-day build
 
-- **Setup:** 20 days of trading. Invoices arrive every ~3 days. A to-do queue mixes fun-now tasks (reply emails, restock, customer chat) with the boring-now task (initiate chase).
-- **Engineered pair:** Day 4 & Day 12 repeat the same "chase now, cash in 30" vs "defer, cash in 30+8.3" choice — first with a *today* cost framing, second with both payoffs moved out (delayed comparison, classic hyperbolic test).
-- **Silent cost engine:** each defer = 8% over base + compensation forgone, silently accruing, shown only as a drifting lantern number in the corner (never instructed to watch).
-- **Debrief (4 beats then replay):** replay both paired decisions → name the timing exploit → acknowledge "sometimes deferral is cash-flow realism" → hand the reminder rule + replay 5 days with it armed.
-- **Unlock:** Day 14+ lets the player **enlist Zana** (toggle): stage-1 reminders now auto-chain, exactly the commitment-device thesis.
+- **Setup:** 5 trading days on one stall screen. An invoice is already 2 days
+  overdue from frame one; a second arrives Day 2; the supplier's £1,800 bill
+  is due Day 4. The to-do mixes fun-now tasks with the boring-now chase.
+- **Engineered pair:** Day 3 (today-cost framing: "money lands in 2 days" vs
+  "in 10") and Day 5 (both payoffs moved out: "in 20" vs "in 28" — the
+  classic delayed-comparison hyperbolic test). Same `experimentId`, same
+  structure; only the timing frame changes.
+- **The day the till can empty:** the supplier bill (Day 4). Pay it and the
+  till takes the hit now; skip it and a £40/day late charge accrues to the
+  street, a stall darkens, and the walk-in income stops. Paying the bill
+  *without* the cash a chase would have brought runs the till negative — the
+  chapter ends early (`endedEarly`). A rational run and a careless run end
+  differently, and the street shows why.
+- **Silent cost engine:** each defer = 8% over base + compensation forgone,
+  silently accruing, shown only as a drifting lantern number (never
+  instructed to watch). Money from a chase lands in the till inside the
+  chapter (2-day clear), so acting early is visibly rewarded.
+- **Debrief (street → replay → name → tool):** the street's earnings first
+  (what your deferrals + skipped bill lit up) → line-item replay of every
+  invoice you let sit (priced at real days × daily accrual, summing to the
+  lantern) → the timing exploit named on the player's own numbers (the
+  statute arrives here, as an assumptions footnote, never on a button) → the
+  reminder rule + Zana. No trap is labelled in play.
+- **Unlock:** the reminder rule (Zana's first-stage ladder auto-chains) — the
+  commitment-device thesis, now the debrief's takeaway rather than a Day-14
+  toggle.
 
 ## A3. Chapter 2 — *The Offer* (anchoring)
 
@@ -135,35 +163,41 @@ Every NPC fee, every day of forgone statutory interest, every shipped-off relati
 
 ---
 
-# Appendix B — Production milestones (Nov 9 → Nov 15)
+# Appendix B — Production milestones
+
+**Original plan (Nov 9 → 15, superseded Nov 12 by the recovery plan):** see
+`docs/game/RECOVERY_PLAN.md` §5. The 20-day Ch.1 shipped as a one-button
+worksheet on Nov 10–11 (all milestones below green on paper, but the first
+minute was not playable). On Nov 12 the game was rebuilt to the stall-screen
+design in one day; the remaining window (Nov 12 → 15) was re-planned:
 
 | Day | Deliverable | Gate | Status |
 |---|---|---|---|
-| Mon 9 | Repo scaffold (game logic is pure TS/Vite, no web/ dependency), decision-ledger schema, colourblind-safe tokens | Schema committed | ✅ done |
-| Tue 10 | Ch.1 complete (loop + pair decisions + debrief + Zana toggle) | Replay with rule = improvement visible | ✅ done — ahead of schedule, verified in browser |
-| Wed 11 | Ch.2 + Ch.3 playable; NPC offers v1 (no polish, honest maths) | Street scene state changes on defer/pay | ✅ playable — Factor/Shark/Collector offers live with honest maths |
-| Thu 12 | Finale + ledger UI + Irrationality Profile; itch page drafted but **unpublished** | Clean private loop from title → reveal | 🔶 finale + profile + Rationality Delta done & browser-verified; itch page pending |
-| Fri 13 | Voices generated + cut (ElevenLabs Starter), SFX pass, hit 300–500 line script budget, text-size/mute/skip Options | ~10:1 threshold: watch the ~10:1 day-test clips | 🔶 voices + SFX + Options done & browser-verified; script is leaner than budgeted (41 voiced lines + narration text — flagged for Sat playtest) |
-| Sat 14 | Balance pass + edge cases (zero balance, partial payment, negative, rounding), fresh-eyes playtest, screenshots | "Can a new player explain the trade-off?" = yes |
-| Sun 15 | Submission package: itch page drafted privately (cover 630×500, 3–5 screenshots, AI disclosure), **Zoud: concept-Doc PDF + budget + 2-min actual-gameplay video**; submit before AOE | Done with >6h buffer |
+| Mon 9 | Repo scaffold, decision-ledger schema, colourblind-safe tokens | Schema committed | ✅ done |
+| Tue 10 | Ch.1 v1 (20-day loop + pair decisions + debrief) | Replay with rule = improvement visible | ✅ done — later cut (below) |
+| Wed 11 | Ch.2 + Ch.3 playable; NPC offers v1 | Street state changes on defer/pay | ✅ done |
+| Thu 12 | **Rebuild:** 5-day Ch.1 on one stall screen (till + ledger + street always visible); money lands in 2 days; supplier bill that can empty the till; loss state; £0 counterfactual → line-item replay; traps de-labelled; simple-language mode shipped | Minute one shows cash, an overdue invoice, and a street; a choice can hurt; rational and careless runs end differently | ✅ done — 48 tests green, typecheck clean, balance verified (rational £3,154 / careless −£178) |
+| Fri 13 | Street SVG stalls + NPC shapes; Ch.2/Ch.3 de-labelling; voice re-bake (4 lines); concept doc + budget PDFs | No trap labelled in play; honest accessibility claims only | ✅ done |
+| Sat 14 | Balance pass + edge cases, fresh-eyes playtest, screenshots, **2-min gameplay video** | "Can a new player explain the trade-off?" = yes | |
+| Sun 15 | Submission package: itch page (private), cover 630×500, screenshots, AI disclosure, concept-doc PDF + budget + 2-min video, Zoud submission | Done before 23:59 AOE | |
 
-# Appendix C — Submission materials checklists
+# Appendix C — Submission materials checklists (status: Nov 12)
 
 ## itch.io (HTML5 page, private until Zoud)
-- [ ] `kind=html` project; zip with top-level `index.html`; relative case-sensitive paths; HTTPS externals
-- [ ] Embed w/h configured; fullscreen button; `viewport` meta; canvas resize handles fullscreen
-- [ ] Cover 630×500 (mascots readable at thumbnail), 3–5 genuine gameplay screenshots
-- [ ] Own Start/Enable-Sound button: creates/resumes `AudioContext` inside that click
-- [ ] Mobile Friendly checkbox only if it actually is
-- [ ] itch.io AI disclosure completed (generative art/audio listed with tools)
+- [x] `kind=html` project; zip with top-level `index.html`; relative case-sensitive paths (`scripts/build-itch.mjs`, 61 files, 4.5MB, no externals)
+- [x] Embed w/h configured (1280×860); `viewport` meta; own Start button
+- [x] Cover 630×500 (`dist/cover.png`, generated by Recraft V4.1 Vector + composed title) — mascots readable at thumbnail; 3–5 genuine gameplay screenshots (`screenshots/v2/`)
+- [x] Own Start/Enable-Sound button: creates/resumes `AudioContext` inside that click
+- [ ] Mobile Friendly checkbox — NOT ticked (desktop-only; test on phone before claiming)
+- [x] itch.io AI disclosure: voice + music + SFX (ElevenLabs Starter, `eleven_v4`); cover illustration (Recraft V4.1 Vector); no AI code claims
 
 ## Zoud (Nov 15, 23:59 AOE)
-- [ ] Individual registration for every team member (else disqualification)
+- [ ] Individual registration for every team member (else disqualification) — Udi Robert
 - [ ] Game on itch page + submitted to jam via itch flow
-- [ ] Concept Doc/initial GDD as PDF via a public no-login link (this document, trimmed, in their six-sections)
-- [ ] 2-minute video of **actual gameplay** (shows the decision loop, not a trailer)
-- [ ] Project budget (separate document; milestone-aware)
-- [ ] AI-tool disclosure (visible to judges only)
+- [x] Concept Doc PDF via a public no-login link (`docs/game/CONCEPT_DOC.pdf`, six sections, honest market section)
+- [x] 2-minute video of **actual gameplay** — `game-video/lm_run.mp4` (98s, silent, the real decision loop: Day 1 stall screen → pair A → bill stress → pair B → debrief)
+- [x] Project budget (separate document; milestone-aware) — `docs/game/BUDGET_DOC.pdf` (≤$26, ceiling check against the $15–500 band)
+- [x] AI-tool disclosure (visible to judges only): same tool list as itch
 
 ## Chroma Games (by Jan 7, 11:45 PM PT — verify category on entry form in Dec)
 - [ ] Public desktop browser playable, no install; single player; < 30 min
@@ -176,32 +210,68 @@ Game DB contains **no real user data**; decision ledger stored in browser only (
 
 ---
 
-# Appendix D — Implementation notes (as built, 2026-11-09)
+# Appendix D — Implementation notes (as built, 2026-11-12 rebuild)
 
 Deltas between this document and the running code, recorded so the debrief
-maths stay auditable:
+maths stay auditable. The Nov 12 rebuild (recovery plan, `RECOVERY_PLAN.md`)
+supersedes the 20-day v1 shipped Nov 10–11; the deltas below are the jam
+build's source of truth.
 
-- **Silent cost engine (Ch.1):** the lantern accrues a *daily delta* per
-  overdue-unchased invoice — one day's simple statutory interest
-  (`principal × 11.75% / 365`) plus the fixed compensation **once**, on the
-  first overdue day. It is NOT the cumulative s.5A entitlement re-summed
-  daily (that double-counts). Clock stops at chase, not at payment — the
-  30-day clearing lag is out of scope ("simplified" per the assumptions sheet).
-- **Counterfactual ("the rule armed from the start"):** unconditional —
-  every invoice chased the day it falls due, independent of the player's
-  Zana choice. Result is £0.00 forgone by construction; the debrief's claim
-  is "your run vs. the rule", not "your run vs. Zana-armed-from-day-1"
-  (mathematically identical, labelled honestly).
+- **Chapter 1 is 5 days, not 20.** The pair moved from Day 4/12 to Day 3/5
+  (same `experimentId`, same structure — framing attribution unchanged).
+  `CH1_DAYS = 5`.
+- **Chase pays in 2 days** (`CHASE_CLEAR_DAYS = 2`), so money lands in the
+  till inside the chapter (collected each morning). The real ~30-day wait is
+  in the assumptions sheet, never on a button. Pair B (Day 5) is the
+  delayed-comparison arm: 20 vs 28 days — both payoffs outside the chapter,
+  which is the lesson.
+- **Supplier bill (Day 4):** `Quayline Foods`, £1,800 due. Skipping it (or
+  choosing something else that day) starts a £40/day late charge tallied to
+  the street's tally (not the till). The till can go negative only by paying
+  the bill without the cash a chase would have brought — that is the loss
+  state (`endedEarly: "till_empty"`, chapter ends early).
+- **Silent cost engine (Ch.1):** unchanged in principle — the lantern accrues
+  a *daily delta* per overdue-unchased invoice (one day's simple interest at
+  11.75% p.a. + the fixed compensation **once** on the first overdue day),
+  never the cumulative entitlement re-summed. The pre-existing invoice
+  (dueDay 0) already spent its compensation before the chapter opened, so its
+  window prices interest only.
+- **Counterfactual deleted.** The old "rule armed from the start" was £0.00
+  by construction (chase-on-due ⇒ nothing accrues) — a comparison against a
+  score the game invented. Replaced by `deferralLines()`: each invoice the
+  player let sit, priced at its real days × daily accrual (exactly the
+  lantern's arithmetic, through `lastPlayedDay` for loss runs). The line
+  items sum to the lantern's final reading — the street's real earnings on
+  the player's own data.
+- **De-labelling (rubric: learning emerges in play; accuracy band):** no
+  choice button or offer card carries a statute, an annualised rate, or an
+  "honest" label anymore. The Shark's true annualised cost and the Factor's
+  annual discount move to the Ch.3 debrief; the Ch.2 statutory prospect moves
+  off the negotiation screen into the debrief ("the facts never moved" is
+  now a *reveal*). This overrules the v1 "transparency is the brand" note —
+  the rubric's "potentially misleading implications" and "emergent learning"
+  bands take precedence.
+- **Street (Ch.1 screen + finale):** one SVG street, five stalls — two
+  always-lit market stalls (the base) + the three stallholders' stalls, lit
+  by deferrals / skipped bill / fees, shuttered by collections that land.
+  `streetState()` is the single derivation; `renderStreet()` is the single
+  renderer. ch1 street events live in session counters (they create no
+  ledger entries); ch2/ch3 NPC fees are read from the ledger. One shared
+  `StreetCounters` feeds both.
 - **Ch.2 floor instrumentation:** the floor input is blank by default — a
   pre-filled value would be anchor-derived and manufacture the correlation
   the anchoring axis measures. Unset floors record `null` and are excluded
-  from the profile slope. The statutory prospect IS shown during negotiation
-  (deliberate: transparency is the brand; "the facts never moved" needs the
-  constant on screen).
+  from the profile slope. (The prospect is no longer shown during play — see
+  de-labelling above.)
 - **Ch.3 sunk-cost axis:** counts `ch3_continuation_*` entries only;
-  street offers (`ch3_street_*`) are a separate decision.
+  street offers (`ch3_street_*`) are a separate decision. A reveal beat was
+  added to the Ch.3 debrief: the true annualised cost of the street's money,
+  on the player's own choices.
+- **Simple-language mode (GDD §4 / +5 bonus):** `phrased()` string swap on
+  the longest teaching lines; the Options toggle ships (previously the bonus
+  was claimed without the feature — now honest).
 - **Compensation boundaries (s.5A):** ≤ £1,000 → £40 · > £1,000 and
   ≤ £10,000 → £70 · > £10,000 → £100.
 - **Persistence:** decision ledger (`lm.ledger.v1`) + Ch.1 mid-run state
   (`lm.ch1.v1`, cleared on chapter close) in localStorage only; title-screen
-  purge clears both.
+  purge clears both. Prefs now also carry `simpleLang`.

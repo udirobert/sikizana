@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  html, body { margin: 0; padding: 0; width: 630px; height: 500px; overflow: hidden; background: #141428; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg width="630" height="500" viewBox="0 0 630 500" xmlns="http://www.w3.org/2000/svg" aria-label="The Late Market — game cover">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0e0e20"/>
+      <stop offset="0.6" stop-color="#141428"/>
+      <stop offset="1" stop-color="#23234a"/>
+    </linearGradient>
+    <radialGradient id="moonGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#f2efe6" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#f2efe6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="lamp" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#ffb454" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffb454" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <!-- sky -->
+  <rect width="630" height="500" fill="url(#sky)"/>
+  <g fill="#c5c2d8" opacity="0.7">
+    <circle cx="48" cy="52" r="1.4"/><circle cx="120" cy="30" r="1.1"/><circle cx="210" cy="66" r="1.3"/>
+    <circle cx="330" cy="38" r="1.2"/><circle cx="402" cy="70" r="1.1"/><circle cx="480" cy="34" r="1.3"/>
+    <circle cx="600" cy="44" r="1.2"/><circle cx="76" cy="120" r="1"/><circle cx="560" cy="118" r="1.1"/>
+  </g>
+
+  <!-- moon -->
+  <circle cx="516" cy="96" r="66" fill="url(#moonGlow)"/>
+  <circle cx="516" cy="96" r="30" fill="#f2efe6"/>
+  <circle cx="505" cy="88" r="5" fill="#d9d4c4"/><circle cx="524" cy="104" r="3.5" fill="#d9d4c4"/><circle cx="519" cy="86" r="2.5" fill="#d9d4c4"/>
+
+  <!-- ground -->
+  <rect y="372" width="630" height="128" fill="#191932"/>
+  <rect y="372" width="630" height="3" fill="#2e2e5a"/>
+
+  <!-- lantern string across the street -->
+  <path d="M 10 210 Q 315 258 620 210" fill="none" stroke="#3a3a68" stroke-width="2"/>
+  <g filter="url(#glow)">
+    <circle cx="90" cy="222" r="7" fill="#ffb454"/>
+    <circle cx="200" cy="236" r="7" fill="#ffb454"/>
+    <circle cx="315" cy="243" r="7" fill="#ffb454"/>
+    <circle cx="430" cy="236" r="7" fill="#ffb454"/>
+    <circle cx="540" cy="222" r="7" fill="#ffb454"/>
+  </g>
+
+  <!-- the street: five stalls (the game's own stall shapes) -->
+  <g stroke="#ffb454" stroke-width="2.4" fill="none" stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)">
+    <!-- 1 · market cart -->
+    <g transform="translate(30,286) scale(1.05)">
+      <rect x="6" y="12" width="24" height="16" rx="2"/><line x1="30" y1="16" x2="38" y2="8" stroke-width="2.6"/>
+      <circle cx="12" cy="34" r="5"/><circle cx="26" cy="34" r="5"/>
+    </g>
+    <!-- 2 · awning stall -->
+    <g transform="translate(140,282) scale(1.05)">
+      <path d="M4 14 L36 14 L32 6 L8 6 Z"/><line x1="8" y1="14" x2="8" y2="38"/><line x1="32" y1="14" x2="32" y2="38"/><rect x="8" y="24" width="24" height="4"/>
+    </g>
+    <!-- 3 · the Factor (otter) -->
+    <g transform="translate(250,278) scale(1.1)">
+      <ellipse cx="20" cy="14" rx="7" ry="6"/><circle cx="15" cy="8" r="2.4"/><circle cx="25" cy="8" r="2.4"/>
+      <path d="M10 40 Q10 24 20 24 Q30 24 30 40 Z"/><rect x="8" y="38" width="24" height="4"/>
+    </g>
+    <!-- 4 · the Collector (vulture) -->
+    <g transform="translate(362,278) scale(1.1)">
+      <circle cx="18" cy="12" r="5"/><path d="M21 12 L30 15 L21 17 Z"/><path d="M12 40 L14 20 L24 20 L26 40 Z"/><rect x="8" y="38" width="24" height="4"/>
+    </g>
+    <!-- 5 · the Shark (fish) -->
+    <g transform="translate(474,280) scale(1.1)">
+      <path d="M28 16 L36 10 L36 26 L28 20 Z"/><ellipse cx="18" cy="18" rx="11" ry="8"/><path d="M14 10 L18 4 L22 10 Z"/><rect x="8" y="38" width="24" height="4"/>
+    </g>
+  </g>
+
+  <!-- lamp glow pools on the ground -->
+  <ellipse cx="58" cy="372" rx="70" ry="16" fill="url(#lamp)" opacity="0.5"/>
+  <ellipse cx="275" cy="372" rx="70" ry="16" fill="url(#lamp)" opacity="0.5"/>
+  <ellipse cx="492" cy="372" rx="70" ry="16" fill="url(#lamp)" opacity="0.5"/>
+
+  <!-- the counter -->
+  <rect x="60" y="330" width="150" height="14" rx="3" fill="#3a2f26" stroke="#5c4a38" stroke-width="1.5"/>
+  <rect x="70" y="344" width="130" height="58" fill="#2a211b" stroke="#5c4a38" stroke-width="1.5"/>
+  <!-- the overdue invoice -->
+  <g transform="translate(150,318) rotate(-6)">
+    <rect width="34" height="44" rx="2" fill="#f2efe6"/>
+    <line x1="6" y1="10" x2="28" y2="10" stroke="#8a8698" stroke-width="2"/>
+    <line x1="6" y1="17" x2="28" y2="17" stroke="#8a8698" stroke-width="1.6"/>
+    <line x1="6" y1="24" x2="22" y2="24" stroke="#8a8698" stroke-width="1.6"/>
+    <g transform="rotate(-14 17 32)"><rect x="7" y="28" width="20" height="8" rx="1.5" fill="none" stroke="#ff7b72" stroke-width="1.8"/></g>
+  </g>
+
+  <!-- Siki the owl (real mascot geometry, scaled) -->
+  <g transform="translate(74,268) scale(0.92)">
+    <rect x="40" y="98" width="14" height="6" fill="#E8954A"/>
+    <rect x="66" y="98" width="14" height="6" fill="#E8954A"/>
+    <rect x="22" y="48" width="14" height="34" rx="6" fill="#C07432"/>
+    <rect x="84" y="48" width="14" height="34" rx="6" fill="#C07432"/>
+    <rect x="28" y="30" width="64" height="70" rx="20" fill="#D4843A"/>
+    <rect x="42" y="52" width="36" height="40" rx="14" fill="#F0C088"/>
+    <rect x="30" y="24" width="10" height="12" rx="3" fill="#D4843A"/>
+    <rect x="80" y="24" width="10" height="12" rx="3" fill="#D4843A"/>
+    <rect x="36" y="38" width="22" height="22" rx="11" fill="#FFFFFF"/>
+    <rect x="62" y="38" width="22" height="22" rx="11" fill="#FFFFFF"/>
+    <rect x="38" y="40" width="18" height="18" rx="9" fill="#1A1A2E"/>
+    <rect x="64" y="40" width="18" height="18" rx="9" fill="#1A1A2E"/>
+    <rect x="42" y="42" width="6" height="6" rx="3" fill="#FFFFFF"/>
+    <rect x="68" y="42" width="6" height="6" rx="3" fill="#FFFFFF"/>
+    <rect x="56" y="56" width="8" height="6" rx="2" fill="#E8954A"/>
+    <rect x="54" y="58" width="12" height="4" rx="2" fill="#D67A30"/>
+  </g>
+
+  <!-- Zana the dog (real mascot geometry, scaled) -->
+  <g transform="translate(210,284) scale(0.78)">
+    <rect x="40" y="98" width="14" height="6" fill="#4A5568"/>
+    <rect x="66" y="98" width="14" height="6" fill="#4A5568"/>
+    <rect x="22" y="48" width="14" height="34" rx="6" fill="#1A202C"/>
+    <rect x="84" y="48" width="14" height="34" rx="6" fill="#1A202C"/>
+    <rect x="28" y="30" width="64" height="70" rx="20" fill="#2D3748"/>
+    <rect x="42" y="52" width="36" height="40" rx="14" fill="#4A5568"/>
+    <rect x="26" y="18" width="12" height="22" rx="5" fill="#2D3748"/>
+    <rect x="82" y="18" width="12" height="22" rx="5" fill="#2D3748"/>
+    <rect x="36" y="38" width="22" height="22" rx="11" fill="#FFFFFF"/>
+    <rect x="62" y="38" width="22" height="22" rx="11" fill="#FFFFFF"/>
+    <rect x="38" y="40" width="18" height="18" rx="9" fill="#1A1A2E"/>
+    <rect x="64" y="40" width="18" height="18" rx="9" fill="#1A1A2E"/>
+    <rect x="42" y="42" width="6" height="6" rx="3" fill="#E11D48"/>
+    <rect x="68" y="42" width="6" height="6" rx="3" fill="#E11D48"/>
+    <rect x="54" y="58" width="12" height="6" rx="2" fill="#0F1419"/>
+  </g>
+
+  <!-- title -->
+  <text x="315" y="112" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-size="52" font-weight="800" letter-spacing="1.5" fill="#f2efe6">THE LATE MARKET</text>
+  <text x="315" y="148" text-anchor="middle" font-family="Helvetica Neue, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="7" fill="#ffb454">SIKI &amp; ZANA</text>
+
+  <!-- tagline: the idea, on the cover -->
+  <text x="315" y="480" text-anchor="middle" font-family="Georgia, serif" font-size="14" font-style="italic" fill="#c5c2d8">your lateness is someone else&#8217;s business model</text>
+</svg>
+</body>
+</html>

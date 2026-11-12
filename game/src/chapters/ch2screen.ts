@@ -17,6 +17,7 @@ import {
   flippedOutcome,
 } from "./ch2";
 import type { LedgerEntry } from "../engine/ledger";
+import { phrased } from "../i18n";
 
 export interface Ch2Deps {
   root: HTMLElement;
@@ -50,13 +51,21 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   function showRun(): void {
     const run = currentRun(state);
     clear(stage);
+    // No statute on the negotiation screen (recovery plan §4): the anchor is
+    // the only number the desk puts on the table. The prospect reveals in the
+    // debrief — that is what makes "the facts never moved" land.
     stage.append(
       el("h3", { text: `Run ${run.run + 1} of 3` }),
       el("div", { class: "lm-surface" },
         el("h4", { text: "Their opening — first, as always" }),
         el("p", { class: "lm-cash", text: gbp(run.anchor) }),
-        el("p", { class: "lm-hint", text: "The prospect does not move: invoice + statutory interest + compensation." }),
-        el("p", { class: "lm-hint", text: `Prospect today: ${gbp(ch2Prospect().total)} (assumptions: 8% over BoE base + £70 compensation, Late Payment Act 1998 s.5A)` }),
+        el("p", {
+          class: "lm-hint",
+          text: phrased({
+            normal: "Sixty days of your own money on that invoice. What is it actually worth to you today?",
+            plain: "This money is yours — it is sixty days late. How much is it really worth to you?",
+          }),
+        }),
       ),
     );
     // Blank by default — a pre-filled floor would be anchor-derived and would

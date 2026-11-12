@@ -8,8 +8,8 @@
       "text": "Day one. The books are open. Money is owed to you. Some of it has been owed a while." },
 
     { "id": "ch1_intro_resume", "speaker": "siki", "chapter": 1,
-      "text": "The shutters were left open. Day {day} of 20 — the books remember where you stopped.",
-      "variants": { "day": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] } },
+      "text": "The shutters were left open. Day {day} of 5 — the books remember where you stopped.",
+      "variants": { "day": [2, 3, 4, 5] } },
 
     { "id": "ch1_debrief_replay", "speaker": "siki", "chapter": 1,
       "text": "Let's look at what you did with that pair. Not what a textbook would do. What you did." },
@@ -17,12 +17,12 @@
     { "id": "ch1_debrief_framing_zero", "speaker": "siki", "chapter": 1,
       "text": "You chased both times. Good. But notice how the same choice felt different when both ends sat further out." },
 
-    { "id": "ch1_debrief_framing_one_d4", "speaker": "siki", "chapter": 1,
-      "text": "1 of the two was deferred (Day 4) — the frame, not the facts, did the work." },
-    { "id": "ch1_debrief_framing_one_d12", "speaker": "siki", "chapter": 1,
-      "text": "1 of the two was deferred (Day 12) — the frame, not the facts, did the work." },
+    { "id": "ch1_debrief_framing_one_d3", "speaker": "siki", "chapter": 1,
+      "text": "1 of the two was deferred (Day 3) — the frame, not the facts, did the work." },
+    { "id": "ch1_debrief_framing_one_d5", "speaker": "siki", "chapter": 1,
+      "text": "1 of the two was deferred (Day 5) — the frame, not the facts, did the work." },
     { "id": "ch1_debrief_framing_both", "speaker": "siki", "chapter": 1,
-      "text": "2 of the two was deferred (Day 4 and Day 12) — the frame, not the facts, did the work." },
+      "text": "2 of the two was deferred (Day 3 and Day 5) — the frame, not the facts, did the work." },
 
     { "id": "ch1_debrief_deferral", "speaker": "siki", "chapter": 1,
       "text": "Deferral is not always a trap." },

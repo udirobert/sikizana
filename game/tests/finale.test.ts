@@ -7,30 +7,30 @@ import { ENGINEERED_PAIR } from "../src/chapters/ch1";
 
 function seededLedger(): DecisionLedger {
   const led = new DecisionLedger();
-  // Ch.1 pair entries — one deferred, one chased.
+  // Ch.1 pair entries — one deferred, one chased (5-day chapter: days 3 & 5).
   led.record({
-    chapter: 1, day: 4, experimentId: ENGINEERED_PAIR.experimentId,
+    chapter: 1, day: 3, experimentId: ENGINEERED_PAIR.experimentId,
     prompt: "Harborne is overdue. Chase today, or tomorrow?",
     optionsShown: [
       { id: "chase_now", label: "Chase now", framingVariable: "timing_today_vs_later", isDefault: false },
       { id: "defer", label: "Defer", framingVariable: "timing_today_vs_later", isDefault: false },
     ],
     chosenOptionId: "defer", deferred: true,
-    immediateConsequence: "Another day of accrual begins.",
+    immediateConsequence: "Another day of accrual begins — the money now lands 8 days later.",
   });
   led.record({
-    chapter: 1, day: 12, experimentId: ENGINEERED_PAIR.experimentId,
+    chapter: 1, day: 5, experimentId: ENGINEERED_PAIR.experimentId,
     prompt: "Harborne again (new invoice). Chase today, or tomorrow?",
     optionsShown: [
       { id: "chase_now", label: "Chase now", framingVariable: "timing_delayed_both", isDefault: false },
       { id: "defer", label: "Defer", framingVariable: "timing_delayed_both", isDefault: false },
     ],
     chosenOptionId: "chase_now", deferred: false,
-    immediateConsequence: "Chase in motion; cash in 30 days.",
+    immediateConsequence: "Chase in motion.",
   });
   // Ch.1 cost summary — must NOT dilute the deferral axis.
   led.record({
-    chapter: 1, day: 20, experimentId: "cost_of_not_acting_ch1",
+    chapter: 1, day: 5, experimentId: "cost_of_not_acting_ch1",
     prompt: "Chapter 1 — the lantern's final reading",
     optionsShown: [{ id: "run_complete", label: "Run complete", framingVariable: "cost_ledger", isDefault: false }],
     chosenOptionId: "run_complete", deferred: false,
@@ -87,7 +87,7 @@ describe("finale view-model", () => {
     const led = seededLedger();
     const view = buildFinaleView(led);
     const def = view.axes.find((a) => a.key === "deferral")!;
-    expect(def.line).toContain("Day 12");
+    expect(def.line).toContain("Day 5");
     expect(def.line).toContain("chased");
     const anch = view.axes.find((a) => a.key === "anchoring")!;
     expect(anch.line).toContain("£800");

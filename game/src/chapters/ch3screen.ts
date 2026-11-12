@@ -17,6 +17,7 @@ import {
   Ch3State,
 } from "./ch3";
 import type { LedgerEntry } from "../engine/ledger";
+import { phrased } from "../i18n";
 
 export interface Ch3Deps {
   root: HTMLElement;
@@ -84,17 +85,20 @@ export function runChapter3(deps: Ch3Deps): void {
     const o = streetOffers();
     clear(stage);
     deps.say("zana", "Word travels. Two offers found your door already.");
+    // No honest-maths numbers on the offer cards (recovery plan §4): the
+    // trap is what the player FEELS in play. The true costs surface in the
+    // debrief, and again on the street's own ledger in the finale.
     stage.append(
       el("h3", { text: "The street has heard you are patient" }),
       el("div", { class: "lm-surface" },
         el("h4", { text: "The Factor — polished otter" }),
         el("p", { class: "lm-line", text: `"${gbp(o.factor.buyPrice)} today, no waiting."` }),
-        el("p", { class: "lm-hint", text: `Fictional · their shave is ~${Math.round(o.factor.annualDiscountPct)}%/yr cost-of-impatience · indicative` }),
+        el("p", { class: "lm-hint", text: "Fictional · the rest of the invoice is theirs · indicative" }),
       ),
       el("div", { class: "lm-surface" },
         el("h4", { text: "The Shark — smiling fish" }),
         el("p", { class: "lm-line", text: `"${gbp(o.shark.cashNow)} now, pay back just £${o.shark.daily} a day."` }),
-        el("p", { class: "lm-hint", text: `Fictional · the daily number is real, so is the annualised one: ${(o.shark.annualisedPct / 100).toFixed(1)}× per year · indicative` }),
+        el("p", { class: "lm-hint", text: "Fictional · the daily number is small. That's the pitch. · indicative" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton("Decline both", "Keep the debt, keep the ladder", () => {
@@ -102,12 +106,12 @@ export function runChapter3(deps: Ch3Deps): void {
           deps.record(streetLedgerEntry("The Shark", 0, false));
           debrief();
         }),
-        choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, `Cleared today; £${CH3_INVOICE - o.factor.buyPrice} of it theirs`, () => {
+        choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
           const fee = CH3_INVOICE - streetOffers().factor.buyPrice;
           deps.record(streetLedgerEntry("The Factor", fee, true));
           debrief();
         }),
-        choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then ${(o.shark.annualisedPct / 100).toFixed(1)}× per year, honest`, () => {
+        choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
           const o2 = streetOffers();
           // Their true take: termDays × daily − cashNow (the rest is still owed).
           const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
@@ -131,6 +135,20 @@ export function runChapter3(deps: Ch3Deps): void {
             el("p", { text: `Put in this chapter: ${gbp(invested)} (rounds: ${state.rounds.map((r) => r.action ?? "—").join(" → ")})` }),
             el("p", { text: `Prospect, decide-at-zero view: ${gbp(p.total)} of invoice + statutory entitlement` }),
             el("p", { class: "lm-hint", text: assumptionsLine() }),
+          ),
+          choiceButton("Continue", "", next),
+        );
+      },
+      () => {
+        // The reveal the offer cards withheld (recovery plan §4): the true
+        // annualised cost of the street's money, on honest arithmetic.
+        const o = streetOffers();
+        stage.append(
+          el("h3", { text: "What the street's money really costs" }),
+          el("div", { class: "lm-surface" },
+            el("p", { text: `The Factor took ${gbp(CH3_INVOICE - o.factor.buyPrice)} of the invoice for speed — about ${Math.round(o.factor.annualDiscountPct)}% a year, paid every time you needed cash today.` }),
+            el("p", { text: `The Shark's £${o.shark.daily} a day is ${o.shark.annualisedPct / 100}× the cash advanced, every year, once it is annualised. The daily number is small on purpose.` }),
+            el("p", { class: "lm-hint", text: phrased({ normal: "Fictional offers · based on typical UK factoring and recovery-commission ranges · indicative · no provider is recommended — the Zana ladder collects for free.", plain: "These offers are fictional, based on typical UK ranges. The free ladder — Zana's reminders — never charges." }) }),
           ),
           choiceButton("Continue", "", next),
         );

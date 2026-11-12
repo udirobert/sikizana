@@ -1,19 +1,50 @@
 /**
- * Chapter 1 — "The Cost of Tomorrow" (GDD A2): pure simulator.
+ * Chapter 1 — "The Cost of Tomorrow" (GDD A2; recovery plan §2): pure simulator.
  *
- * 20 trading days · invoices arrive every ~3 days (deterministic from seed).
- * The engineered pair (Day 4 in-today-frame, Day 12 both-payoffs-delayed)
- * shares an experimentId so the debrief can attribute timing framing honestly.
- * Every deferral accrues statutory interest/compensation-forgone silently,
- * surfaced only as the drifting lantern number. No DOM in this file.
+ * 5 trading days (cut from 20 — jam build, docs/game/RECOVERY_PLAN.md):
+ *   Day 1 — an invoice is ALREADY two days overdue: on screen from the first frame.
+ *   Day 2 — ordinary; whatever is owed is still chasable.
+ *   Day 3 — engineered pair A: chase vs defer, today-cost framing (2 vs 10 days).
+ *   Day 4 — the ordinary day where the till can empty: the supplier's bill comes due.
+ *   Day 5 — engineered pair B: both payoffs moved out (20 vs 28 — delayed comparison).
+ *
+ * The pair (Days 3 & 5) shares an experimentId so the debrief can attribute
+ * timing framing honestly — structurally identical choices, one variable changed.
+ * A chase pays in 2 days, so money LANDS inside the chapter (collected each
+ * morning) when the player acts early. Every deferral accrues statutory
+ * interest/compensation-forgone silently, surfaced only as the drifting lantern
+ * number. No DOM in this file.
+ *
+ * Copy rule (recovery plan §4): choice buttons carry no statute, no annualised
+ * rate, no "honest". The law appears in the debrief + assumptions sheet only.
  */
 import { statutoryCompensation, statutoryEntitlement, statutoryInterest } from "../engine/rates";
 import type { LedgerEntry } from "../engine/ledger";
 import { mulberry32, type Rng } from "../engine/rng";
 
-export const CH1_DAYS = 20;
-export const CHASE_CLEAR_DAYS = 30; // chase now → cash lands in 30 days
-export const DEFER_CLEAR_DAYS = 38.3; // defer → cash in 30 + 8.3 (GDD A2)
+export const CH1_DAYS = 5;
+export const PAIR_A_DAY = 3;
+export const PAIR_B_DAY = 5;
+/** Chase pays in 2 days — money lands inside the chapter. Real ~30-day waits
+ *  live in the assumptions sheet, never on a button (recovery plan §2.2). */
+export const CHASE_CLEAR_DAYS = 2;
+/** Pair A defer arm: the same money arrives 8 days later than a chase (the
+ *  classic +8.3-day slip, scaled to the 5-day chapter). */
+export const DEFER_EXTRA_DAYS = 8;
+/** Pair B moves BOTH payoffs out (delayed-comparison arm): 20 vs 28 days. */
+export const PAIR_B_CHASE_CLEAR_DAYS = 20;
+export const PAIR_B_DEFER_CLEAR_DAYS = 28;
+
+/** The supplier bill — the day the till can actually empty (recovery plan §2.2). */
+export const BILL = {
+  client: "Quayline Foods",
+  amount: 1800,
+  dueDay: 4,
+  /** Per-day late charge, tallied to the street (their money, not the till's). */
+  lateFee: 40,
+} as const;
+
+export const START_CASH = 1100;
 
 export type FunTask = "restock" | "reply_emails" | "customer_chat";
 
@@ -21,31 +52,45 @@ export interface Ch1Invoice {
   id: string;
   client: string;
   principal: number;
-  /** Day the invoice first becomes chasable (already overdue on arrival). */
+  /** Day the invoice first becomes chasable. 0 = overdue before the chapter. */
   dueDay: number;
   chasedDay: number | null;
   paidDay: number | null;
   deferrals: number;
 }
 
+export interface Ch1Bill {
+  client: string;
+  amount: number;
+  dueDay: number;
+  lateFee: number;
+  paidDay: number | null;
+  /** Day it went unpaid (explicit skip, or missed by any other choice). */
+  skippedDay: number | null;
+}
+
 export interface Ch1State {
   day: number;
   cash: number;
   invoices: Ch1Invoice[];
+  bill: Ch1Bill;
   /** Lantern number: cumulative statutory entitlement forgone this run. */
   forgoneInterest: number;
   forgoneCompensation: number;
-  zanaArmed: boolean;
+  /** Late charges tallied to the street for the unpaid supplier bill. */
+  lateFees: number;
   done: boolean;
-  /** Day the player first enlisted Zana, null if never. */
-  zanaDay: number | null;
+  /** Set when the till ran empty — a genuine loss state, not a moral one. */
+  endedEarly: "till_empty" | null;
+  /** Last day the chapter actually played (loss runs stop before CH1_DAYS). */
+  lastPlayedDay: number;
 }
 
 export interface DayChoice {
   id: string;
   label: string;
   detail: string;
-  kind: "fun" | "chase" | "defer" | "arm_zana" | "rest";
+  kind: "fun" | "chase" | "defer" | "pay_bill" | "skip_bill";
   invoiceId?: string;
 }
 
@@ -53,78 +98,66 @@ export interface DayEffect {
   day: number;
   cashDelta: number;
   lanternDelta: number;
+  /** Late charges that reached the street's tally today. */
+  lateFeeDelta: number;
+  /** Invoices whose payment landed in the till this morning. */
+  collected: number;
   lines: string[];
+  /** Stall changed state today (drives the street's specific-stall animation). */
+  streetNote?: "deferral" | "bill_skipped";
 }
 
 /** The engineered pair — structurally identical, timing framing only. */
 export interface EngineeredPair {
   experimentId: string;
-  first: { day: 4; framingVariable: "timing_today_vs_later"; invoice: { id: string; client: string; principal: number } };
-  second: { day: 12; framingVariable: "timing_delayed_both"; invoice: { id: string; client: string; principal: number } };
+  first: { day: 3; framingVariable: "timing_today_vs_later"; invoice: { id: string; client: string; principal: number } };
+  second: { day: 5; framingVariable: "timing_delayed_both"; invoice: { id: string; client: string; principal: number } };
 }
 
 export const ENGINEERED_PAIR: EngineeredPair = {
   experimentId: "ch1_present_pair_a",
-  first: { day: 4, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works", principal: 2400 } },
-  second: { day: 12, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works", principal: 2400 } },
+  first: { day: 3, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works", principal: 2400 } },
+  second: { day: 5, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works", principal: 2400 } },
 };
 
 const CLIENTS = [
   "Barrow & Sons",
   "Milk Street Caſe",
-  "Quayline Foods",
   "Fenwick Lighting",
   "Salt & Twine",
   "Ropewalk Dry Goods",
 ] as const;
 
-/** Invoice arrival days spread over the 20-day window (every ~3 days, rng-jittered). */
-export function arrivalDays(rng: Rng): number[] {
-  const days: number[] = [];
-  for (let d = 2; d <= CH1_DAYS; d += 3) {
-    const jitter = Math.floor(rng() * 3); // 0–2 day drift
-    const day = Math.min(CH1_DAYS, d + jitter);
-    if (!days.includes(day)) days.push(day);
-  }
-  return days;
-}
-
+/**
+ * Roster (deterministic from seed):
+ *  - inv-early: seeded client/principal, dueDay 0 — two days overdue from frame one.
+ *  - inv-a / inv-b: the engineered pair, FIXED, never jittered — the debrief's
+ *    framing attribution is only honest if Days 3 and 5 always offer the pair.
+ */
 export function createCh1State(seed: number): { state: Ch1State; rng: Rng } {
   const rng = mulberry32(seed);
+  const earlyClient = CLIENTS[Math.floor(rng() * CLIENTS.length)]!;
+  const earlyPrincipal = 900 + Math.floor(rng() * 18) * 100; // £900–£2,600 in £100 steps
   const state: Ch1State = {
     day: 1,
-    cash: 1200,
-    invoices: [],
+    cash: START_CASH,
+    invoices: [
+      { id: "inv-early", client: earlyClient, principal: earlyPrincipal, dueDay: 0, chasedDay: null, paidDay: null, deferrals: 0 },
+      { id: "inv-a", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_A_DAY, chasedDay: null, paidDay: null, deferrals: 0 },
+      { id: "inv-b", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_B_DAY, chasedDay: null, paidDay: null, deferrals: 0 },
+    ],
+    bill: { client: BILL.client, amount: BILL.amount, dueDay: BILL.dueDay, lateFee: BILL.lateFee, paidDay: null, skippedDay: null },
     forgoneInterest: 0,
     forgoneCompensation: 0,
-    zanaArmed: false,
+    lateFees: 0,
     done: false,
-    zanaDay: null,
+    endedEarly: null,
+    lastPlayedDay: 0,
   };
-  // The engineered pair is FIXED, never jittered — the debrief's framing
-  // attribution is only honest if Days 4 and 12 always offer the pair.
-  const pairInvoices = [ENGINEERED_PAIR.first, ENGINEERED_PAIR.second].map((side) => ({
-    id: side.invoice.id,
-    client: side.invoice.client,
-    principal: side.invoice.principal,
-    dueDay: side.day,
-    chasedDay: null,
-    paidDay: null,
-    deferrals: 0,
-  }));
-  state.invoices.push(...pairInvoices);
-  for (const dueDay of arrivalDays(rng)) {
-    rng(); // keep the consumed stream identical regardless of collisions
-    if (dueDay === ENGINEERED_PAIR.first.day || dueDay === ENGINEERED_PAIR.second.day) continue; // pair day already placed
-    const principal = 900 + Math.floor(rng() * 18) * 100; // £900–£2,600 in £100 steps
-    const client = CLIENTS[state.invoices.length % CLIENTS.length]!;
-    state.invoices.push({ id: `inv-${dueDay}`, client, principal, dueDay, chasedDay: null, paidDay: null, deferrals: 0 });
-  }
-  state.invoices.sort((x, y) => x.dueDay - y.dueDay);
   return { state, rng };
 }
 
-/** Statutory entitlement silently forgone by one invoice-day of lateness. */
+/** Statutory entitlement already forgone by one invoice's lateness to `day`. */
 export function invoiceAccrual(inv: Ch1Invoice, day: number): { interest: number; compensation: number } {
   if (inv.paidDay !== null || day < inv.dueDay) return { interest: 0, compensation: 0 };
   const daysLate = day - inv.dueDay + 1;
@@ -148,13 +181,16 @@ export function dailyAccrual(inv: Ch1Invoice, day: number): { interest: number; 
 }
 
 /**
- * Offer for one day. Zana armed ⇒ chase actions auto-chain: the chase is the
- * *default* (pre-selected) and deferral costs a visible, explicit note — the
- * commitment-device thesis rendered as UI default, not willpower.
+ * Offer for one day — one action. The day's shape:
+ *   1: fun | chase/defer (inv-early, already overdue)
+ *   2: fun | chase/defer (whatever is chasable)
+ *   3: fun | PAIR A chase/defer
+ *   4: pay/skip bill | fun | chase/defer (if anything is still chasable)
+ *   5: fun | PAIR B chase/defer
  */
 export function dayChoices(state: Ch1State, day: number): DayChoice[] {
-  const chasable = state.invoices.filter((i) => i.paidDay === null && i.chasedDay === null && i.dueDay <= day);
   const pair = ENGINEERED_PAIR;
+  const isPairDay = day === pair.first.day || day === pair.second.day;
   const choices: DayChoice[] = [];
 
   // Fun-now task: a small immediate cash + the social pull of easy work.
@@ -166,9 +202,30 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
   const funKey = (["restock", "reply_emails", "customer_chat"] as FunTask[])[(day - 1) % 3]!;
   choices.push({ id: `fun-${day}`, label: fun[funKey].label, detail: fun[funKey].detail, kind: "fun" });
 
+  if (state.bill.dueDay === day && state.bill.paidDay === null && state.bill.skippedDay === null) {
+    // The ordinary day where the till can empty. No dressed-up numbers — just
+    // the bill, what it costs, and what skipping costs.
+    const canCover = state.cash >= state.bill.amount;
+    choices.push({
+      id: `pay_bill-${day}`,
+      label: `Pay ${state.bill.client} — £${state.bill.amount}`,
+      detail: canCover
+        ? "Due today. Paid, the stall stays open."
+        : "Due today. The till can't cover it — you'd run into the red.",
+      kind: "pay_bill",
+    });
+    choices.push({
+      id: `skip_bill-${day}`,
+      label: "Leave the bill",
+      detail: "A £40 late charge starts tomorrow — and the street notices.",
+      kind: "skip_bill",
+    });
+  }
+
+  const chasable = state.invoices.filter((i) => i.paidDay === null && i.chasedDay === null && i.dueDay <= day);
   if (chasable.length > 0) {
     // On engineered-pair days the pair invoice must be the offered choice —
-    // otherwise an older back ticket could hijack the slot and muddy the
+    // otherwise an older ticket could hijack the slot and muddy the
     // debrief's framing attribution (A1 discipline).
     const pairInv = chasable.find(
       (i) =>
@@ -176,38 +233,38 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
         (day === pair.second.day && i.id === pair.second.invoice.id),
     );
     const inv = (pairInv ?? chasable[0])!;
-    const isEngineered = (day === pair.first.day || day === pair.second.day);
-    const framing = isEngineered
-      ? day === pair.first.day
-        ? "Chase now — the money lands in 30 days." // today-cost framing
-        : "Chase now — the money lands in 52 days." // both payoffs moved out
-      : "Chase — the money lands in 30 days.";
-    choices.push({ id: `chase-${inv.id}`, label: `Chase ${inv.client} — £${inv.principal}`, detail: framing, kind: "chase", invoiceId: inv.id });
-    choices.push({
-      id: `defer-${inv.id}`,
-      label: "Leave it for tomorrow",
-      detail: isEngineered && day === pair.second.day
-        ? "Defer — the money lands in 60 days instead of 52."
-        : "Defer — the money lands in 38 days instead of 30.",
-      kind: "defer",
-      invoiceId: inv.id,
-    });
-  }
-
-  if (day >= 14 && !state.zanaArmed) {
-    choices.push({
-      id: `arm_zana-${day}`,
-      label: "Enlist Zana — arm the chase ladder",
-      detail: "Stage-1 reminders auto-chain from tomorrow. The boring task does itself.",
-      kind: "arm_zana",
-    });
+    const isEngineered = isPairDay && pairInv === inv;
+    let chaseDetail: string;
+    let deferDetail: string;
+    if (isEngineered && day === pair.first.day) {
+      // Pair A — today-cost framing: one end near, one end far.
+      chaseDetail = `Chase now — the money lands in ${CHASE_CLEAR_DAYS} days.`;
+      deferDetail = `Defer — the money lands in ${CHASE_CLEAR_DAYS + DEFER_EXTRA_DAYS} days instead.`;
+    } else if (isEngineered && day === pair.second.day) {
+      // Pair B — both payoffs moved out (delayed comparison).
+      chaseDetail = `Chase now — the money lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`;
+      deferDetail = `Defer — the money lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`;
+    } else {
+      chaseDetail = `Chase — the money lands in ${CHASE_CLEAR_DAYS} days.`;
+      deferDetail = "Defer — the money lands later than that.";
+    }
+    choices.push({ id: `chase-${inv.id}`, label: `Chase ${inv.client} — £${inv.principal}`, detail: chaseDetail, kind: "chase", invoiceId: inv.id });
+    choices.push({ id: `defer-${inv.id}`, label: "Leave it for tomorrow", detail: deferDetail, kind: "defer", invoiceId: inv.id });
   }
   return choices;
 }
 
+/** The clear-days for a chase made on `day` (pair B is the moved-out arm). */
+function chaseClearDays(day: number, inv: Ch1Invoice): number {
+  const pair = ENGINEERED_PAIR;
+  if (day === pair.first.day && inv.id === pair.first.invoice.id) return CHASE_CLEAR_DAYS;
+  if (day === pair.second.day && inv.id === pair.second.invoice.id) return PAIR_B_CHASE_CLEAR_DAYS;
+  return CHASE_CLEAR_DAYS;
+}
+
 /**
- * Resolve one day. Returns effects +, for engineered-pair days, the ledger
- * entry to record (recorded by the screen driver into the DecisionLedger).
+ * Resolve one day. Morning: collect payments that land today. Then the player's
+ * one action. Then the street's charges and the silent cost engine accrue.
  */
 export function resolveDay(
   state: Ch1State,
@@ -216,41 +273,68 @@ export function resolveDay(
 ): { effects: DayEffect; engineeredEntry?: Omit<LedgerEntry, "id"> } {
   const invoice = state.invoices.find((i) => choiceId.endsWith(i.id));
   const deferred = choiceId.startsWith("defer-");
-  const deferredWithoutAction = state.invoices.some(
-    (i) => i.paidDay === null && i.chasedDay === null && i.dueDay <= day,
-  ) && !choiceId.startsWith("chase-") && !deferred;
 
   let cashDelta = 0;
   const lines: string[] = [];
+  let streetNote: DayEffect["streetNote"];
+  let collected = 0;
+
+  // Morning — money that was promised lands in the till today.
+  for (const inv of state.invoices) {
+    if (inv.paidDay === day) {
+      cashDelta += inv.principal;
+      collected += 1;
+      lines.push(`£${inv.principal} from ${inv.client} lands in the till.`);
+    }
+  }
 
   if (choiceId.startsWith("fun-")) {
     // Deterministic walk-in trade (seeded design: replay must be identical).
-    cashDelta += 140 + ((day * 37) % 60); // £140–£199, small, now
-    lines.push("The shelves are tidy. A regular buys thread and pleasantries.");
+    // But if the supplier's bill went unpaid yesterday, nobody delivered.
+    const billDead = state.bill.skippedDay === day - 1 && state.bill.paidDay === null;
+    const trade = billDead ? 0 : 140 + ((day * 37) % 60); // £140–£199, small, now
+    cashDelta += trade;
+    lines.push(billDead
+      ? "The shelves are quiet — nobody's delivered since the bill went unpaid."
+      : "The shelves are tidy. A regular buys thread and pleasantries.");
   } else if (choiceId.startsWith("chase-") && invoice) {
     invoice.chasedDay = day;
-    invoice.paidDay = day + Math.round(CHASE_CLEAR_DAYS);
-    lines.push(`Zana's first-stage reminder goes out. ${invoice.client} pays in 30 days.`);
+    invoice.paidDay = day + chaseClearDays(day, invoice);
+    lines.push(
+      invoice.paidDay <= CH1_DAYS
+        ? `Zana's first-stage reminder goes out. ${invoice.client} pays in ${chaseClearDays(day, invoice)} days.`
+        : `Zana's first-stage reminder goes out. ${invoice.client} will pay after this week closes.`,
+    );
   } else if (deferred && invoice) {
     invoice.deferrals += 1;
+    streetNote = "deferral";
     lines.push("Tomorrow. Tomorrow is always tidy in your head.");
-  } else if (choiceId.startsWith("arm_zana-")) {
-    state.zanaArmed = true;
-    state.zanaDay = day;
-    lines.push("Zana takes the ladder. Stage-1 reminders chain automatically from tomorrow.");
+  } else if (choiceId.startsWith("pay_bill-")) {
+    state.bill.paidDay = day;
+    cashDelta -= state.bill.amount;
+    lines.push(`${state.bill.client}'s bill is paid. The till takes the hit — now.`);
+  } else if (choiceId.startsWith("skip_bill-")) {
+    state.bill.skippedDay = day;
+    streetNote = "bill_skipped";
+    lines.push("Left. The street takes a £40 late charge tomorrow.");
   } else {
     lines.push("The day closes quietly.");
   }
 
-  // Zana armed ⇒ auto-chain: any unchased, un-paid invoice chases tomorrow-1.
-  if (state.zanaArmed && day >= (state.zanaDay ?? 0)) {
-    for (const inv of state.invoices) {
-      if (inv.paidDay === null && inv.chasedDay === null && inv.dueDay <= day + 1) {
-        inv.chasedDay = day + 1;
-        inv.paidDay = day + 1 + Math.round(CHASE_CLEAR_DAYS);
-        lines.push(`[ladder] ${inv.client} chased automatically.`);
-      }
-    }
+  // The bill's due day passed without payment — it goes unpaid, whether the
+  // player skipped it on purpose or simply chose something else.
+  if (state.bill.dueDay === day && state.bill.paidDay === null && state.bill.skippedDay === null) {
+    state.bill.skippedDay = day;
+    streetNote = streetNote ?? "bill_skipped";
+    lines.push("The supplier's bill goes unpaid — the street takes the late charge.");
+  }
+
+  // Late charge accrues from the day after the bill went unpaid — the street's
+  // own money. Tallied, not deducted from the till.
+  let lateFeeDelta = 0;
+  if (state.bill.skippedDay !== null && day > state.bill.skippedDay && state.bill.paidDay === null) {
+    lateFeeDelta = state.bill.lateFee;
+    state.lateFees += lateFeeDelta;
   }
 
   // Silent cost engine: every invoice-day of lateness accrues a daily delta.
@@ -265,15 +349,20 @@ export function resolveDay(
   }
   const lanternDelta = interestDelta + compensationDelta;
 
-  const engineeredEntry = buildEngineeredEntry(day, choiceId, invoice, deferred || deferredWithoutAction);
+  const engineeredEntry = buildEngineeredEntry(day, choiceId, invoice, deferred);
   state.day = day + 1;
+  state.lastPlayedDay = day;
   state.cash += cashDelta;
   state.forgoneInterest += interestDelta;
   state.forgoneCompensation += compensationDelta;
   if (day >= CH1_DAYS) state.done = true;
-
+  // A genuine loss state: the till runs empty. The chapter ends here.
+  if (state.cash < 0 && !state.done) {
+    state.done = true;
+    state.endedEarly = "till_empty";
+  }
   return {
-    effects: { day, cashDelta, lanternDelta, lines },
+    effects: { day, cashDelta, lanternDelta, lateFeeDelta, collected, lines, streetNote },
     engineeredEntry,
   };
 }
@@ -290,51 +379,94 @@ function buildEngineeredEntry(
   const isB = day === pair.second.day;
   if (!isA && !isB) return undefined;
   const chosen = deferred ? "defer" : choiceId.startsWith("chase-") ? "chase_now" : "fun_now";
+  // Deferred = the player did not chase on the pair day — an explicit "defer"
+  // OR the easy work done instead. Both are the deferral the debrief replays.
   return {
     chapter: 1,
     day,
     experimentId: pair.experimentId,
-    prompt: isA ? "Harborne is overdue. Chase today, or tomorrow?" : "Harborne again (new invoice). Chase today, or tomorrow?",
+    prompt: isA
+      ? "Harborne is overdue. Chase today, or tomorrow?"
+      : "Harborne again (new invoice). Chase today, or tomorrow?",
     optionsShown: [
       { id: "chase_now", label: "Chase now", framingVariable: isA ? "timing_today_vs_later" : "timing_delayed_both", isDefault: false },
       { id: "defer", label: "Defer", framingVariable: isA ? "timing_today_vs_later" : "timing_delayed_both", isDefault: false },
     ],
     chosenOptionId: chosen,
-    deferred,
+    deferred: chosen !== "chase_now",
     immediateConsequence: deferred
       ? isA
-        ? "Another day of accrual begins."
+        ? "Another day of accrual begins — the money now lands 8 days later."
         : "Both ends just moved further out."
-      : "Chase in motion; cash in 30 days.",
+      : "Chase in motion.",
     deferredConsequence: deferred ? `Statutory entitlement accrues silently from day ${pair.first.day}.` : undefined,
   };
 }
 
 /**
- * The debrief's counterfactual: same seed, but the rule kept itself from the
- * start — every invoice chased the day it falls due. Pure — projects the
- * improvement against the player's actual run without re-simulating their
- * whole game. Unconditional: the rule does not depend on the player's choices.
+ * The debrief's line-item replay (replaces the old "rule armed from the start"
+ * counterfactual, which was £0 by construction — recovery plan §2.3): each
+ * invoice the player let sit, priced at its real days × daily accrual. On the
+ * player's own data, never against a score the game invented.
  */
-export function counterfactualForgone(seed: number): { interest: number; compensation: number } {
-  const { state } = createCh1State(seed);
-  let interest = 0;
-  let compensation = 0;
-  for (let day = 1; day <= CH1_DAYS; day++) {
-    // Rule armed: chase every overdue invoice the day it falls due.
-    for (const inv of state.invoices) {
-      if (inv.paidDay === null && inv.chasedDay === null && inv.dueDay <= day) {
-        inv.chasedDay = day;
-        inv.paidDay = day + Math.round(CHASE_CLEAR_DAYS);
-      }
-    }
-    for (const i of state.invoices) {
-      if (i.chasedDay !== null || i.paidDay !== null) continue;
-      if (day < i.dueDay) continue;
-      const a = dailyAccrual(i, day);
-      interest += a.interest;
-      compensation += a.compensation;
-    }
+export interface DeferralLine {
+  invoiceId: string;
+  client: string;
+  principal: number;
+  /** A pair day the player actively deferred, if one. */
+  deferredDay: number | null;
+  /** Days the invoice sat unchased through the chapter (or until the chase). */
+  daysLate: number;
+  interest: number;
+  compensation: number;
+  total: number;
+  /** Still accruing after the chapter closed — the number keeps growing. */
+  stillOwed: boolean;
+}
+
+/**
+ * Price an invoice's deferral exactly the way the lantern accrues it: the sum
+ * of `dailyAccrual` over the window the invoice sat unchased. This is what
+ * makes the debrief's line items add up to the lantern's final reading —
+ * the street's real earnings, on the player's own data.
+ */
+function pricedDeferral(inv: Ch1Invoice, endDay: number): { interest: number; compensation: number; days: number } | null {
+  // Window the invoice sat unchased: the chapter days it was overdue on.
+  const startDay = Math.max(inv.dueDay, 1);
+  const days = endDay - startDay + 1;
+  if (days <= 0) return null;
+  const interest = days * statutoryInterest(inv.principal, 1);
+  // The one-time compensation accrues on the first overdue day — only if that
+  // day falls inside the window (a pre-existing overdue invoice, dueDay 0,
+  // already spent its compensation before the chapter opened).
+  const compensation = inv.dueDay >= 1 && inv.dueDay <= endDay ? statutoryCompensation(inv.principal) : 0;
+  return { interest, compensation, days };
+}
+
+export function deferralLines(state: Ch1State): DeferralLine[] {
+  const out: DeferralLine[] = [];
+  // The lantern accrues through the last day actually played — loss runs stop
+  // early, so the line items must too (they are the street's earnings, nothing
+  // more and nothing less).
+  const horizon = state.lastPlayedDay > 0 ? state.lastPlayedDay : CH1_DAYS;
+  for (const inv of state.invoices) {
+    // Chased the moment it was possible (or earlier) → never the player's deferral.
+    if (inv.chasedDay !== null && inv.chasedDay <= Math.max(1, inv.dueDay)) continue;
+    const endDay = inv.chasedDay !== null ? inv.chasedDay - 1 : horizon;
+    const p = pricedDeferral(inv, endDay);
+    if (!p) continue;
+    const pairDay = inv.deferrals > 0 && (inv.dueDay === PAIR_A_DAY || inv.dueDay === PAIR_B_DAY) ? inv.dueDay : null;
+    out.push({
+      invoiceId: inv.id,
+      client: inv.client,
+      principal: inv.principal,
+      deferredDay: pairDay,
+      daysLate: p.days,
+      interest: p.interest,
+      compensation: p.compensation,
+      total: p.interest + p.compensation,
+      stillOwed: inv.chasedDay === null,
+    });
   }
-  return { interest, compensation };
+  return out.sort((x, y) => x.daysLate - y.daysLate);
 }

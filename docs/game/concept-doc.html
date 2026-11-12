@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Late Market — Concept Document</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a2e; line-height: 1.5; font-size: 11pt; max-width: 100%; }
+  h1 { font-size: 22pt; margin: 0 0 2pt; }
+  h2 { font-size: 14pt; margin: 18pt 0 6pt; border-bottom: 1.5px solid #b79bff; padding-bottom: 3pt; color: #23234a; }
+  h3 { font-size: 11.5pt; margin: 12pt 0 4pt; }
+  p { margin: 6pt 0; }
+  .sub { color: #55556d; font-size: 10pt; margin-top: 2pt; }
+  .pitch { background: #f2efe6; border-left: 3px solid #ffb454; padding: 10pt 14pt; margin: 12pt 0; font-size: 11.5pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 9.5pt; }
+  th, td { border: 1px solid #c9c5dd; padding: 5pt 7pt; text-align: left; vertical-align: top; }
+  th { background: #2e2e5a; color: #f2efe6; }
+  ul, ol { margin: 6pt 0; padding-left: 20pt; }
+  li { margin: 2pt 0; }
+  .meta { font-size: 9.5pt; color: #55556d; }
+  .rail { background: #f7ecec; border-left: 3px solid #ff7b72; padding: 8pt 12pt; font-size: 10pt; }
+  code { background: #efedf7; padding: 0 3pt; border-radius: 3pt; font-size: 9.5pt; }
+</style>
+</head>
+<body>
+
+<h1>The Late Market</h1>
+<p class="sub">Siki &amp; Zana · a game about why nobody gets paid on time · concept document (Zoud GameLab, “Make FinLit Fun”)</p>
+<p class="meta">Author: Udi Robert (@udirobert) · Solo developer · Nov 2026</p>
+
+<div class="pitch">
+<strong>Pitch in three sentences.</strong> You run a small business and the money keeps slipping — and the game quietly runs behavioural experiments on you the whole way down. Every invoice you defer quietly funds a night-market street of stallholders — a factor, a collector, a shark — whose businesses exist <em>because</em> players like you didn't act today. At the end, the game shows you your own data, names what the market exploited, and closes the street the moment you finally get paid.
+</div>
+
+<h2>1 · Game Overview</h2>
+<p><strong>Title:</strong> The Late Market (series line: Siki &amp; Zana). <strong>Genre:</strong> narrative management/deduction hybrid — a persistent bookkeeping frame around chaptered decisions (day-planner, negotiation, mystery). <strong>Platform:</strong> browser HTML5 (itch.io), single-player, no install, ~10–15 minutes. <strong>Audience:</strong> adults who own/operate or dream of running a small business; secondary, secondary-school business studies (14+).</p>
+<p><strong>What's different:</strong> most FinLit games <em>explain</em> biases. This one runs you through them silently first — your plays are recorded, replayed to you as experiment data, and only then are the biases named. The second reveal layer is economic: your lateness is the business model of an entire shadow market, visualized as a street that visibly changes as you act.</p>
+<p><strong>Voice rule (canon from the parent product's brand book):</strong> Siki explains, Zana enforces. Siki's lines are calm, cited, hedged. Zana's are short, blunt, action-first, and never promise payment. NPCs are fictional composites; the game explains dynamics and never recommends a provider, product, or financing.</p>
+
+<h2>2 · Core Gameplay</h2>
+<p><strong>Objective:</strong> keep a small business solvent through one business week while collecting the money you are owed.</p>
+<p><strong>The loop (the stall screen — one persistent place):</strong> the whole game lives on a single screen that is a place, not a form. The till (your live cash), the ledger (one card per open invoice, ageing daily with a “worth today” price that grows), and the street (the shadow market outside, five stalls) are always visible. Each day you pick one action from a small vocabulary — serve walk-in work, chase an invoice, pay a supplier bill — then watch the till, the ledger, and the street react.</p>
+<p><strong>Consequence is real and visible:</strong> a chase pays in two days, so money lands in the till inside the week when you act early; deferring costs a drifting lantern number (forgone statutory entitlement) and lights a stall on the street. A supplier bill comes due mid-week — skipping it darkens a stall, starts a late charge, and can run the till empty, which ends the week early. A rational run and a careless run end differently, and the street shows why.</p>
+<p><strong>Chapters:</strong> one week (Chapter 1) around the present-bias pair; then three negotiation runs (Chapter 2, anchoring); then a silent three-year client (Chapter 3, sunk cost); then the finale, “You Were the Experiment,” which reads back your full decision ledger, names the three biases on your own numbers, and closes the street.</p>
+<p><strong>Fun:</strong> the role reveal (realising you're the subject), the escalating street that feeds on you, the cat-and-mouse of negotiation, and a finale that pays off the whole board — then invites a “beat your Rationality Delta” replay.</p>
+
+<h2>3 · Financial Literacy Integration</h2>
+<p><strong>Pedagogical order (research-backed):</strong> decide → experience → debrief on your own data → strategise → repeat. The learning is designed to <em>emerge in play without a lecture</em> — the statute citation appears in the debrief and an assumptions sheet, never on a choice button.</p>
+<table>
+<tr><th>Chapter</th><th>Bias</th><th>Engineered decision</th><th>Debrief (on player's data)</th><th>Tool unlocked</th></tr>
+<tr><td>1 · The Cost of Tomorrow</td><td>Present bias / hyperbolic discounting</td><td>Two structurally identical “chase now vs defer” days differing only in timing framing</td><td>Line-item replay of every invoice you let sit, priced at its real days; the lantern's total</td><td>“Chase on the due day” reminder rule (Zana auto-chains)</td></tr>
+<tr><td>2 · The Offer</td><td>Anchoring + ultimatum fairness</td><td>Three runs, three opening anchors; you set a floor; the true prospect never moves</td><td>Graph of your floor vs their anchor — the shift is caused by the anchor, not the facts</td><td>Flip the anchor: open with the statutory number</td></tr>
+<tr><td>3 · Good Money After Bad</td><td>Sunk cost</td><td>Escalate-or-walk on a 3-year silent client, framed in relationship history</td><td>Your choice vs the prospective-only “decide at zero” view; the true annualised cost of the street's money</td><td>The decide-at-zero panel</td></tr>
+<tr><td>Finale</td><td>—</td><td>—</td><td>You Were the Experiment: full ledger + Irrationality Profile (three axes) + real UK stat cards</td><td>Replay with Rationality Delta as the score</td></tr>
+</table>
+<p><strong>Accuracy guardrails:</strong> UK jurisdiction named; fictional meters labelled fictional; every statutory number carries a source + year; the three shadow-market NPCs show indicative real-world ranges, labelled, in the debrief. The interest is computed from the real UK rate (8% over Bank of England base + fixed £40/£70/100 compensation, Late Payment of Commercial Debts (Interest) Act 1998 s.5A), disclosed in an in-game assumptions sheet. Edge cases (zero, partial, negative, rounding) are tested.</p>
+
+<h2>4 · Visual Style &amp; Player Experience</h2>
+<p><strong>Art:</strong> hand-drawn 2D. The street is five SVG stall silhouettes — a market cart, an awning stall, and the three stallholders (a polished otter Factor, a pinstriped vulture Collector, a smiling fish Shark) — each with lit/dim/shuttered states driven by shape + glow, colourblind-safe by construction (no red/green-only encoding). Siki and Zana appear as pixel-SVG mascots.</p>
+<p><strong>Palette:</strong> deep indigo night, lantern amber, ledger green. Warm dread: losing shouldn't read as moral failure — the street's warmth makes the exploitation sociable, which is the point.</p>
+<p><strong>Audio:</strong> two persistent ElevenLabs voices (Siki/Zana), market ambience loop, foley one-shots. All pre-baked; audio is never required to proceed.</p>
+<p><strong>Accessibility (the +5 bonus, shipped):</strong> subtitles always on, all audio optional, adjustable text size, <strong>simple-language mode</strong> in Options, keyboard-complete play, no colour-only state, mute + restart.</p>
+
+<h2>5 · Development &amp; Future Plans</h2>
+<p><strong>Shipped (jam build):</strong> four chapters + finale, one persistent stall screen, three biases deep, the full decision-ledger + debrief + Irrationality Profile + Cost-of-Not-Acting ledger, the street scene, and baked voice audio — all playable and tested in one HTML5 build. 48 automated tests pass.</p>
+<p><strong>Post-jam (Chroma, Jan 7):</strong> polish pass, a “Souq Mode” (AED + Gulf framing, stretch: Arabic subs), iOS Safari testing, a 1080p trailer, a music v2.5 pass.</p>
+<p><strong>Priorities:</strong> (1) the core loop and the debrief; (2) Ch.1 + Ch.2 end-to-end; (3) Ch.3 + finale; (4) art/voice polish; (5) cut nonsense before polish.</p>
+<p><strong>Market:</strong> post-jam, The Late Market sits at the top of Sikizana's real funnel (the receivables product the game teaches). The Irrationality Profile is designed as a shareable artefact. Nothing in-game recommends financing — the regulatory rails bind the game too: exploration of debt economics, never advice. The game is a read-only advisor: it never holds, moves, or instructs the movement of money, never extends credit, and never names a lender. NPC offers are fictional composites with indicative, labelled ranges. The decision ledger is stored in the browser only (clearable from the title screen), contains no real user data, and is never transmitted anywhere.</p>
+
+<h2>6 · Your Team</h2>
+<p><strong>Udi Robert (@udirobert)</strong> — solo developer. Background: production Sikizana AI finance assistant (Next.js/FastAPI), receivables/chase design, UK statutory-interest calculations (in production code today), Siki/Zana IP owner. The game is built by the person who already operates the receivables mechanics it teaches.</p>
+
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Late Market — Project Budget</title>
+<style>
+  @page { size: A4; margin: 20mm 18mm; }
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a2e; line-height: 1.5; font-size: 11pt; }
+  h1 { font-size: 20pt; margin: 0 0 2pt; }
+  h2 { font-size: 13.5pt; margin: 16pt 0 6pt; border-bottom: 1.5px solid #b79bff; padding-bottom: 3pt; color: #23234a; }
+  p { margin: 6pt 0; }
+  .sub { color: #55556d; font-size: 10pt; }
+  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 10pt; }
+  th, td { border: 1px solid #c9c5dd; padding: 6pt 8pt; text-align: left; vertical-align: top; }
+  th { background: #2e2e5a; color: #f2efe6; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.total td { background: #f2efe6; font-weight: 700; }
+  .note { font-size: 9.5pt; color: #55556d; }
+  .rail { background: #f7ecec; border-left: 3px solid #ff7b72; padding: 8pt 12pt; font-size: 10pt; }
+</style>
+</head>
+<body>
+
+<h1>The Late Market — Project Budget</h1>
+<p class="sub">Milestone-aware budget for the Zoud GameLab entry (Nov 15, 2026) · prepared for the development-funding criteria · Udi Robert</p>
+
+<h2>1 · Summary</h2>
+<table>
+<tr><th>Line</th><th>Spent / committed</th><th>Planned (remaining)</th></tr>
+<tr><td>ElevenLabs Starter (voices, music, SFX, commercial licence)</td><td class="num">$6.00 (Nov 2026 subscription)</td><td class="num">$0 (re-bakes use included credits)</td></tr>
+<tr><td>Voice line bakes (41 lines, Nov 10) + jam re-bake (~20 changed lines)</td><td class="num">$0 (subscription credits)</td><td class="num">$0 (subscription credits)</td></tr>
+<tr><td>Cover art (630×500, AI-generated, disclosed on itch)</td><td class="num">$0–10</td><td class="num">$0–10</td></tr>
+<tr><td>Hosting (itch.io free HTML5 hosting)</td><td class="num">$0</td><td class="num">$0</td></tr>
+<tr><td>Contract illustration (option, NOT exercised — all art in-house SVG/pixel)</td><td class="num">$0</td><td class="num">$0</td></tr>
+<tr class="total"><td>Total</td><td class="num">≤ $16</td><td class="num">≤ $26</td></tr>
+</table>
+<p class="note">Ceiling check: the GDD budget band is $15–500 depending on illustration. The jam build stayed at the floor — every visual is hand-coded SVG/pixel art (the three stallholders, the stall screen, the street), so the contract-illustration option (~$300–450) was not needed. Worst-case total if the option were exercised later: ≤ $500.</p>
+
+<h2>2 · What the budget bought (receipts)</h2>
+<table>
+<tr><th>Item</th><th>Detail</th><th>Cost</th></tr>
+<tr><td>ElevenLabs Starter</td><td>1 month, Nov 2026 · 30k credits · commercial licence · two persistent voices (Siki/Zana) + pronunciation dictionary pinned at bake time</td><td class="num">$6.00</td></tr>
+<tr><td>Voice bakes</td><td>41 lines on eleven_v4 with char-level alignment (Nov 10); jam re-bake covers the rebuilt Chapter 1 (~20 lines, ≈1,400 chars) — within included credits, no per-API billing</td><td class="num">$0</td></tr>
+<tr><td>SFX + ambience</td><td>market ambience loop, music bed, four foley one-shots, speaker stingers — pre-baked, subscription credits</td><td class="num">$0</td></tr>
+<tr><td>Cover</td><td>one 630×500 illustration, AI-generated (tool named in the itch.io AI disclosure)</td><td class="num">$0–10</td></tr>
+</table>
+<p class="note">Voice model economics (research-validated): eleven_v4 is $0.08/1k chars billed per-API only; the Starter subscription covers the jam month's volume with margin. No runtime TTS, no API keys in the client — everything ships pre-baked.</p>
+
+<h2>3 · Milestone-aware view (what each funded milestone delivers)</h2>
+<table>
+<tr><th>Milestone</th><th>Delivered in the jam build</th><th>Next, with funding</th></tr>
+<tr><td>M1 · Playable prototype</td><td>Four chapters + finale end-to-end; one persistent stall screen; 48 passing tests; edge cases (zero/partial/negative/rounding) covered</td><td>Balance pass 2 (more run seeds), fresh-eyes playtest report</td></tr>
+<tr><td>M2 · Learning system</td><td>Decision ledger → debrief → Irrationality Profile → Cost-of-Not-Acting, all pure functions over recorded choices; no trap labelled in play</td><td>Ch.4 (a fourth bias, scope-guarded), debrief A/B on line-item vs counterfactual framing</td></tr>
+<tr><td>M3 · Presentation &amp; access</td><td>Street scene with lit/shut states, baked voices, simple-language mode, keyboard-complete, colourblind-safe</td><td>Souq Mode (AED + Gulf framing; stretch: Arabic subs), 1080p trailer, iOS Safari pass</td></tr>
+<tr><td>M4 · Distribution</td><td>itch.io package (private until submission); concept doc + this budget + 2-minute gameplay video</td><td>Public publish post-jam; shareable Irrationality Profile card; Sikizana funnel CTA</td></tr>
+</table>
+
+<h2>4 · Scope discipline (why the budget stays small)</h2>
+<p>The jam build was deliberately cut to three biases deep (present bias + anchoring primary, sunk cost supporting), two mascots as pixel SVG rather than commissioned layered portraits, and a single persistent screen instead of five scenes. The post-jam roadmap (Jan 7 Chroma) is where the optional $300–450 illustration push and the Souq Mode spend would land — each behind a named milestone, not assumed.</p>
+<div class="rail"><p>Regulatory note: the budget funds no user data, no third-party processing of personal data, and no paid distribution. The game's ledger is browser-local and clearable; all AI-generated material is disclosed to judges and on the itch page.</p></div>
+
+</body>
+</html>

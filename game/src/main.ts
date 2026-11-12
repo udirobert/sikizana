@@ -17,6 +17,7 @@ import { buildFinaleView } from "./chapters/finale";
 import { runFinale } from "./chapters/finaleScreen";
 import { renderStreet as renderStreetRow, type StreetCounters } from "./ui/street";
 import type { LedgerEntry } from "./engine/ledger";
+import { setSimpleLanguage } from "./i18n";
 
 const start = document.getElementById("start") as HTMLElement;
 const game = document.getElementById("game") as HTMLElement;
@@ -25,14 +26,14 @@ const LEDGER_KEY = "lm.ledger.v1";
 const CH1_SAVE_KEY = "lm.ch1.v1";
 const PREFS_KEY = "lm.prefs.v1";
 
-interface Prefs { sound: boolean; music: boolean; textScale: "sm" | "md" | "lg" }
+interface Prefs { sound: boolean; music: boolean; textScale: "sm" | "md" | "lg"; simpleLang: boolean }
 
 function loadPrefs(): Prefs {
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    if (raw) return { sound: true, music: true, textScale: "md", ...(JSON.parse(raw) as Partial<Prefs>) };
+    if (raw) return { sound: true, music: true, textScale: "md", simpleLang: false, ...(JSON.parse(raw) as Partial<Prefs>) };
   } catch { /* fall through to defaults */ }
-  return { sound: true, music: true, textScale: "md" };
+  return { sound: true, music: true, textScale: "md", simpleLang: false };
 }
 
 const prefs = loadPrefs();
@@ -40,6 +41,7 @@ function savePrefs(): void {
   try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch { /* private-mode */ }
 }
 document.documentElement.dataset.textScale = prefs.textScale;
+setSimpleLanguage(prefs.simpleLang);
 
 function loadLedger(): DecisionLedger {
   try {
@@ -75,14 +77,22 @@ function sting(speaker: "siki" | "zana"): void {
   bus.playOnce(`audio/sfx/${speaker}_stinger.mp3`, 0.8);
 }
 
-/** One spoken line at a time — the speech grows, Bookkeeper-style. */
+/**
+ * One spoken line at a time — the speech grows, Bookkeeper-style.
+ * The bubble goes into the ACTIVE chapter section (the last visible one),
+ * so Siki's line never stacks above another chapter's cards. The dedup
+ * rule (recovery plan §2.3) is about CONTENT: the spoken line is short,
+ * the chapter's cards carry the detail — enforced in each chapter screen.
+ */
 function say(speaker: "siki" | "zana", text: string): void {
-  for (const old of Array.from(game.querySelectorAll(":scope > p.lm-line"))) old.remove();
+  const sections = Array.from(game.querySelectorAll(":scope > section.lm-chapter")) as HTMLElement[];
+  const active = sections.length ? sections[sections.length - 1]! : game;
+  for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
   const bubble = document.createElement("p");
   bubble.className = `lm-line ${speaker}`;
   bubble.textContent = text;
   bubble.setAttribute("role", "note");
-  game.prepend(bubble);
+  active.prepend(bubble);
   sting(speaker);
   void voice.speak(speaker, text, bubble);
 }
@@ -100,18 +110,32 @@ function purgeSave(): void {
 
 const SEED = 20261109; // jam build: one canonical run for judging
 
-/** ── The street — defer/pay/fees drive the stalls (GDD §2 step 2). ── */
+/** ── The street — defer/pay/fees drive the stalls (GDD §2 step 2). ──
+ *
+ * ch1 street events (deferrals, skipped bill, collections) create NO ledger
+ * entries, so they live in session counters; ch2/ch3 NPC fees do create ledger
+ * entries, so they're read from the ledger. Both feed one counter. */
+const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0 };
+
 function streetCounters(): StreetCounters {
   const all = ledger.all();
-  let toStreet = 0;
-  for (const e of all) if (e.npc?.feePaid) toStreet += e.npc.feePaid;
-  const deferrals =
-    all.filter((e) => e.chapter === 1 && e.deferred).length +
-    all.filter((e) => e.chapter === 3 && e.deferred).length;
-  const collected =
-    all.filter((e) => e.chapter === 1 && e.chosenOptionId === "chase_now").length +
-    all.filter((e) => e.chapter === 2 && e.experimentId.startsWith("ch2_anchor") && e.chosenOptionId === "accept").length;
-  return { toStreet, deferrals, collected };
+  let npcFees = 0;
+  for (const e of all) if (e.npc?.feePaid) npcFees += e.npc.feePaid;
+  return {
+    toStreet: npcFees + streetSession.lateFees,
+    deferrals: streetSession.deferrals,
+    collected: streetSession.collected,
+    billSkipped: streetSession.billSkipped,
+  };
+}
+
+/** Chapter-1 driver reports street-moving events that have no ledger entry. */
+function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number }): void {
+  if (ev.deferral) streetSession.deferrals += 1;
+  if (ev.billSkipped) streetSession.billSkipped += 1;
+  if (ev.collected) streetSession.collected += ev.collected;
+  if (ev.lateFee) streetSession.lateFees += ev.lateFee;
+  renderStreet();
 }
 
 function renderStreet(): void {
@@ -138,6 +162,7 @@ function beginChapter(n: 1 | 2 | 3): void {
         pairEntries: () => ledger.all().filter((e) => e.chapter === 1 && e.experimentId === "ch1_present_pair_a"),
         say,
         save: (s: Ch1State) => { try { localStorage.setItem(CH1_SAVE_KEY, JSON.stringify(s)); } catch { /* private-mode */ } },
+        noteStreet,
         onTool: () => {
           localStorage.removeItem(CH1_SAVE_KEY); // chapter closed — the run is done
           document.dispatchEvent(new CustomEvent("lm:chapter-done", { detail: 1 }));
@@ -269,6 +294,10 @@ function finale(): void {
       ledger = new DecisionLedger();
       saveLedger();
       localStorage.removeItem(CH1_SAVE_KEY);
+      streetSession.deferrals = 0;
+      streetSession.billSkipped = 0;
+      streetSession.collected = 0;
+      streetSession.lateFees = 0;
       renderStreet();
       beginChapter(1);
     },
@@ -304,6 +333,15 @@ optText?.addEventListener("change", () => {
   prefs.textScale = (optText.value as Prefs["textScale"]) || "md";
   savePrefs();
   document.documentElement.dataset.textScale = prefs.textScale;
+});
+
+// Simple-language mode (GDD §4 accessibility bonus — it claims it, so it ships).
+const optSimple = document.getElementById("opt-simplelang") as HTMLInputElement | null;
+if (optSimple) optSimple.checked = prefs.simpleLang;
+optSimple?.addEventListener("change", () => {
+  prefs.simpleLang = optSimple.checked;
+  savePrefs();
+  setSimpleLanguage(prefs.simpleLang);
 });
 
 // UI confirm blip on every choice click (delegated — covers all chapters).

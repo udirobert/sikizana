@@ -45,6 +45,8 @@ export interface LedgerEntry {
   forgoneEntitlement?: StatutoryResultLike;
   /** Player-set negotiation floor (anchoring axis) */
   negotiationFloor?: number;
+  /** Money tallied to the street this round (late charges, not NPC fees). */
+  streetFee?: number;
   immediateConsequence: string;
   deferredConsequence?: string;
 }
