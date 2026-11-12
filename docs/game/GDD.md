@@ -110,29 +110,38 @@ Each chapter pairs **structurally symmetric** choices and changes exactly one va
 
 ## A2. Chapter 1 — *The Cost of Tomorrow* (present bias) — 5-day build
 
-- **Setup:** 5 trading days on one stall screen. An invoice is already 2 days
-  overdue from frame one; a second arrives Day 2; the supplier's £1,800 bill
-  is due Day 4. The to-do mixes fun-now tasks with the boring-now chase.
-- **Engineered pair:** Day 3 (today-cost framing: "money lands in 2 days" vs
-  "in 10") and Day 5 (both payoffs moved out: "in 20" vs "in 28" — the
-  classic delayed-comparison hyperbolic test). Same `experimentId`, same
-  structure; only the timing frame changes.
-- **The day the till can empty:** the supplier bill (Day 4). Pay it and the
-  till takes the hit now; skip it and a £40/day late charge accrues to the
-  street, a stall darkens, and the walk-in income stops. Paying the bill
-  *without* the cash a chase would have brought runs the till negative — the
-  chapter ends early (`endedEarly`). A rational run and a careless run end
+- **Setup:** 5 trading days on one stall screen, over the persistent night
+  market (the cover painting is a dimmed backdrop behind every chapter). An
+  invoice is already 1 day overdue from frame one; the pair arrives Day 3
+  and Day 5; the supplier's £1,600 bill is due Day 4. The to-do mixes
+  fun-now tasks with the boring-now chase.
+- **Engineered pair (controlled):** Day 3 — "the money lands in 3 days" vs
+  "in 11 days"; Day 5 — "in 11" vs "in 19". Both arms of both days pay
+  *after the week*; the deferral is always the same 8-day slip. Nothing
+  in-week is printed on either button, so the debrief's framing
+  attribution is honest.
+- **The day the till can empty:** the supplier bill (Day 4). The till
+  displays the *net position* (cash minus the unpaid bill), so skipping it
+  drops the till by the full £1,600 — the £40/day late charge then leaves
+  the till every morning while walk-in trade stops. A run that never chased
+  skips at +£22 on day 4 and the fee empties the till on day 5
+  (`endedEarly`). A run that chased day 1 (money lands day 3) pays the bill
+  and still ends +£1,099. A rational run and a careless run end
   differently, and the street shows why.
-- **Silent cost engine:** each defer = 8% over base + compensation forgone,
-  silently accruing, shown only as a drifting lantern number (never
-  instructed to watch). Money from a chase lands in the till inside the
-  chapter (2-day clear), so acting early is visibly rewarded.
+- **The card falls, the street grows:** each ledger card shows a "worth
+  today" that *falls* as the invoice ages (indicative 2%/day off face,
+  capped 25%). The drifting lantern is the street's earnings — the exact
+  value the invoices shed while they sat ("your lateness is someone else's
+  business model" as literal arithmetic). The statutory entitlement is a
+  larger, real legal floor, named in the debrief only, never on the card.
 - **Debrief (street → replay → name → tool):** the street's earnings first
-  (what your deferrals + skipped bill lit up) → line-item replay of every
-  invoice you let sit (priced at real days × daily accrual, summing to the
-  lantern) → the timing exploit named on the player's own numbers (the
-  statute arrives here, as an assumptions footnote, never on a button) → the
-  reminder rule + Zana. No trap is labelled in play.
+  ("the street took £X — £Y for the invoices you let age, £Z in late
+  charges… your lateness is their trade") → line-item replay of every
+  invoice you let sit (priced over the exact window the lantern accrued;
+  line items sum to the lantern to the penny; each line also names the
+  statutory floor over the same days) → the timing exploit named on the
+  player's own numbers → the reminder rule + Zana. No trap is labelled in
+  play.
 - **Unlock:** the reminder rule (Zana's first-stage ladder auto-chains) — the
   commitment-device thesis, now the debrief's takeaway rather than a Day-14
   toggle.
@@ -220,29 +229,46 @@ build's source of truth.
 - **Chapter 1 is 5 days, not 20.** The pair moved from Day 4/12 to Day 3/5
   (same `experimentId`, same structure — framing attribution unchanged).
   `CH1_DAYS = 5`.
-- **Chase pays in 2 days** (`CHASE_CLEAR_DAYS = 2`), so money lands in the
-  till inside the chapter (collected each morning). The real ~30-day wait is
-  in the assumptions sheet, never on a button. Pair B (Day 5) is the
-  delayed-comparison arm: 20 vs 28 days — both payoffs outside the chapter,
-  which is the lesson.
-- **Supplier bill (Day 4):** `Quayline Foods`, £1,800 due. Skipping it (or
-  choosing something else that day) starts a £40/day late charge tallied to
-  the street's tally (not the till). The till can go negative only by paying
-  the bill without the cash a chase would have brought — that is the loss
-  state (`endedEarly: "till_empty"`, chapter ends early).
-- **Silent cost engine (Ch.1):** unchanged in principle — the lantern accrues
-  a *daily delta* per overdue-unchased invoice (one day's simple interest at
-  11.75% p.a. + the fixed compensation **once** on the first overdue day),
-  never the cumulative entitlement re-summed. The pre-existing invoice
-  (dueDay 0) already spent its compensation before the chapter opened, so its
-  window prices interest only.
-- **Counterfactual deleted.** The old "rule armed from the start" was £0.00
-  by construction (chase-on-due ⇒ nothing accrues) — a comparison against a
-  score the game invented. Replaced by `deferralLines()`: each invoice the
-  player let sit, priced at its real days × daily accrual (exactly the
-  lantern's arithmetic, through `lastPlayedDay` for loss runs). The line
-  items sum to the lantern's final reading — the street's real earnings on
-  the player's own data.
+- **The pair is a controlled experiment: both arms pay AFTER the week.**
+  Day 3: chase → day 6 (in 3) · defer → day 14 (in 11); Day 5: chase →
+  day 16 (in 11) · defer → day 24 (in 19). The deferral is always the same
+  8-day slip; only the distance to *both* payoffs changes. A v2 bug had made
+  the day-3 chase land in-week ("pays in 2 days") while day 5 said "after
+  this week" — the structure was printed on the button, so a player who
+  chased day 3 and deferred day 5 was reading the payoff, not displaying
+  present bias. In-week money now comes only from the ordinary overdue
+  invoice (`CHASE_CLEAR_DAYS = 2`): chase Day 1 → £1,300 lands Day 3, the
+  day before the bill. That chase is what makes the bill payable.
+- **Supplier bill (Day 4):** `Quayline Foods`, **£1,600** due (v2: £1,800).
+  It is a LIABILITY, not a one-shot cash outflow: the till displays the
+  **net position** (`cash − unpaid bill`), so skipping it drops the till by
+  the full amount, and the £40/day late charge then *leaves the till*
+  (via the net position) every morning while walk-in trade stops. Traced
+  on the canonical seed: a run that never chases parks at £1,622 before the
+  bill; it skips at +£22 on day 4, and **the £40 fee empties the till on
+  day 5** — the player watches the fee do it. A run that chased early can
+  pay it and still ends +£1,099. Loss state fires on net position
+  (`endedEarly: "till_empty"`), checked *before* the week-end flag so a
+  till that empties on the last day still ends as a loss.
+- **The card falls, the lantern is the street's take.** The ledger card's
+  "worth today" is the invoice's market value — it **falls** as the invoice
+  ages (2% of face per day past due, capped at 25%, indicative, per GDD §2
+  discounting lesson). The silent lantern is the **street's earnings**: the
+  exact value the invoices shed while they sat (the discount the Factor
+  captures) — "your lateness is someone else's business model" made literal,
+  and the mirror of the card (same `daysOverdueOn`/`worth` arithmetic, so
+  card count and value share one formula). The statutory entitlement (8%
+  over base + s.5A compensation) is a larger, real legal **floor** — it is
+  reported per line in the debrief ("the law would have accrued £X over
+  those same days"), never on the card. A v2 bug conflated the two: the
+  card showed a rising entitlement while the debrief called it "money you
+  never get back" — the "potentially misleading implications" cut.
+- **Counterfactual deleted (v1) → line items priced by the street (v2).**
+  `deferralLines()` prices each invoice the player let sit over the exact
+  window the lantern accrued it (first day past due → day before the chase,
+  `lastPlayedDay` horizon for loss runs), with the same `valueShedForDay`
+  daily function — line items sum to the lantern to the penny (unit-tested
+  to 9 decimals), nothing the game invented.
 - **De-labelling (rubric: learning emerges in play; accuracy band):** no
   choice button or offer card carries a statute, an annualised rate, or an
   "honest" label anymore. The Shark's true annualised cost and the Factor's
@@ -251,9 +277,13 @@ build's source of truth.
   now a *reveal*). This overrules the v1 "transparency is the brand" note —
   the rubric's "potentially misleading implications" and "emergent learning"
   bands take precedence.
-- **Street (Ch.1 screen + finale):** one SVG street, five stalls — two
-  always-lit market stalls (the base) + the three stallholders' stalls, lit
-  by deferrals / skipped bill / fees, shuttered by collections that land.
+- **Street (Ch.1 screen + finale):** one SVG street, five stalls — the two
+  generic market stalls (cart + awning) are the only always-lit base (v2:
+  base dropped from 3 → 2 so the Factor/Collector/Shark stalls start DARK
+  and light only on the player's own deferral/skipped-bill — the debrief's
+  "it lit up" is true only when something actually lit). The three
+  stallholders' stalls light by deferrals / skipped bill / fees, shutter
+  by collections that land.
   `streetState()` is the single derivation; `renderStreet()` is the single
   renderer. ch1 street events live in session counters (they create no
   ledger entries); ch2/ch3 NPC fees are read from the ledger. One shared

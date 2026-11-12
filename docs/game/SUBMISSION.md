@@ -8,15 +8,17 @@ Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public 
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 61 files · top-level `index.html` · relative paths · audio included · 4.5 MB |
+| itch.zip | `game/dist/itch.zip` | 63 files · top-level `index.html` · relative paths · audio included · 4.9 MB |
 | Gameplay video | `game/game-video/lm_run.mp4` | 68 s (cap is 2:00) · silent · title → Day 1 place → bill stress → street change → debrief |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
-| Screenshots | `game/screenshots/v2/*.png` | 5 genuine gameplay frames (day 1 / day 3 / day 4 / debrief ×2) |
+| Screenshots | `game/screenshots/v2/*.png` | 8 genuine gameplay frames (day 1 / day 3 pair / day 4 bill / day 5 / debrief ×3) |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
 
-All checks: `npm test` 52/52 · `tsc --noEmit` clean · `npm run build` clean ·
-line items sum to the lantern (unit-tested) · rational ≠ careless end state (unit-tested).
+All checks: `npm test` 53/53 · `tsc --noEmit` clean · `npm run build` clean ·
+line items sum to the lantern to the penny (unit-tested) · "worth today" falls
+monotonically (unit-tested) · rational +£1,099 ≠ careless `till_empty` on the
+£40 fee (unit-tested) · title-screen regression guard (`scripts/regcheck.mjs`).
 
 ## 1. itch.io page (~15 min)
 

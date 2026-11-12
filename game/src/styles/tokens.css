@@ -42,6 +42,17 @@ body {
   outline-offset: 2px;
 }
 
+/* The market backdrop — one place, every chapter. Dimmed enough that the
+   ledger stays the brightest thing on screen, present enough that a chapter
+   change is a *room*, not a form. */
+.lm-market-bg {
+  position: fixed; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: 50% 100%;
+  opacity: 0.13; z-index: 0; pointer-events: none;
+}
+#game { position: relative; z-index: 1 }
+#start { position: relative; z-index: 2 }
+
 .lm-surface {
   background: var(--lm-surface);
   border: 1px solid var(--lm-ink-dim);

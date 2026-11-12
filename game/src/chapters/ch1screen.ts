@@ -19,7 +19,9 @@ import {
   dayChoices,
   resolveDay,
   deferralLines,
-  invoiceAccrual,
+  worthToday,
+  daysOverdueOn,
+  netPosition,
   type Ch1State,
   type DayEffect,
 } from "./ch1";
@@ -58,13 +60,24 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   /** Redraw till + ledger + lantern from state. The street is main's. */
   function renderChrome(pop = false): void {
+    // The till is the NET position: cash minus the unpaid supplier bill. The
+    // bill is the stall's own money, set aside — so skipping it drops the
+    // till by the full amount, not by a caption-sized late charge.
+    const net = netPosition(state);
     const t = document.createElement("div");
     t.className = "lm-till-num";
-    t.textContent = gbp(state.cash);
+    t.textContent = gbp(net);
     if (pop) t.classList.add("lm-pop");
-    till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), t);
-    till.classList.toggle("lm-till-neg", state.cash < 0);
-    if (state.cash < 0) till.append(el("span", { class: "lm-till-warn", text: "▼ the till is in the red" }));
+    const cap = el("span", { class: "lm-till-cap", text: "The till" });
+    till.replaceChildren(cap, t);
+    if (net < 0) {
+      till.append(el("span", { class: "lm-till-warn", text: "▼ the till is in the red" }));
+    }
+    // Show the set-aside bill while it is live, so the drop is legible.
+    if (state.bill.skippedDay !== null && state.bill.paidDay === null) {
+      till.append(el("span", { class: "lm-till-warn", text: `− ${gbp0(state.bill.amount + state.lateFees)} owed to ${state.bill.client}` }));
+    }
+    till.classList.toggle("lm-till-neg", net < 0);
 
     clear(ledgerStrip);
     ledgerStrip.append(el("h4", { class: "lm-ledger-cap", text: "The ledger" }));
@@ -77,8 +90,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           ? `pays in ${inv.paidDay - day} day${inv.paidDay - day === 1 ? "" : "s"}`
           : "pays after this week";
       } else if (inv.dueDay < day) {
-        const a = invoiceAccrual(inv, day);
-        status = `${day - inv.dueDay + 1} day${day - inv.dueDay + 1 === 1 ? "" : "s"} overdue · owed today ${gbp0(inv.principal + a.interest + a.compensation)}, still growing`;
+        // The "worth today" FALLS as the invoice ages (GDD §2 discounting
+        // lesson). The count and the value share one formula (daysOverdueOn),
+        // so "N days overdue · worth today £X" is the same arithmetic the
+        // lantern's street take is built from.
+        const n = daysOverdueOn(inv, day);
+        status = `${n} day${n === 1 ? "" : "s"} overdue · worth today ${gbp0(worthToday(inv, day))}`;
       } else if (inv.dueDay === day) {
         status = "due today";
       } else {
@@ -102,15 +119,19 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         ),
       );
     } else if (state.bill.skippedDay !== null && state.bill.paidDay === null) {
+      // The debt GROWS — the late charge is added on, and the till position
+      // carries it, so this number going up is the till number going down.
+      const owed = state.bill.amount + state.lateFees;
       ledgerStrip.append(
         el("div", { class: "lm-inv-card lm-inv-bill lm-inv-dead" },
           el("span", { class: "lm-inv-client", text: state.bill.client + " (your bill)" }),
-          el("span", { class: "lm-inv-status", text: `unpaid — the street charges ${gbp0(state.bill.lateFee)}/day` }),
+          el("span", { class: "lm-inv-amt", text: gbp0(owed) }),
+          el("span", { class: "lm-inv-status", text: `unpaid — ${gbp0(state.bill.lateFee)}/day late charge · growing` }),
         ),
       );
     }
 
-    const lanternNow = state.forgoneInterest + state.forgoneCompensation;
+    const lanternNow = state.streetTake;
     lantern.textContent = lanternNow > 0 ? `· ${gbp(lanternNow)} ·` : "";
   }
 
@@ -145,7 +166,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       case 1: return "The stall is open. What does today get?";
       case 2: return "The week keeps moving. So do the books.";
       case 3: return "Harborne's invoice is on the desk.";
-      case 4: return `A bill is due today. The till is ${gbp(state.cash)}.`;
+      case 4: return `A bill is due today — ${gbp0(state.bill.amount)}. The till is ${gbp(netPosition(state))}.`;
       case 5: return "The last day of the week. The books are waiting.";
       default: return "The week closes.";
     }
@@ -219,7 +240,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     const entries = deps.pairEntries();
     const deferred = entries.filter((e) => e.deferred);
     const lines = deferralLines(state);
-    const totalForgone = state.forgoneInterest + state.forgoneCompensation;
+    // The street's total take this run: the market value the invoices shed
+    // while they sat (the lantern) + the late charges on the unpaid bill.
+    const streetTake = state.streetTake;
+    const streetTotal = streetTake + state.lateFees;
+    // The real legal floor over the same windows — the Act, for beat 3.
+    const statutoryFloor = lines.reduce((t, l) => t + l.statutory, 0);
 
     // Beat 3's spoken line — exact match against the baked variants.
     const deferredDays = deferred.map((e) => `Day ${e.day}`).join(" and ");
@@ -231,20 +257,22 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           : `2 of the two was deferred (${deferredDays}) — the frame, not the facts, did the work.`;
 
     const frames: (() => void)[] = [
-      // Beat 1 — the street as you built it. No names yet.
+      // Beat 1 — the street as you built it. No names yet. The street's
+      // earnings are the real number: the value your invoices shed while
+      // they sat (what the stalls bought them for) plus the late charges.
       () => {
         clear(dayPanel);
         dayPanel.append(
           el("h3", { text: "First — what your week paid for" }),
           el("p", {
             class: "lm-line siki",
-            text: state.lateFees > 0
-              ? `The street took ${gbp(state.lateFees)} in late charges while your bill sat unpaid. That's the street's money, not your till's — but it lit up.`
-              : "You paid the street nothing this week. Its stalls keep their base light anyway — the market runs on everyone's lateness, not just yours.",
+            text: streetTotal > 0
+              ? `The street took ${gbp(streetTotal)} this week — ${gbp(streetTake)} for the invoices you let age,${state.lateFees > 0 ? ` and ${gbp(state.lateFees)} in late charges on the unpaid bill.` : ""} That money came out of the value your own invoices lost. Your lateness is their trade.`
+              : "You paid the street nothing this week. Nothing aged on your desk. That is the whole lesson in one sentence: the market runs on someone's lateness — this week it wasn't yours.",
           }),
           el("p", {
             class: "lm-hint",
-            text: "Every deferral, every unpaid bill, every fee lit a stall. Every collection that landed closed one. Watch the street in the strip above.",
+            text: "Watch the ledger: the 'worth today' of each invoice fell while the lantern grew. Same money, two screens. Every collection you made lit a stall off; every deferral lit one on.",
           }),
           choiceButton("Look at the books", "Your own pair, side by side", next),
         );
@@ -266,10 +294,10 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
             el("h4", { text: "Every invoice you let sit" }),
             ...lines.map((l) =>
               el("p", {
-                text: `${l.client} · ${gbp0(l.principal)} · sat ${l.daysLate} day${l.daysLate === 1 ? "" : "s"} unchased — ${gbp(l.total)} of entitlement you'll never get back${l.stillOwed ? " (and it is still growing)" : ""}.`,
+                text: `${l.client} · ${gbp0(l.principal)} · sat ${l.daysLate} day${l.daysLate === 1 ? "" : "s"} unchased — the street kept ${gbp(l.streetTake)} of its value${l.stillOwed ? " (still owed — the number is still moving)" : ""}. The law would have accrued ${gbp0(l.statutory)} over those same days.`,
               }),
             ),
-            el("p", { class: "lm-cash lm-money-out", text: `Total forgone this run: ${gbp(totalForgone)}` }),
+            el("p", { class: "lm-cash lm-money-out", text: `The street's take this run: ${gbp(streetTake)} — the same money the cards above stopped being worth` }),
           ),
           choiceButton("Continue", "", next),
         );
@@ -290,8 +318,8 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           el("p", {
             class: "lm-hint",
             text: phrased({
-              normal: "The price is real, not invented: each day an invoice sits unpaid, the law accrues interest at 8% over the Bank of England base plus a fixed £40–£100 per invoice — Late Payment of Commercial Debts (Interest) Act 1998 s.5A, UK, simplified (assumptions sheet).",
-              plain: "The price is real: late invoices build up interest and a fixed charge by law (UK Late Payment Act 1998, simplified). See the assumptions sheet for the exact rates.",
+              normal: `The street doesn't claim — it buys: ${gbp(streetTake)} of your invoices' value changed hands this week. The law sets a different price for the same delay: the Late Payment of Commercial Debts (Interest) Act 1998 s.5A (UK, 8% over base + £40–£100 per invoice, simplified) would have accrued ${gbp0(statutoryFloor)} in claims over those same days — recoverable only if you chase it. Two prices for one habit. You paid the street's.`,
+              plain: `The street bought your delay for ${gbp(streetTake)}. The law prices that same delay at ${gbp0(statutoryFloor)} (UK Late Payment Act 1998, simplified) — but you only get it if you chase. You paid the street's price.`,
             }),
           }),
           choiceButton("Continue", "", next),
@@ -346,18 +374,25 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     // Chapter-cost summary for the finale's Cost-of-Not-Acting ledger.
     // experimentId deliberately does NOT start "ch1_" — it must not
     // dilute the deferral axis in irrationalityProfile.
-    const total = state.forgoneInterest + state.forgoneCompensation;
+    // The street's earnings this run (value the invoices shed + the late
+    // charges) is the streetFee; the statutory floor is recorded as the
+    // forgone entitlement (the legal price of the same delay, claimable only
+    // by the player — the finale shows the two as separate figures).
+    const runLines = deferralLines(state);
+    const runStatutory = runLines.reduce((t, l) => t + l.statutory, 0);
+    const runStreetTake = state.streetTake;
+    const runStreetTotal = runStreetTake + state.lateFees;
     deps.record({
       chapter: 1,
       day: CH1_DAYS,
       experimentId: "cost_of_not_acting_ch1",
-      prompt: "Chapter 1 — the lantern's final reading",
+      prompt: "Chapter 1 — what the street earned",
       optionsShown: [{ id: "run_complete", label: "Run complete", framingVariable: "cost_ledger", isDefault: false }],
       chosenOptionId: "run_complete",
       deferred: false,
-      forgoneEntitlement: { interest: state.forgoneInterest, compensation: state.forgoneCompensation, total },
-      streetFee: state.lateFees,
-      immediateConsequence: `Forgone statutory entitlement this run: ${gbp(total)}.`,
+      forgoneEntitlement: { interest: runStatutory, compensation: 0, total: runStatutory },
+      streetFee: runStreetTotal,
+      immediateConsequence: `The street took ${gbp(runStreetTotal)} on your delay this run.`,
     });
     deps.onTool?.("reminder_rule");
   }

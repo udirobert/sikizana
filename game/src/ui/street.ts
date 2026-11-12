@@ -26,8 +26,16 @@ export interface StreetCounters {
 }
 
 export const STREET_TOTAL = 5;
-/** Stalls lit before the player does anything — the market already runs. */
-export const STREET_BASE_LIT = 3;
+/**
+ * Stalls lit before the player does anything. Deliberately ONLY the two
+ * generic market stalls (cart + awning) — the Factor's, the Collector's, and
+ * the Shark's stalls start DARK. A stall lights only when the player's own
+ * deferral or skipped bill funds it, so the debrief's "it lit up" is true
+ * only when something actually lit. (Base-3 was the v1's "the street was
+ * alive before you did anything" — the critic read that as the game
+ * pre-justifying its own earnings.)
+ */
+export const STREET_BASE_LIT = 2;
 
 export interface StreetState {
   /** Ever-lit stalls (lit + shut). */

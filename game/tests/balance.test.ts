@@ -5,6 +5,7 @@ import {
   dayChoices,
   resolveDay,
   deferralLines,
+  netPosition,
   type Ch1State,
 } from "../src/chapters/ch1";
 
@@ -21,48 +22,45 @@ function play(seed: number, want: (state: Ch1State, day: number) => string): Ch1
   return state;
 }
 
-/** The line items must sum exactly to the lantern (forgone interest +
- *  compensation) — the debrief's replay is priced from the same arithmetic
- *  as the accrual, never a separate number. */
+/** The line items must sum exactly to the lantern (street take) — the
+ *  debrief's replay is priced from the same daily arithmetic. */
 function expectLinesSumToLantern(state: Ch1State) {
-  const lantern = state.forgoneInterest + state.forgoneCompensation;
-  const sum = deferralLines(state).reduce((t, l) => t + l.total, 0);
-  expect(sum).toBeCloseTo(lantern, 9);
+  const sum = deferralLines(state).reduce((t, l) => t + l.streetTake, 0);
+  expect(sum).toBeCloseTo(state.streetTake, 9);
 }
 
 describe("ch1 balance archetypes (seed 20261109)", () => {
-  it("rational run (chase early, pay the bill) ends healthy, with no street earnings", () => {
-    const s = play(20261109, (_st, d) => (d === 4 ? "pay_bill" : "chase"));
+  it("rational run (chase everything as it comes, pay the bill) ends healthy, with no street earnings", () => {
+    const s = play(20261109, (st, d) => (d === 4 ? (st.cash >= 1600 ? "pay_bill" : "skip_bill") : "chase"));
     expect(s.endedEarly).toBeNull();
-    expect(s.cash).toBeGreaterThan(3000); // ends well above the start
-    expect(deferralLines(s)).toHaveLength(0); // nothing sat
+    expect(netPosition(s)).toBeGreaterThan(900); // ends well above the start
+    expect(s.streetTake).toBe(0); // nothing was ever left to age
+    expect(deferralLines(s)).toHaveLength(0);
     expectLinesSumToLantern(s);
   });
 
-  it("mixed run (defer the pair, chase later, pay the bill) ends healthy and priced", () => {
-    const s = play(20261109, (st, d) => {
-      if (d === 4) return st.cash >= 1800 ? "pay_bill" : "skip_bill";
-      if (d === 1 || d === 3) return "fun"; // let both pair days sit
-      return "chase";
-    });
+  it("mixed run (defer the pair, still pay the bill) ends healthy and is priced", () => {
+    const s = play(20261109, (st, d) => (d === 4 ? (st.cash >= 1600 ? "pay_bill" : "skip_bill") : "fun"));
     expect(s.endedEarly).toBeNull();
-    expect(s.cash).toBeGreaterThan(2000);
-    expect(deferralLines(s).length).toBeGreaterThanOrEqual(2);
+    expect(s.streetTake).toBeGreaterThan(0); // the deferred pair aged
+    expect(deferralLines(s).length).toBeGreaterThanOrEqual(1);
     expectLinesSumToLantern(s);
   });
 
-  it("careless run (fun all week, pay an unaffordable bill) empties the till and ends early", () => {
-    const s = play(20261109, (_st, d) => (d === 4 ? "pay_bill" : "fun"));
+  it("careless run (fun all week, skip the bill) empties the till — the £40 fee does it", () => {
+    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
     expect(s.endedEarly).toBe("till_empty");
-    expect(s.cash).toBeLessThan(0);
-    expect(deferralLines(s).length).toBeGreaterThanOrEqual(2);
+    expect(s.lateFees).toBe(40); // the late charge is what left the till
+    expect(netPosition(s)).toBeLessThan(0);
+    expect(deferralLines(s).length).toBeGreaterThanOrEqual(1);
     expectLinesSumToLantern(s);
   });
 
   it("rational and careless runs end differently (the critic's core demand)", () => {
-    const rational = play(20261109, (_st, d) => (d === 4 ? "pay_bill" : "chase"));
-    const careless = play(20261109, (_st, d) => (d === 4 ? "pay_bill" : "fun"));
-    expect(rational.endedEarly).not.toEqual(careless.endedEarly);
-    expect(rational.cash - careless.cash).toBeGreaterThan(3000);
+    const rational = play(20261109, (st, d) => (d === 4 ? (st.cash >= 1600 ? "pay_bill" : "skip_bill") : d === 1 ? "chase" : "fun"));
+    const careless = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+    expect(rational.endedEarly).toBeNull();
+    expect(careless.endedEarly).toBe("till_empty");
+    expect(netPosition(rational) - netPosition(careless)).toBeGreaterThan(500);
   });
 });

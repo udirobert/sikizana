@@ -1,16 +1,33 @@
 # The Late Market — Jam Recovery Plan (Nov 12 → Nov 15)
 
-**Status:** build work **complete as of Nov 12** (sections 1–4 implemented and
-verified: 52 tests green, line items sum to the lantern, rational ≠ careless
-end state). Final tune diverged from the plan: the supplier bill is **£1,800**
-(not £900 — the §7 fallback loss state needed more force) and start cash
-**£1,100**; the video is 68 s, not 120. The cover used Recraft (not the
-`cover.html` fallback), and the §6 still-image fallback shipped as the in-game
-title screen (§2.1 "intro falls back to a still image = the new cover art" —
-implemented as the full-bleed cover behind the start panel). Definition-of-done
-items 1–2 (the itch page and the Zoud submission) are human actions, now
-captured in `SUBMISSION.md`. GDD Appendices B/C/D are updated to match what
-shipped; from here this plan is the historical record.
+**Status:** build work **complete as of Nov 12, second pass** (sections 1–4
+implemented and verified: 53 tests green, line items sum to the lantern to
+the penny, rational +£1,099 ≠ careless `till_empty`). The first pass
+shipped the stall screen but a sharper playthrough review caught four real
+flaws, all fixed in the second pass:
+1. **The card taught the wrong direction** — it showed a rising statutory
+   entitlement ("owed £2,473, still growing") while the debrief called it
+   "money you'll never get back." Now the card shows a **falling** market
+   value (2%/day off face, capped 25%) and the lantern is the street's take
+   — the exact value shed (mirrors the card); the Act is a larger legal
+   floor, named in the debrief only.
+2. **The pair leaked the answer** — the day-3 chase paid in-week while
+   day-5 said "after this week." Now both arms of both days pay after the
+   week (3/11 and 11/19 days); in-week money comes only from the ordinary
+   invoice (chase day 1 → lands day 3).
+3. **The bill never left the till** — skipping was a caption. Now the till
+   displays net position (cash − unpaid bill), the fee leaves the till
+   daily, trade stops, and a never-chased run dies on the £40 fee, day 5.
+4. **The market was a header** — the cover painting is now a persistent
+   dimmed backdrop behind every chapter; the street base dropped 3 → 2
+   pre-lit stalls so "it lit up" is only true when something lit.
+Final numbers diverged from the plan: the supplier bill is **£1,600** (not
+£900) and start cash **£1,100**; the video is ~70 s, not 120. The cover used
+Recraft (not the `cover.html` fallback), and the §6 still-image fallback
+shipped as the in-game title screen AND the persistent backdrop.
+Definition-of-done items 1–2 (the itch page and the Zoud submission) are
+human actions, now captured in `SUBMISSION.md`. GDD Appendices B/C/D are
+updated to match what shipped; from here this plan is the historical record.
 
 **Deadline:** Sun 15 Nov, 23:59 AOE (Zoud GameLab).
 

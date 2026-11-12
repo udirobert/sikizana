@@ -4,43 +4,74 @@
  * 5 trading days (cut from 20 — jam build, docs/game/RECOVERY_PLAN.md):
  *   Day 1 — an invoice is ALREADY two days overdue: on screen from the first frame.
  *   Day 2 — ordinary; whatever is owed is still chasable.
- *   Day 3 — engineered pair A: chase vs defer, today-cost framing (2 vs 10 days).
+ *   Day 3 — engineered pair A: chase vs defer, today-cost framing (3 vs 11 days).
  *   Day 4 — the ordinary day where the till can empty: the supplier's bill comes due.
- *   Day 5 — engineered pair B: both payoffs moved out (20 vs 28 — delayed comparison).
+ *   Day 5 — engineered pair B: both payoffs moved out (11 vs 19 — delayed comparison).
  *
- * The pair (Days 3 & 5) shares an experimentId so the debrief can attribute
- * timing framing honestly — structurally identical choices, one variable changed.
- * A chase pays in 2 days, so money LANDS inside the chapter (collected each
- * morning) when the player acts early. Every deferral accrues statutory
- * interest/compensation-forgone silently, surfaced only as the drifting lantern
- * number. No DOM in this file.
+ * The pair (Days 3 & 5) is a controlled experiment: BOTH payoffs of BOTH arms
+ * land AFTER the week closes (day 6/14 and day 16/24). The deferral always
+ * costs the same 8-day slip; the only variable is how far the payoffs sit
+ * relative to today. Nothing in-week is printed on the buttons, so the
+ * debrief's framing attribution is honest.
+ *
+ * The in-week money comes from the ordinary invoice (dueDay 0): chase it on
+ * Day 1 and £1,300-class money lands Day 3 — the day before the bill. That
+ * chase is what makes the bill payable; a player who doesn't chase early
+ * cannot cover the bill without running the till red.
+ *
+ * The bill is a LIABILITY, not a cash outflow that's done with it: skipping
+ * it starts a £40/day late charge that grows the amount owed. The till
+ * position (cash minus unpaid bill liability) is what can empty — by paying
+ * short OR by letting the liability outrun the walk-in trade.
+ *
+ * Every deferral accrues statutory interest/compensation-forgone silently,
+ * surfaced only as the drifting lantern number (the street's take). The
+ * ledger's "worth today" is a DIFFERENT quantity: the invoice's market value,
+ * which FALLS as it ages (GDD §2 discounting lesson) — your money worth less
+ * while the street's books grow. No DOM in this file.
  *
  * Copy rule (recovery plan §4): choice buttons carry no statute, no annualised
  * rate, no "honest". The law appears in the debrief + assumptions sheet only.
  */
-import { statutoryCompensation, statutoryEntitlement, statutoryInterest } from "../engine/rates";
+import { statutoryCompensation, statutoryInterest } from "../engine/rates";
 import type { LedgerEntry } from "../engine/ledger";
 import { mulberry32, type Rng } from "../engine/rng";
 
 export const CH1_DAYS = 5;
 export const PAIR_A_DAY = 3;
 export const PAIR_B_DAY = 5;
-/** Chase pays in 2 days — money lands inside the chapter. Real ~30-day waits
- *  live in the assumptions sheet, never on a button (recovery plan §2.2). */
+/** Ordinary-invoice chase clears in 2 days, so a Day-1 chase LANDS in-week
+ *  (day 3, before the bill). Real ~30-day waits live in the assumptions
+ *  sheet, never on a button. */
 export const CHASE_CLEAR_DAYS = 2;
-/** Pair A defer arm: the same money arrives 8 days later than a chase (the
- *  classic +8.3-day slip, scaled to the 5-day chapter). */
-export const DEFER_EXTRA_DAYS = 8;
-/** Pair B moves BOTH payoffs out (delayed-comparison arm): 20 vs 28 days. */
-export const PAIR_B_CHASE_CLEAR_DAYS = 20;
-export const PAIR_B_DEFER_CLEAR_DAYS = 28;
+/**
+ * The controlled pair — BOTH arms pay AFTER the week, in BOTH days:
+ *   Day 3: chase → day 6 (in 3) · defer → day 14 (in 11)
+ *   Day 5: chase → day 16 (in 11) · defer → day 24 (in 19)
+ * The deferral is always the same 8-day slip; only the distance to BOTH
+ * payoffs changes (near vs far). A "pays before Friday" vs "pays after this
+ * week" asymmetry would leak the answer through the button, so neither arm
+ * of either day lands inside the chapter.
+ */
+export const PAIR_A_CHASE_CLEAR_DAYS = 3;
+export const PAIR_A_DEFER_CLEAR_DAYS = 11;
+export const PAIR_B_CHASE_CLEAR_DAYS = 11;
+export const PAIR_B_DEFER_CLEAR_DAYS = 19;
+/** The deferral's cost, in days — identical in both arms. */
+export const DEFER_EXTRA_DAYS = PAIR_A_DEFER_CLEAR_DAYS - PAIR_A_CHASE_CLEAR_DAYS;
 
-/** The supplier bill — the day the till can actually empty (recovery plan §2.2). */
+/**
+ * The supplier bill — the day the till can actually empty (recovery plan
+ * §2.2). £2,400 against a £1,100 start: the only way to pay it cleanly is
+ * the money a Day-1 chase brings in on Day 3. Skip it and the liability
+ * grows £40/day; the till POSITION (cash minus liability) is what empties.
+ */
 export const BILL = {
   client: "Quayline Foods",
-  amount: 1800,
+  amount: 1600,
   dueDay: 4,
-  /** Per-day late charge, tallied to the street (their money, not the till's). */
+  /** Per-day late charge that grows the unpaid liability — and leaves the
+   *  till (the net position it erodes is what the player watches die). */
   lateFee: 40,
 } as const;
 
@@ -69,14 +100,60 @@ export interface Ch1Bill {
   skippedDay: number | null;
 }
 
+/**
+ * The "worth today" of an invoice: what the street would pay for it RIGHT
+ * NOW. It FALLS as the invoice ages (GDD §2: the discounting/NPV lesson as
+ * one UI element) — a fresh invoice trades at face, an old one for less.
+ * Indicative haircut (fictional · based on typical UK ranges): 1% of face
+ * per day past due, capped at 25%. This is deliberately NOT the statutory
+ * entitlement (a larger, real legal floor, named in the debrief); the card
+ * and the street's books move in opposite directions on the same screen —
+ * your money worth less while the street's take grows by the same £.
+ *
+ * Pure curve — no paid/chased clamping — because `valueShedToday` diffs it
+ * between two days and the clamps would corrupt the deltas.
+ */
+export const WORTH_HAIRCUT_PER_DAY = 0.01;
+export const WORTH_HAIRCUT_CAP = 0.25;
+
+/**
+ * Days an invoice has been past due on `day` — the one number the card, the
+ * "worth today" haircut, and the shed curve all share, so the card's
+ * "N days overdue · worth today £X" and the street's take are the same
+ * arithmetic. A due-day-0 invoice is 2 days overdue on Day 1; a due-day-3
+ * invoice is 0 on Day 3 (due today) and 1 on Day 4.
+ */
+export function daysOverdueOn(inv: Ch1Invoice, day: number): number {
+  return day > inv.dueDay ? day - inv.dueDay : 0;
+}
+
+/**
+ * The "worth today" of an invoice: what the street would pay for it RIGHT
+ * NOW. It FALLS as the invoice ages (GDD §2: the discounting/NPV lesson as
+ * one UI element) — a fresh invoice trades at face, an old one for less.
+ * Indicative haircut (fictional · based on typical UK ranges): 2% of face
+ * per day past due, capped at 30%. This is deliberately NOT the statutory
+ * entitlement (a larger, real legal floor, named in the debrief); the card
+ * and the street's books move in opposite directions on the same screen —
+ * your money worth less while the street's take grows by the same £.
+ */
+export function worthToday(inv: Ch1Invoice, day: number): number {
+  const haircut = Math.min(WORTH_HAIRCUT_CAP, daysOverdueOn(inv, day) * WORTH_HAIRCUT_PER_DAY);
+  return Math.round(inv.principal * (1 - haircut));
+}
+
 export interface Ch1State {
   day: number;
   cash: number;
   invoices: Ch1Invoice[];
   bill: Ch1Bill;
-  /** Lantern number: cumulative statutory entitlement forgone this run. */
-  forgoneInterest: number;
-  forgoneCompensation: number;
+  /**
+   * The street's take this run: the market value the invoices shed while they
+   * sat unchased (the exact mirror of the card's falling "worth today").
+   * Accumulated day-by-day with `valueShedForDay`, so the debrief's line
+   * items — which sum the same daily function — match it to the penny.
+   */
+  streetTake: number;
   /** Late charges tallied to the street for the unpaid supplier bill. */
   lateFees: number;
   done: boolean;
@@ -128,6 +205,30 @@ const CLIENTS = [
   "Ropewalk Dry Goods",
 ] as const;
 
+function makeBill(): Ch1Bill {
+  return {
+    client: BILL.client,
+    amount: BILL.amount,
+    dueDay: BILL.dueDay,
+    lateFee: BILL.lateFee,
+    paidDay: null,
+    skippedDay: null,
+  };
+}
+
+/**
+ * The till POSITION, not just the cash: money in the till minus the unpaid
+ * supplier bill liability (face + the late charges that have grown onto it).
+ * This is what can actually empty — a player runs red by paying the bill
+ * short, OR by skipping it and letting the liability sit there (the till
+ * shows what is truly yours once that debt is set aside). The street's late
+ * charges are already in `state.lateFees`, so the liability is face + fees.
+ */
+export function netPosition(state: Ch1State): number {
+  const billOwed = state.bill.skippedDay !== null && state.bill.paidDay === null;
+  return state.cash - (billOwed ? state.bill.amount + state.lateFees : 0);
+}
+
 /**
  * Roster (deterministic from seed):
  *  - inv-early: seeded client/principal, dueDay 0 — two days overdue from frame one.
@@ -146,9 +247,8 @@ export function createCh1State(seed: number): { state: Ch1State; rng: Rng } {
       { id: "inv-a", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_A_DAY, chasedDay: null, paidDay: null, deferrals: 0 },
       { id: "inv-b", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_B_DAY, chasedDay: null, paidDay: null, deferrals: 0 },
     ],
-    bill: { client: BILL.client, amount: BILL.amount, dueDay: BILL.dueDay, lateFee: BILL.lateFee, paidDay: null, skippedDay: null },
-    forgoneInterest: 0,
-    forgoneCompensation: 0,
+    bill: makeBill(),
+    streetTake: 0,
     lateFees: 0,
     done: false,
     endedEarly: null,
@@ -157,27 +257,26 @@ export function createCh1State(seed: number): { state: Ch1State; rng: Rng } {
   return { state, rng };
 }
 
-/** Statutory entitlement already forgone by one invoice's lateness to `day`. */
-export function invoiceAccrual(inv: Ch1Invoice, day: number): { interest: number; compensation: number } {
-  if (inv.paidDay !== null || day < inv.dueDay) return { interest: 0, compensation: 0 };
-  const daysLate = day - inv.dueDay + 1;
-  const e = statutoryEntitlement(inv.principal, Math.max(1, daysLate));
-  return { interest: e.interest, compensation: e.compensation };
-}
-
 /**
- * One invoice-day of forgone entitlement: a single day's simple interest,
- * plus the fixed compensation exactly once — on the first day the invoice
- * sits overdue and unchased. The lantern needs the daily delta, not the
- * cumulative `invoiceAccrual` (which would re-count every prior day and
- * stack the one-off compensation daily).
+ * The value an invoice sheds DURING `day` (start-of-day → next morning).
+ * This is the "your lateness is someone else's business model" number made
+ * literal: the street buys aged invoices at a discount, and that discount IS
+ * its revenue. It is the exact mirror of the card's falling "worth today" —
+ * at the start of day D the lantern reads face − worth(D), the same £ the
+ * card just showed your invoice losing. (The statutory entitlement is a
+ * larger, real legal floor — it is priced separately for the debrief and
+ * never shown on the card.)
+ *
+ * Pure (no chased/paid clamps): the accrual loop and `pricedDeferral` both
+ * supply the window, so the line items sum to the lantern by construction.
  */
-export function dailyAccrual(inv: Ch1Invoice, day: number): { interest: number; compensation: number } {
-  if (inv.principal <= 0) return { interest: 0, compensation: 0 };
-  return {
-    interest: statutoryInterest(inv.principal, 1),
-    compensation: day === inv.dueDay ? statutoryCompensation(inv.principal) : 0,
-  };
+export function valueShedForDay(inv: Ch1Invoice, day: number): number {
+  // The drop visible between the morning of `day` and the morning of the next
+  // day: the card's "worth today" at `day` vs at `day+1` — exactly the £ the
+  // player will watch it lose. Uses the same `daysOverdueOn` count as the card.
+  const at = (d: number): number =>
+    Math.round(inv.principal * (1 - Math.min(WORTH_HAIRCUT_CAP, daysOverdueOn(inv, d) * WORTH_HAIRCUT_PER_DAY)));
+  return at(day) - at(day + 1);
 }
 
 /**
@@ -217,7 +316,7 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     choices.push({
       id: `skip_bill-${day}`,
       label: "Leave the bill",
-      detail: "A £40 late charge starts tomorrow — and the street notices.",
+      detail: `£${state.bill.amount} stays owed, and £${state.bill.lateFee} a day comes out of the till tomorrow — the street's money.`,
       kind: "skip_bill",
     });
   }
@@ -237,9 +336,9 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     let chaseDetail: string;
     let deferDetail: string;
     if (isEngineered && day === pair.first.day) {
-      // Pair A — today-cost framing: one end near, one end far.
-      chaseDetail = `Chase now — the money lands in ${CHASE_CLEAR_DAYS} days.`;
-      deferDetail = `Defer — the money lands in ${CHASE_CLEAR_DAYS + DEFER_EXTRA_DAYS} days instead.`;
+      // Pair A — today-cost framing: both payoffs after the week, near/far.
+      chaseDetail = `Chase now — the money lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`;
+      deferDetail = `Defer — the money lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`;
     } else if (isEngineered && day === pair.second.day) {
       // Pair B — both payoffs moved out (delayed comparison).
       chaseDetail = `Chase now — the money lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`;
@@ -254,10 +353,10 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
   return choices;
 }
 
-/** The clear-days for a chase made on `day` (pair B is the moved-out arm). */
+/** The clear-days for a chase made on `day` — controlled pair, both arms out. */
 function chaseClearDays(day: number, inv: Ch1Invoice): number {
   const pair = ENGINEERED_PAIR;
-  if (day === pair.first.day && inv.id === pair.first.invoice.id) return CHASE_CLEAR_DAYS;
+  if (day === pair.first.day && inv.id === pair.first.invoice.id) return PAIR_A_CHASE_CLEAR_DAYS;
   if (day === pair.second.day && inv.id === pair.second.invoice.id) return PAIR_B_CHASE_CLEAR_DAYS;
   return CHASE_CLEAR_DAYS;
 }
@@ -290,8 +389,9 @@ export function resolveDay(
 
   if (choiceId.startsWith("fun-")) {
     // Deterministic walk-in trade (seeded design: replay must be identical).
-    // But if the supplier's bill went unpaid yesterday, nobody delivered.
-    const billDead = state.bill.skippedDay === day - 1 && state.bill.paidDay === null;
+    // While the supplier's bill sits unpaid, nobody delivers — the stall
+    // trades quiet for the rest of the week.
+    const billDead = state.bill.skippedDay !== null && state.bill.paidDay === null;
     const trade = billDead ? 0 : 140 + ((day * 37) % 60); // £140–£199, small, now
     cashDelta += trade;
     lines.push(billDead
@@ -337,30 +437,35 @@ export function resolveDay(
     state.lateFees += lateFeeDelta;
   }
 
-  // Silent cost engine: every invoice-day of lateness accrues a daily delta.
-  let interestDelta = 0;
-  let compensationDelta = 0;
+  // The street's engine: every day an invoice sits unchased and overdue sheds
+  // market value that the street keeps — the exact mirror of the card's
+  // falling "worth today" (your money worth less, the street's books up by
+  // the same £). A chase on `day` stops that invoice from shedding on `day`.
+  // (The statutory entitlement is a larger, real legal floor — tallied
+  // separately for the debrief, never shown on the card.)
+  let valueShedDelta = 0;
   for (const inv of state.invoices) {
-    if (inv.chasedDay !== null || inv.paidDay !== null) continue;
-    if (day < inv.dueDay) continue;
-    const a = dailyAccrual(inv, day);
-    interestDelta += a.interest;
-    compensationDelta += a.compensation;
+    if (inv.chasedDay !== null && inv.chasedDay <= day) continue; // chase stops the shedding, from the chase day
+    if (inv.paidDay !== null && inv.paidDay <= day) continue; // already collected
+    if (day <= inv.dueDay) continue; // not yet past due
+    valueShedDelta += valueShedForDay(inv, day);
   }
-  const lanternDelta = interestDelta + compensationDelta;
+  const lanternDelta = valueShedDelta;
 
   const engineeredEntry = buildEngineeredEntry(day, choiceId, invoice, deferred);
   state.day = day + 1;
   state.lastPlayedDay = day;
   state.cash += cashDelta;
-  state.forgoneInterest += interestDelta;
-  state.forgoneCompensation += compensationDelta;
-  if (day >= CH1_DAYS) state.done = true;
-  // A genuine loss state: the till runs empty. The chapter ends here.
-  if (state.cash < 0 && !state.done) {
+  state.streetTake += valueShedDelta;
+  // A genuine loss state: the till position runs empty — cash short of the
+  // unpaid bill liability, or cash itself negative. Checked BEFORE the
+  // week-end flag, so a till that empties on the last day still ends the
+  // chapter as a loss, not a quiet close.
+  if (netPosition(state) < 0) {
     state.done = true;
     state.endedEarly = "till_empty";
   }
+  if (day >= CH1_DAYS) state.done = true;
   return {
     effects: { day, cashDelta, lanternDelta, lateFeeDelta, collected, lines, streetNote },
     engineeredEntry,
@@ -406,8 +511,9 @@ function buildEngineeredEntry(
 /**
  * The debrief's line-item replay (replaces the old "rule armed from the start"
  * counterfactual, which was £0 by construction — recovery plan §2.3): each
- * invoice the player let sit, priced at its real days × daily accrual. On the
- * player's own data, never against a score the game invented.
+ * invoice the player let sit, priced exactly the way the lantern accrues it —
+ * the sum of `valueShedForDay` over the days it sat past-due and unchased.
+ * On the player's own data: the street's real earnings, nothing invented.
  */
 export interface DeferralLine {
   invoiceId: string;
@@ -415,32 +521,31 @@ export interface DeferralLine {
   principal: number;
   /** A pair day the player actively deferred, if one. */
   deferredDay: number | null;
-  /** Days the invoice sat unchased through the chapter (or until the chase). */
+  /** Chapter days the invoice sat past-due and unchased. */
   daysLate: number;
-  interest: number;
-  compensation: number;
-  total: number;
+  /** The street's take from this invoice (the value it shed while it sat). */
+  streetTake: number;
+  /** The statutory entitlement over the same window — the real legal floor. */
+  statutory: number;
   /** Still accruing after the chapter closed — the number keeps growing. */
   stillOwed: boolean;
 }
 
 /**
- * Price an invoice's deferral exactly the way the lantern accrues it: the sum
- * of `dailyAccrual` over the window the invoice sat unchased. This is what
- * makes the debrief's line items add up to the lantern's final reading —
- * the street's real earnings, on the player's own data.
+ * Price an invoice's deferral over [startDay, endDay] — the exact window the
+ * lantern accrued it over (past due, not yet chased):
+ *   streetTake = Σ valueShedForDay  (the mirror of the card's falling worth)
+ *   statutory  = interest × days + the one-time compensation if the window
+ *                includes the first overdue day (the real Act figure).
  */
-function pricedDeferral(inv: Ch1Invoice, endDay: number): { interest: number; compensation: number; days: number } | null {
-  // Window the invoice sat unchased: the chapter days it was overdue on.
-  const startDay = Math.max(inv.dueDay, 1);
+function pricedDeferral(inv: Ch1Invoice, startDay: number, endDay: number): { take: number; statutory: number; days: number } | null {
   const days = endDay - startDay + 1;
   if (days <= 0) return null;
+  let take = 0;
+  for (let d = startDay; d <= endDay; d++) take += valueShedForDay(inv, d);
   const interest = days * statutoryInterest(inv.principal, 1);
-  // The one-time compensation accrues on the first overdue day — only if that
-  // day falls inside the window (a pre-existing overdue invoice, dueDay 0,
-  // already spent its compensation before the chapter opened).
-  const compensation = inv.dueDay >= 1 && inv.dueDay <= endDay ? statutoryCompensation(inv.principal) : 0;
-  return { interest, compensation, days };
+  const compensation = inv.dueDay >= startDay && inv.dueDay <= endDay ? statutoryCompensation(inv.principal) : 0;
+  return { take, statutory: interest + compensation, days };
 }
 
 export function deferralLines(state: Ch1State): DeferralLine[] {
@@ -450,10 +555,12 @@ export function deferralLines(state: Ch1State): DeferralLine[] {
   // more and nothing less).
   const horizon = state.lastPlayedDay > 0 ? state.lastPlayedDay : CH1_DAYS;
   for (const inv of state.invoices) {
-    // Chased the moment it was possible (or earlier) → never the player's deferral.
-    if (inv.chasedDay !== null && inv.chasedDay <= Math.max(1, inv.dueDay)) continue;
+    // The exact window the accrual used: first day past due, to the day
+    // before the chase (or the horizon). Chased on the first day past due →
+    // no window, never the player's deferral.
+    const startDay = Math.max(inv.dueDay + 1, 1);
     const endDay = inv.chasedDay !== null ? inv.chasedDay - 1 : horizon;
-    const p = pricedDeferral(inv, endDay);
+    const p = pricedDeferral(inv, startDay, endDay);
     if (!p) continue;
     const pairDay = inv.deferrals > 0 && (inv.dueDay === PAIR_A_DAY || inv.dueDay === PAIR_B_DAY) ? inv.dueDay : null;
     out.push({
@@ -462,9 +569,8 @@ export function deferralLines(state: Ch1State): DeferralLine[] {
       principal: inv.principal,
       deferredDay: pairDay,
       daysLate: p.days,
-      interest: p.interest,
-      compensation: p.compensation,
-      total: p.interest + p.compensation,
+      streetTake: p.take,
+      statutory: p.statutory,
       stillOwed: inv.chasedDay === null,
     });
   }
