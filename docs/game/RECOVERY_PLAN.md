@@ -4,11 +4,13 @@
 verified: 52 tests green, line items sum to the lantern, rational ≠ careless
 end state). Final tune diverged from the plan: the supplier bill is **£1,800**
 (not £900 — the §7 fallback loss state needed more force) and start cash
-**£1,100**; the video is 98 s, not 120. The cover used Recraft (not the
-`cover.html` fallback). Definition-of-done items 1–2 (the itch page and the
-Zoud submission) are human actions, now captured in `SUBMISSION.md`.
-GDD Appendices B/C/D are updated to match what shipped; from here this plan
-is the historical record.
+**£1,100**; the video is 68 s, not 120. The cover used Recraft (not the
+`cover.html` fallback), and the §6 still-image fallback shipped as the in-game
+title screen (§2.1 "intro falls back to a still image = the new cover art" —
+implemented as the full-bleed cover behind the start panel). Definition-of-done
+items 1–2 (the itch page and the Zoud submission) are human actions, now
+captured in `SUBMISSION.md`. GDD Appendices B/C/D are updated to match what
+shipped; from here this plan is the historical record.
 
 **Deadline:** Sun 15 Nov, 23:59 AOE (Zoud GameLab).
 

@@ -9,7 +9,7 @@ Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public 
 | Artifact | Path | Status |
 |---|---|---|
 | itch.zip | `game/dist/itch.zip` | 61 files · top-level `index.html` · relative paths · audio included · 4.5 MB |
-| Gameplay video | `game/game-video/lm_run.mp4` | 98 s (cap is 2:00) · silent · real decision loop |
+| Gameplay video | `game/game-video/lm_run.mp4` | 68 s (cap is 2:00) · silent · title → Day 1 place → bill stress → street change → debrief |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
 | Screenshots | `game/screenshots/v2/*.png` | 5 genuine gameplay frames (day 1 / day 3 / day 4 / debrief ×2) |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |

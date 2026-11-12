@@ -183,9 +183,20 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     root.append(lantern, till, ledgerStrip, dayPanel);
     const day = effects.day;
     renderChrome(true);
+    // Money actually landed in the till today (a chase cleared, or trade came
+    // in): the till glows, not just the number.
+    if (effects.cashDelta > 0) till.classList.add("lm-till-glow");
 
     clear(dayPanel);
     const log = el("ul", { class: "lm-day-log" });
+    if (effects.cashDelta !== 0) {
+      log.append(el("li", {
+        class: effects.cashDelta > 0 ? "lm-money-in" : "lm-money-out",
+        text: effects.cashDelta > 0
+          ? `the till is up ${gbp(effects.cashDelta)}`
+          : `the till is down ${gbp(-effects.cashDelta)}`,
+      }));
+    }
     for (const l of effects.lines) log.append(el("li", { text: l }));
     if (effects.lateFeeDelta > 0) {
       log.append(el("li", { class: "lm-latefee", text: `${gbp0(effects.lateFeeDelta)} to the street — late charge on the unpaid bill` }));

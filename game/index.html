@@ -9,27 +9,32 @@
   <body>
     <!-- Start overlay is our own audio-unlock surface: itch.io's launch click
          does NOT unlock Web Audio inside the iframe (GDD App.C). -->
-    <div id="start" class="lm-surface" role="dialog" aria-labelledby="start-title">
-      <h1 id="start-title">Siki &amp; Zana: The Late Market</h1>
-      <p>A night market opens where your uncollected invoices sleep.</p>
-      <button id="start-btn" type="button">▶ Begin — sound on</button>
-      <button id="start-muted" type="button" style="margin-left:8px">Begin — silent first</button>
-      <p style="margin-top:12px"><button id="purge-save" type="button" style="background:none;border:none;color:var(--lm-ink-dim);text-decoration:underline;cursor:pointer;font:inherit;font-size:0.85em">Erase my saved progress</button></p>
-      <details id="opts" style="margin-top:12px;text-align:left">
-        <summary style="cursor:pointer;color:var(--lm-ink-dim)">Options</summary>
-        <div class="lm-surface" style="margin-top:8px;display:grid;gap:8px">
-          <label><input type="checkbox" id="opt-sound" checked /> Sound</label>
-          <label><input type="checkbox" id="opt-music" checked /> Music bed</label>
-          <label>Text size
-            <select id="opt-textsize">
-              <option value="sm">Small</option>
-              <option value="md" selected>Normal</option>
-              <option value="lg">Large</option>
-            </select>
-          </label>
-          <label><input type="checkbox" id="opt-simplelang" /> Simple language</label>
+    <div id="start" role="dialog" aria-labelledby="start-title">
+      <img class="lm-title-art" src="/src/assets/cover.png" alt="The Late Market — a night market street with lanterns, Siki and Zana at a stall, and three stallholders keeping their books" />
+      <div class="lm-title-panel">
+        <h1 id="start-title">Siki &amp; Zana: The Late Market</h1>
+        <p class="lm-title-tag">A night market opens where your uncollected invoices sleep.</p>
+        <div class="lm-title-actions">
+          <button id="start-btn" type="button">▶ Begin — sound on</button>
+          <button id="start-muted" type="button">Begin — silent first</button>
         </div>
-      </details>
+        <details id="opts">
+          <summary>Options</summary>
+          <div class="lm-title-opts">
+            <label><input type="checkbox" id="opt-sound" checked /> Sound</label>
+            <label><input type="checkbox" id="opt-music" checked /> Music bed</label>
+            <label>Text size
+              <select id="opt-textsize">
+                <option value="sm">Small</option>
+                <option value="md" selected>Normal</option>
+                <option value="lg">Large</option>
+              </select>
+            </label>
+            <label><input type="checkbox" id="opt-simplelang" /> Simple language</label>
+          </div>
+        </details>
+        <button id="purge-save" type="button" class="lm-title-erase">Erase my saved progress</button>
+      </div>
     </div>
     <main id="game" hidden></main>
     <script type="module" src="/src/main.ts"></script>

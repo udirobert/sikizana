@@ -195,7 +195,7 @@ design in one day; the remaining window (Nov 12 → 15) was re-planned:
 - [ ] Individual registration for every team member (else disqualification) — Udi Robert
 - [ ] Game on itch page + submitted to jam via itch flow
 - [x] Concept Doc PDF via a public no-login link (`docs/game/CONCEPT_DOC.pdf`, six sections, honest market section)
-- [x] 2-minute video of **actual gameplay** — `game-video/lm_run.mp4` (98s, silent, the real decision loop: Day 1 stall screen → pair A → bill stress → pair B → debrief)
+- [x] 2-minute video of **actual gameplay** — `game-video/lm_run.mp4` (68s, silent, the real decision loop: title → Day 1 stall screen → pair A → bill stress → pair B → debrief)
 - [x] Project budget (separate document; milestone-aware) — `docs/game/BUDGET_DOC.pdf` (≤$26, ceiling check against the $15–500 band)
 - [x] AI-tool disclosure (visible to judges only): same tool list as itch
 

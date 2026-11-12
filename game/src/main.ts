@@ -138,9 +138,24 @@ function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?:
   renderStreet();
 }
 
+let prevLit = -1;
 function renderStreet(): void {
   const slot = document.getElementById("street-slot");
-  if (slot) slot.replaceChildren(renderStreetRow(streetCounters()));
+  if (!slot) return;
+  const counters = streetCounters();
+  const row = renderStreetRow(counters);
+  // The stall that just changed flares once (recovery plan §3: the street
+  // changes *when* you leave it — the player should see the stall move).
+  if (prevLit >= 0) {
+    const litCount = row.querySelectorAll(".lm-stall.lit").length;
+    if (litCount !== prevLit) {
+      const stalls = row.querySelectorAll(".lm-stall");
+      const idx = Math.min(litCount, stalls.length) - 1; // the one that just changed
+      (stalls[Math.max(0, idx)] as HTMLElement | undefined)?.classList.add("lm-stall-change");
+    }
+  }
+  prevLit = row.querySelectorAll(".lm-stall.lit").length;
+  slot.replaceChildren(row);
 }
 
 /** Chapter sequence — one shared frame, nothing resets between chapters. */
