@@ -469,6 +469,9 @@ function showMarketPick(onDone: () => void): void {
   };
 
   const souqBeat = (): void => {
+    // Commit the mode as the beat opens so every figure on it already reads
+    // in dirhams — the preview must not lie about the instrument.
+    setMarketMode("souq");
     clear(sec);
     sec.append(
       el("h3", { text: SOUQ_AR.marketName }),

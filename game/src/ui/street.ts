@@ -142,23 +142,24 @@ function svgNode(markup: string): SVGElement {
   return node;
 }
 
-/** One line per stall, by what it is right now — static flavour + live state. */
+/** One clause per stall per state — the meaning only; showStallNote()
+ *  supplies the name and state word so the line never says them twice. */
 function stallNote(kind: StallKind, state: "shut" | "lit" | "dim"): string {
-  if (state === "shut") return "Shuttered — one of your collections closed this stall.";
+  if (state === "shut") return "one of your collections closed this stall.";
   switch (kind) {
-    case "cart": return "The market cart — here before your week, lit by everyone's lateness.";
+    case "cart": return "here before your week, lit by everyone's lateness.";
     case "awning": return state === "lit"
-      ? "The awning stall — lit by your waiting. Deferrals fund the street."
-      : "The awning stall — dark. Nothing of yours funds it yet.";
+      ? "lit by your waiting — deferrals fund the street."
+      : "nothing of yours funds it yet.";
     case "factor": return state === "lit"
-      ? "The Factor's stall — your aged invoices are his stock. He buys the wait."
-      : "The Factor's stall — dark. He sets up when you let invoices age.";
+      ? "your aged invoices are his stock — he buys the wait."
+      : "he sets up when you let invoices age.";
     case "collector": return state === "lit"
-      ? "The Collector's stall — he buys the customer with the debt still on it."
-      : "The Collector's stall — dark. Nothing to collect yet.";
+      ? "he buys the customer with the debt still on it."
+      : "nothing to collect yet.";
     case "shark": return state === "lit"
-      ? "The Shark's stall — a little cash now, a little back each day."
-      : "The Shark's stall — dark. No daily drip to sell you yet.";
+      ? "a little cash now, a little back each day."
+      : "no daily drip to sell you yet.";
   }
 }
 
@@ -170,10 +171,11 @@ function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" 
   const name = STALLS.find((s) => s.kind === kind)?.name ?? kind;
   const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
   const cap = name.charAt(0).toUpperCase() + name.slice(1);
+  const note = stallNote(kind, state);
   row.append(el("span", {
     class: "lm-stall-inspect",
     role: "status",
-    text: `${cap} — ${stateWord}. ${stallNote(kind, state)}`,
+    text: `${cap} — ${stateWord}. ${note.charAt(0).toUpperCase()}${note.slice(1)}`,
   }));
 }
 
