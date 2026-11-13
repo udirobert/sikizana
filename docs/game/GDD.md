@@ -37,6 +37,12 @@ things are always visible at once — the **till** (live cash), the **ledger**
 grows), and the **street** (the shadow market outside). Each day you pick one
 action from a small vocabulary — serve walk-in work, chase an invoice, pay a
 supplier bill — then watch the till, the ledger, and the street react.
+Minute one is a scene before it is a screen: the Shark walks past your
+stall, Zana answers him, and only then do the shutters open. On every
+decision beat the day's scene and choice render ABOVE the ledger strip —
+the first viewport is till → decision → buttons; the cards sit below as
+the books they are. A voiced day-opener (Siki or Zana, one line) frames
+each morning.
 
 1. **Plan** — pick today's one action: *serve walk-in work, chase an invoice, pay the supplier bill, accept/decline a street offer*.
 2. **Watch the ledger age** — unpaid invoices accrue a "worth today" price every day (the discounting lesson, one UI element); a chase pays in 2 days so money lands in the till inside the week.
@@ -82,13 +88,45 @@ Each offer shows indicative real-world ranges in its Siki card (factoring ~6.75�
 - **Setting/lore:** a coastal night market where your books *are* the market. One recurring street scene, revisited between chapters. Siki's history panels ("ledgers since Ur" — soft lore, high texture): bills of exchange, the Medici correspondents, and the UK Statute of 1998 read as ledger entries.
 - **Tone:** warm dread. Losing shouldn't read as moral failure — the street's warmth makes the exploitation *sociable*, which is the point.
 - **Audio:** two persistent ElevenLabs voices (Siki/Zana), one instrumental loop for market ambience, four-five foley one-shots. All pre-baked.
-- **Accessibility (the +5 rubric bonus):** subtitles always on, all audio optional (never required to proceed), adjustable text size, simple-language mode, keyboard-complete play, no colour-only state, skip/fast-forward on every timed beat, mute + restart. This is by design from day 1; not a checklist at the end.
+- **Accessibility (the +5 rubric bonus):** a labelled market picker before play, subtitles always on, all audio optional (never required to proceed), adjustable text size, simple-language mode, keyboard-complete play, no colour-only state, skip/fast-forward on every timed beat, mute + restart. This is by design from day 1; not a checklist at the end.
 - **Intro cinematic:** 10–20s moonrise over the street (2–4 Kling/PixVerse shots, AI-generated; poster + skip). Falls back to a still image.
+
+### 4a. Souq Mode — the Gulf market (the +5 localisation bonus, shipped)
+
+The rubric's UAE/Arab-localisation bonus asks for **authentic adaptation — interest-free
+finance framing, Zakat, AED — not just translation**. A currency toggle would have been
+translation: converting pounds to dirhams over the UK statute's 8%-over-base interest
+would keep an instrument the market does not permit, and the rubric judges accuracy at
+25 points. So the game ships two lawful markets, chosen on the title screen:
+
+| | UK | Gulf (Souq) |
+|---|---|---|
+| Unit | GBP | AED (indicative 4.8, labelled) |
+| Remedy | Late Payment of Commercial Debts (Interest) Act 1998 — 8% over BoE base + £40–£100 fixed compensation | **Contractual late fee in the supplier's own terms** — 2% per commenced 30 days, capped at 8%, plus a fixed AED 250 administration charge |
+| Cost of deferral | the street's take vs statutory entitlement | the street's take vs the contractual fee, **plus zakat on uncollected receivables** |
+
+Why the contractual fee is the *better* teaching instrument for Ch.2 (anchoring): the
+ceiling is a number the player wrote into their terms on day one and has since forgotten,
+so the desk is quoting their own forgotten agreement back at them. Same bias, cleaner
+instrument, no interest anywhere.
+
+Implementation is one seam, not two codebases: `src/engine/market.ts` owns the mode,
+the display conversion, the remedy, and the zakat line. All arithmetic stays in base
+units so both markets carry an identical week (the balance of the game is unchanged and
+every existing test keeps its meaning); only display converts, and every figure lands on
+a whole dirham at the indicative rate. Switching market clears saved progress, because a
+ledger recorded against one remedy would make the other's debrief incoherent.
+
+Zakat is stated as **widely followed practice, hedged once** ("commonly due"), because
+schools differ on slow and doubtful debts — the same accuracy rail the UK stat cards
+carry. Sources: Atradius Payment Practices Barometer, UAE 2025 (58% of B2B invoice value
+overdue; 8% written off as bad debt).
+
 
 ## 5. Development & Future Plans
 
 - **In the current prototype (by Nov 15):** four chapters + finale; two primary biases + one supporting; the full decision-ledger + debrief system; the daily loop, street scene, Cost-of-Not-Acting ledger, and voice audio — all playable and tested in one HTML5 build.
-- **Post-jam (Jan 7 Chroma):** polish pass, a "Souq Mode" (AED currency + Gulf chapters flavour; *stretch*: Arabic subs), iOS Safari testing, a 1080p trailer, maybe a quick music v2.5 soundtrack pass.
+- **Two markets, shipped in the jam build:** the title screen offers **UK** (pounds, statutory remedy) or **Gulf / Souq** (AED, contractual remedy). See §4a. Arabic localisation remains post-jam (Jan 7 Chroma), together with a polish pass, iOS Safari testing, a 1080p trailer, and a music v2.5 soundtrack pass.
 - **Priorities:** (1) the core loop and the debrief system; (2) Ch.1 + Ch.2 complete end-to-end; (3) Ch.3 + finale; (4) art/voice polish; (5) *prototyped* nonsense cut before polish. The finale is contractually the product's learning payoff — it will not be cut for time.
 - **Risks:** scope creep towards a 4th biome (watch: bookkeeping-complexity drift), voice iteration burns credits, lean art leads to "AI-slop" reads on the mascots, mobile Safari audio (desktop-judged only, but test Chrome/Firefox on Mac anyway).
 - **Budget (draft, separate document also required):** ElevenLabs Starter $6/mo × 2 ($12) for two persistent voices + music + SFX; justification for PixVerse/Kling spend from Chroma pack credits (not assumed); 2D art time (solo/designed away by me), no paid hosting (itch.io is free); ≤ 10h of contract illustration at ~$300-450 if the layered-2D look needs an artist push; total cash point: ~$15–500 depending on illustration choice. Reports as receipts in the separate budget doc.

@@ -7,6 +7,8 @@ import { el, clear, choiceButton } from "../ui/dom";
 import { renderStreet, type StreetCounters } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import { money, remedy, zakatNote } from "../engine/market";
+import { productCheckUrl } from "../engine/links";
 import { verdictLine, type FinaleView } from "./finale";
 
 export interface FinaleDeps {
@@ -21,7 +23,7 @@ export interface FinaleDeps {
   onRestart: () => void;
 }
 
-const gbp = (v: number) => `£${v.toFixed(2)}`;
+const gbp = (v: number) => money(v, 2);
 const STALL_SHUT_MS = 380;
 
 export function runFinale(deps: FinaleDeps): void {
@@ -112,15 +114,16 @@ export function runFinale(deps: FinaleDeps): void {
     deps.say("siki", "Three numbers, computed from your own choices. Not a diagnosis — a mirror.");
     clear(stage);
     stage.append(el("h3", { text: "Where you leaned" }));
-    // The honest frame: each axis is measured from the player's own recorded
-    // choices against the baseline that chases on time — not a clinical "you
-    // have bias X". The pair was the same offer run twice (the visible
-    // repetition is in the deferral line below), so the lean is something the
-    // player can SEE in their own data, not the designer's attribution.
-    stage.append(el("p", { class: "lm-hint", text: "One playthrough, a handful of decisions — this suggests a lean, it doesn't diagnose one. Read it as your week, not your character." }));
+    // The honest frame, said ONCE: each axis is measured from the player's own
+    // recorded choices against the baseline that chases on time — not a
+    // clinical "you have bias X". The pair was the same offer run twice (the
+    // visible repetition is in the deferral line below), so the lean is
+    // something the player can SEE in their own data, not our attribution.
+    // Stating the hedge twice here and again in the finale is what capped the
+    // ending — rigour, said once, is a claim; said thrice, it's an apology.
     stage.append(el("p", { class: "lm-hint", text: phrased({
-      normal: "Each number is measured from your own recorded choices, against the baseline that chases on time. It is not a diagnosis — it is where you leaned this week, and by how much.",
-      plain: "Each number is from your own choices, compared to the player who always chases on time. Not a test — where you leaned.",
+      normal: "Each number is measured from your own recorded choices against the baseline that chases on time. One week suggests a lean; it doesn't diagnose one — read it as your week, not your character.",
+      plain: "Each number is from your own choices, compared to the player who always chases on time. Not a test — where you leaned this week.",
     }) }));
     if (view.partial) {
       stage.append(el("p", { class: "lm-hint", text: "Partial run — some chapters were skipped, so unmeasured axes read low. The bars below reflect only what was recorded." }));
@@ -200,7 +203,15 @@ export function runFinale(deps: FinaleDeps): void {
           }
           return total;
         })(),
-        el("p", { class: "lm-hint", text: `To the street (NPC fees): ${gbp(c.toStreet)} · forgone statutory entitlement: ${gbp(c.forgoneStatutory)}` }),
+        el("p", { class: "lm-hint", text: `To the street (NPC fees): ${gbp(c.toStreet)} · forgone ${remedy().label}: ${gbp(c.forgoneStatutory)}` }),
+        // The souq market's second cost of deferral: the money you never
+        // collected is still on your books, and commonly still in the zakat
+        // base. Basis is the uncollected receivable only — street fees are
+        // already gone, so they are not owed to you and not zakatable here.
+        // Practice, not a ruling (schools differ on doubtful debts).
+        ...(zakatNote(c.forgoneStatutory)
+          ? [el("p", { class: "lm-hint lm-zakat", text: zakatNote(c.forgoneStatutory)! })]
+          : []),
         el("p", { class: "lm-hint", text: "Fictional run total — your books, your choices. The country-wide numbers are real:" }),
       ),
       el("div", { class: "lm-stat-grid" },
@@ -215,8 +226,35 @@ export function runFinale(deps: FinaleDeps): void {
           ? "Rationality Delta vs your best run: no change — the frames found the same footing twice."
           : `Rationality Delta vs your best run: ${deps.delta.improved ? "−" : "+"}${Math.abs(deps.delta.score).toFixed(0)} (lower irrationality is better; 0 = untouched by the frames)`
         : "First run complete — this profile is your baseline. Run it back and beat your Rationality Delta." }),
+      // The ending lands forward, not hedged: the dare is the score, and
+      // the week's eyes have somewhere real to go — Sikizana reads actual
+      // books the way the player just learned to read this one. Copy only;
+      // read-only, human-in-the-loop, no money moved, no provider named.
+      el("div", { class: "lm-surface" },
+        el("p", { class: "lm-line siki", text: "You just learned to read one ledger in a week. Siki reads real ones — your actual books, your actual late payers, the same eyes, no street attached." }),
+        el("p", { class: "lm-hint", text: "Sikizana, the AI finance assistant this game was built to meet: read-only by default, human-in-the-loop for everything consequential." }),
+      ),
       el("div", { class: "lm-choices" },
-        choiceButton("Run it back", "Reset the ledger and play again — the delta is the score", deps.onRestart),
+        // The door. The finale hands the player the real tool — same eyes, their
+        // actual books — rather than describing it and stopping. Opens in a new
+        // tab so a judge who clicks keeps the ending they just earned, and the
+        // URL is built in engine/links.ts so click-through is counted.
+        el("a", {
+          class: "lm-choice lm-choice-go",
+          href: productCheckUrl(),
+          target: "_blank",
+          rel: "noopener noreferrer",
+        },
+          el("span", { class: "lm-choice-label", text: "Check your own books" }),
+          el("span", { class: "lm-choice-detail", text: "Free, read-only, ten minutes — the same scan, on your actual late payers. Nothing moves without you." }),
+        ),
+        choiceButton("Run it back", !deps.delta
+          ? "First run banked — the street raises its prices next week"
+          : deps.delta.score === 0
+            ? "Dead level with your best — the street raises its prices next week"
+            : deps.delta.improved
+              ? `${Math.abs(deps.delta.score).toFixed(0)} under your best — the street raises its prices next week`
+              : `${Math.abs(deps.delta.score).toFixed(0)} over your best — take it back next week`, deps.onRestart),
         choiceButton("Back to the title", "Close the books for tonight", () => window.location.reload()),
       ),
     );

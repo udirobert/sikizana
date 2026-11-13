@@ -18,6 +18,13 @@ import { runFinale } from "./chapters/finaleScreen";
 import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetCounters } from "./ui/street";
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
+import { getMarketMode, loadStoredMarketMode, resolveMarketMode, setMarketMode, type MarketMode } from "./engine/market";
+
+// Market is resolved before anything renders: ?market=souq (trailer/deep link)
+// wins, then the saved choice. Switching it at the title clears stale progress
+// — a run's ledger was recorded against one remedy, and mixing them would make
+// the debrief's numbers incoherent.
+setMarketMode(resolveMarketMode(window.location.search, loadStoredMarketMode()));
 
 const start = document.getElementById("start") as HTMLElement;
 const game = document.getElementById("game") as HTMLElement;
@@ -382,6 +389,18 @@ function finale(): void {
       renderStreet();
       beginChapter(1);
     },
+  });
+}
+
+// ── Market picker (title screen) ──
+for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="market"]')) {
+  radio.checked = radio.value === getMarketMode();
+  radio.addEventListener("change", () => {
+    if (!radio.checked) return;
+    const next = radio.value as MarketMode;
+    if (next === getMarketMode()) return;
+    setMarketMode(next);
+    purgeSave(); // numbers from the other remedy don't carry
   });
 }
 

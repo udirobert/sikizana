@@ -20,6 +20,7 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import { money } from "../engine/market";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch3Deps {
@@ -36,7 +37,7 @@ const ROUND_SILENCE = [
   "Third knock, nothing. Decide what the silence is worth.",
 ];
 
-const gbp = (v: number) => `£${Math.round(v)}`;
+const gbp = (v: number) => money(v, 0);
 
 export function runChapter3(deps: Ch3Deps): void {
   const state: Ch3State = createCh3State();

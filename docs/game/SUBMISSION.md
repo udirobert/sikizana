@@ -1,4 +1,10 @@
-# Submission runbook — *The Late Market*
+# Submission runbook — *The Late Market — a playable demo of an AP integrity engine*
+
+> **The frame judges read first (use verbatim):** a ten-minute game, five chapters,
+> two lawful markets, seventy tests, sixteen dollars. Its numbers are audited in
+> public, and its ending hands you the real tool.
+>
+> Execution order, gates and what we collectively refused to build: `docs/game/LAUNCH_PLAN.md`.
 
 Everything the agent built is in place; the human uploads it.
 **Hard deadline: Zoud GameLab, Sun 15 Nov 2026, 23:59 AOE.**
@@ -16,6 +22,9 @@ Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public 
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
 
 All checks: `npm test` 59/59 · `tsc --noEmit` clean · `npm run build` clean ·
+first minute is a scene, not a ledger (cold open verified in headless Chrome:
+`#ch1` child order is till → day panel → ledger; restyled street) ·
+Souq Mode shipped (AED + contractual, interest-free remedy + zakat; 70 tests) ·
 line items sum to the lantern to the penny (unit-tested) · "worth today" falls
 monotonically (unit-tested) · careless run empties the till on Day 4 in every
 seed, not the £40 fee's knife edge (unit-tested) · day-3 pair chase lands

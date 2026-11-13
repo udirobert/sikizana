@@ -34,6 +34,11 @@ Every decision is recorded in a visible ledger, and the finale reads it back:
 where you leaned, what the street kept, and your week in one line. Then run
 it back and beat your Rationality Delta.
 
+**Two markets.** Play in pounds with the UK's statutory late-payment interest,
+or in dirhams where interest is not on the table: the Gulf run prices lateness
+with a contractual fee you agreed to in your own terms — and charges zakat on
+what you never collected. Same week, same arithmetic, two lawful instruments.
+
 Fictional offers, real arithmetic. No providers named, nothing sold — the
 free ladder (Zana's reminders) always collects for free.
 

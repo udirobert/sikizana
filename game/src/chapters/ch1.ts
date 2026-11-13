@@ -44,6 +44,7 @@
  * rate, no "honest". The law appears in the debrief + assumptions sheet only.
  */
 import { statutoryCompensation, statutoryInterest } from "../engine/rates";
+import { money } from "../engine/market";
 import type { LedgerEntry } from "../engine/ledger";
 import { mulberry32, type Rng } from "../engine/rng";
 
@@ -366,7 +367,7 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     const canCover = state.cash >= state.bill.amount;
     decisionChoices.push({
       id: `pay_bill-${day}`,
-      label: `Pay ${state.bill.client} — £${state.bill.amount}`,
+      label: `Pay ${state.bill.client} — ${money(state.bill.amount)}`,
       detail: canCover
         ? "Due today. Paid, the stall stays open."
         : "Due today. The till can't cover it — you'd run into the red.",
@@ -375,7 +376,7 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     decisionChoices.push({
       id: `skip_bill-${day}`,
       label: "Leave the bill",
-      detail: `£${state.bill.amount} stays owed, and £${state.bill.lateFee} a day comes out of the till tomorrow — the street's money.`,
+      detail: `${money(state.bill.amount)} stays owed, and ${money(state.bill.lateFee)} a day comes out of the till tomorrow — the street's money.`,
       kind: "skip_bill",
     });
   }
@@ -394,15 +395,15 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     const isEngineered = isPairDay && (due.id === pair.first.invoice.id || due.id === pair.second.invoice.id);
     const chaseDetail = isEngineered
       ? day === pair.first.day
-        ? `Chase — the full £${due.principal} lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`
-        : `Chase — the full £${due.principal} lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`
-      : `Chase — the full £${due.principal} lands in ${CHASE_CLEAR_DAYS} days.`;
+        ? `Chase — the full ${money(due.principal)} lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`
+        : `Chase — the full ${money(due.principal)} lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`
+      : `Chase — the full ${money(due.principal)} lands in ${CHASE_CLEAR_DAYS} days.`;
     const deferDetail = isEngineered
       ? day === pair.first.day
-        ? `Defer — the full £${due.principal} lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
-        : `Defer — the full £${due.principal} lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`
-      : `Defer — the full £${due.principal} lands in ${DEFER_CLEAR_DAYS} days instead.`;
-    decisionChoices.push({ id: `chase-${due.id}`, label: `Chase ${due.client} — £${due.principal}`, detail: chaseDetail, kind: "chase", invoiceId: due.id });
+        ? `Defer — the full ${money(due.principal)} lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
+        : `Defer — the full ${money(due.principal)} lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`
+      : `Defer — the full ${money(due.principal)} lands in ${DEFER_CLEAR_DAYS} days instead.`;
+    decisionChoices.push({ id: `chase-${due.id}`, label: `Chase ${due.client} — ${money(due.principal)}`, detail: chaseDetail, kind: "chase", invoiceId: due.id });
     decisionChoices.push({ id: `defer-${due.id}`, label: "Leave it for tomorrow", detail: deferDetail, kind: "defer", invoiceId: due.id });
   }
 
@@ -455,7 +456,7 @@ export function resolveDay(
     if (inv.paidDay === day) {
       cashDelta += inv.principal;
       collected += 1;
-      lines.push(`£${inv.principal} from ${inv.client} lands in the till.`);
+      lines.push(`${money(inv.principal)} from ${inv.client} lands in the till.`);
     }
   }
 
@@ -487,7 +488,7 @@ export function resolveDay(
   } else if (choiceId.startsWith("skip_bill-")) {
     state.bill.skippedDay = day;
     streetNote = "bill_skipped";
-    lines.push("Left. The street takes a £40 late charge tomorrow.");
+    lines.push(`Left. The street takes a ${money(state.bill.lateFee)} late charge tomorrow.`);
   } else {
     lines.push("The day closes quietly.");
   }

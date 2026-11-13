@@ -1,0 +1,777 @@
+{
+ "generator": "game/scripts/vectors_from_product.py",
+ "source": "src/services/rates.py",
+ "note": "Shared quantities only: statutory interest + fixed compensation.",
+ "product_default_apr_pct": 13.25,
+ "product_apr_at_game_base_pct": 11.75,
+ "rows": [
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 1,
+   "interest": 0.16095890410958905,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 30,
+   "interest": 4.828767123287672,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 42,
+   "interest": 6.76027397260274,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 60,
+   "interest": 9.657534246575343,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 90,
+   "interest": 14.486301369863014,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 500,
+   "days_late": 365,
+   "interest": 58.75,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 1,
+   "interest": 0.3219178082191781,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 30,
+   "interest": 9.657534246575343,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 42,
+   "interest": 13.52054794520548,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 60,
+   "interest": 19.315068493150687,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 90,
+   "interest": 28.972602739726028,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000,
+   "days_late": 365,
+   "interest": 117.5,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 1,
+   "interest": 0.3219210273972603,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 30,
+   "interest": 9.65763082191781,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 42,
+   "interest": 13.520683150684933,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 60,
+   "interest": 19.31526164383562,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 90,
+   "interest": 28.97289246575343,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 1000.01,
+   "days_late": 365,
+   "interest": 117.50117500000002,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 1,
+   "interest": 0.7726027397260274,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 30,
+   "interest": 23.178082191780824,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 42,
+   "interest": 32.44931506849315,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 60,
+   "interest": 46.35616438356165,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 90,
+   "interest": 69.53424657534246,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 2400,
+   "days_late": 365,
+   "interest": 282.0,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 1,
+   "interest": 1.916054794520548,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 30,
+   "interest": 57.48164383561644,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 42,
+   "interest": 80.47430136986301,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 60,
+   "interest": 114.96328767123288,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 90,
+   "interest": 172.44493150684931,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 5952,
+   "days_late": 365,
+   "interest": 699.36,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 1,
+   "interest": 3.219178082191781,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 30,
+   "interest": 96.57534246575342,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 42,
+   "interest": 135.2054794520548,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 60,
+   "interest": 193.15068493150685,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 90,
+   "interest": 289.7260273972603,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000,
+   "days_late": 365,
+   "interest": 1175.0,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 1,
+   "interest": 3.219181301369863,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 30,
+   "interest": 96.57543904109589,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 42,
+   "interest": 135.20561465753426,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 60,
+   "interest": 193.15087808219178,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 90,
+   "interest": 289.7263171232877,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 10000.01,
+   "days_late": 365,
+   "interest": 1175.001175,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 1,
+   "interest": 4.989726027397261,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 30,
+   "interest": 149.6917808219178,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 42,
+   "interest": 209.56849315068496,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 60,
+   "interest": 299.3835616438356,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 90,
+   "interest": 449.07534246575347,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 3.75,
+   "apr_pct": 11.75,
+   "principal": 15500,
+   "days_late": 365,
+   "interest": 1821.25,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 1,
+   "interest": 0.1815068493150685,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 30,
+   "interest": 5.445205479452055,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 42,
+   "interest": 7.623287671232877,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 60,
+   "interest": 10.89041095890411,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 90,
+   "interest": 16.335616438356166,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 500,
+   "days_late": 365,
+   "interest": 66.25,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 1,
+   "interest": 0.363013698630137,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 30,
+   "interest": 10.89041095890411,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 42,
+   "interest": 15.246575342465754,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 60,
+   "interest": 21.78082191780822,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 90,
+   "interest": 32.67123287671233,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000,
+   "days_late": 365,
+   "interest": 132.5,
+   "compensation": 40
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 1,
+   "interest": 0.36301732876712334,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 30,
+   "interest": 10.8905198630137,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 42,
+   "interest": 15.24672780821918,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 60,
+   "interest": 21.7810397260274,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 90,
+   "interest": 32.6715595890411,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 1000.01,
+   "days_late": 365,
+   "interest": 132.501325,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 1,
+   "interest": 0.8712328767123287,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 30,
+   "interest": 26.136986301369863,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 42,
+   "interest": 36.59178082191781,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 60,
+   "interest": 52.273972602739725,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 90,
+   "interest": 78.41095890410959,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 2400,
+   "days_late": 365,
+   "interest": 318.0,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 1,
+   "interest": 2.1606575342465755,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 30,
+   "interest": 64.81972602739727,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 42,
+   "interest": 90.74761643835618,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 60,
+   "interest": 129.63945205479453,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 90,
+   "interest": 194.45917808219178,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 5952,
+   "days_late": 365,
+   "interest": 788.6400000000001,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 1,
+   "interest": 3.6301369863013697,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 30,
+   "interest": 108.9041095890411,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 42,
+   "interest": 152.46575342465752,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 60,
+   "interest": 217.8082191780822,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 90,
+   "interest": 326.71232876712327,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000,
+   "days_late": 365,
+   "interest": 1325.0,
+   "compensation": 70
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 1,
+   "interest": 3.6301406164383567,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 30,
+   "interest": 108.90421849315071,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 42,
+   "interest": 152.465905890411,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 60,
+   "interest": 217.80843698630142,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 90,
+   "interest": 326.7126554794521,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 10000.01,
+   "days_late": 365,
+   "interest": 1325.0013250000002,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 1,
+   "interest": 5.626712328767123,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 30,
+   "interest": 168.8013698630137,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 42,
+   "interest": 236.32191780821918,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 60,
+   "interest": 337.6027397260274,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 90,
+   "interest": 506.40410958904107,
+   "compensation": 100
+  },
+  {
+   "base_rate_pct": 5.25,
+   "apr_pct": 13.25,
+   "principal": 15500,
+   "days_late": 365,
+   "interest": 2053.75,
+   "compensation": 100
+  }
+ ]
+}

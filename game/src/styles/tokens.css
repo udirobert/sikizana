@@ -99,6 +99,10 @@ body {
   padding: 0.8rem 1rem; font: inherit; font-size: var(--lm-text-base);
 }
 .lm-choice:hover, .lm-choice:focus-visible { border-color: var(--lm-amber); background: var(--lm-surface) }
+/* The finale's outbound door: an <a> wearing the choice skin, in the amber
+   that marks the one action that leaves the fiction. */
+.lm-choice-go { text-decoration: none; border-color: var(--lm-amber); background: color-mix(in srgb, var(--lm-amber) 10%, var(--lm-bg-mid)) }
+.lm-choice-go .lm-choice-label::after { content: " →" }
 .lm-choice-decision .lm-choice-label::before { content: "✓ " }
 .lm-choice-label { font-weight: 700 }
 .lm-choice-decision, .lm-choice-decision * { color: var(--lm-ink) }
@@ -214,6 +218,12 @@ body {
 .lm-title-panel details { text-align: left; margin-top: 1rem; color: var(--lm-ink-dim) }
 .lm-title-panel details > summary { cursor: pointer; font-size: 0.85em }
 .lm-title-panel .lm-title-opts { display: grid; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.9em }
+/* The two-market pick: visible before Begin, because it changes the money
+   and the remedy, not just the symbol. */
+.lm-market-pick { display: grid; gap: 0.3rem; margin: 0.2rem 0 0.1rem; padding: 0.5rem 0.7rem; border: 1px solid var(--lm-line, #3a3550); border-radius: 8px; font-size: 0.88em }
+.lm-market-pick legend { padding: 0 0.35rem; opacity: 0.75; font-size: 0.85em; letter-spacing: 0.04em; text-transform: uppercase }
+.lm-market-pick label { display: flex; gap: 0.45rem; align-items: center; cursor: pointer }
+.lm-zakat { border-left: 2px solid var(--lm-gold, #e0b354); padding-left: 0.6rem }
 .lm-title-panel .lm-title-erase {
   background: none; border: none; color: var(--lm-ink-dim); text-decoration: underline;
   cursor: pointer; font: inherit; font-size: 0.82em; margin-top: 1rem;
@@ -258,8 +268,10 @@ body {
 
 /* ── Street strip (defer/pay drive the stalls — recovery plan §3) ── */
 #street-slot { position: sticky; top: 0; z-index: 5; background: var(--lm-bg-mid); padding: 10px 12px; border-bottom: 1px solid var(--lm-ink-dim) }
-.lm-street { display: flex; gap: 12px; align-items: center; max-width: 720px; margin: 0 auto; font-size: 0.95em }
-.lm-stall { display: inline-block; width: 44px; height: 48px; transition: opacity 300ms, filter 300ms }
+.lm-street { display: flex; gap: 14px; align-items: center; max-width: 720px; margin: 0 auto; font-size: 0.95em; flex-wrap: wrap }
+/* The street is the place, not a status bar: stalls carry weight (58/62 in a
+   1-lit strip of five reads as a streetfront, where 44/48 read as icons). */
+.lm-stall { display: inline-block; width: 58px; height: 62px; transition: opacity 300ms, filter 300ms }
 .lm-stall svg { width: 100%; height: 100%; display: block }
 .lm-stall svg * { fill: none; stroke: var(--lm-ink-dim); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round }
 .lm-stall.lit  { filter: drop-shadow(0 0 5px rgba(255,180,84,.75)) }

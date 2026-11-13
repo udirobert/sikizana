@@ -29,6 +29,7 @@ import {
 } from "./ch1";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import { money, isSouq } from "../engine/market";
 
 export interface Ch1Deps {
   root: HTMLElement;
@@ -46,8 +47,8 @@ export interface Ch1Deps {
   noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number }) => void;
 }
 
-const gbp = (v: number) => `£${v.toFixed(2)}`;
-const gbp0 = (v: number) => `£${Math.round(v)}`;
+const gbp = (v: number) => money(v, 2);
+const gbp0 = (v: number) => money(v, 0);
 
 export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null = null): void {
   const state = saved ?? createCh1State(seed).state;
@@ -259,22 +260,38 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function intro(): void {
     const resuming = saved !== null && saved.day > 1;
-    deps.say("siki", resuming
-      ? `The shutters were left open. Day ${state.day} of ${CH1_DAYS} — the books remember where you stopped.`
-      : "Day one. Till £1,200. Quayline's £2,000 bill lands Day 4. Something on the ledger is already bleeding.");
+    // The cold open: minute one is a scene, not a ledger. The Shark walks
+    // past before the shutters open — every judge meets the street's teeth
+    // first, the cards second. No decision, no numbers, ten seconds. The
+    // chrome stays unrendered until the shutters open (resuming players,
+    // who have seen it, go straight to the counter).
+    if (!resuming) return coldOpen();
+    deps.say("siki", `The shutters were left open. Day ${state.day} of ${CH1_DAYS} — the books remember where you stopped.`);
     clear(dayPanel);
     dayPanel.append(
       el("h3", { "aria-label": `Day ${state.day} of ${CH1_DAYS}` },
         `Day ${state.day} of ${CH1_DAYS}`, weekDots(state.day)),
-      el("p", { class: "lm-hint", text: resuming
-        ? `Back at the counter. The books remember where you stopped.`
-        : phrased({
-            normal: "The stall is open. The till, the ledger, the street — everything you do this week is on this screen.",
-            plain: "This is your stall. Your cash, your invoices, and the street outside are all on this screen.",
-          }) }),
-      choiceButton(resuming ? "Back to the counter" : "Open the shutters", resuming ? `Resume at Day ${state.day}` : "Begin Day 1", () => showDay()),
+      el("p", { class: "lm-hint", text: `Back at the counter. The books remember where you stopped.` }),
+      choiceButton("Back to the counter", `Resume at Day ${state.day}`, () => showDay()),
     );
     renderChrome();
+    persist();
+  }
+
+  function coldOpen(): void {
+    deps.say("zana", "Heads up. Shark about — walk past him.");
+    // The books don't exist yet dramatically — hide the empty chrome so the
+    // first viewport is street, teeth, and one button.
+    lantern.hidden = true; till.hidden = true; ledgerStrip.hidden = true;
+    clear(dayPanel);
+    dayPanel.append(
+      el("h3", { text: "Night. The Late Market." }),
+      el("p", { class: "lm-line shark", text: "Nice stall. Everybody pays the street eventually — cash now, or a little each day." }),
+      el("p", { class: "lm-line zana", text: "That's the Shark. He prices patience by the day. Open the shutters." }),
+      el("div", { class: "lm-choices" },
+        choiceButton("Open the shutters", `Day 1 of 5 · till ${money(1200)}`, () => showDay()),
+      ),
+    );
     persist();
   }
 
@@ -284,21 +301,37 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function dayHint(day: number): string {
     switch (day) {
-      case 1: return "Till £1,200, and the ledger is already overdue. The easy work pays a little now; the chase pays the week.";
+      case 1: return `Till ${money(1200)}, and the ledger is already overdue. The easy work pays a little now; the chase pays the week.`;
       case 2: return "Another invoice is due, and the week keeps moving.";
-      case 3: return "Harborne Print Works is on the desk — £2,400. The easy work is piling up too.";
+      case 3: return `Harborne Print Works is on the desk — ${money(2400)}. The easy work is piling up too.`;
       case 4: return `A bill is due today — ${gbp0(state.bill.amount)}. The till is ${gbp(netPosition(state))}. Pay it or leave it.`;
-      case 5: return "Last day. Another Harborne invoice — £2,400. The week closes after this.";
+      case 5: return `Last day. Another Harborne invoice — ${money(2400)}. The week closes after this.`;
       default: return "The week closes.";
     }
   }
 
+  // The day's decision leads: the panel (scene + choice) renders ABOVE the
+  // ledger strip, so the first viewport is till → decision → buttons, and
+  // the five cards sit below as the books they are. The log beat keeps the
+  // ledger-first order (finishDay re-appends it) — that beat IS a readout.
+  const DAY_SCENE: Record<number, { speaker: "siki" | "zana"; line: string }> = {
+    1: { speaker: "zana", line: "New week. The street is already working out what your patience is worth." },
+    2: { speaker: "siki", line: "Day two. The week keeps moving whether you chase or not." },
+    3: { speaker: "siki", line: `Harborne Print Works, ${money(2400)}, on the desk. Chase it today or let it age.` },
+    4: { speaker: "zana", line: `Quayline's ${money(2000)}, due today. Pay it or leave it — the street charges for leaving.` },
+    5: { speaker: "siki", line: `Last day. Another Harborne, same ${money(2400)}. The week closes after this.` },
+  };
+
   function showDay(): void {
     if (state.done) return debrief();
     const day = state.day;
+    lantern.hidden = false; till.hidden = false; ledgerStrip.hidden = false;
     renderChrome();
+    root.append(lantern, till, dayPanel, ledgerStrip);
     startTick(); // the market reprices the bleeding invoices as the day opens
     const choices = dayChoices(state, day);
+    const scene = DAY_SCENE[day];
+    if (scene) deps.say(scene.speaker, scene.line);
     clear(dayPanel);
     dayPanel.append(
       el("h3", { "aria-label": `Day ${day} of ${CH1_DAYS}` },
@@ -468,8 +501,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           el("p", {
             class: "lm-hint",
             text: phrased({
-              normal: `The street doesn't claim — it buys: ${gbp(streetTake)} of your invoices' value changed hands this week. The law sets a different price for the same delay: the Late Payment of Commercial Debts (Interest) Act 1998 s.5A (UK, 8% over base + £40–£100 per invoice, simplified) would have accrued ${gbp0(statutoryFloor)} in claims over those same days — recoverable only if you chase it. Two prices for one habit. You paid the street's.`,
-              plain: `The street bought your delay for ${gbp(streetTake)}. The law prices that same delay at ${gbp0(statutoryFloor)} (UK Late Payment Act 1998, simplified) — but you only get it if you chase. You paid the street's price.`,
+              normal: isSouq()
+                ? `The street doesn't claim — it buys: ${gbp(streetTake)} of your invoices' value changed hands this week. Your own terms set a different price for the same delay: the contractual late fee you wrote into them (2% per thirty days, capped at 8%, plus a fixed administration charge — simplified) would have accrued ${gbp0(statutoryFloor)} in claims over those same days — recoverable only if you chase it. Two prices for one habit. You paid the street's.`
+                : `The street doesn't claim — it buys: ${gbp(streetTake)} of your invoices' value changed hands this week. The law sets a different price for the same delay: the Late Payment of Commercial Debts (Interest) Act 1998 s.5A (UK, 8% over base + £40–£100 per invoice, simplified) would have accrued ${gbp0(statutoryFloor)} in claims over those same days — recoverable only if you chase it. Two prices for one habit. You paid the street's.`,
+              plain: isSouq()
+                ? `The street bought your delay for ${gbp(streetTake)}. Your own terms price that same delay at ${gbp0(statutoryFloor)} — but you only get it if you chase. You paid the street's price.`
+                : `The street bought your delay for ${gbp(streetTake)}. The law prices that same delay at ${gbp0(statutoryFloor)} (UK Late Payment Act 1998, simplified) — but you only get it if you chase. You paid the street's price.`,
             }),
           }),
           choiceButton("Continue", "", next),

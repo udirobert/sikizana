@@ -93,6 +93,6 @@ Presentation rule (per rubric accuracy + our own BRAND.md): in-game numbers are 
 
 1. Ancient-history lore (Mesopotamia/Medici receivables) — first search pass came back statutory-heavy; needs one more Search or keep lore soft ("Siki has read ledgers since Ur").
 2. Chroma Games category list beyond "20. Fighting / Shooter" — check the actual entry form (Dec).
-3. UAE localization (+5 bonus): feasible slice is an **AED currency toggle + a Gulf-market chapter variant**; Arabic voice/subtitling is too heavy pre-Nov 15 → attempt for the Jan 7 Chroma entry instead, unless capacity appears.
+3. UAE localization (+5 bonus): **shipped** as Souq Mode (GDD §4a) — AED display, the statutory interest remedy replaced by a pre-agreed contractual late fee (interest-free framing), and zakat on uncollected receivables as the second cost of deferral. Arabic *voice/subtitling* is still too heavy pre-Nov 15 and stays a Chroma (Jan 7) item; the adaptation does not depend on it, because the rubric rewards the framing, not the translation.
 4. Zoud GDD starter kit = the six sections in `docs/game/GDD.md` + a final PDF published via public link (no login).
 5. **Rotate the Parallel API key** — research batch complete.

@@ -13,7 +13,7 @@
  * Every resolved run is one ch2_* ledger entry with the anchor framing
  * variable and the floor — the IrrationalityProfile's anchoring axis eats it.
  */
-import { statutoryEntitlement } from "../engine/rates";
+import { money, remedy } from "../engine/market";
 import type { LedgerEntry } from "../engine/ledger";
 import { mulberry32, type Rng } from "../engine/rng";
 
@@ -31,16 +31,20 @@ export const RESET_COPY =
 
 export interface Ch2Prospect {
   principal: number;
+  /** The accruing charge — statutory interest (UK) or contractual fee (souq). */
   interest: number;
+  /** Fixed component — statutory compensation (UK) or admin charge (souq). */
   compensation: number;
-  /** principal + interest + compensation — the statutory ceiling today. */
+  /** principal + interest + compensation — the ceiling today, in this market. */
   total: number;
 }
 
-/** The prospect — identical across all runs by construction. */
+/** The prospect — identical across all runs by construction, and identical
+ *  in shape across markets: a ceiling the desk will never meet. Only the
+ *  instrument legal in that market changes (see engine/market.ts). */
 export function ch2Prospect(): Ch2Prospect {
-  const e = statutoryEntitlement(CH2_INVOICE, CH2_DAYS_LATE);
-  return { principal: CH2_INVOICE, interest: e.interest, compensation: e.compensation, total: CH2_INVOICE + e.total };
+  const p = remedy().parts(CH2_INVOICE, CH2_DAYS_LATE);
+  return { principal: CH2_INVOICE, interest: p.fee, compensation: p.admin, total: p.total };
 }
 
 export interface Ch2Run {
@@ -117,7 +121,7 @@ export function ch2LedgerEntry(state: Ch2State, completed: Ch2Run): Omit<LedgerE
     experimentId: `ch2_anchor_r${completed.run}`,
     prompt: `The Claims Desk opens at ${completed.anchor}. Your floor?`,
     optionsShown: [
-      { id: "anchor", label: `Their opening: £${completed.anchor}`, framingVariable: `anchor_${completed.anchor}`, isDefault: true },
+      { id: "anchor", label: `Their opening: ${money(completed.anchor)}`, framingVariable: `anchor_${completed.anchor}`, isDefault: true },
       { id: "floor", label: "Your minimum", framingVariable: "player_floor", isDefault: false },
     ],
     chosenOptionId: completed.walked ? "walk" : completed.settled === null ? "walk" : "accept",
@@ -125,7 +129,7 @@ export function ch2LedgerEntry(state: Ch2State, completed: Ch2Run): Omit<LedgerE
     negotiationFloor: completed.floor ?? undefined,
     immediateConsequence: completed.walked
       ? "Walked. The invoice stays yours."
-      : `Settled at £${completed.settled} against a prospect of £${ch2Prospect().total}.`,
+      : `Settled at ${money(completed.settled ?? 0)} against a prospect of ${money(ch2Prospect().total)}.`,
     // No `npc`: settlement runs are NOT street offers — they are the
     // anchoring experiment itself. The Collector probes separately.
   };
@@ -145,7 +149,7 @@ export function collectorProbe(): { faceValue: number; buyPrice: number; commiss
     faceValue: p.principal,
     buyPrice,
     commissionPct,
-    copy: `"£${buyPrice} today for your thirty-third customer who pays at day ninety. We take ${commissionPct}%. You keep the rest, and lose the relationship."`,
+    copy: `"${money(buyPrice)} today for your thirty-third customer who pays at day ninety. We take ${commissionPct}%. You keep the rest, and lose the relationship."`,
   };
 }
 
@@ -156,7 +160,7 @@ export function collectorLedgerEntry(probe: ReturnType<typeof collectorProbe>, a
     experimentId: "ch2_collector_probe",
     prompt: "The Collector wants to buy the debt outright.",
     optionsShown: [
-      { id: "sell", label: `Sell the debt — £${probe.buyPrice}`, framingVariable: "collector_buy", isDefault: false, cashNow: probe.buyPrice },
+      { id: "sell", label: `Sell the debt — ${money(probe.buyPrice)}`, framingVariable: "collector_buy", isDefault: false, cashNow: probe.buyPrice },
       { id: "keep", label: "Keep the debt", framingVariable: "collector_keep", isDefault: true },
     ],
     chosenOptionId: accepted ? "sell" : "keep",

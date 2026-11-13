@@ -22,6 +22,7 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import { money, remedy, isSouq, zakatNote } from "../engine/market";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch2Deps {
@@ -40,7 +41,7 @@ const DESK_OPENERS = [
   "Last sitting. The desk slides its final number across.",
 ];
 
-const gbp = (v: number) => `£${Math.round(v)}`;
+const gbp = (v: number) => money(v, 0);
 
 export function runChapter2(deps: Ch2Deps, seed: number): void {
   const { state, rng } = createCh2State(seed);
@@ -75,8 +76,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     renderChrome(CH2_INVOICE);
     stage.append(
       el("h3", { text: "Chapter 2 · The Offer" }),
-      el("p", { class: "lm-line siki", text: "One invoice. £1,240. Sixty days aged. Three runs at the same desk." }),
+      el("p", { class: "lm-line siki", text: `One invoice. ${gbp(CH2_INVOICE)}. Sixty days aged. Three runs at the same desk.` }),
       el("p", { class: "lm-hint", text: RESET_COPY }),
+      // The souq market's whole lesson is stated here, before the first
+      // sitting: the ceiling was fixed in your own terms on day one. A judge
+      // who reads only this screen still meets the instrument.
+      ...(isSouq() ? [el("p", { class: "lm-hint", text: remedy().terms })] : []),
       choiceButton("Walk into the office", "Run 1 of 3", () => showRun()),
     );
   }
@@ -242,19 +247,27 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         stage.append(
           el("h3", { text: "The anchor did the work" }),
           el("p", { class: "lm-line siki", text: namedFloors
-            ? `The prospect sat still at ${gbp(ch2Prospect().total)} — every run, same law, same invoice, same 60 days. Your floor moved £${Math.round(move)} across runs. When a number moves your bottom line without touching the facts, that number is not information. It is machinery — anchoring, and its fair face, the ultimatum game.`
+            ? `The prospect sat still at ${gbp(ch2Prospect().total)} — every run, same law, same invoice, same 60 days. Your floor moved ${money(Math.round(move))} across runs. When a number moves your bottom line without touching the facts, that number is not information. It is machinery — anchoring, and its fair face, the ultimatum game.`
             : `The prospect sat still at ${gbp(ch2Prospect().total)} — every run, same law, same invoice, same 60 days. A floor you never set cannot be moved by an anchor. Set yours before the desk sets the frame.` }),
-          el("p", { class: "lm-hint", text: "Their £1,050 opening is not generous. It is an order of battle." }),
+          el("p", { class: "lm-hint", text: `Their ${gbp(1050)} opening is not generous. It is an order of battle.` }),
+          // Souq market: walking leaves the invoice on the books, and books
+          // carry zakat before they carry cash. Practice, hedged — schools
+          // differ on doubtful debts, so this is "commonly", not "always".
+          ...(isSouq() && state.runs.some((r) => r.walked) && zakatNote(CH2_INVOICE)
+            ? [el("p", { class: "lm-hint lm-zakat", text: `You walked at least once, so the invoice is still yours. ${zakatNote(CH2_INVOICE)!}` })]
+            : []),
           choiceButton("Continue", "", next),
         );
       },
       () => {
-        deps.say("zana", "Flip it. Open with the law, not with their number.");
+        deps.say("zana", isSouq()
+          ? "Flip it. Open with your own terms, not with their number."
+          : "Flip it. Open with the law, not with their number.");
         stage.append(
-          el("h3", { text: "The flip: quote the Act first" }),
+          el("h3", { text: isSouq() ? "The flip: quote your terms first" : "The flip: quote the Act first" }),
           el("div", { class: "lm-surface" },
             el("h4", { text: "In writing · dated · no payment promise" }),
-            el("p", { class: "lm-line zana", text: `"Invoice £1,240, 60 days late. Statutory interest 8% over the Bank of England base plus £70 fixed compensation is accruing under the Late Payment of Commercial Debts (Interest) Act 1998. Settle the account total of ${gbp(ch2Prospect().total)}."` }),
+            el("p", { class: "lm-line zana", text: `"Invoice ${gbp(CH2_INVOICE)}, 60 days late. ${remedy().quote(CH2_INVOICE, CH2_DAYS_LATE)} Settle the account total of ${gbp(ch2Prospect().total)}."` }),
             el("p", { class: "lm-hint", text: `Seeded flip run — their best face-saving offer comes to ~${gbp(flip.offer)}. Still short of the Act. Still better than their opening.` }),
           ),
           el("p", { class: "lm-hint", text: "Tool unlocked: FLIP THE ANCHOR — negotiations can now open with your own lawful number." }),

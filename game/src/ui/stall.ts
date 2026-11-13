@@ -7,6 +7,7 @@
  * under it.
  */
 import { el, clear } from "./dom";
+import { money } from "../engine/market";
 
 export interface TillView {
   /** The number to show (a net position, a claim value, the money on the table). */
@@ -40,7 +41,7 @@ export function renderTill(container: HTMLElement, v: TillView): void {
   const wrap = el("div", { class: `lm-till${v.negative ? " lm-till-neg" : ""}${v.glow ? " lm-till-glow" : ""}`, "aria-live": "polite" });
   const num = document.createElement("div");
   num.className = `lm-till-num${v.pop ? " lm-pop" : ""}`;
-  num.textContent = `£${v.value.toFixed(decimals)}`;
+  num.textContent = money(v.value, decimals);
   wrap.append(el("span", { class: "lm-till-cap", text: v.caption ?? "The till" }), num);
   if (v.negative) wrap.append(el("span", { class: "lm-till-warn", text: "▼ in the red" }));
   if (v.note) wrap.append(el("span", { class: "lm-till-warn", text: v.note }));
@@ -58,7 +59,7 @@ export function renderLedger(container: HTMLElement, cards: LedgerCard[]): void 
     wrap.append(
       el("div", { class: cls },
         el("span", { class: "lm-inv-client", text: c.client }),
-        el("span", { class: "lm-inv-amt", text: `£${Math.round(c.amount)}` }),
+        el("span", { class: "lm-inv-amt", text: money(c.amount, 0) }),
         el("span", { class: "lm-inv-status", text: c.status }),
       ),
     );

@@ -70,7 +70,7 @@ describe("finale view-model", () => {
     expect(view.axes).toHaveLength(3);
     expect(view.cost.toStreet).toBe(149);
     expect(view.cost.forgoneStatutory).toBeCloseTo(152.5, 9);
-    expect(view.stats).toBe(UK_STAT_CARDS);
+    expect(view.stats).toEqual(UK_STAT_CARDS);
     expect(view.partial).toBe(false);
   });
 

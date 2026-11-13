@@ -13,6 +13,7 @@
  * one place, not two.
  */
 import { el } from "./dom";
+import { money } from "../engine/market";
 
 export interface StreetCounters {
   /** £ the street earned this session (ch1 shed value + late charges + NPC fees). */
@@ -171,7 +172,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     {
       class: "lm-street",
       role: "img",
-      "aria-label": `The Late Market street: ${lit - shut} stalls lit, ${shut} shuttered, ${total - lit} dark; the stalls have taken £${c.toStreet.toFixed(0)}`,
+      "aria-label": `The Late Market street: ${lit - shut} stalls lit, ${shut} shuttered, ${total - lit} dark; the stalls have taken ${money(c.toStreet, 0)}`,
     },
   );
   for (let i = 0; i < total; i++) {
@@ -204,7 +205,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
   row.append(
     el("span", {
       class: "lm-street-cap",
-      text: ` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — £${Math.round(c.toStreet)} so far`,
+      text: ` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — ${money(c.toStreet, 0)} so far`,
     }),
   );
   return row;

@@ -12,6 +12,7 @@
  * rate of continuation.
  */
 import { quoteFor, statutoryEntitlement, DEFAULT_BASE_RATE_PCT } from "../engine/rates";
+import { isSouq, money } from "../engine/market";
 import type { LedgerEntry } from "../engine/ledger";
 
 export const CH3_CLIENT = "Mareline Charters";
@@ -100,8 +101,8 @@ export function ch3LedgerEntry(state: Ch3State, round: Ch3Round): Omit<LedgerEnt
     deferred: walked,
     npc: undefined,
     immediateConsequence: walked
-      ? `The account closes. The £${ch3Prospect().total.toFixed(0)} prospect needs no apology to survive.`
-      : `Put in £${round.costPaid} this round. Nobody said "stop", so the round ends open.`,
+      ? `The account closes. The ${money(ch3Prospect().total)} prospect needs no apology to survive.`
+      : `Put in ${money(round.costPaid)} this round. Nobody said "stop", so the round ends open.`,
     deferredConsequence: walked ? undefined : "The quiet cost repeats while silence continues.",
   };
 }
@@ -138,7 +139,7 @@ export function streetLedgerEntry(
     chapter: 3,
     day: 48,
     experimentId: npc === "The Factor" ? "ch3_street_factor" : "ch3_street_shark",
-    prompt: npc === "The Factor" ? `${npc} offers instant cash at a £${feePaid} shave.` : `${npc} advances cash against a fixed daily repayment.`,
+    prompt: npc === "The Factor" ? `${npc} offers instant cash at a ${money(feePaid)} shave.` : `${npc} advances cash against a fixed daily repayment.`,
     optionsShown: [
       { id: "accept", label: "Take the street's money", framingVariable: `street_${npc.toLowerCase().replace("the ", "")}`, isDefault: false, cashNow: npc === "The Shark" ? streetOffers().shark.cashNow : streetOffers().factor.buyPrice },
       { id: "decline", label: "Keep the debt", framingVariable: "street_decline", isDefault: true },
@@ -149,7 +150,7 @@ export function streetLedgerEntry(
     immediateConsequence: accepted
       ? npc === "The Shark"
         ? `The daily number stays small. The year does not: ${(streetOffers().shark.annualisedPct / 100).toFixed(1)}× per year, once annualised.`
-        : `Cleared today. Paid for it: £${feePaid} (≈${streetOffers().factor.annualDiscountPct}%/yr cost of impatience).`
+        : `Cleared today. Paid for it: ${money(feePaid)} (≈${streetOffers().factor.annualDiscountPct}%/yr cost of impatience).`
       : "Declined. The street's stalls stay lit either way.",
   };
 }
@@ -157,5 +158,7 @@ export function streetLedgerEntry(
 /** Used in the assumptions sheet + tests: the Act's maths at the base rate. */
 export function assumptionsLine(): string {
   const p = ch3Prospect();
-  return `Statutory entitlement at 8% over base (${DEFAULT_BASE_RATE_PCT}% BoE): £${p.entitlement} on a £${p.principal} debt at ${CH3_DAYS_LATE} days (simplified; Late Payment Act 1998 s.5A).`;
+  return isSouq()
+    ? `Contractual late fee in your own terms: ${money(p.entitlement)} on a ${money(p.principal)} debt at ${CH3_DAYS_LATE} days (simplified; 2% per 30 days, capped at 8%, plus a fixed administration charge).`
+    : `Statutory entitlement at 8% over base (${DEFAULT_BASE_RATE_PCT}% BoE): ${money(p.entitlement)} on a ${money(p.principal)} debt at ${CH3_DAYS_LATE} days (simplified; Late Payment Act 1998 s.5A).`;
 }

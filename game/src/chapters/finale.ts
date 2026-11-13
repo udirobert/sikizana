@@ -4,6 +4,7 @@
  * DecisionLedger — never separate state. No DOM in this file.
  */
 import { irrationalityProfile, type DecisionLedger, type IrrationalityProfile, type LedgerEntry } from "../engine/ledger";
+import { isSouq } from "../engine/market";
 
 export type AxisKey = "deferral" | "anchoring" | "sunkCost";
 
@@ -22,6 +23,25 @@ export interface StatCard {
   value: string;
   label: string;
   source: string;
+}
+
+export const SOUQ_STAT_CARDS: StatCard[] = [
+  {
+    value: "58%",
+    label: "of the value of UAE B2B invoices is overdue",
+    source: "Atradius Payment Practices Barometer — United Arab Emirates, 2025",
+  },
+  {
+    value: "8%",
+    label: "of that invoice value is written off as bad debt",
+    source: "Atradius Payment Practices Barometer — United Arab Emirates, 2025",
+  },
+];
+
+/** The stat cards follow the market being played — a Gulf run does not end
+ *  on British invoice statistics. */
+export function statCards(): StatCard[] {
+  return isSouq() ? SOUQ_STAT_CARDS : UK_STAT_CARDS;
 }
 
 export const UK_STAT_CARDS: StatCard[] = [
@@ -61,8 +81,12 @@ export function verdictLine(profile: IrrationalityProfile): Verdict {
   switch (top.key) {
     case "anchoring":
       return {
-        siki: "Your week in one line: their opening number moved your bottom line more than the law did.",
-        zana: "Quote the Act first. Open with your number, not theirs.",
+        siki: isSouq()
+          ? "Your week in one line: their opening number moved your bottom line more than your own terms did."
+          : "Your week in one line: their opening number moved your bottom line more than the law did.",
+        zana: isSouq()
+          ? "Open with your number, and the fee you wrote into the terms."
+          : "Quote the Act first. Open with your number, not theirs.",
       };
     case "sunkCost":
       return {
@@ -156,7 +180,7 @@ export function buildFinaleView(ledger: DecisionLedger): FinaleView {
     profile,
     axes: axisEvidence(ledger, profile),
     cost: ledger.costOfNotActing(),
-    stats: UK_STAT_CARDS,
+    stats: statCards(),
     partial: !(hasCh1 && hasCh2 && hasCh3),
   };
 }

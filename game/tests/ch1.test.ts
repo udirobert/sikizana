@@ -98,7 +98,8 @@ describe("ch1 day shape (5-day stall screen)", () => {
     }
     const c = dayChoices(state, 4);
     expect(c.find((x) => x.kind === "pay_bill")!.label).toContain(BILL.client);
-    expect(c.find((x) => x.kind === "pay_bill")!.label).toContain(`£${BILL.amount}`);
+    // Display goes through the market formatter, so thousands are grouped.
+    expect(c.find((x) => x.kind === "pay_bill")!.label).toContain(`£${BILL.amount.toLocaleString("en-GB")}`);
     expect(c.some((x) => x.kind === "skip_bill")).toBe(true);
   });
 
@@ -110,9 +111,9 @@ describe("ch1 day shape (5-day stall screen)", () => {
     }
     const aChase = dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!;
     expect(aChase.invoiceId).toBe("inv-a");
-    expect(aChase.detail).toBe(`Chase — the full £2400 lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`);
+    expect(aChase.detail).toBe(`Chase — the full £2,400 lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`);
     expect(dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the full £2400 lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
+      `Defer — the full £2,400 lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
     );
     // Day 3's NEAR payoff lands IN the week (on the till); its defer lands after.
     expect(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS).toBeLessThanOrEqual(CH1_DAYS);
@@ -123,9 +124,9 @@ describe("ch1 day shape (5-day stall screen)", () => {
     resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "fun")!.id);
     const bChase = dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!;
     expect(bChase.invoiceId).toBe("inv-b");
-    expect(bChase.detail).toBe(`Chase — the full £2400 lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`);
+    expect(bChase.detail).toBe(`Chase — the full £2,400 lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`);
     expect(dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the full £2400 lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
+      `Defer — the full £2,400 lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
     );
     // The days are numerically identical — no button leaks which is "better."
     expect(PAIR_A_CHASE_CLEAR_DAYS).toBe(PAIR_B_CHASE_CLEAR_DAYS);
