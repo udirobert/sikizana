@@ -20,6 +20,7 @@ import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 import { getMarketMode, loadStoredMarketMode, resolveMarketMode, setMarketMode, type MarketMode } from "./engine/market";
 import { chapterReached, runFinished, sendTelemetry } from "./engine/telemetry";
+import { installChoiceKeys } from "./ui/keys";
 
 // Market is resolved before anything renders: ?market=souq (trailer/deep link)
 // wins, then the saved choice. Switching it at the title clears stale progress
@@ -169,6 +170,9 @@ function renderStreet(): void {
   const counters = streetCounters();
   const { lit } = streetState(counters);
   const row = renderStreetRow(counters);
+  // The run's shape rides along with the street (same node, re-parented on
+  // every rebuild) so "where am I" never needs its own bar.
+  if (progressEl) row.append(progressEl);
   // The stall that just changed flares once (recovery plan §3: the street
   // changes *when* you leave it — the player should see the stall move). If
   // it's a named stallholder, that character steps up with a line. Track the
@@ -221,6 +225,54 @@ function actorStepUp(name: string, kind: "factor" | "collector" | "shark", line:
   window.setTimeout(() => { if (slot.contains(bubble)) slot.replaceChildren(); }, 6000);
 }
 
+/**
+ * The run has a shape, and a player should be able to see it without having
+ * read the store page: three chapters and a close. The chip lives in the
+ * street strip (the place is the map) and the act card names each chapter as
+ * a scene change — two seconds, non-blocking, then gone. Chapter 1 gets no
+ * card: the title screen has just done that job, and the cold open is the
+ * first thing a player should meet.
+ */
+const CHAPTERS: Record<1 | 2 | 3, string> = { 1: "The Stall", 2: "The Offer", 3: "Good Money After Bad" };
+
+let progressEl: HTMLElement | null = null;
+
+function setProgress(label: string, reached: number): void {
+  if (!progressEl) return;
+  const dots = "●".repeat(reached).padEnd(3, "○");
+  progressEl.replaceChildren(
+    elSpan("lm-progress-dots", dots),
+    elSpan("lm-progress-label", label),
+  );
+}
+
+function elSpan(cls: string, text: string): HTMLSpanElement {
+  const s = document.createElement("span");
+  s.className = cls;
+  s.textContent = text;
+  return s;
+}
+
+function actCard(n: 1 | 2 | 3 | "finale"): void {
+  if (n === 1) return; // the title screen was the card
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  let host = document.getElementById("lm-act");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "lm-act";
+    host.setAttribute("aria-hidden", "true"); // the chapter heading already announces it
+    game.append(host);
+  }
+  const card = document.createElement("div");
+  card.className = "lm-act-card";
+  card.append(
+    elSpan("lm-act-eyebrow", n === "finale" ? "The week closes" : `Chapter ${n} of 3`),
+    elSpan("lm-act-title", n === "finale" ? "Market Close" : CHAPTERS[n]),
+  );
+  host.replaceChildren(card);
+  window.setTimeout(() => { if (host?.contains(card)) host.replaceChildren(); }, 2000);
+}
+
 /** Chapter sequence — one shared frame, nothing resets between chapters. */
 function beginChapter(n: 1 | 2 | 3): void {
   const root = document.querySelector<HTMLElement>(`#ch${n}`) ?? (() => {
@@ -231,6 +283,8 @@ function beginChapter(n: 1 | 2 | 3): void {
     return r;
   })();
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== `ch${n}`;
+  actCard(n);
+  setProgress(`Chapter ${n} of 3 · ${CHAPTERS[n]}`, n);
   // Funnel point: how far a visitor got. Anonymous, four events a run at most.
   sendTelemetry(chapterReached(n === 1 ? "ch1" : n === 2 ? "ch2" : "ch3"));
 
@@ -294,7 +348,10 @@ function begin(withSound: boolean): void {
   start.hidden = true;
   game.hidden = false;
 
-  // Persistent street strip sits above whatever chapter is running.
+  // Persistent street strip sits above whatever chapter is running. The
+  // progress chip is created first: renderStreet re-parents it into the row.
+  progressEl = document.createElement("span");
+  progressEl.className = "lm-progress";
   const streetSlot = document.createElement("div");
   streetSlot.id = "street-slot";
   game.append(streetSlot);
@@ -313,6 +370,9 @@ function begin(withSound: boolean): void {
     if (n === 3) return finale();
     beginChapter((n + 1) as 2 | 3);
   });
+
+  // The keyboard is a first-class way to play: 1–3 pick, Enter continues.
+  installChoiceKeys(game);
 
   // Dev/trailer jump: ?ch=2 starts mid-board without the 20-day replay.
   const jump = Number(new URLSearchParams(location.search).get("ch") ?? 1);
@@ -377,6 +437,8 @@ function finale(): void {
     game.append(review);
   }
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "finale";
+  actCard("finale");
+  setProgress("Market close", 3);
   runFinale({
     root: review,
     say,

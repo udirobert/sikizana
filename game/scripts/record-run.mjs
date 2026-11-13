@@ -28,7 +28,8 @@ const PORT = 8791;
 const PAGE_URL = `http://127.0.0.1:${PORT}/`;
 
 const flagVal = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
-const mode = flagVal("--mode") === "video" ? "video" : flagVal("--mode") === "finale" ? "finale" : "shots";
+const MODE_ARG = flagVal("--mode");
+const mode = MODE_ARG === "video" ? "video" : MODE_ARG === "finale" ? "finale" : MODE_ARG === "ui" ? "ui" : "shots";
 const OUT = flagVal("--out") ?? join(ROOT, "screenshots");
 // Trailer segments (concat with ffmpeg): --seg a starts at the title and
 // plays ch1→ch2-run-2; --seg b starts fresh at ?ch=3 and plays Mareline→Shark.
@@ -290,8 +291,83 @@ async function finale() {
   await shot("v2_finale_cost.png"); // Cost of Not Acting + Rationality Delta
 }
 
+// ── UI mode: keyboard + chapter-2 trail, asserted headlessly (npm run build) ─
+async function uiProbe() {
+  const fails = [];
+  const check = (ok, label, extra = "") => {
+    console.log(`${ok ? "ok  " : "FAIL"} ${label}${ok ? "" : ` — ${extra}`}`);
+    if (!ok) fails.push(label);
+  };
+  const press = async (key, code, vk) => {
+    const common = { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+    await send("Input.dispatchKeyEvent", { type: "keyDown", ...common, ...(key.length === 1 ? { text: key, unmodifiedText: key } : {}) });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", ...common });
+    await sleep(420);
+  };
+  const dayHeading = () => evalJs(`(document.querySelector("#ch1 .lm-day h3")||{}).textContent||""`);
+
+  await sleep(2200);
+  await clickByText("Begin — sound on"); await sleep(2400);
+  await clickByText("Open the shutters"); await sleep(1400);
+
+  const caps = await evalJs(`[...document.querySelectorAll("#ch1 .lm-choice")].map((b) => (b.dataset.key || "-") + ":" + (b.querySelector(".lm-choice-label") || {}).textContent)`);
+  check(Array.isArray(caps) && caps.length >= 2 && caps.every((c) => /^[1-9]:/.test(c)), "visible choices carry 1..n keycaps", JSON.stringify(caps));
+  const prog = await evalJs(`(document.querySelector(".lm-progress") || {}).textContent || ""`);
+  check(/Chapter 1 of 3/.test(prog) && /The Stall/.test(prog), "the run's shape is on screen", prog);
+
+  await press("1", "Digit1", 49);
+  check(/Day 1 closed/.test(await dayHeading()), "key 1 resolves the day");
+  await press("Enter", "Enter", 13);
+  check(/Day 2 of 5/.test(await dayHeading()), "Enter takes a lone choice");
+
+  // The finale's outbound door is an <a class="lm-choice">: it must never take a
+  // key, or a stray press would navigate someone off the ending.
+  await evalJs(`(() => { const a = document.createElement("a"); a.className = "lm-choice"; a.href = "#nope"; a.textContent = "door"; a.id = "lm-door-probe"; document.querySelector("#ch1").append(a); return true; })()`);
+  await sleep(150);
+  const doorKey = await evalJs(`(document.getElementById("lm-door-probe") || {}).dataset?.key || "none"`);
+  check(doorKey === "none", "the outbound door never takes a key", doorKey);
+  await evalJs(`document.getElementById("lm-door-probe")?.remove()`);
+
+  const count = await evalJs(`document.querySelectorAll("#ch1 .lm-choice[data-key]").length`);
+  check(count >= 2, "renumbering survives the re-render", String(count));
+
+  // Past the keyboard: play out the week and reach chapter 2's counter, where
+  // the desk's numbers are supposed to stack into a visible trail.
+  const pick = async (needle, dwell = 1600) => { await clickByText(needle); await sleep(dwell); };
+  await pick("Reply to the morning emails");
+  await pick("Next day");
+  await pick("Leave it for tomorrow", 1200);
+  await pick("Next day");
+  await pick("Leave the bill", 1200);
+  await pick("Next day");
+  await pick("Chase", 1200);
+  await pick("Close the books");
+  await pick("Look at the books");
+  await pick("Continue");
+  await pick("Continue");
+  await pick("Close the books", 2200);
+  await pick("Walk into the office");
+  await evalJs(`(() => { const i = document.querySelector("input[type=number]"); if (i) { i.value = "1100"; i.dispatchEvent(new Event("input")); } return true; })()`);
+  await pick("Set the floor", 1200);
+  const before = await evalJs(`document.querySelectorAll(".lm-trail").length`);
+  check(before === 0, "no trail before the desk moves", String(before));
+  await pick("Say it isn't enough", 1200);
+  const trail = await evalJs(`[...document.querySelectorAll(".lm-trail .lm-trail-num")].map((n) => n.textContent)`);
+  check(Array.isArray(trail) && trail.length === 2, "the desk's numbers stack into a trail", JSON.stringify(trail));
+  const prog2 = await evalJs(`(document.querySelector(".lm-progress") || {}).textContent || ""`);
+  check(/Chapter 2 of 3/.test(prog2), "progress follows the chapter", prog2);
+
+  if (fails.length) {
+    console.error(`\n${fails.length} probe(s) failed: ${fails.join(", ")}`);
+    process.exitCode = 1;
+  } else {
+    console.log("\nui probe: all checks passed");
+  }
+}
+
 try {
   if (mode === "video") await recordVideo();
+  else if (mode === "ui") await uiProbe();
   else if (mode === "shots") await shots();
   else await finale();
 } catch (e) {

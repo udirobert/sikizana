@@ -34,6 +34,19 @@ export interface LedgerCard {
   tone?: "overdue" | "chased" | "bill" | "dead";
 }
 
+/**
+ * The last number drawn per till, so a figure that changes ARRIVES instead of
+ * teleporting. This is presentation only — the sim owns every value — but it
+ * is the whole feel of chapter 2: the desk's number sliding up toward your
+ * floor is the anchor doing its work, and a number that just swaps shows the
+ * player nothing. (Ch.1 has its own three-line till with the same motion.)
+ */
+const lastDrawn = new WeakMap<HTMLElement, number>();
+const TWEEN_MS = 520;
+
+const prefersReducedMotion = (): boolean =>
+  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
 /** Render the till (a live number with an optional liability note) into `container`. */
 export function renderTill(container: HTMLElement, v: TillView): void {
   clear(container);
@@ -41,7 +54,21 @@ export function renderTill(container: HTMLElement, v: TillView): void {
   const wrap = el("div", { class: `lm-till${v.negative ? " lm-till-neg" : ""}${v.glow ? " lm-till-glow" : ""}`, "aria-live": "polite" });
   const num = document.createElement("div");
   num.className = `lm-till-num${v.pop ? " lm-pop" : ""}`;
-  num.textContent = money(v.value, decimals);
+  const from = lastDrawn.get(container);
+  lastDrawn.set(container, v.value);
+  const tween = from !== undefined && from !== v.value && !prefersReducedMotion();
+  num.textContent = money(tween ? from : v.value, decimals);
+  if (tween) {
+    const t0 = performance.now();
+    const step = (t: number) => {
+      const p = Math.min(1, (t - t0) / TWEEN_MS);
+      const e = 1 - Math.pow(1 - p, 3); // ease-out cubic: fast first, settles
+      num.textContent = money(from + (v.value - from) * e, decimals);
+      if (p < 1) requestAnimationFrame(step);
+      else num.textContent = money(v.value, decimals); // land exactly on the sim's number
+    };
+    requestAnimationFrame(step);
+  }
   wrap.append(el("span", { class: "lm-till-cap", text: v.caption ?? "The till" }), num);
   if (v.negative) wrap.append(el("span", { class: "lm-till-warn", text: "▼ in the red" }));
   if (v.note) wrap.append(el("span", { class: "lm-till-warn", text: v.note }));

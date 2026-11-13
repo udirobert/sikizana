@@ -144,12 +144,21 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       el("h3", { text: `Run ${run.run + 1}: on the table` }),
       el("p", { class: "lm-cash", text: gbp(latest) }),
       ...(run.counters.length > 0 ? [el("p", { class: "lm-line desk", text: "The desk slides a new number across. No comment." })] : []),
+      // The trail: every number the desk has put down this sitting, in order.
+      // Only THEIR numbers — the prospect stays hidden until the debrief — so
+      // the player can watch the anchor climb while playing, instead of only
+      // meeting it as a chart afterwards. The floor is a decision aid, not a
+      // rule: accepting under it is allowed, and said out loud.
+      ...(run.counters.length > 0 ? [trailRow(run.anchor, run.counters)] : []),
       el("p", { class: "lm-hint", text: `Your floor: ${run.floor === null ? "not set" : gbp(run.floor)}` }),
     );
     if (!canCounter) stage.append(el("p", { class: "lm-hint", text: "The desk spreads its hands. It will not move further." }));
+    const underFloor = run.floor !== null && latest < run.floor;
     stage.append(
       el("div", { class: "lm-choices" },
-        choiceButton("Accept " + gbp(latest), "The invoice clears at their number", () => {
+        choiceButton("Accept " + gbp(latest), underFloor
+          ? `Under your floor of ${gbp(run.floor!)} — clears at their number anyway`
+          : "The invoice clears at their number", () => {
           accept(state);
           deps.record(ch2LedgerEntry(state, snapshot(run)));
           nextRun();
@@ -169,6 +178,20 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         }),
       ),
     );
+  }
+
+  /** The desk's numbers this sitting, as a trail (their opening first). */
+  function trailRow(anchor: number, counters: number[]): HTMLElement {
+    const row = el("div", { class: "lm-trail", "aria-label": "The desk's numbers this sitting" });
+    const all = [anchor, ...counters];
+    all.forEach((n, i) => {
+      if (i > 0) row.append(el("span", { class: "lm-trail-sep", "aria-hidden": "true", text: "→" }));
+      row.append(el("span", {
+        class: `lm-trail-num${i === all.length - 1 ? " lm-trail-now" : ""}`,
+        text: gbp(n),
+      }));
+    });
+    return row;
   }
 
   function snapshot(r: ReturnType<typeof currentRun>) {

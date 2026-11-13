@@ -88,7 +88,7 @@ Each offer shows indicative real-world ranges in its Siki card (factoring ~6.75�
 - **Setting/lore:** a coastal night market where your books *are* the market. One recurring street scene, revisited between chapters. Siki's history panels ("ledgers since Ur" — soft lore, high texture): bills of exchange, the Medici correspondents, and the UK Statute of 1998 read as ledger entries.
 - **Tone:** warm dread. Losing shouldn't read as moral failure — the street's warmth makes the exploitation *sociable*, which is the point.
 - **Audio:** two persistent ElevenLabs voices (Siki/Zana), one instrumental loop for market ambience, four-five foley one-shots. All pre-baked.
-- **Accessibility (the +5 rubric bonus):** a labelled market picker before play, subtitles always on, all audio optional (never required to proceed), adjustable text size, simple-language mode, keyboard-complete play, no colour-only state, skip/fast-forward on every timed beat, mute + restart. This is by design from day 1; not a checklist at the end.
+- **Accessibility (the +5 rubric bonus):** a labelled market picker before play, subtitles always on, all audio optional (never required to proceed), adjustable text size, simple-language mode, keyboard-complete play (every visible choice carries a keycap: `1`–`9` picks it, `Enter` continues — clicking always works too, and the outbound door never takes a key), no colour-only state, skip/fast-forward on every timed beat, mute + restart. This is by design from day 1; not a checklist at the end.
 - **Intro cinematic:** 10–20s moonrise over the street (2–4 Kling/PixVerse shots, AI-generated; poster + skip). Falls back to a still image.
 
 ### 4a. Souq Mode — the Gulf market (the +5 localisation bonus, shipped)
