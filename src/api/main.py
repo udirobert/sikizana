@@ -35,6 +35,7 @@ from src.api.routes import (
     check,
     context,
     data,
+    game_telemetry,
     memory,
     portal,
     prefs,
@@ -127,6 +128,7 @@ app.include_router(data.router)
 app.include_router(automation.router)
 app.include_router(cafe.router)  # hackathon spike: café Monday Briefing
 app.include_router(check.router)  # agentic quick check lead magnet
+app.include_router(game_telemetry.router)  # anonymous game funnel counter
 app.include_router(portal.router)  # token-scoped read API for the erp.ai portal
 
 # Backwards-compatibility re-exports: existing tests import these helpers

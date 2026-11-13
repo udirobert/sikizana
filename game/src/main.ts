@@ -19,6 +19,7 @@ import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetC
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 import { getMarketMode, loadStoredMarketMode, resolveMarketMode, setMarketMode, type MarketMode } from "./engine/market";
+import { chapterReached, runFinished, sendTelemetry } from "./engine/telemetry";
 
 // Market is resolved before anything renders: ?market=souq (trailer/deep link)
 // wins, then the saved choice. Switching it at the title clears stale progress
@@ -230,6 +231,8 @@ function beginChapter(n: 1 | 2 | 3): void {
     return r;
   })();
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== `ch${n}`;
+  // Funnel point: how far a visitor got. Anonymous, four events a run at most.
+  sendTelemetry(chapterReached(n === 1 ? "ch1" : n === 2 ? "ch2" : "ch3"));
 
   if (n === 1) {
     runChapter1(
@@ -358,6 +361,10 @@ function finale(): void {
   const delta = prev ? { score: prev.score - score, improved: prev.score - score > 0 } : null;
   // Only a complete run may set the baseline — a partial/jumped run would
   // post an unbeatable score-0 "best" and poison every future delta.
+  const replay = prev !== null;
+  // The run is over — one event with the two things a post can quote: how many
+  // finished, and whether a second run was better than the first.
+  sendTelemetry(runFinished(delta ? delta.score : null, view.partial, replay));
   if (!view.partial && (!prev || score < prev.score)) {
     saveBestProfile({ score, ...view.profile, at: new Date().toISOString(), verdictSiki: verdictLine(view.profile).siki });
   }

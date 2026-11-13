@@ -34,6 +34,11 @@ Every decision is recorded in a visible ledger, and the finale reads it back:
 where you leaned, what the street kept, and your week in one line. Then run
 it back and beat your Rationality Delta.
 
+**Privacy.** The game stores nothing about you: your run lives in your browser only.
+It counts how far a run got, which market you played, and whether a replay beat your
+first — five anonymous fields, no cookies, no ids, no IP. Do Not Track switches it off,
+as does `?notelemetry=1`. The arithmetic is audited in public, figure by figure.
+
 **Two markets.** Play in pounds with the UK's statutory late-payment interest,
 or in dirhams where interest is not on the table: the Gulf run prices lateness
 with a contractual fee you agreed to in your own terms — and charges zakat on

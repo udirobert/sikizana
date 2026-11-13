@@ -84,6 +84,38 @@ The fiction is bounded by the same rules as the product (`docs/REGULATORY_PERIME
   the player never executes a payment.
 - The ending links to a **read-only** product surface that moves nothing without the user.
 
+## What the game measures about you
+
+The store page claims this is a funnel into a real tool, so the game counts its own
+funnel. That is a measurement of **runs**, not of people, and the full payload is five
+fields:
+
+| Field | Value | Why |
+|---|---|---|
+| `event` | `chapter_reached` or `run_finished` | did a run start, and did it finish |
+| `stage` | `ch1` · `ch2` · `ch3` · `finale` | how far the run got |
+| `market` | `uk` · `souq` | which lawful remedy was played |
+| `delta` | a number, or null | whether a replay beat the first attempt (one decimal) |
+| `replay` / `partial` | true · false | second run, or an incomplete ledger |
+
+**Not collected:** cookies, a session or device id, an IP address (the collector
+rate-limits by IP and stores none), a user-agent string, a referrer, free text, or any
+cross-site identifier. Four events per run, at most. Nothing is joined to the product
+account and nothing follows you out of the game.
+
+**Three ways it is off**, and all three are honoured in `src/engine/telemetry.ts` rather
+than promised in a policy:
+
+1. the build has no endpoint configured (the plain `npm run build` is telemetry-free —
+   only the release build sets one),
+2. your browser sends **Do Not Track**,
+3. the URL carries `?notelemetry=1`.
+
+Where it goes: `POST /api/game/telemetry` on our own domain, one line of JSON per event
+in a file we delete when the jam is over. The aggregate is readable only with an
+operator key. Click-through to the product is measured separately by the UTM tag on the
+finale link, which is a normal outbound link and behaves like one.
+
 ## Regenerating the shared vectors
 
 `game/tests/fixtures/product-vectors.json` is generated from Sikizana's own rate module,
