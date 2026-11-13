@@ -10,3 +10,10 @@ public/audio/
 
 # Audition references — binary, archived outside git (see VOICE_PIPELINE §7b)
 design/auditions/*.mp3
+
+# Trailer + segment videos — large binaries, regenerable via
+# scripts/record-run.mjs (+ bake-narration.mjs for the VO). The narration
+# script (narration_script.txt) stays tracked as the source; keep a local
+# copy of lm_run.mp4 / lm_run_silent.mp4 for the Zoud upload.
+game-video/*.mp4
+game-video/narration.mp3

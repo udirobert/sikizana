@@ -9,7 +9,7 @@ Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public 
 | Artifact | Path | Status |
 |---|---|---|
 | itch.zip | `game/dist/itch.zip` | 91 files · top-level `index.html` · relative paths · audio included · ~6.0 MB |
-| Gameplay video | `game/game-video/lm_run.mp4` | ~105 s (cap is 2:00) · narrated (trailer VO, workspace Siki voice, blind to the frame) · title → Day 1 place → Day 3 pair → Day 4 bill stress → Day 5 pair B → debrief → Ch2 Claims Desk (run 1 + run-2 opener) → Ch3 Mareline → Factor beat → Shark close · silent cut kept as `lm_run_silent.mp4` |
+| Gameplay video | `game/game-video/lm_run.mp4` (local-only, gitignored — keep on disk for upload) | ~105 s (cap is 2:00) · narrated (trailer VO, workspace Siki voice, blind to the frame) · title → Day 1 place → Day 3 pair → Day 4 bill stress → Day 5 pair B → debrief → Ch2 Claims Desk (run 1 + run-2 opener) → Ch3 Mareline → Factor beat → Shark close · silent cut kept as `lm_run_silent.mp4` |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
 | Screenshots | `game/screenshots/v5/*.png` | 10 genuine gameplay frames (day 1 / day 2 defer / day 3 pair + chased / day 4 bill / day 5 pair B / debrief ×3 / Factor actor) |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
