@@ -168,12 +168,13 @@ Each chapter pairs **structurally symmetric** choices and changes exactly one va
 - **Setup:** a 3-year client (always 60 late) gone silent. The frame is relationship depth — every UI element highlights what you already put in.
 - **Engineered structure:** escalate/continue costs more resources than the prospect view supports; a rational replay exists and the debrief contrasts your choice with the prospective-only ledger ("decide at zero").
 - **Debrief:** show the decision twice — once with sunk-weighted framing, once prospective. Acknowledge sensible cases for continued investment.
-- **NPC scenes:** *The Factor* and *The Shark* compete in the street while this decision runs.
+- **NPC scenes:** *The Factor* and *The Shark* step up in turn, each as a full-screen beat — one character, one number, one decision. The Factor's instant cash lands big in green (relief); the Shark's daily number lands big in red (the drip). Same staging, mirrored meaning.
 
 ## A5. Finale — *You Were the Experiment / Market Close*
 
 - Full ledger aggregation → the street assembles for a final shot → stalls shutter one by one as the last invoice pays → quiet card: *"The Late Market never sleeps. Either you fetch it, or you discount it."*
 - **Irrationality Profile** card: three bars (deferral / anchoring / sunk), each with one line from your own choices and a 'name that'.
+- **Your week in one line:** a quotable verdict between the profile and the cost — Siki names the dominant lean from your own data, Zana gives the counter-move. The title screen reads your best week back (score, date, verdict) as the score-chase hook.
 - **Siki's last line** is honest about structure: *"Some of this was not you. Some months, there simply isn't enough. Then the fix isn't willpower — it's survival support. Ask early; it works better."* (Till Next Bill-derived guard against shame framing.)
 
 ## A6. Cost of Not Acting ledger (meta-progression)

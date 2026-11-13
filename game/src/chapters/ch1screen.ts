@@ -20,9 +20,11 @@ import {
   resolveDay,
   deferralLines,
   worthToday,
+  worthAtFraction,
   daysOverdueOn,
   netPosition,
   type Ch1State,
+  type Ch1Invoice,
   type DayEffect,
 } from "./ch1";
 import type { LedgerEntry } from "../engine/ledger";
@@ -58,24 +60,120 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   const dayPanel = el("div", { class: "lm-day" });
   root.append(lantern, till, ledgerStrip, dayPanel);
 
+  // ── The live bleed: the market reprices an overdue invoice CONTINUOUSLY,
+  //    so the cost is felt before the first click (first-minute tension).
+  //    Display-only — it interpolates each overdue card's bid from today's
+  //    value toward next-morning's over a short real-time window, at the TRUE
+  //    rate (the day's shed spread across the day, never an invented faster
+  //    number). The sim and the ledger still accrue on the integer
+  //    `valueShedForDay`; the tick just shows the same arithmetic as it moves,
+  //    and lands EXACTLY on the post-resolve value at the day's end. ────────
+  const live = { raf: 0, startTs: 0, tickMs: 1600, bids: new Map<string, { el: HTMLElement; inv: Ch1Invoice; day: number }>() };
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // ── Till delight: count-up tween + lantern pulse (display-only; the sim
+  //    accrues on integers, the chrome just arrives there gracefully). ──────
+  let prevTill: { cash: number; net: number } | null = null;
+  let lastLantern = 0;
+  let tillToken = 0;
+  // Reactive voices fire once per run — punctuation for firsts, not wallpaper.
+  const reacted = { collect: false, defer: false, bill: false };
+  function tweenMoney(elm: HTMLElement, from: number, to: number, token: number): void {
+    if (reducedMotion || from === to) { elm.textContent = gbp(to); return; }
+    const t0 = performance.now(), dur = 650;
+    const frame = (t: number) => {
+      if (token !== tillToken) return; // a newer render supersedes this tween
+      const p = Math.min(1, (t - t0) / dur);
+      const e = 1 - Math.pow(1 - p, 3);
+      elm.textContent = gbp(from + (to - from) * e);
+      if (p < 1) requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  }
+  /** Week progress dots — the week has a shape, not just a count. */
+  function weekDots(day: number): HTMLElement {
+    return el("span", {
+      "aria-hidden": "true",
+      class: "lm-dots",
+      text: ` ${"●".repeat(day)}${"○".repeat(Math.max(0, CH1_DAYS - day))}`,
+    });
+  }
+
+  /** Which invoices bleed on `day` under the current (pre-choice) state —
+   *  the same predicate `resolveDay` uses for its accrual, so the tick never
+   *  shows the street taking what the ledger doesn't record. */
+  function bleeding(day: number, st: Ch1State): Ch1Invoice[] {
+    return st.invoices.filter((inv) =>
+      (inv.chasedDay === null || inv.chasedDay > day) &&
+      (inv.paidDay === null || inv.paidDay > day) &&
+      day > inv.dueDay);
+  }
+
+  function liveFrame(): void {
+    const p = Math.min(1, (performance.now() - live.startTs) / live.tickMs);
+    for (const { el: span, inv, day } of live.bids.values()) {
+      const n = daysOverdueOn(inv, day);
+      const when = p < 1 ? "today" : "now"; // settles at the day's-end value → "now"
+      span.textContent = `${n} day${n === 1 ? "" : "s"} overdue · the market pays ${gbp0(worthAtFraction(inv, day, p))} ${when}`;
+    }
+    if (p < 1 && live.bids.size > 0) live.raf = requestAnimationFrame(liveFrame);
+    else live.raf = 0;
+  }
+  function startTick(): void {
+    cancelAnimationFrame(live.raf);
+    live.bids.clear();
+    if (reducedMotion || state.done) return; // no live bleed under reduced motion
+    const day = state.day;
+    for (const inv of bleeding(day, state)) {
+      const span = ledgerStrip.querySelector<HTMLElement>(`.lm-inv-card[data-inv="${inv.id}"] .lm-inv-status`);
+      if (span) live.bids.set(inv.id, { el: span, inv, day });
+    }
+    if (live.bids.size === 0) return;
+    live.startTs = performance.now();
+    live.raf = requestAnimationFrame(liveFrame);
+  }
+  function stopTick(): void {
+    cancelAnimationFrame(live.raf);
+    live.raf = 0;
+  }
+
   /** Redraw till + ledger + lantern from state. The street is main's. */
   function renderChrome(pop = false): void {
-    // The till is the NET position: cash minus the unpaid supplier bill. The
-    // bill is the stall's own money, set aside — so skipping it drops the
-    // till by the full amount, not by a caption-sized late charge.
-    const net = netPosition(state);
-    const t = document.createElement("div");
-    t.className = "lm-till-num";
-    t.textContent = gbp(net);
-    if (pop) t.classList.add("lm-pop");
-    const cap = el("span", { class: "lm-till-cap", text: "The till" });
-    till.replaceChildren(cap, t);
-    if (net < 0) {
-      till.append(el("span", { class: "lm-till-warn", text: "▼ the till is in the red" }));
+    // The till is the stall's own books, in three lines a judge can't misread
+    // as "cash in hand": the cash in the drawer, the supplier debt set aside
+    // (face + the late charges grown onto it), and what is truly yours —
+    // IN HAND (cash − unpaid bill). Skipping the bill drops the third line,
+    // not a caption-sized late charge. (Accuracy band: the one number the
+    // player stares at all week must be legible.)
+    const billOwed = state.bill.skippedDay !== null && state.bill.paidDay === null;
+    const owed = billOwed ? state.bill.amount + state.lateFees : 0;
+    const net = netPosition(state);    const tillGrid = el("div", { class: "lm-till-rows" });
+    const token = ++tillToken;
+    const fromCash = prevTill?.cash ?? state.cash;
+    const fromNet = prevTill?.net ?? net;
+    const cashVal = document.createElement("span");
+    cashVal.className = "lm-till-line-val";
+    tillGrid.append(
+      el("div", { class: "lm-till-row" },
+        el("span", { class: "lm-till-line-label", text: "Cash" }),
+        cashVal),
+    );
+    tweenMoney(cashVal, fromCash, state.cash, token);
+    if (billOwed) {
+      tillGrid.append(el("div", { class: "lm-till-row lm-till-row-debt" },
+        el("span", { class: "lm-till-line-label", text: `Owed to ${state.bill.client}` }),
+        el("span", { class: "lm-till-line-val", text: `− ${gbp(owed)}` })));
     }
-    // Show the set-aside bill while it is live, so the drop is legible.
-    if (state.bill.skippedDay !== null && state.bill.paidDay === null) {
-      till.append(el("span", { class: "lm-till-warn", text: `− ${gbp0(state.bill.amount + state.lateFees)} owed to ${state.bill.client}` }));
+    const netVal = document.createElement("span");
+    netVal.className = "lm-till-num lm-till-line-val";
+    if (pop) netVal.classList.add("lm-pop");
+    tweenMoney(netVal, fromNet, net, token);
+    prevTill = { cash: state.cash, net };
+    tillGrid.append(el("div", { class: "lm-till-row lm-till-row-net" },
+      el("span", { class: "lm-till-line-label", text: "In hand" }),
+      netVal));
+    till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), tillGrid);
+    if (net < 0) {
+      till.append(el("span", { class: "lm-till-warn", text: "▼ in hand runs red" }));
     }
     till.classList.toggle("lm-till-neg", net < 0);
 
@@ -93,22 +191,26 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
             ? `pays in ${dd} day${dd === 1 ? "" : "s"}`
             : "pays after this week";
       } else if (inv.dueDay < day) {
-        // The "worth today" FALLS as the invoice ages (GDD §2 discounting
-        // lesson). The count and the value share one formula (daysOverdueOn),
-        // so "N days overdue · worth today £X" is the same arithmetic the
-        // lantern's street take is built from.
+        // The street's live bid FALLS as the invoice ages — what the Factor
+        // would pay to buy it from you RIGHT NOW (GDD §2 discounting lesson
+        // as one UI element). Framing it as a bid, not "worth", keeps it
+        // honest against the chase button, which still offers the full face
+        // value: the invoice is still £1,200; the street would only pay £1,176
+        // to take it off your hands today. The count and the bid share one
+        // formula (daysOverdueOn), so "N days overdue · the market pays £X"
+        // is the same arithmetic the lantern's street take is built from.
         const n = daysOverdueOn(inv, day);
-        status = `${n} day${n === 1 ? "" : "s"} overdue · worth today ${gbp0(worthToday(inv, day))}`;
+        status = `${n} day${n === 1 ? "" : "s"} overdue · the market pays ${gbp0(worthToday(inv, day))} today`;
       } else if (inv.dueDay === day) {
         status = "due today";
       } else {
         status = `due day ${inv.dueDay}`;
       }
       ledgerStrip.append(
-        el("div", { class: `lm-inv-card${inv.chasedDay !== null ? " lm-inv-chased" : " lm-inv-overdue"}` },
+        el("div", { class: `lm-inv-card${inv.chasedDay !== null ? " lm-inv-chased" : " lm-inv-overdue"}`, "data-inv": inv.id },
           el("span", { class: "lm-inv-client", text: inv.client }),
           el("span", { class: "lm-inv-amt", text: gbp0(inv.principal) }),
-          el("span", { class: "lm-inv-status", text: status }),
+          el("span", { class: `lm-inv-status${inv.dueDay < day && inv.chasedDay === null ? " lm-inv-bleed" : ""}`, text: status }),
         ),
       );
     }
@@ -134,8 +236,23 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       );
     }
 
+    ledgerStrip.append(
+      el("details", { class: "lm-key" },
+        el("summary", { text: "How to read the ledger" }),
+        el("p", { class: "lm-hint", text: "Big number = face: what they owe you, and what a chase collects. \"Market pays\" = the street's fictional bid (indicative 2%/day, capped 30%) — the discount for selling the wait. The real legal price arrives in the debrief." }),
+      ),
+    );
+
     const lanternNow = state.streetTake;
     lantern.textContent = lanternNow > 0 ? `· ${gbp(lanternNow)} ·` : "";
+    // The lantern flares once when the street takes more — the cost lands
+    // with a felt pulse, not a silent number swap.
+    if (lanternNow > lastLantern) {
+      lantern.classList.remove("lm-lantern-pulse");
+      void lantern.offsetWidth; // restart the animation
+      lantern.classList.add("lm-lantern-pulse");
+    }
+    lastLantern = lanternNow;
   }
 
   intro();
@@ -144,10 +261,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     const resuming = saved !== null && saved.day > 1;
     deps.say("siki", resuming
       ? `The shutters were left open. Day ${state.day} of ${CH1_DAYS} — the books remember where you stopped.`
-      : "Day one. The books are open. Money is owed to you. Some of it has been owed a while.");
+      : "Day one. Till £1,200. Quayline's £2,000 bill lands Day 4. Something on the ledger is already bleeding.");
     clear(dayPanel);
     dayPanel.append(
-      el("h3", { text: `Day ${state.day} of ${CH1_DAYS}` }),
+      el("h3", { "aria-label": `Day ${state.day} of ${CH1_DAYS}` },
+        `Day ${state.day} of ${CH1_DAYS}`, weekDots(state.day)),
       el("p", { class: "lm-hint", text: resuming
         ? `Back at the counter. The books remember where you stopped.`
         : phrased({
@@ -166,11 +284,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function dayHint(day: number): string {
     switch (day) {
-      case 1: return "The stall is open. Something in the ledger has been waiting a while.";
+      case 1: return "Till £1,200, and the ledger is already overdue. The easy work pays a little now; the chase pays the week.";
       case 2: return "Another invoice is due, and the week keeps moving.";
-      case 3: return "Harborne's invoice is on the desk. It's a big one.";
-      case 4: return `A bill is due today — ${gbp0(state.bill.amount)}. The till is ${gbp(netPosition(state))}.`;
-      case 5: return "The last day of the week. Harborne is on the desk again.";
+      case 3: return "Harborne Print Works is on the desk — £2,400. The easy work is piling up too.";
+      case 4: return `A bill is due today — ${gbp0(state.bill.amount)}. The till is ${gbp(netPosition(state))}. Pay it or leave it.`;
+      case 5: return "Last day. Another Harborne invoice — £2,400. The week closes after this.";
       default: return "The week closes.";
     }
   }
@@ -179,10 +297,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (state.done) return debrief();
     const day = state.day;
     renderChrome();
+    startTick(); // the market reprices the bleeding invoices as the day opens
     const choices = dayChoices(state, day);
     clear(dayPanel);
     dayPanel.append(
-      el("h3", { text: `Day ${day} of ${CH1_DAYS}` }),
+      el("h3", { "aria-label": `Day ${day} of ${CH1_DAYS}` },
+        `Day ${day} of ${CH1_DAYS}`, weekDots(day)),
       el("p", { class: "lm-hint", text: dayHint(day) }),
       el("ul", { class: "lm-day-log" }),
       el("div", { class: "lm-choices" },
@@ -193,6 +313,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function pick(choiceId: string): void {
     if (state.done || state.day > CH1_DAYS) return;
+    stopTick(); // the choice commits the day — the bleed settles on the ledger's value
     const { effects, engineeredEntry } = resolveDay(state, state.day, choiceId);
     if (engineeredEntry) deps.record(engineeredEntry);
     // The street's running tally (the strip's "£X so far"): the value the
@@ -204,6 +325,20 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       billSkipped: effects.streetNote === "bill_skipped",
       collected: effects.collected,
     });
+    // Firsts get a voice: Siki marks money landing, Zana marks the street
+    // being fed and the bill being killed. Text-only when unbaked.
+    if (effects.collected > 0 && !reacted.collect) {
+      reacted.collect = true;
+      deps.say("siki", "There it is — the full face, on your till, not the street's.");
+    }
+    if (effects.streetNote === "deferral" && !reacted.defer) {
+      reacted.defer = true;
+      deps.say("zana", "Noted. The street thanks you — literally.");
+    }
+    if (state.day === 4 && effects.streetNote !== "bill_skipped" && !reacted.bill) {
+      reacted.bill = true;
+      deps.say("zana", "Nobody owns a piece of your week now. Quayline is paid.");
+    }
     finishDay(effects);
   }
 
@@ -283,7 +418,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           }),
           el("p", {
             class: "lm-hint",
-            text: "Watch the ledger: the 'worth today' of each invoice fell while the lantern grew. Same money, two screens. Every collection you made lit a stall off; every deferral lit one on.",
+            text: "Watch the ledger: the market's bid on each invoice fell while the lantern grew — the street would pay less and less to take it off your hands. Same money, two screens. Every collection you made lit a stall off; every deferral lit one on.",
           }),
           choiceButton("Look at the books", "Your own pair, side by side", next),
         );
@@ -293,22 +428,26 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         deps.say("siki", "Let's look at what you did with that pair. Not what a textbook would do. What you did.");
         clear(dayPanel);
         dayPanel.append(
-          el("h3", { text: "Your pair, side by side" }),
+          el("h3", { text: "Your pair, side by side — two invoices, one offer" }),
           el("div", { class: "lm-surface" },
-            ...entries.map((e) =>
+            ...entries.map((e, i) =>
               el("p", {
+                class: "lm-rise",
+                style: `animation-delay:${i * 180}ms`,
                 text: `Day ${e.day}: ${e.prompt} → ${e.chosenOptionId === "fun_now" ? "the easy work" : e.chosenOptionId === "chase_now" ? "chased" : "deferred"}. ${e.immediateConsequence}`,
               }),
             ),
           ),
           el("div", { class: "lm-surface" },
             el("h4", { text: "Every invoice you let sit" }),
-            ...lines.map((l) =>
+            ...lines.map((l, i) =>
               el("p", {
+                class: "lm-rise",
+                style: `animation-delay:${(entries.length + i) * 180}ms`,
                 text: `${l.client} · ${gbp0(l.principal)} · sat ${l.daysLate} day${l.daysLate === 1 ? "" : "s"} unchased — the street kept ${gbp(l.streetTake)} of its value${l.stillOwed ? " (still owed — the number is still moving)" : ""}. The law would have accrued ${gbp0(l.statutory)} over those same days.`,
               }),
             ),
-            el("p", { class: "lm-cash lm-money-out", text: `The street's take this run: ${gbp(streetTake)} — the same money the cards above stopped being worth` }),
+            el("p", { class: "lm-cash lm-money-out lm-rise", style: `animation-delay:${(entries.length + lines.length) * 180}ms`, text: `The street's take this run: ${gbp(streetTake)} — the bid on those invoices fell by exactly that much` }),
           ),
           choiceButton("Continue", "", next),
         );
@@ -318,12 +457,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         deps.say("siki", spoken);
         clear(dayPanel);
         dayPanel.append(
-          el("h3", { text: "The frame did the work" }),
+          el("h3", { text: "What the frame may have done" }),
           el("p", {
             class: "lm-line siki",
             text: phrased({
-              normal: "Both offers were the same choice. The only variable was WHEN the consequence sits. Costs near today feel huge; costs far away feel like rounding. That tilt is present bias — hyperbolic discounting. It is not a character flaw. It is arithmetic your gut does badly.",
-              plain: "Both offers were the same choice, changed only in WHEN the money lands. Things close to today feel big. Things far away feel small. That tilt has a name: present bias.",
+              normal: "One run, two decisions — that can't prove a bias. But both offers were the same choice: the only variable was WHEN the money lands. Costs near today feel huge; costs far away feel like rounding. If you leaned toward the near one, that tilt is called present bias. It is not a character flaw. It is arithmetic your gut does badly.",
+              plain: "One run can't prove a bias. But both offers were the same choice, changed only in WHEN the money lands. Things close feel big; things far feel small. That tilt is called present bias.",
             }),
           }),
           el("p", {

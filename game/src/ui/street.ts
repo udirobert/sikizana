@@ -126,12 +126,42 @@ function stallSvg(kind: StallKind): string {
  * children as text nodes, so the markup must be a Node before it's passed
  * down — otherwise the SVG prints as literal text.
  */
+export function stallFigure(kind: StallKind): SVGElement {
+  return svgNode(stallSvg(kind));
+}
 function svgNode(markup: string): SVGElement {
   const wrap = document.createElement("div");
   wrap.innerHTML = markup;
   const node = wrap.firstElementChild as SVGElement | null;
   if (!node) throw new Error("stall SVG failed to parse");
   return node;
+}
+
+/** One line per stall, by what it is right now — static flavour + live state. */
+function stallNote(kind: StallKind, state: "shut" | "lit" | "dim"): string {
+  if (state === "shut") return "Shuttered — one of your collections closed this stall.";
+  switch (kind) {
+    case "cart": return "The market cart — here before your week, lit by everyone's lateness.";
+    case "awning": return state === "lit"
+      ? "The awning stall — lit by your waiting. Deferrals fund the street."
+      : "The awning stall — dark. Nothing of yours funds it yet.";
+    case "factor": return state === "lit"
+      ? "The Factor's stall — your aged invoices are his stock. He buys the wait."
+      : "The Factor's stall — dark. He sets up when you let invoices age.";
+    case "collector": return state === "lit"
+      ? "The Collector's stall — he buys the customer with the debt still on it."
+      : "The Collector's stall — dark. Nothing to collect yet.";
+    case "shark": return state === "lit"
+      ? "The Shark's stall — a little cash now, a little back each day."
+      : "The Shark's stall — dark. No daily drip to sell you yet.";
+  }
+}
+
+/** Show (or replace) the inspector line under the strip. Re-rendering the
+ *  street replaces the row, which clears the note — fresh state, fresh note. */
+function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" | "dim"): void {
+  row.querySelector(".lm-stall-inspect")?.remove();
+  row.append(el("span", { class: "lm-stall-inspect", role: "status", text: stallNote(kind, state) }));
 }
 
 export function renderStreet(c: StreetCounters): HTMLElement {
@@ -147,11 +177,25 @@ export function renderStreet(c: StreetCounters): HTMLElement {
   for (let i = 0; i < total; i++) {
     const stall = STALLS[i]!;
     const state = i < shut ? "shut" : i < lit ? "lit" : "dim";
+    const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
     const span = el(
       "span",
-      { class: `lm-stall ${state}`, "data-kind": stall.kind, "aria-label": state },
+      {
+        class: `lm-stall ${state}`,
+        "data-kind": stall.kind,
+        role: "button",
+        tabindex: "0",
+        "aria-label": `${stall.name}, ${stateWord}`,
+      },
       svgNode(stallSvg(stall.kind)),
     );
+    // The street is tappable: each stall names itself and says what it means
+    // right now — the place answers back instead of sitting as decoration.
+    const inspect = () => showStallNote(row, stall.kind, state);
+    span.addEventListener("click", inspect);
+    span.addEventListener("keydown", (ev: KeyboardEvent) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); inspect(); }
+    });
     row.append(span);
   }
   // The running tally — the street's money so far (shed value + late charges +

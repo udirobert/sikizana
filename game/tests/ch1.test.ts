@@ -110,9 +110,9 @@ describe("ch1 day shape (5-day stall screen)", () => {
     }
     const aChase = dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!;
     expect(aChase.invoiceId).toBe("inv-a");
-    expect(aChase.detail).toBe(`Chase — the money lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`);
+    expect(aChase.detail).toBe(`Chase — the full £2400 lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`);
     expect(dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the money lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
+      `Defer — the full £2400 lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
     );
     // Day 3's NEAR payoff lands IN the week (on the till); its defer lands after.
     expect(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS).toBeLessThanOrEqual(CH1_DAYS);
@@ -123,9 +123,9 @@ describe("ch1 day shape (5-day stall screen)", () => {
     resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "fun")!.id);
     const bChase = dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!;
     expect(bChase.invoiceId).toBe("inv-b");
-    expect(bChase.detail).toBe(`Chase — the money lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`);
+    expect(bChase.detail).toBe(`Chase — the full £2400 lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`);
     expect(dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the money lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
+      `Defer — the full £2400 lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
     );
     // The days are numerically identical — no button leaks which is "better."
     expect(PAIR_A_CHASE_CLEAR_DAYS).toBe(PAIR_B_CHASE_CLEAR_DAYS);
@@ -153,6 +153,20 @@ describe("ch1 day shape (5-day stall screen)", () => {
 });
 
 describe("ch1 the falling worth + the street's engine", () => {
+  it("the market's bid is honest: never above face, and below face once overdue", () => {
+    const { state } = createCh1State(20261109);
+    for (const inv of state.invoices) {
+      // At/after its due day the bid is face (nothing has aged yet).
+      expect(worthToday(inv, inv.dueDay)).toBe(inv.principal);
+      // One day past due it is strictly below face — the street buys a
+      // discount, it never pays MORE than face (no misleading "worth").
+      expect(worthToday(inv, inv.dueDay + 1)).toBeLessThan(inv.principal);
+      expect(worthToday(inv, inv.dueDay + 1)).toBeGreaterThan(0);
+      // The bid never exceeds face at any age (the 30% cap keeps it bounded).
+      expect(worthToday(inv, inv.dueDay + 40)).toBeLessThanOrEqual(inv.principal);
+    }
+  });
+
   it("worth today falls as the invoice ages, and the card's count matches the curve", () => {
     const { state } = createCh1State(20261109);
     const inv = state.invoices[0]!; // inv-early, dueDay 0

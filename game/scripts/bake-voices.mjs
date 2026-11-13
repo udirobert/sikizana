@@ -68,7 +68,11 @@ async function bake(line) {
   const mp3 = join(OUT, `${line.id}.mp3`);
   const timing = join(OUT, `${line.id}.timing.json`);
   if (!FORCE && existsSync(mp3) && existsSync(timing)) return { id: line.id, skipped: true };
-  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE[line.speaker]}/with-timestamps`, {
+  // NPC stallholders double a narrator's base voice at a shifted character
+  // rate (`tts_voice` + `rate` on the line); Siki/Zana bake on their own.
+  const voiceId = line.tts_voice ?? VOICE[line.speaker];
+  if (!voiceId) throw new Error(`${line.id}: no voice for speaker ${line.speaker}`);
+  const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, {
     method: "POST",
     headers: { "xi-api-key": API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -128,6 +132,7 @@ for (const line of jobs) {
     speaker: line.speaker,
     audio: `audio/${line.id}.mp3`,
     timing: `audio/${line.id}.timing.json`,
+    ...(line.rate && line.rate !== 1 ? { rate: line.rate } : {}),
   };
 }
 writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 1));

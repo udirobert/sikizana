@@ -22,14 +22,23 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import type { Speaker } from "../audio/voice";
 
 export interface Ch2Deps {
   root: HTMLElement;
   record: (e: Omit<LedgerEntry, "id">) => void;
   pairEntries: () => LedgerEntry[]; // ch2_anchor_r* entries
-  say: (speaker: "siki" | "zana", text: string) => void;
+  say: (speaker: Speaker, text: string) => void;
   onTool?: (tool: "flip_the_anchor") => void;
 }
+
+/** The desk speaks (Collector's voice): one static opener per sitting — the
+ *  numbers differ per run, the silence doesn't. Baked; text always lands. */
+const DESK_OPENERS = [
+  "First sitting. The desk slides a number across — no greeting. Numbers first.",
+  "Second sitting. A different number. Same desk, same silence.",
+  "Last sitting. The desk slides its final number across.",
+];
 
 const gbp = (v: number) => `£${Math.round(v)}`;
 
@@ -76,11 +85,20 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const run = currentRun(state);
     clear(stage);
     renderChrome(run.anchor);
+    deps.say("collector", DESK_OPENERS[run.run] ?? DESK_OPENERS[0]!);
+    // The desk remembers: if you named a floor last sitting, it names it
+    // back at you — your number, before their number arrives. Copy only;
+    // the sim never sees this line.
     // No statute on the negotiation screen (recovery plan §4): the anchor is
     // the only number the desk puts on the table. The prospect reveals in the
     // debrief — that is what makes "the facts never moved" land.
+    const prevFloor = run.run > 0 ? state.runs[(run.run - 1) as 0 | 1]?.floor ?? null : null;
     stage.append(
       el("h3", { text: `Run ${run.run + 1} of 3` }),
+      ...(prevFloor !== null ? [el("p", {
+        class: "lm-line desk",
+        text: `Back. Last time your floor was ${gbp(prevFloor)} — set before their number arrived. Set it again: yours, not theirs.`,
+      })] : []),
       el("div", { class: "lm-surface" },
         el("h4", { text: "Their opening — first, as always" }),
         el("p", { class: "lm-cash", text: gbp(run.anchor) }),
@@ -120,6 +138,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     stage.append(
       el("h3", { text: `Run ${run.run + 1}: on the table` }),
       el("p", { class: "lm-cash", text: gbp(latest) }),
+      ...(run.counters.length > 0 ? [el("p", { class: "lm-line desk", text: "The desk slides a new number across. No comment." })] : []),
       el("p", { class: "lm-hint", text: `Your floor: ${run.floor === null ? "not set" : gbp(run.floor)}` }),
     );
     if (!canCounter) stage.append(el("p", { class: "lm-hint", text: "The desk spreads its hands. It will not move further." }));

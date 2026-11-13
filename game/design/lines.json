@@ -1,74 +1,257 @@
 {
   "_comment": "Spoken-line manifest for The Late Market. Source of truth for the Friday bake. Every entry mirrors a deps.say() call site exactly — `text` is the DISPLAY text (what the player reads); spokenText defaults to text (no acting tags in v1 so word-level alignment stays clean). `variants` expands template placeholders into baked line ids. Runtime lookup is by normalized display text.",
   "model_id": "eleven_v4",
-  "voice_settings": { "stability": 0.5, "similarity_boost": 0.75 },
+  "voice_settings": {
+    "stability": 0.5,
+    "similarity_boost": 0.75
+  },
   "dictionary": "voices.json#pronunciation_dictionary (version-pinned at bake time)",
   "lines": [
-    { "id": "ch1_intro_new", "speaker": "siki", "chapter": 1,
-      "text": "Day one. The books are open. Money is owed to you. Some of it has been owed a while." },
-
-    { "id": "ch1_intro_resume", "speaker": "siki", "chapter": 1,
+    {
+      "id": "ch1_intro_new",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "Day one. Till £1,200. Quayline's £2,000 bill lands Day 4. Something on the ledger is already bleeding."
+    },
+    {
+      "id": "ch1_intro_resume",
+      "speaker": "siki",
+      "chapter": 1,
       "text": "The shutters were left open. Day {day} of 5 — the books remember where you stopped.",
-      "variants": { "day": [2, 3, 4, 5] } },
-
-    { "id": "ch1_debrief_replay", "speaker": "siki", "chapter": 1,
-      "text": "Let's look at what you did with that pair. Not what a textbook would do. What you did." },
-
-    { "id": "ch1_debrief_framing_zero", "speaker": "siki", "chapter": 1,
-      "text": "You chased both times. Good. But notice how the same choice felt different when both ends sat further out." },
-
-    { "id": "ch1_debrief_framing_one_d3", "speaker": "siki", "chapter": 1,
-      "text": "1 of the two was deferred (Day 3) — the frame, not the facts, did the work." },
-    { "id": "ch1_debrief_framing_one_d5", "speaker": "siki", "chapter": 1,
-      "text": "1 of the two was deferred (Day 5) — the frame, not the facts, did the work." },
-    { "id": "ch1_debrief_framing_both", "speaker": "siki", "chapter": 1,
-      "text": "2 of the two was deferred (Day 3 and Day 5) — the frame, not the facts, did the work." },
-
-    { "id": "ch1_debrief_deferral", "speaker": "siki", "chapter": 1,
-      "text": "Deferral is not always a trap." },
-
-    { "id": "ch1_debrief_rule", "speaker": "zana", "chapter": 1,
-      "text": "Here's the rule. Say it until it's boring." },
-
-    { "id": "ch2_intro", "speaker": "siki", "chapter": 2,
-      "text": "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table." },
-
-    { "id": "ch2_collector_probe", "speaker": "zana", "chapter": 2,
-      "text": "Collector at the end of the row. Careful — he buys the customer with the debt." },
-
-    { "id": "ch2_debrief_runs", "speaker": "siki", "chapter": 2,
-      "text": "Three runs. One invoice. Did your minimum move with their opening?" },
-
-    { "id": "ch2_debrief_anchor_floors", "speaker": "siki", "chapter": 2,
-      "text": "The facts never moved. The opening number did." },
-    { "id": "ch2_debrief_anchor_nofloors", "speaker": "siki", "chapter": 2,
-      "text": "You never named a floor. The anchor had nothing to push against — which is its own answer: decide the number before their number arrives." },
-
-    { "id": "ch2_debrief_flip", "speaker": "zana", "chapter": 2,
-      "text": "Flip it. Open with the law, not with their number." },
-
-    { "id": "ch3_intro", "speaker": "zana", "chapter": 3,
-      "text": "Mareline. Three years a customer, sixty days late, four times a year. Now silence." },
-
-    { "id": "ch3_street", "speaker": "zana", "chapter": 3,
-      "text": "Word travels. Two offers found your door already." },
-
-    { "id": "ch3_debrief_look", "speaker": "siki", "chapter": 3,
-      "text": "Look at what you paid while nobody answered. Then look again — as if the account were brand new." },
-
-    { "id": "ch3_debrief_sunk", "speaker": "siki", "chapter": 3,
-      "text": "History is a fact. It is not a reason." },
-
-    { "id": "finale_close", "speaker": "siki", "chapter": 4,
-      "text": "Market close. This is the street your decisions built." },
-
-    { "id": "finale_replay", "speaker": "siki", "chapter": 4,
-      "text": "Let's read what you actually did — not what a textbook would do." },
-
-    { "id": "finale_profile", "speaker": "siki", "chapter": 4,
-      "text": "Three numbers, computed from your own choices. Not a diagnosis — a mirror." },
-
-    { "id": "finale_cost", "speaker": "siki", "chapter": 4,
-      "text": "Finally — the ledger the street keeps." }
+      "variants": {
+        "day": [
+          2,
+          3,
+          4,
+          5
+        ]
+      }
+    },
+    {
+      "id": "ch1_debrief_replay",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "Let's look at what you did with that pair. Not what a textbook would do. What you did."
+    },
+    {
+      "id": "ch1_debrief_framing_zero",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "You chased both times. Good. But notice how the same choice felt different when both ends sat further out."
+    },
+    {
+      "id": "ch1_debrief_framing_one_d3",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "1 of the two was deferred (Day 3) — the frame, not the facts, did the work."
+    },
+    {
+      "id": "ch1_debrief_framing_one_d5",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "1 of the two was deferred (Day 5) — the frame, not the facts, did the work."
+    },
+    {
+      "id": "ch1_debrief_framing_both",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "2 of the two was deferred (Day 3 and Day 5) — the frame, not the facts, did the work."
+    },
+    {
+      "id": "ch1_debrief_deferral",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "Deferral is not always a trap."
+    },
+    {
+      "id": "ch1_debrief_rule",
+      "speaker": "zana",
+      "chapter": 1,
+      "text": "Here's the rule. Say it until it's boring."
+    },
+    {
+      "id": "ch2_intro",
+      "speaker": "siki",
+      "chapter": 2,
+      "text": "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table."
+    },
+    {
+      "id": "ch2_collector_probe",
+      "speaker": "zana",
+      "chapter": 2,
+      "text": "Collector at the end of the row. Careful — he buys the customer with the debt."
+    },
+    {
+      "id": "ch2_debrief_runs",
+      "speaker": "siki",
+      "chapter": 2,
+      "text": "Three runs. One invoice. Did your minimum move with their opening?"
+    },
+    {
+      "id": "ch2_debrief_anchor_floors",
+      "speaker": "siki",
+      "chapter": 2,
+      "text": "The facts never moved. The opening number did."
+    },
+    {
+      "id": "ch2_debrief_anchor_nofloors",
+      "speaker": "siki",
+      "chapter": 2,
+      "text": "You never named a floor. The anchor had nothing to push against — which is its own answer: decide the number before their number arrives."
+    },
+    {
+      "id": "ch2_debrief_flip",
+      "speaker": "zana",
+      "chapter": 2,
+      "text": "Flip it. Open with the law, not with their number."
+    },
+    {
+      "id": "ch3_intro",
+      "speaker": "zana",
+      "chapter": 3,
+      "text": "Mareline. Three years a customer, sixty days late, four times a year. Now silence."
+    },
+    {
+      "id": "ch3_street",
+      "speaker": "zana",
+      "chapter": 3,
+      "text": "Word travels. Two offers found your door already."
+    },
+    {
+      "id": "ch3_debrief_look",
+      "speaker": "siki",
+      "chapter": 3,
+      "text": "Look at what you paid while nobody answered. Then look again — as if the account were brand new."
+    },
+    {
+      "id": "ch3_debrief_sunk",
+      "speaker": "siki",
+      "chapter": 3,
+      "text": "History is a fact. It is not a reason."
+    },
+    {
+      "id": "finale_close",
+      "speaker": "siki",
+      "chapter": 4,
+      "text": "Market close. This is the street your decisions built."
+    },
+    {
+      "id": "finale_replay",
+      "speaker": "siki",
+      "chapter": 4,
+      "text": "Let's read what you actually did — not what a textbook would do."
+    },
+    {
+      "id": "finale_profile",
+      "speaker": "siki",
+      "chapter": 4,
+      "text": "Three numbers, computed from your own choices. Not a diagnosis — a mirror."
+    },
+    {
+      "id": "finale_cost",
+      "speaker": "siki",
+      "chapter": 4,
+      "text": "Finally — the ledger the street keeps."
+    },
+    {
+      "id": "npc_factor_light",
+      "speaker": "factor",
+      "chapter": 1,
+      "tts_voice": "IN2V4qht1zMBoNajEhTY",
+      "rate": 0.9,
+      "text": "Aged on your desk, did it? Good. I will pay you for the days you lost — the rest is mine."
+    },
+    {
+      "id": "npc_collector_light",
+      "speaker": "collector",
+      "chapter": 1,
+      "tts_voice": "sy9S2anY0aQEh2FdIwrx",
+      "rate": 1,
+      "text": "I buy the customer with the debt still on it. You keep the invoice; I keep the account."
+    },
+    {
+      "id": "npc_shark_light",
+      "speaker": "shark",
+      "chapter": 1,
+      "tts_voice": "IN2V4qht1zMBoNajEhTY",
+      "rate": 0.78,
+      "text": "A little cash now, a little back each day. The daily number is small on purpose. Is it not?"
+    },
+    {
+      "id": "react_collect_first",
+      "speaker": "siki",
+      "chapter": 1,
+      "text": "There it is — the full face, on your till, not the street's."
+    },
+    {
+      "id": "react_defer_first",
+      "speaker": "zana",
+      "chapter": 1,
+      "text": "Noted. The street thanks you — literally."
+    },
+    {
+      "id": "react_bill_paid",
+      "speaker": "zana",
+      "chapter": 1,
+      "text": "Nobody owns a piece of your week now. Quayline is paid."
+    },
+    {
+      "id": "desk_open_1",
+      "speaker": "collector",
+      "chapter": 2,
+      "tts_voice": "sy9S2anY0aQEh2FdIwrx",
+      "rate": 1,
+      "text": "First sitting. The desk slides a number across — no greeting. Numbers first."
+    },
+    {
+      "id": "desk_open_2",
+      "speaker": "collector",
+      "chapter": 2,
+      "tts_voice": "sy9S2anY0aQEh2FdIwrx",
+      "rate": 1,
+      "text": "Second sitting. A different number. Same desk, same silence."
+    },
+    {
+      "id": "desk_open_3",
+      "speaker": "collector",
+      "chapter": 2,
+      "tts_voice": "sy9S2anY0aQEh2FdIwrx",
+      "rate": 1,
+      "text": "Last sitting. The desk slides its final number across."
+    },
+    {
+      "id": "ch3_silence_1",
+      "speaker": "siki",
+      "chapter": 3,
+      "text": "Still no reply. The line of credit is £60 open on the shelf, and doing nothing has to travel somewhere."
+    },
+    {
+      "id": "ch3_silence_2",
+      "speaker": "zana",
+      "chapter": 3,
+      "text": "Still silence. The shelf keeps score."
+    },
+    {
+      "id": "ch3_silence_3",
+      "speaker": "zana",
+      "chapter": 3,
+      "text": "Third knock, nothing. Decide what the silence is worth."
+    },
+    {
+      "id": "ch3_factor_beat",
+      "speaker": "factor",
+      "chapter": 3,
+      "tts_voice": "IN2V4qht1zMBoNajEhTY",
+      "rate": 0.9,
+      "text": "No waiting. Today’s money, today — that is the whole of my offer."
+    },
+    {
+      "id": "ch3_shark_beat",
+      "speaker": "shark",
+      "chapter": 3,
+      "tts_voice": "IN2V4qht1zMBoNajEhTY",
+      "rate": 0.78,
+      "text": "A little now. A little each day. The daily number is small — that is rather the point."
+    }
   ]
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DecisionLedger } from "../src/engine/ledger";
-import { axisEvidence, buildFinaleView, UK_STAT_CARDS } from "../src/chapters/finale";
+import { axisEvidence, buildFinaleView, UK_STAT_CARDS, verdictLine } from "../src/chapters/finale";
 import { ch2LedgerEntry, createCh2State, accept } from "../src/chapters/ch2";
 import { ch3LedgerEntry, createCh3State, act } from "../src/chapters/ch3";
 import { ENGINEERED_PAIR } from "../src/chapters/ch1";
@@ -93,6 +93,31 @@ describe("finale view-model", () => {
     expect(anch.line).toContain("£800");
     const sunk = view.axes.find((a) => a.key === "sunkCost")!;
     expect(sunk.line).toContain("stopped work");
+  });
+
+  it("the pair's deferral line reads as one controlled trial run twice, not a duplicate", () => {
+    const view = buildFinaleView(seededLedger()); // day 3 deferred, day 5 chased
+    const def = view.axes.find((a) => a.key === "deferral")!;
+    // Both arms on one line, with the visible repetition made explicit.
+    expect(def.line).toContain("Day 3");
+    expect(def.line).toContain("Day 5");
+    expect(def.line).toContain("you deferred");
+    expect(def.line).toContain("you chased");
+    expect(def.line).toContain("the same offer twice");
+  });
+
+  it("verdict names the dominant axis in one quotable line", () => {
+    const view = buildFinaleView(seededLedger());
+    const v = verdictLine(view.profile);
+    expect(v.siki).toContain("Your week in one line:");
+    expect(v.zana.length).toBeGreaterThan(5);
+  });
+
+  it("verdict on an empty ledger reads clean, never clinical", () => {
+    const view = buildFinaleView(new DecisionLedger());
+    const v = verdictLine(view.profile);
+    expect(v.siki).toContain("clean ledger");
+    expect(v.siki).not.toMatch(/bias|disorder|diagnos/i);
   });
 
   it("empty ledger → zeroed profile, honest 'unmeasured' lines, partial=true", () => {

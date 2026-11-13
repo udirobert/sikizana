@@ -30,6 +30,12 @@ const PAGE_URL = `http://127.0.0.1:${PORT}/`;
 const flagVal = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
 const mode = flagVal("--mode") === "video" ? "video" : flagVal("--mode") === "finale" ? "finale" : "shots";
 const OUT = flagVal("--out") ?? join(ROOT, "screenshots");
+// Trailer segments (concat with ffmpeg): --seg a starts at the title and
+// plays ch1→ch2-run-2; --seg b starts fresh at ?ch=3 and plays Mareline→Shark.
+// Mid-session Page.navigate hangs the CDP session, so segments run as
+// separate processes. Default (no --seg) is the legacy single run.
+const SEG = flagVal("--seg") ?? "ab";
+const OUTFILE = flagVal("--file") ?? "lm_run.mp4";
 
 // ── Serve dist/ ────────────────────────────────────────────────────────────
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".mp3": "audio/mpeg", ".png": "image/png", ".svg": "image/svg+xml" };
@@ -87,7 +93,7 @@ await send("Runtime.enable");
 await send("Emulation.setDeviceMetricsOverride", {
   width: 1280, height: 860, deviceScaleFactor: 1, mobile: false,
 });
-await send("Page.navigate", { url: PAGE_URL });
+await send("Page.navigate", { url: SEG === "b" ? `${PAGE_URL}?ch=3` : PAGE_URL });
 await sleep(1200);
 await evalJs("localStorage.clear()");
 await send("Page.reload");
@@ -142,6 +148,18 @@ async function recordVideo() {
   };
   const loop = setInterval(() => void shot(), 100);
   try {
+    if (SEG === "b") {
+      await s(2600); // ch3 title card
+      await clickByText("Begin — sound on"); await s(2200);
+      await clickByText("Open the account"); await s(2800); // Mareline's history
+      await clickByText("Keep the line going"); await s(2200); // round 2 — silence
+      await clickByText("Keep the line going"); await s(2200); // round 3 — silence
+      await clickByText("Stop work on this account"); await s(2800); // → the Factor steps up
+      await s(2400); // his offer on the table
+      await clickByText("Turn him down"); await s(3000); // → the Shark smiles
+      await s(5000); // hold on the daily number — the tape's closing frame
+      // (falls through to the shared 10fps encode below)
+    } else {
     await s(2600); // title card
     await playToDay5Closed();
     await clickByText("Close the books");
@@ -152,15 +170,21 @@ async function recordVideo() {
     await s(6800); // beat 3 — the bias named, on their numbers
     await clickByText("Continue");
     await s(5600); // beat 4 — the rule
-    await clickByText("Close the books");
-    await s(1400);
+    await clickByText("Close the books"); // → chapter 2 intro: the Claims Desk
+    await s(3200);
+    await clickByText("Walk into the office"); await s(3200); // desk opener, run 1
+    await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
+    await clickByText("Set the floor"); await s(2200);
+    await clickByText("Accept"); await s(3000); // run 1 clears → run 2 opener
+    await s(2400); // hold on the second sitting — segment A out
+    } // end else (segment A)
   } finally {
     cap = false;
     clearInterval(loop);
     await shot();
   }
   const dur = (Date.now() - t0) / 1000;
-  const video = join(OUT, "lm_run.mp4");
+  const video = join(OUT, OUTFILE);
   execFileSync("ffmpeg", [
     "-y", "-framerate", "10", "-i", join(framesDir, "%04d.jpg"),
     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "19", "-movflags", "+faststart",
@@ -182,13 +206,19 @@ async function shots() {
   await clickByText("Begin — sound on"); await s(2600);
   await clickByText("Open the shutters"); await s(4200);
   await shot("v2_day1_stall.png"); // the place: till + ledger + street + choice
+  const cap = async (label) => { const t = await evalJs(`[...document.querySelectorAll("#street-slot .lm-stall")].map(s=>s.dataset.kind+"="+s.className.replace("lm-stall ","")).join(" ")`); console.log(`[stalls ${label}] ${t}`); };
   await clickByText("Chase"); await s(2600); // Day 1: chase the already-overdue invoice
+  await cap("d1");
   await clickByText("Next day"); await s(3200);
-  await clickByText("Reply to the morning emails"); await s(2200); // Day 2: easy work (auto-defers the 2nd invoice)
+  await clickByText("Reply to the morning emails"); await s(1400); // Day 2: easy work (auto-defers the 2nd invoice)
+  await cap("d2");
+  await shot("v2_day2_defer.png");
   await clickByText("Next day"); await s(4400);
   await shot("v2_day3_pair.png"); // PAIR A: the choice that moves the till (chase → lands day 5)
-  await clickByText("Chase"); await s(2600);
-  await shot("v2_day3_chased.png"); // pair A committed — "pays in 2 days" on the ledger
+  await clickByText("Chase"); await s(1100);
+  await cap("d3");
+  await shot("v2_day3_chased.png"); // pair A committed — AND the Factor steps up (his stall just lit)
+  await shot("v2_actor_factor.png"); // the Factor, clearly: the street's idea as a character
   await clickByText("Next day"); await s(4600);
   await shot("v2_day4_bill.png"); // the till stress: £2,000 due, the till can't cover it
   await clickByText("Leave the bill"); await s(2600);

@@ -5,11 +5,19 @@
  * manifest is the versioned performance bible, baked by scripts/bake-voices.mjs.
  */
 
+/** Full cast: the two narrators plus the three stallholders, who double
+ *  the narrators' base voices at a shifted rate (small-cast audio drama —
+ *  the Collector IS Zana's voice; the Factor and the Shark share Siki's
+ *  workspace voice, pitched apart so they never blur). */
+export type Speaker = "siki" | "zana" | "factor" | "collector" | "shark";
+
 export interface VoiceLine {
   id: string;
-  speaker: "siki" | "zana";
+  speaker: Speaker;
   audio: string;
   timing: string;
+  /** Playback rate that shaped the take's character (1 = as baked). */
+  rate?: number;
 }
 
 export interface VoiceManifest {
@@ -109,7 +117,7 @@ export class VoicePlayer {
    * `bubble` is the DOM node that received the display text — word-level
    * karaoke highlighting is applied to it from the timing file.
    */
-  async speak(speaker: "siki" | "zana", text: string, bubble: HTMLElement): Promise<void> {
+  async speak(speaker: Speaker, text: string, bubble: HTMLElement): Promise<void> {
     this.stop();
     if (!this.isEnabled()) return;
     const manifest = await this.loadManifest();
@@ -131,6 +139,10 @@ export class VoicePlayer {
 
     const audio = new Audio(line.audio);
     audio.preload = "auto";
+    // NPC character rate: the take was baked on a narrator's base voice and
+    // is performed slower/deeper. Timing files index the MEDIA timeline, so
+    // karaoke highlighting stays aligned at any rate.
+    if (line.rate && line.rate !== 1) audio.playbackRate = line.rate;
     this.audio = audio;
     this.bubble = bubble;
     this.displayText = text;

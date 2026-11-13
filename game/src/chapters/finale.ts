@@ -37,6 +37,46 @@ export const UK_STAT_CARDS: StatCard[] = [
   },
 ];
 
+/** Your week in one line — the quotable verdict. Siki names the lean from
+ *  the player's own dominant axis; Zana gives the one-line counter-move.
+ *  Observation, never pathology: the profile beat's one-run hedge stands. */
+export interface Verdict {
+  siki: string;
+  zana: string;
+}
+
+export function verdictLine(profile: IrrationalityProfile): Verdict {
+  const axes = [
+    { key: "deferral", value: profile.deferral },
+    { key: "anchoring", value: profile.anchoring },
+    { key: "sunkCost", value: profile.sunkCost },
+  ] as const;
+  const top = axes.reduce((a, b) => (b.value > a.value ? b : a));
+  if (top.value <= 0) {
+    return {
+      siki: "Your week in one line: a clean ledger — nothing leaned on you this week.",
+      zana: "Run it back and see if it holds.",
+    };
+  }
+  switch (top.key) {
+    case "anchoring":
+      return {
+        siki: "Your week in one line: their opening number moved your bottom line more than the law did.",
+        zana: "Quote the Act first. Open with your number, not theirs.",
+      };
+    case "sunkCost":
+      return {
+        siki: "Your week in one line: the history kept charging you after the prospect stopped paying.",
+        zana: "Decide at zero. Judge the old account like a fresh one.",
+      };
+    default:
+      return {
+        siki: "Your week in one line: the near cost always shouted loudest, and the far one barely whispered.",
+        zana: "Chase Tuesday's money on Tuesday.",
+      };
+  }
+}
+
 export interface FinaleView {
   profile: IrrationalityProfile;
   axes: AxisEvidence[];
@@ -75,10 +115,14 @@ export function axisEvidence(ledger: DecisionLedger, profile: IrrationalityProfi
   const all = ledger.all();
 
   const ch1 = all.filter((e) => e.experimentId === "ch1_present_pair_a");
-  const lastCh1 = ch1[ch1.length - 1];
-  const deferralLine = lastCh1
-    ? `Day ${lastCh1.day}: "${lastCh1.prompt}" → you ${describeCh1(lastCh1)}.`
-    : "No paired decisions recorded — this axis went unmeasured.";
+  // The pair is ONE controlled trial run twice — when both days are on record,
+  // show them side by side so the two Harborne cards read as the two arms of
+  // one experiment ("the same offer, only the timing moved"), not a duplicate.
+  const deferralLine = ch1.length >= 2
+    ? `Day ${ch1[0]!.day} (INV-231): you ${describeCh1(ch1[0]!)} · Day ${ch1[ch1.length - 1]!.day} (INV-238): you ${describeCh1(ch1[ch1.length - 1]!)} — two invoices, the same offer twice, only the timing moved. One run suggests; it doesn't prove.`
+    : ch1.length === 1
+      ? `Day ${ch1[0]!.day}: "${ch1[0]!.prompt}" → you ${describeCh1(ch1[0]!)}.`
+      : "No paired decisions recorded — this axis went unmeasured.";
 
   const ch2 = all.filter(
     (e) => e.experimentId.startsWith("ch2_anchor") && e.negotiationFloor !== undefined,

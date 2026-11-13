@@ -7,15 +7,15 @@
  */
 import "./styles/tokens.css";
 import { AudioBus, type PlayHandle } from "./audio/bus";
-import { VoicePlayer } from "./audio/voice";
+import { VoicePlayer, type Speaker } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
 import { runChapter1 } from "./chapters/ch1screen";
 import type { Ch1State } from "./chapters/ch1";
 import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
-import { buildFinaleView } from "./chapters/finale";
+import { buildFinaleView, verdictLine } from "./chapters/finale";
 import { runFinale } from "./chapters/finaleScreen";
-import { renderStreet as renderStreetRow, type StreetCounters } from "./ui/street";
+import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetCounters } from "./ui/street";
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 
@@ -84,7 +84,7 @@ function sting(speaker: "siki" | "zana"): void {
  * rule (recovery plan §2.3) is about CONTENT: the spoken line is short,
  * the chapter's cards carry the detail — enforced in each chapter screen.
  */
-function say(speaker: "siki" | "zana", text: string): void {
+function say(speaker: Speaker, text: string): void {
   const sections = Array.from(game.querySelectorAll(":scope > section.lm-chapter")) as HTMLElement[];
   const active = sections.length ? sections[sections.length - 1]! : game;
   for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
@@ -93,7 +93,8 @@ function say(speaker: "siki" | "zana", text: string): void {
   bubble.textContent = text;
   bubble.setAttribute("role", "note");
   active.prepend(bubble);
-  sting(speaker);
+  // Only the narrators get stingers; the stallholders arrive unannounced.
+  if (speaker === "siki" || speaker === "zana") sting(speaker);
   void voice.speak(speaker, text, bubble);
 }
 
@@ -143,24 +144,73 @@ function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?:
   renderStreet();
 }
 
+// The named stallholders, keyed by stall kind (cart/awning are the market
+// itself — no character). When one of THEIR stalls lights because of the
+// player's own choice, they step up to your stall with a line — the street's
+// idea becomes a character, not an icon (recovery plan §4).
+const KIND_ACTORS: Record<string, { name: string; kind: "factor" | "collector" | "shark"; line: string }> = {
+  factor: { name: "The Factor", kind: "factor", line: "Aged on your desk, did it? Good. I will pay you for the days you lost — the rest is mine." },
+  collector: { name: "The Collector", kind: "collector", line: "I buy the customer with the debt still on it. You keep the invoice; I keep the account." },
+  shark: { name: "The Shark", kind: "shark", line: "A little cash now, a little back each day. The daily number is small on purpose. Is it not?" },
+};
+
 let prevLit = -1;
 function renderStreet(): void {
   const slot = document.getElementById("street-slot");
   if (!slot) return;
   const counters = streetCounters();
+  const { lit } = streetState(counters);
   const row = renderStreetRow(counters);
   // The stall that just changed flares once (recovery plan §3: the street
-  // changes *when* you leave it — the player should see the stall move).
-  if (prevLit >= 0) {
-    const litCount = row.querySelectorAll(".lm-stall.lit").length;
-    if (litCount !== prevLit) {
-      const stalls = row.querySelectorAll(".lm-stall");
-      const idx = Math.min(litCount, stalls.length) - 1; // the one that just changed
-      (stalls[Math.max(0, idx)] as HTMLElement | undefined)?.classList.add("lm-stall-change");
-    }
+  // changes *when* you leave it — the player should see the stall move). If
+  // it's a named stallholder, that character steps up with a line. Track the
+  // COMPUTED lit count (monotonic) — not the DOM ".lit" class count, which
+  // drops when a stall shutters in the same frame.
+  if (prevLit >= 0 && lit > prevLit) {
+    // The newly-lit stall is the one that crossed from dark to lit. With
+    // `shut` shuttered (left) and `lit` lit, the rightmost lit stall is the
+    // one that just lit — find it by position, then key the actor off kind.
+    const stalls = Array.from(row.querySelectorAll<HTMLElement>(".lm-stall"));
+    const litStalls = stalls.filter((s) => s.classList.contains("lit"));
+    const changed = litStalls[litStalls.length - 1] ?? null; // rightmost lit
+    changed?.classList.add("lm-stall-change");
+    const kind = changed?.dataset.kind;
+    const actor = kind ? KIND_ACTORS[kind] : null;
+    if (actor) actorStepUp(actor.name, actor.kind, actor.line);
   }
-  prevLit = row.querySelectorAll(".lm-stall.lit").length;
+  prevLit = lit;
   slot.replaceChildren(row);
+}
+
+/** A stallholder steps to your stall: their figure + a line, briefly. Text
+ *  always; voiced only if the line is in the baked manifest (else silent). */
+function actorStepUp(name: string, kind: "factor" | "collector" | "shark", line: string): void {
+  const slot = document.getElementById("street-actor");
+  if (!slot) return;
+  slot.replaceChildren();
+  const fig = stallFigure(kind);
+  fig.classList.add("lm-stall-actor-fig");
+  const figWrap = document.createElement("div");
+  figWrap.className = "lm-stall-actor-fig-wrap";
+  figWrap.setAttribute("aria-hidden", "true");
+  figWrap.append(fig);
+  const bubble = document.createElement("p");
+  bubble.className = "lm-line stall-actor lm-rise";
+  bubble.setAttribute("role", "note");
+  const who = document.createElement("span");
+  who.className = "lm-stall-actor-who";
+  who.textContent = name;
+  // The line gets its own span: the voice player's karaoke rebuilds its
+  // target node's content, so the name prefix must live outside it.
+  const lineSpan = document.createElement("span");
+  lineSpan.textContent = line;
+  bubble.append(who, document.createTextNode(" — "), lineSpan);
+  slot.append(figWrap, bubble);
+  // The stallholder performs their own line — silent when the take isn't
+  // baked (manifest miss), but the text always lands.
+  void voice.speak(kind, line, lineSpan);
+  // Clear after a beat unless the street re-renders (a new event supersedes).
+  window.setTimeout(() => { if (slot.contains(bubble)) slot.replaceChildren(); }, 6000);
 }
 
 /** Chapter sequence — one shared frame, nothing resets between chapters. */
@@ -240,8 +290,16 @@ function begin(withSound: boolean): void {
   game.append(streetSlot);
   renderStreet();
 
+  // The stallholder "actor" line — the street's character who steps up when
+  // one of their stalls lights on the player's own choice. Cleared on every
+  // chapter change so a leftover figure never carries into the next scene.
+  const actorSlot = document.createElement("div");
+  actorSlot.id = "street-actor";
+  game.append(actorSlot);
+
   document.addEventListener("lm:chapter-done", (ev) => {
     const n = (ev as CustomEvent<number>).detail as 1 | 2 | 3;
+    actorSlot.replaceChildren();
     if (n === 3) return finale();
     beginChapter((n + 1) as 2 | 3);
   });
@@ -260,6 +318,8 @@ interface StoredProfile {
   anchoring: number;
   sunkCost: number;
   at: string;
+  /** The quotable one-liner, so the title screen can read your week back. */
+  verdictSiki?: string;
 }
 
 function irrationalityScore(p: { deferral: number; anchoring: number; sunkCost: number }): number {
@@ -292,7 +352,7 @@ function finale(): void {
   // Only a complete run may set the baseline — a partial/jumped run would
   // post an unbeatable score-0 "best" and poison every future delta.
   if (!view.partial && (!prev || score < prev.score)) {
-    saveBestProfile({ score, ...view.profile, at: new Date().toISOString() });
+    saveBestProfile({ score, ...view.profile, at: new Date().toISOString(), verdictSiki: verdictLine(view.profile).siki });
   }
 
   let review = document.getElementById("finale") as HTMLElement | null;
@@ -364,6 +424,28 @@ optSimple?.addEventListener("change", () => {
   savePrefs();
   setSimpleLanguage(prefs.simpleLang);
 });
+
+// ── Returning runner: the title screen reads your best week back. ──
+// The score-chase hook — your own verdict, quoted at you, daring a rematch.
+function renderBestWeek(): void {
+  const best = loadBestProfile();
+  if (!best) return;
+  const panel = document.querySelector(".lm-title-panel");
+  if (!panel) return;
+  const when = (() => { try { return new Date(best.at).toLocaleDateString(); } catch { return ""; } })();
+  const wrap = document.createElement("p");
+  wrap.className = "lm-title-best";
+  wrap.textContent = `Your best week: irrationality ${Math.round(best.score)}/100 (lower is better)${when ? ` · ${when}` : ""} — run it back and beat it.`;
+  if (best.verdictSiki) {
+    const q = document.createElement("span");
+    q.className = "lm-title-verdict";
+    q.textContent = `\u201C${best.verdictSiki}\u201D`;
+    wrap.append(document.createElement("br"), q);
+  }
+  const actions = panel.querySelector(".lm-title-actions");
+  if (actions) actions.after(wrap); else panel.prepend(wrap);
+}
+renderBestWeek();
 
 // UI confirm blip on every choice click (delegated — covers all chapters).
 game.addEventListener("click", (ev) => {

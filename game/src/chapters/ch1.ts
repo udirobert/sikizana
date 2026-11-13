@@ -166,6 +166,25 @@ export function worthToday(inv: Ch1Invoice, day: number): number {
   return Math.round(inv.principal * (1 - haircut));
 }
 
+/**
+ * Display-only continuous version of `worthToday`: the market's bid at a
+ * FRACTION `f` (0..1) of day `day` elapsed. At f=0 it is today's bid; at
+ * f=1 it is next morning's (`worthToday(day+1)`), so it never leaves the
+ * real arithmetic — it just represents the market repricing *continuously*
+ * (as a live factoring bid would) rather than in one daily step. The screen
+ * uses it so the bleed on an overdue card is felt before the first click, at
+ * the true rate (the full day's shed spread across the day), not an
+ * invented faster number. Not used by the sim or the ledger — those still
+ * accrue on the integer `valueShedForDay`, so nothing the player sees here
+ * is separate from what the debrief prices.
+ */
+export function worthAtFraction(inv: Ch1Invoice, day: number, f: number): number {
+  const frac = Math.max(0, Math.min(1, f));
+  // Only overdue invoices bleed; a due-today or future one holds at face.
+  if (day <= inv.dueDay) return inv.principal;
+  return Math.round(worthToday(inv, day) - frac * valueShedForDay(inv, day));
+}
+
 export interface Ch1State {
   day: number;
   cash: number;
@@ -216,9 +235,8 @@ export interface EngineeredPair {
 }
 
 export const ENGINEERED_PAIR: EngineeredPair = {
-  experimentId: "ch1_present_pair_a",
-  first: { day: 3, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works", principal: 2400 } },
-  second: { day: 5, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works", principal: 2400 } },
+  experimentId: "ch1_present_pair_a",    first: { day: 3, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400 } },
+    second: { day: 5, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works · INV-238", principal: 2400 } },
 };
 
 const CLIENTS = [
@@ -278,8 +296,8 @@ export function createCh1State(seed: number): { state: Ch1State; rng: Rng } {
     invoices: [
       { id: "inv-early", client: earlyClient, principal: earlyPrincipal, dueDay: 0, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
       { id: "inv-2nd", client: secondClient, principal: secondPrincipal, dueDay: 2, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
-      { id: "inv-a", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_A_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
-      { id: "inv-b", client: "Harborne Print Works", principal: 2400, dueDay: PAIR_B_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
+      { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400, dueDay: PAIR_A_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
+      { id: "inv-b", client: "Harborne Print Works · INV-238", principal: 2400, dueDay: PAIR_B_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
     ],
     bill: makeBill(),
     streetTake: 0,
@@ -336,22 +354,17 @@ export function valueShedForDay(inv: Ch1Invoice, day: number): number {
 export function dayChoices(state: Ch1State, day: number): DayChoice[] {
   const pair = ENGINEERED_PAIR;
   const isPairDay = day === pair.first.day || day === pair.second.day;
-  const choices: DayChoice[] = [];
-
-  // Fun-now task: a small immediate cash + the social pull of easy work.
-  const fun: Record<FunTask, { label: string; detail: string }> = {
-    restock: { label: "Restock the shelves", detail: "Satisfying, done by lunch. Later today it pays a little walk-in trade." },
-    reply_emails: { label: "Reply to the morning emails", detail: "Warm, manageable, finished. Feels like a real day's work." },
-    customer_chat: { label: "Catch up with the regulars", detail: "The kind of work nobody ever calls urgent — so it always gets done." },
-  };
-  const funKey = (["restock", "reply_emails", "customer_chat"] as FunTask[])[(day - 1) % 3]!;
-  choices.push({ id: `fun-${day}`, label: fun[funKey].label, detail: fun[funKey].detail, kind: "fun" });
+  // The day's DECISION leads; the easy work trails. The first button the eye
+  // lands on is the thing that can move the till — chase the bleeding
+  // invoice, or the bill — not "Restock the shelves". (First-minute tension:
+  // the tension must be the decision, not "which card to click.")
+  const decisionChoices: DayChoice[] = [];
 
   if (state.bill.dueDay === day && state.bill.paidDay === null && state.bill.skippedDay === null) {
     // The ordinary day where the till can empty. No dressed-up numbers — just
     // the bill, what it costs, and what skipping costs.
     const canCover = state.cash >= state.bill.amount;
-    choices.push({
+    decisionChoices.push({
       id: `pay_bill-${day}`,
       label: `Pay ${state.bill.client} — £${state.bill.amount}`,
       detail: canCover
@@ -359,7 +372,7 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
         : "Due today. The till can't cover it — you'd run into the red.",
       kind: "pay_bill",
     });
-    choices.push({
+    decisionChoices.push({
       id: `skip_bill-${day}`,
       label: "Leave the bill",
       detail: `£${state.bill.amount} stays owed, and £${state.bill.lateFee} a day comes out of the till tomorrow — the street's money.`,
@@ -381,18 +394,29 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     const isEngineered = isPairDay && (due.id === pair.first.invoice.id || due.id === pair.second.invoice.id);
     const chaseDetail = isEngineered
       ? day === pair.first.day
-        ? `Chase — the money lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`
-        : `Chase — the money lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`
-      : `Chase — the money lands in ${CHASE_CLEAR_DAYS} days.`;
+        ? `Chase — the full £${due.principal} lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`
+        : `Chase — the full £${due.principal} lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`
+      : `Chase — the full £${due.principal} lands in ${CHASE_CLEAR_DAYS} days.`;
     const deferDetail = isEngineered
       ? day === pair.first.day
-        ? `Defer — the money lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
-        : `Defer — the money lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`
-      : `Defer — the money lands in ${DEFER_CLEAR_DAYS} days instead.`;
-    choices.push({ id: `chase-${due.id}`, label: `Chase ${due.client} — £${due.principal}`, detail: chaseDetail, kind: "chase", invoiceId: due.id });
-    choices.push({ id: `defer-${due.id}`, label: "Leave it for tomorrow", detail: deferDetail, kind: "defer", invoiceId: due.id });
+        ? `Defer — the full £${due.principal} lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
+        : `Defer — the full £${due.principal} lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`
+      : `Defer — the full £${due.principal} lands in ${DEFER_CLEAR_DAYS} days instead.`;
+    decisionChoices.push({ id: `chase-${due.id}`, label: `Chase ${due.client} — £${due.principal}`, detail: chaseDetail, kind: "chase", invoiceId: due.id });
+    decisionChoices.push({ id: `defer-${due.id}`, label: "Leave it for tomorrow", detail: deferDetail, kind: "defer", invoiceId: due.id });
   }
-  return choices;
+
+  // The easy work — the social pull of a normal day. It trails the decision,
+  // so it reads as the default you reach for when you don't want to think,
+  // not the first thing on the screen. (Doing it commits the day's invoice
+  // to deferral — the pull is real, it just arrives after the choice.)
+  const fun: Record<FunTask, { label: string; detail: string }> = {
+    restock: { label: "Restock the shelves", detail: "Satisfying, done by lunch. Later today it pays a little walk-in trade." },
+    reply_emails: { label: "Reply to the morning emails", detail: "Warm, manageable, finished. Feels like a real day's work." },
+    customer_chat: { label: "Catch up with the regulars", detail: "The kind of work nobody ever calls urgent — so it always gets done." },
+  };
+  const funKey = (["restock", "reply_emails", "customer_chat"] as FunTask[])[(day - 1) % 3]!;
+  return [...decisionChoices, { id: `fun-${day}`, label: fun[funKey].label, detail: fun[funKey].detail, kind: "fun" }];
 }
 
 /**

@@ -50,7 +50,19 @@ body {
   object-fit: cover; object-position: 50% 100%;
   opacity: 0.13; z-index: 0; pointer-events: none;
 }
-#game { position: relative; z-index: 1 }
+#game { position: relative; z-index: 1; animation: lm-arrive 600ms ease-out }
+/* Opening the shutters: the stall fades up into view once per session. */
+@keyframes lm-arrive {
+  from { opacity: 0; transform: translateY(10px) }
+  to { opacity: 1; transform: none }
+}
+/* Staggered entrance for replay line-items — base state is visible so
+   `prefers-reduced-motion` (which kills animations) degrades to instant. */
+.lm-rise { animation: lm-rise 420ms ease-out backwards }
+@keyframes lm-rise {
+  from { opacity: 0; transform: translateY(8px) }
+  to { opacity: 1; transform: none }
+}
 #start { position: relative; z-index: 2 }
 
 .lm-surface {
@@ -70,6 +82,11 @@ body {
 .lm-line { margin: 0.8rem 0 }
 .lm-line.siki::before { content: "🦉 Siki — "; color: var(--lm-amber) }
 .lm-line.zana::before { content: "🐕 Zana — "; color: var(--lm-violet) }
+/* The desk and the stallholders speak in chapters 2–3 (voice-doubled cast). */
+.lm-line.desk::before { content: "🪙 Desk — "; color: var(--lm-ink-dim) }
+.lm-line.factor::before { content: "🦦 Factor — "; color: var(--lm-amber) }
+.lm-line.collector::before { content: "🎩 Collector — "; color: var(--lm-violet) }
+.lm-line.shark::before { content: "🦈 Shark — "; color: var(--lm-ink-dim) }
 /* Karaoke word highlight — driven by baked timing.json while a line plays. */
 .lm-word-active { color: var(--lm-amber); font-weight: 600 }
 
@@ -93,6 +110,29 @@ body {
   background: rgba(20,20,40,0.75); border-radius: 8px; padding: 2px 10px;
 }
 .lm-lantern::before { content: "🏮" }
+/* Stallholders idle like they breathe: a slow bob on the stepped-up figure,
+   a candle-flicker on the till lantern. Presence, not wallpaper. */
+.lm-stall-actor-fig-wrap { animation: lm-bob 2.6s ease-in-out infinite }
+@keyframes lm-bob {
+  0%, 100% { transform: translateY(0) }
+  50% { transform: translateY(-4px) }
+}
+.lm-lantern { animation: lm-flicker 3.1s ease-in-out infinite }
+@keyframes lm-flicker {
+  0%, 100% { filter: brightness(1) }
+  42% { filter: brightness(1.12) }
+  58% { filter: brightness(0.96) }
+  74% { filter: brightness(1.07) }
+}
+/* The street takes more: one felt flare on the lantern (re-triggered by JS). */
+.lm-lantern-pulse { animation: lm-lantern-pulse 650ms ease-out }
+@keyframes lm-lantern-pulse {
+  0% { transform: scale(1) }
+  35% { transform: scale(1.18); box-shadow: 0 0 18px 2px rgba(255, 180, 84, 0.8) }
+  100% { transform: scale(1) }
+}
+/* Week progress dots beside the day header — shape of the week at a glance. */
+.lm-dots { color: var(--lm-amber); letter-spacing: 0.15em; font-size: 0.85em }
 
 .lm-day-log { padding-left: 1.2rem }
 .lm-day-log li::marker { content: "· " }
@@ -104,16 +144,21 @@ body {
 #ch1 .lm-stage { max-width: none; margin: 0; padding: 0 }
 
 .lm-till {
-  display: flex; align-items: baseline; gap: 0.6rem;
-  margin: 0.5rem 0 0.8rem; padding: 0.5rem 0.9rem;
+  margin: 0.5rem 0 0.8rem; padding: 0.55rem 0.9rem;
   background: var(--lm-surface); border: 1px solid var(--lm-ink-dim); border-radius: 10px;
 }
 .lm-till-cap { color: var(--lm-ink-dim); font-size: 0.92em; text-transform: lowercase }
-.lm-till-num {
-  font-size: 1.5em; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: var(--lm-ledger-green);
+.lm-till-rows { display: flex; flex-direction: column; gap: 0.15rem }
+.lm-till-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem }
+.lm-till-line-label { color: var(--lm-ink-dim); font-size: 0.92em }
+.lm-till-row-debt .lm-till-line-val { color: var(--lm-ledger-red) }
+.lm-till-line-val {
+  font-size: 1.05em; font-weight: 600; font-variant-numeric: tabular-nums;
+  color: var(--lm-ink);
 }
-.lm-till-neg .lm-till-num { color: var(--lm-ledger-red) }
+.lm-till-row-net { border-top: 1px solid var(--lm-ink-dim); padding-top: 0.25rem }
+.lm-till-row-net .lm-till-line-val { font-size: 1.5em; font-weight: 700; color: var(--lm-ledger-green); display: inline-block }
+.lm-till-neg .lm-till-row-net .lm-till-line-val { color: var(--lm-ledger-red) }
 .lm-till-warn { color: var(--lm-ledger-red); font-size: 0.85em }
 .lm-pop { animation: lm-pop 480ms ease-out }
 @keyframes lm-pop {
@@ -156,6 +201,9 @@ body {
 }
 .lm-title-panel h1 { font-size: var(--lm-text-lg); margin: 0 0 0.25rem }
 .lm-title-panel .lm-title-tag { margin: 0 0 1rem; color: var(--lm-amber); font-style: italic; font-size: 0.95em }
+/* Returning runner: your best week reads you back, daring a rematch. */
+.lm-title-best { margin: 1rem 0 0; font-size: 0.92em; color: var(--lm-ink-dim) }
+.lm-title-verdict { color: var(--lm-amber); font-style: italic }
 .lm-title-actions { display: flex; gap: 0.6rem; justify-content: center }
 .lm-title-actions button, #start .lm-title-actions .lm-choice {
   background: var(--lm-surface); color: var(--lm-ink); border: 1px solid var(--lm-ink-dim);
@@ -189,6 +237,17 @@ body {
 .lm-inv-overdue .lm-inv-status::before { content: "⏳ " }
 .lm-inv-chased .lm-inv-status::before { content: "✉ " }
 .lm-inv-dead .lm-inv-status::before { content: "▼ " }
+/* The live bleed: an overdue invoice the player hasn't chased yet, its bid
+   falling in real time as the market reprices it. A quiet red pulse — felt,
+   not alarming. (Display-only; the ledger accrues on the integer day.) */
+.lm-inv-bleed { animation: lm-bleed 1800ms ease-in-out infinite }
+@keyframes lm-bleed {
+  0%, 100% { color: var(--lm-ink-dim); text-shadow: none }
+  50% { color: var(--lm-ledger-red); text-shadow: 0 0 10px rgba(232, 111, 111, 0.5) }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-inv-bleed { animation: none }
+}
 
 /* Persist decision review cards (replays/ledger views). */
 .lm-review-entry { border-left: 3px solid var(--lm-violet); padding: 0.25rem 0 0.25rem 0.75rem; margin: 0.5rem 0 }
@@ -213,7 +272,37 @@ body {
   color: var(--lm-ledger-red); font-size: 1.3em; font-weight: 700;
 }
 .lm-stall { position: relative }
+/* Stalls are tappable (role=button): a pointer cue + a visible focus ring. */
+.lm-stall[role="button"] { cursor: pointer }
+.lm-stall[role="button"]:hover { filter: drop-shadow(0 0 4px rgba(255, 180, 84, 0.6)) }
+/* The inspector line: the stall names itself under the strip. */
+.lm-stall-inspect {
+  flex-basis: 100%; color: var(--lm-ink-dim); font-size: 0.88em; font-style: italic;
+}
 .lm-street-cap { color: var(--lm-ink-dim); font-size: 0.92em }
+
+/* ── The stallholder actor: a stall's character steps up with a line ─── */
+/* Rendered just under the street strip; the street's idea becomes a
+   character (not an icon) the moment one of its stalls lights on the
+   player's own choice. Fades in, sits, fades out. */
+#street-actor { max-width: 720px; margin: 0 auto; min-height: 0 }
+#street-actor:empty { display: none }
+.lm-stall-actor-fig-wrap {
+  display: inline-flex; align-items: flex-end; width: 48px; height: 54px;
+  vertical-align: middle; margin-right: 0.4rem;
+}
+.lm-stall-actor-fig { width: 100%; height: 100%; display: block }
+.lm-stall-actor-fig * { fill: none; stroke: var(--lm-amber); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round }
+.lm-line.stall-actor {
+  display: inline; margin: 0; color: var(--lm-ink); font-style: italic;
+}
+.lm-line.stall-actor .lm-stall-actor-who { font-style: normal; font-weight: 700; color: var(--lm-amber) }
+#street-actor { animation: lm-actor-in 300ms ease-out }
+@keyframes lm-actor-in {
+  0% { opacity: 0; transform: translateY(-6px) }
+  100% { opacity: 1; transform: translateY(0) }
+}
+@media (prefers-reduced-motion: reduce) { #street-actor { animation: none } }
 
 /* ── Ch.2/Ch.3 stall chrome (the place persists — third-pass §4) ──── */
 /* The till + ledger carry over from ch1's look; only the stage below
@@ -233,6 +322,23 @@ body {
   width: 7em; margin-left: .5em;
 }
 label.lm-hint { display: block; margin: .8rem 0 }
+
+/* ── The Shark's close: one card, one number, the whole screen ────── */
+/* The daily figure is the trap, so it gets the type size. Dim ink + red
+   pairing keeps state colourblind-safe (never colour alone). */
+.lm-shark { text-align: center; padding: 1.4rem 1rem }
+.lm-shark-now { font-size: var(--lm-text-lg); font-weight: 700; margin: 0 }
+.lm-shark-daily { font-size: 2em; font-weight: 700; margin: 0.3rem 0; color: var(--lm-ledger-red) }
+.lm-shark-daily::before { content: "▼ "; font-size: 0.6em }
+/* The Factor rhymes with the Shark: same full-screen card, the trap dressed
+   as relief — money today in ledger-green, always paired with the ▲ mark. */
+.lm-factor { text-align: center; padding: 1.4rem 1rem }
+.lm-factor-today { font-size: 2em; font-weight: 700; margin: 0.3rem 0; color: var(--lm-ledger-green) }
+.lm-factor-today::before { content: "▲ "; font-size: 0.6em }
+
+/* ── The verdict: your week in one line ───────────────────────────── */
+.lm-verdict { border-color: var(--lm-amber); padding: 1rem 1.2rem }
+.lm-verdict p:first-child { font-size: var(--lm-text-lg) }
 
 /* ── Finale: ledger review, profile axes, stat cards ──────────────── */
 .lm-review-scroll { max-height: 18rem; overflow-y: auto }

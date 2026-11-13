@@ -20,13 +20,21 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
+import type { Speaker } from "../audio/voice";
 
 export interface Ch3Deps {
   root: HTMLElement;
   record: (e: Omit<LedgerEntry, "id">) => void;
-  say: (speaker: "siki" | "zana", text: string) => void;
+  say: (speaker: Speaker, text: string) => void;
   onTool?: (tool: "decide_at_zero") => void;
 }
+
+/** The silence gets louder each round (Zana, baked for rounds 2–3). */
+const ROUND_SILENCE = [
+  "Still no reply. The line of credit is £60 open on the shelf, and doing nothing has to travel somewhere.",
+  "Still silence. The shelf keeps score.",
+  "Third knock, nothing. Decide what the silence is worth.",
+];
 
 const gbp = (v: number) => `£${Math.round(v)}`;
 
@@ -77,9 +85,11 @@ export function runChapter3(deps: Ch3Deps): void {
     clear(stage);
     renderChrome();
     const p = ch3Prospect();
+    // The silence speaks once per round (voiced overhead bubble, baked) — the
+    // stage below stays a decision, not a transcript.
+    deps.say(n === 1 ? "siki" : "zana", ROUND_SILENCE[n - 1]!);
     stage.append(
       el("h3", { text: `Round ${n} of 3 — ${CH3_CLIENT}` }),
-      el("p", { class: "lm-line siki", text: "Still no reply. The line of credit is £60 open on the shelf, and doing nothing has to travel somewhere." }),
       el("div", { class: "lm-choices" },
         choiceButton("Keep the line going", `Quiet cost this round: £${p.perRoundCost} of your time`, () => step("continue")),
         choiceButton("Escalate — discount + call", "£60 and a phone call you don't want to make", () => step("escalate")),
@@ -96,8 +106,16 @@ export function runChapter3(deps: Ch3Deps): void {
     else round();
   }
 
-  /** Street scenes: The Factor then The Shark (GDD A4). */
+  /** Street scenes, played in turn: the Factor steps up, then the Shark
+   *  (GDD A4). Each beat is one character, one number, one decision — never
+   *  a menu of offers. Ledger semantics unchanged: one entry per
+   *  stallholder, same rows as the old combined beat. */
   function street(): void {
+    deps.say("zana", "Word travels. Two offers found your door already.");
+    factorBeat();
+  }
+
+  function factorBeat(): void {
     const o = streetOffers();
     clear(stage);
     // The street's number is on the table now — the Factor's buy price.
@@ -105,38 +123,57 @@ export function runChapter3(deps: Ch3Deps): void {
     renderLedger(chrome.ledger, [
       { client: CH3_CLIENT, amount: CH3_INVOICE, status: `${CH3_DAYS_LATE} days late · the street wants to buy it`, tone: "dead" },
     ]);
-    deps.say("zana", "Word travels. Two offers found your door already.");
+    // Static bark (baked, voiced); the number itself stays dynamic text.
+    deps.say("factor", "No waiting. Today’s money, today — that is the whole of my offer.");
     // No honest-maths numbers on the offer cards (recovery plan §4): the
     // trap is what the player FEELS in play. The true costs surface in the
     // debrief, and again on the street's own ledger in the finale.
+    // Rhyme with the Shark's close: one card, one number. The Factor's is
+    // money TODAY, so it lands in ledger-green — the trap dressed as relief.
     stage.append(
-      el("h3", { text: "The street has heard you are patient" }),
-      el("div", { class: "lm-surface" },
-        el("h4", { text: "The Factor — polished otter" }),
-        el("p", { class: "lm-line", text: `"${gbp(o.factor.buyPrice)} today, no waiting."` }),
-        el("p", { class: "lm-hint", text: "Fictional · the rest of the invoice is theirs · indicative" }),
-      ),
-      el("div", { class: "lm-surface" },
-        el("h4", { text: "The Shark — smiling fish" }),
-        el("p", { class: "lm-line", text: `"${gbp(o.shark.cashNow)} now, pay back just £${o.shark.daily} a day."` }),
-        el("p", { class: "lm-hint", text: "Fictional · the daily number is small. That's the pitch. · indicative" }),
+      el("h3", { text: "The Factor — polished otter" }),
+      el("div", { class: "lm-surface lm-factor" },
+        el("p", { class: "lm-factor-today", text: `${gbp(o.factor.buyPrice)} today` }),
+        el("p", { class: "lm-hint", text: "the rest of the invoice is theirs · fictional · indicative" }),
       ),
       el("div", { class: "lm-choices" },
-        choiceButton("Decline both", "Keep the debt, keep the ladder", () => {
-          deps.record(streetLedgerEntry("The Factor", 0, false));
-          deps.record(streetLedgerEntry("The Shark", 0, false));
-          debrief();
-        }),
         choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
           const fee = CH3_INVOICE - streetOffers().factor.buyPrice;
           deps.record(streetLedgerEntry("The Factor", fee, true));
-          debrief();
+          sharkBeat();
         }),
+        choiceButton("Turn him down", "Keep the debt — someone else is already smiling", () => {
+          deps.record(streetLedgerEntry("The Factor", 0, false));
+          sharkBeat();
+        }),
+      ),
+    );
+  }
+
+  function sharkBeat(): void {
+    const o = streetOffers();
+    clear(stage);
+    renderTill(chrome.till, { value: o.shark.cashNow, caption: "On the table", decimals: 0, note: `then £${o.shark.daily} a day` });
+    deps.say("shark", "A little now. A little each day. The daily number is small — that is rather the point.");
+    // The close is a full-screen beat: the street goes quiet, one card, one
+    // number. The daily figure is the whole trap, so it gets the whole card.
+    stage.append(
+      el("h3", { text: "The Shark — smiling fish" }),
+      el("div", { class: "lm-surface lm-shark" },
+        el("p", { class: "lm-shark-now", text: `${gbp(o.shark.cashNow)} now` }),
+        el("p", { class: "lm-shark-daily", text: `then just £${o.shark.daily} a day` }),
+        el("p", { class: "lm-hint", text: "fictional · indicative" }),
+      ),
+      el("div", { class: "lm-choices" },
         choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
           const o2 = streetOffers();
           // Their true take: termDays × daily − cashNow (the rest is still owed).
           const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
           deps.record(streetLedgerEntry("The Shark", fee, true));
+          debrief();
+        }),
+        choiceButton("Decline", "Keep the debt, keep the ladder", () => {
+          deps.record(streetLedgerEntry("The Shark", 0, false));
           debrief();
         }),
       ),
