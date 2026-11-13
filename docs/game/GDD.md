@@ -38,7 +38,9 @@ grows), and the **street** (the shadow market outside). Each day you pick one
 action from a small vocabulary — serve walk-in work, chase an invoice, pay a
 supplier bill — then watch the till, the ledger, and the street react.
 Minute one is a scene before it is a screen: the Shark walks past your
-stall, Zana answers him, and only then do the shutters open. On every
+stall, Zana answers him, and his off-book offer — take 70% of an old debt,
+refuse, or counter — is the player's first real decision before the
+shutters open. On every
 decision beat the day's scene and choice render ABOVE the ledger strip —
 the first viewport is till → decision → buttons; the cards sit below as
 the books they are. A voiced day-opener (Siki or Zana, one line) frames

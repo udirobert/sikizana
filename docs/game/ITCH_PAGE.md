@@ -13,9 +13,10 @@ A night market opens where your uncollected invoices sleep.
 "Your week in one line: the near cost always shouted loudest, and the far one barely whispered."
 
 ## Short description (1–2 lines)
+A financial-literature game where your own decisions become the experiment.
 Chase late invoices, face the Claims Desk, and decide what a silent customer
-is worth — a 10-minute playable experiment about the frames that move money.
-Siki explains. Zana collects. The street keeps the ledger.
+is worth — the game runs behavioural experiments on you, then reads your
+choices back as data. Siki explains. Zana collects. The street keeps the ledger.
 
 ## Long description
 The Late Market is a narrative management game about the least dramatic
@@ -43,6 +44,8 @@ as does `?notelemetry=1`. The arithmetic is audited in public, figure by figure.
 or in dirhams where interest is not on the table: the Gulf run prices lateness
 with a contractual fee you agreed to in your own terms — and charges zakat on
 what you never collected. Same week, same arithmetic, two lawful instruments.
+The Souq path opens in Arabic — السوق — with the zakat line and remedy card
+labelled in both languages.
 
 Fictional offers, real arithmetic. No providers named, nothing sold — the
 free ladder (Zana's reminders) always collects for free.

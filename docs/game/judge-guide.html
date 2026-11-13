@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Late Market — Judge's Guide</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  body { font-family: Georgia, "Times New Roman", serif; color: #1a1a2e; line-height: 1.45; font-size: 10.5pt; }
+  h1 { font-size: 20pt; margin: 0 0 2pt; }
+  h2 { font-size: 12.5pt; margin: 14pt 0 5pt; border-bottom: 1.5px solid #b79bff; padding-bottom: 3pt; color: #23234a; }
+  p { margin: 5pt 0; }
+  .sub { color: #55556d; font-size: 9.5pt; }
+  .pitch { background: #f2efe6; border-left: 3px solid #ffb454; padding: 9pt 13pt; margin: 10pt 0; font-size: 11pt; }
+  ul { margin: 6pt 0; padding-left: 18pt; }
+  li { margin: 4pt 0; }
+  .meta { font-size: 9pt; color: #55556d; }
+  code { background: #efedf7; padding: 0 3pt; border-radius: 3pt; font-size: 9pt; }
+  strong { color: #23234a; }
+</style>
+</head>
+<body>
+
+<h1>The Late Market — a judge's guide</h1>
+<p class="sub">Siki &amp; Zana · Zoud GameLab, “Make FinLit Fun” · ~10–15 minutes · free in your browser</p>
+
+<div class="pitch">
+<strong>What this is:</strong> a financial-literature game where the player's own decisions
+become the experiment. You run a small business through one week; the game silently runs
+behavioural experiments on you, then reads your decisions back as data. Built by the team
+behind a working receivables product — the game's arithmetic is pinned to production code
+in CI, and every figure is audited in public.
+</div>
+
+<h2>What to look for (three things)</h2>
+<ul>
+  <li><strong>The paired-choice experiment (Chapter 1).</strong> Day 3 and Day 5 ask
+  structurally identical questions — chase now vs defer — with identical numbers. Only the
+  frame moved. Watch whether your answer moves with it, and whether the debrief names the
+  bias on <em>your</em> figures, not a textbook's.</li>
+  <li><strong>The anchor manipulation (Chapter 2).</strong> Three negotiation runs, three
+  different opening numbers, one invoice whose facts never change. Name your floor and
+  watch it shift toward their anchor. The debrief graphs your floor against their number.</li>
+  <li><strong>The audited arithmetic.</strong> Every number in the game is either a real
+  statutory figure (UK Late Payment of Commercial Debts Act 1998, s.5A — 8% over base +
+  fixed compensation) or a labelled fictional/indicative one. The audit appendix maps each
+  figure to its source and the test that guards it — linked from the game footer.</li>
+</ul>
+
+<h2>How to play it well</h2>
+<ul>
+  <li><strong>Two markets, one instrument.</strong> The title screen (or first-run picker)
+  offers London (pounds, statutory interest) and <strong>The Souq</strong> (dirhams, a
+  contractual late fee you wrote into your own terms — plus zakat on uncollected
+  receivables). Same week, same arithmetic, two lawful remedies. The Souq path carries
+  Arabic script (السوق · الزكاة) — the instrument is interest-free, so the game prices
+  lateness differently on purpose, not by translation.</li>
+  <li><strong>Read the ledger, not just the till.</strong> Every deferral is written to a
+  visible ledger and lights a stall on the street. The street is the shadow market your
+  lateness feeds — it is the game's central metaphor, not decoration.</li>
+  <li><strong>The ending is the point.</strong> The finale reads your whole decision ledger
+  back, names what moved you, and hands you a link into the real product the game teaches.
+  Replay is scored on your Rationality Delta.</li>
+</ul>
+
+<h2>Honest limits (stated in-game too)</h2>
+<ul>
+  <li>One playthrough is a demonstration, not an experiment — the game says so on the
+  debrief. The paired decisions show you <em>your</em> choice under two frames.</li>
+  <li>Fictional offers are labelled fictional; indicative ranges are labelled indicative.
+  No provider is named or recommended; the game never moves money.</li>
+  <li>Audio is optional; every line is subtitled. Simple-language mode, adjustable text
+  size, and reduced-motion are in Options.</li>
+</ul>
+
+<p class="meta">Artifacts: playable build (itch, private link in submission) · concept doc ·
+budget doc · audit appendix (<code>docs/game/AUDIT.md</code>) · trailer (~105 s, both markets).
+Contact: Udi Robert (@udirobert).</p>
+
+</body>
+</html>

@@ -1,8 +1,9 @@
-# Submission runbook — *The Late Market — a playable demo of an AP integrity engine*
+# Submission runbook — *The Late Market*
 
-> **The frame judges read first (use verbatim):** a ten-minute game, five chapters,
-> two lawful markets, seventy tests, sixteen dollars. Its numbers are audited in
-> public, and its ending hands you the real tool.
+> **The frame judges read first (use verbatim):** a financial-literature game
+> where the player's own decisions become the experiment — ten minutes, three
+> chapters, two lawful markets, eighty-four tests, sixteen dollars. Its numbers
+> are audited in public, and its ending hands you the real tool.
 >
 > Execution order, gates and what we collectively refused to build: `docs/game/LAUNCH_PLAN.md`.
 
@@ -10,26 +11,39 @@ Everything the agent built is in place; the human uploads it.
 **Hard deadline: Zoud GameLab, Sun 15 Nov 2026, 23:59 AOE.**
 Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public for Chroma.
 
+*The Late Market* is a narrative management game: you keep a small business
+solvent through one week while the game runs behavioural experiments on you —
+present bias in Ch.1, anchoring in Ch.2, sunk cost in Ch.3 — then reads your
+decision ledger back and names what moved you. The week opens with the Shark's
+off-book offer — a real first decision before the first invoice — and a
+first-run pick between the two markets. The shadow market outside
+(third-party buyers of your lateness) is the game's central metaphor: every
+deferral you choose visibly feeds it.
+
+It is also the playable demo of an AP-integrity engine: the same receivables
+arithmetic the game teaches is pinned to the production product's values in
+CI, and the finale hands the player a link into the live tool. That engine is
+one closing paragraph of the pitch, not the pitch.
+
 ## What ships (verified 2026-11-13)
 
 | Artifact | Path | Status |
 |---|---|---|
 | itch.zip | `game/dist/itch.zip` | 91 files · top-level `index.html` · relative paths · audio included · ~6.0 MB |
-| Gameplay video | `game/game-video/lm_run.mp4` (local-only, gitignored — keep on disk for upload) | ~105 s (cap is 2:00) · narrated (trailer VO, workspace Siki voice, blind to the frame) · title → Day 1 place → Day 3 pair → Day 4 bill stress → Day 5 pair B → debrief → Ch2 Claims Desk (run 1 + run-2 opener) → Ch3 Mareline → Factor beat → Shark close · silent cut kept as `lm_run_silent.mp4` |
+| Gameplay video | `game/game-video/lm_run.mp4` (local-only, gitignored — keep on disk for upload) | ~105 s (cap is 2:00) · narrated · v1 cut predates Souq Mode — **v2 re-record per `docs/game/TRAILER_SCRIPT.md` pending build freeze** |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
 | Screenshots | `game/screenshots/v5/*.png` | 10 genuine gameplay frames (day 1 / day 2 defer / day 3 pair + chased / day 4 bill / day 5 pair B / debrief ×3 / Factor actor) |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
+| Judge's guide | `docs/game/JUDGE_GUIDE.pdf` | one-pager: what to look for (the three experiments) + how to play both markets |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
 
-All checks: `npm test` 59/59 · `tsc --noEmit` clean · `npm run build` clean ·
-first minute is a scene, not a ledger (cold open verified in headless Chrome:
-`#ch1` child order is till → day panel → ledger; restyled street) ·
-Souq Mode shipped (AED + contractual, interest-free remedy + zakat; 70 tests) ·
-line items sum to the lantern to the penny (unit-tested) · "worth today" falls
-monotonically (unit-tested) · careless run empties the till on Day 4 in every
-seed, not the £40 fee's knife edge (unit-tested) · day-3 pair chase lands
-in-week on the till / day-5 pair B lands after the close, identical numbers
-(unit-tested) · title-screen regression guard (`scripts/regcheck.mjs`).
+All checks: `npm test` 84/84 · `tsc --noEmit` clean · `npm run build` clean ·
+regression guard (`scripts/regcheck.mjs`) · Souq Mode shipped (AED +
+contractual, interest-free remedy + zakat) · line items sum to the lantern to
+the penny · "worth today" falls monotonically · careless run empties the till
+on Day 4 in every seed · day-3 pair chase lands in-week / day-5 pair B lands
+after the close, identical numbers · the game's four shared quantities are
+pinned against exported product values (`tests/vectors.test.ts`).
 
 ## 1. itch.io page (~15 min)
 
@@ -54,10 +68,28 @@ in-week on the till / day-5 pair B lands after the close, identical numbers
 2. Submit via the itch flow: paste the itch URL (private page is fine).
 3. Uploads:
    - Concept doc PDF: `docs/game/CONCEPT_DOC.pdf` (or a public no-login link).
-   - 2-minute gameplay video: `game/game-video/lm_run.mp4`.
+   - Judge's guide: `docs/game/JUDGE_GUIDE.pdf` — what to look for, one page.
+   - 2-minute gameplay video: `game/game-video/lm_run.mp4` (v2 cut if re-recorded).
    - Project budget: `docs/game/BUDGET_DOC.pdf`.
    - AI disclosure (judges-only): ElevenLabs (audio) + Recraft (cover art).
 4. Submit with at least 12 h of buffer before AOE.
+
+### Zoud form fields (paste-ready)
+
+- **One-line pitch:** A financial-literature game where the player's own
+  decisions become the experiment — you run a small business through one week
+  while the game runs behavioural experiments on you, then reads your decisions
+  back as data.
+- **What it is:** browser game, ~10–15 min, three chapters + finale, two lawful
+  markets (UK statutory remedy / Gulf contractual remedy + zakat), persistent
+  bookkeeping frame, full decision-ledger debrief. The ending links into the
+  team's live receivables product.
+- **What makes it different:** most FinLit games explain biases; this one runs
+  you through them silently, then names them on your own numbers. Every figure
+  is audited in public and the game's core arithmetic is pinned to production
+  code in CI.
+- **Tools used:** hand-built HTML5/TypeScript, ElevenLabs (pre-baked voice,
+  music, SFX), Recraft (cover art). No generative code.
 
 ## 3. Chroma Games (later — Jan 7, 11:45 PM PT; verify category in Dec)
 

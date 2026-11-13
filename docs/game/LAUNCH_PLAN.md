@@ -6,7 +6,7 @@ three days left, bold *scope* is just a way to submit something broken at 23:50.
 
 ## The frame
 
-> A ten-minute game, five chapters, two lawful markets, seventy tests, sixteen dollars.
+> A ten-minute game, five chapters, two lawful markets, eighty-four tests, sixteen dollars.
 > Its numbers are audited in public, and its ending hands you the real tool.
 
 Every clause is checkable, which is what makes it safe to say. The submission title
@@ -93,3 +93,14 @@ frozen; re-recording against a moving build wastes the take and the day.
   starts, finishes, finish rate, replays and improved replays.
 - Checks: `npm test -- --run` 83/83 · `tsc` clean · `pytest tests/test_game_telemetry.py`
   6 passed.
+- **2026-11-13 — plan superseded by the "all-in" Phase 1–3 plan.** Two earlier
+  rulings in this document are reversed by owner decision after external
+  playtest feedback: (a) **Arabic is back in scope** — key-moment strings +
+  voiced lines for the Souq path ship in the jam build (`docs/game/arabic-strings.json`);
+  the "rejected" note above applied to a *full* localisation pass, which remains
+  post-jam; (b) **the trailer is re-recorded** (v2 cold-open script,
+  `docs/game/TRAILER_SCRIPT.md`) after the build freezes, showing both markets
+  and one Arabic line — Move 5's gating stands, the deliverable changed.
+  Track A owns all `game/src/` changes (`docs/game/TRACK_A_SPEC.md`); Track C
+  owns judge-facing copy (`SUBMISSION.md`, `ITCH_PAGE.md`, `JUDGE_GUIDE.pdf`,
+  `arabic-strings.json`).

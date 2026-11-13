@@ -1,0 +1,152 @@
+{
+  "_comment": "The Late Market — Souq-mode Arabic string table. Track C deliverable, frozen 2026-11-13. BYTE-IDENTICAL requirement: the bake script input and the runtime lookup must use these exact strings — bake-voices.mjs normalizes whitespace only; watch Unicode normalization (use NFC) and diacritics. Digits are Western (0-9) throughout: Gulf business convention, and it keeps figures identical to the EN display strings. Track A wires `ui` keys through market.ts getters (NOT through i18n.ts phrased(), which is EN-only); Track B bakes `vo` lines against speaker voices — souq variants may reuse narrator voices, Arabic lines need an Arabic-capable model pass (eleven_v4 multilingual or v3).",
+  "ui": {
+    "market.name": {
+      "en": "The Souq",
+      "ar": "السوق",
+      "note": "market display name; pairs with the English name on the bilingual card"
+    },
+    "market.title_bilingual": {
+      "en": "السوق · The Late Market",
+      "ar": "السوق · The Late Market",
+      "note": "bilingual title card shown when the Souq path is entered; Arabic first per RTL reading order"
+    },
+    "market.tagline": {
+      "en": "A night market opens where your uncollected invoices sleep.",
+      "ar": "سوق ليلية ينفتح حيث تنام فواتيرك التي لم تُحصَّل.",
+      "note": "title-screen tagline, Souq variant"
+    },
+    "picker.legend": {
+      "en": "Which market?",
+      "ar": "أي سوق؟",
+      "note": "first-run market choice beat (A5)"
+    },
+    "picker.scene.line": {
+      "en": "Two markets. Same week. Different law.",
+      "ar": "سوقان. الأسبوع نفسه. قانون مختلف.",
+      "note": "the picker beat's epigraph; also vo.souq_picker"
+    },
+    "picker.card.uk.label": {
+      "en": "UK — pounds, statutory interest",
+      "ar": "المملكة المتحدة — بالجنيه الإسترليني، فائدة قانونية",
+      "note": "London card, instrument in plain words"
+    },
+    "picker.card.souq.label": {
+      "en": "Gulf — AED, contractual late fee",
+      "ar": "الخليج — بالدرهم الإماراتي، رسوم تأخير تعاقدية",
+      "note": "Souq card, instrument in plain words"
+    },
+    "picker.card.uk.flavour": {
+      "en": "Interest set by law — the statute names the price of waiting.",
+      "ar": "فائدة يحددها القانون — النظام يسمّي ثمن الانتظار.",
+      "note": "one line of flavour per card; no stats dump"
+    },
+    "picker.card.souq.flavour": {
+      "en": "A fee you wrote into your own terms — and zakat on what never clears.",
+      "ar": "رسوم كتبتَها في شروطك — وزكاة على ما لا يُسدَّد.",
+      "note": "Souq card flavour; plants the zakat hook early"
+    },
+    "remedy.card.title": {
+      "en": "contractual late fee",
+      "ar": "رسوم التأخير التعاقدية",
+      "note": "remedy card heading on the Souq path (market.ts remedy().label)"
+    },
+    "zakat.label": {
+      "en": "Zakat",
+      "ar": "الزكاة",
+      "note": "label on the zakat line / remedy card"
+    },
+    "zakat.line.template": {
+      "en": "Zakat on what you are still owed: 2.5% of {amount} ≈ {zakat} — commonly due on receivables you expect to collect, whether or not the invoice ever clears.",
+      "ar": "الزكاة على ما لا يزال لك: 2.5% من {amount} ≈ {zakat} — وتُستحق عادةً على المبالغ التي ما زلت تنتظر تحصيلها، حتى لو لم تُسدَّد الفاتورة أبدًا.",
+      "note": "mirrors zakatNote() in market.ts; {amount}/{zakat} are money()-formatted figures — keep Western digits and the ≈ sign"
+    },
+    "remedy.terms.template": {
+      "en": "The terms you signed when you took them on: {pct}% of the invoice for each thirty days it runs late, capped at {cap}%, and {admin} to administer it. You wrote this. You have not read it since.",
+      "ar": "الشروط التي وقّعتها عندما تعاملت معهم: {pct}% من قيمة الفاتورة عن كل ثلاثين يومًا يتأخر سدادها، بحد أقصى {cap}%، إضافة إلى {admin} رسومًا إدارية. أنت من كتبها. ولم تعد تقرأها منذ ذلك الحين.",
+      "note": "mirrors contractualRemedy.terms in market.ts; {pct}=2 {cap}=8 {admin}=money()-formatted"
+    }
+  },
+  "vo": [
+    {
+      "id": "vo.souq_picker",
+      "speaker": "siki",
+      "en": "Two markets. Same week. Different law.",
+      "ar": "سوقان. أسبوع واحد. قانونان مختلفان.",
+      "status": "new",
+      "note": "first-run picker beat (A5); Track A adds the say() call and this display string"
+    },
+    {
+      "id": "vo.souq_intro",
+      "speaker": "siki",
+      "en": "The Souq. Same week, different law — your own terms set the price of lateness, and zakat waits on what you never collect.",
+      "ar": "السوق. الأسبوع نفسه، لكن قانون مختلف — شروطك أنت تحدد ثمن التأخير، والزكاة تنتظر ما لا تحصّله أبدًا.",
+      "status": "new",
+      "note": "Souq-path cold-open line; plays over the bilingual title card"
+    },
+    {
+      "id": "vo.souq_zakat",
+      "speaker": "zana",
+      "en": "And the souq keeps one more ledger: zakat on what you are still owed. Two and a half percent — due whether or not the invoice ever clears.",
+      "ar": "والسوق يحتفظ بدفتر آخر: الزكاة على ما لا يزال مستحقًا لك. اثنان ونصف بالمئة — مستحقة سواء سُدِّدت الفاتورة أم لا.",
+      "status": "new",
+      "note": "zakat reveal; pairs with the ui.zakat.line.template display"
+    },
+    {
+      "id": "vo.ch1_intro_souq",
+      "speaker": "siki",
+      "en": "Day one. Till AED 5,760. Quayline's AED 9,600 bill lands Day 4. Something on the ledger is already bleeding.",
+      "ar": "اليوم الأول. الخزينة فيها 5,760 درهمًا. فاتورة كوايلين البالغة 9,600 درهم تستحق في اليوم الرابع. هناك شيء في الدفتر ينزف بالفعل.",
+      "status": "variant",
+      "note": "souq variant of ch1_intro_new (£1,200→AED 5,760, £2,000→AED 9,600 at FX 4.8); fixes the baked-£ problem on the Souq path"
+    },
+    {
+      "id": "vo.ch1_debrief_rule",
+      "speaker": "zana",
+      "en": "Here's the rule. Say it until it's boring.",
+      "ar": "هذه هي القاعدة. ردّدها حتى تصبح مملة.",
+      "status": "reuse",
+      "note": "existing line id ch1_debrief_rule; Arabic re-bake only"
+    },
+    {
+      "id": "vo.ch2_intro",
+      "speaker": "siki",
+      "en": "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table.",
+      "ar": "مكتب التسوية في السوق يشتري الاتفاق. يفتحون كل تفاوض برقمهم. لاحظ أي رقم صار على الطاولة بالفعل.",
+      "status": "reuse",
+      "note": "existing line id ch2_intro"
+    },
+    {
+      "id": "vo.ch2_debrief_flip_souq",
+      "speaker": "zana",
+      "en": "Flip it. Open with your terms, not with their number.",
+      "ar": "اقلبها. ابدأ بشروطك، لا برقمهم.",
+      "status": "variant",
+      "note": "souq variant of ch2_debrief_flip — 'the law' becomes 'your terms' (the contractual remedy IS the player's own signature); mirrors ch2screen.ts 'quote your terms first'"
+    },
+    {
+      "id": "vo.ch3_intro",
+      "speaker": "zana",
+      "en": "Mareline. Three years a customer, sixty days late, four times a year. Now silence.",
+      "ar": "ماريلاين. ثلاث سنوات كعميلة، متأخرة ستون يومًا، أربع مرات في السنة. والآن صمت.",
+      "status": "reuse",
+      "note": "existing line id ch3_intro"
+    },
+    {
+      "id": "vo.souq_debrief_zakat",
+      "speaker": "siki",
+      "en": "Zakat sat on what you never collected all week. The souq counts what the till forgot.",
+      "ar": "ظلت الزكاة تتراكم على ما لم تحصّله طوال الأسبوع. السوق يحسب ما نسيه الصندوق.",
+      "status": "new",
+      "note": "debrief callback — the second cost of deferral, named aloud"
+    },
+    {
+      "id": "vo.finale_close",
+      "speaker": "siki",
+      "en": "Market close. This is the street your decisions built.",
+      "ar": "إغلاق السوق. هذا هو الشارع الذي بنتْه قراراتك.",
+      "status": "reuse",
+      "note": "existing line id finale_close"
+    }
+  ]
+}

@@ -12,7 +12,7 @@ Three categories, and the distinction is the point:
   presented as a market rate.
 - **Derived** — computed from the above by a rule the game states in the copy.
 
-Run the suite yourself: `cd game && npm test -- --run` (75 tests, 9 files).
+Run the suite yourself: `cd game && npm test -- --run` (84 tests, 10 files).
 
 ## The two remedies
 
