@@ -28,8 +28,23 @@ import {
   type DayEffect,
 } from "./ch1";
 import type { LedgerEntry } from "../engine/ledger";
+import type { Speaker } from "../audio/voice";
 import { phrased } from "../i18n";
 import { money, isSouq } from "../engine/market";
+
+/**
+ * The prologue's frozen VO contract (TRACK_A_SPEC A1): these strings are the
+ * manifest keys — display text and spoken text are the same constant, so a
+ * baked take can never drift from what the player reads. Track B bakes them
+ * verbatim; do not reword without re-baking.
+ */
+export const PROLOGUE_EXPERIMENT_ID = "prologue_shark_offer";
+export const SHARK_PROLOGUE = {
+  offer: "That old debt of yours — the one from before your week. I'll take it off your hands. 70% of face, settled off the books.",
+  accept: "Pleasure doing business. The street thanks you — literally.",
+  refuse: "Your loss. The street keeps its own books.",
+  counter: "Eighty-five? Cute. Seventy, off the books, tonight — or nothing.",
+} as const;
 
 export interface Ch1Deps {
   root: HTMLElement;
@@ -38,13 +53,17 @@ export interface Ch1Deps {
   /** All ch1 pair entries so far (for the debrief replay). */
   pairEntries: () => LedgerEntry[];
   /** Audio bus marker — muted-safe; lines render as text regardless. */
-  say: (speaker: "siki" | "zana", text: string) => void;
+  say: (speaker: Speaker, text: string) => void;
   /** Persist run state (localStorage; cleared on demand — privacy rails). */
   save: (state: Ch1State) => void;
   /** Fired when the chapter closes (main.ts chains to Chapter 2). */
   onTool?: (tool: "reminder_rule") => void;
-  /** Street-moving events that don't create ledger entries. */
-  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number }) => void;
+  /** Street-moving events that don't create ledger entries. `flair` is a
+   *  cosmetic-only pulse — it must never feed street counters. */
+  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean }) => void;
+  /** True once the prologue offer has a ledger entry — a player who chose
+   *  but closed before Day 1 must not be offered it twice. */
+  prologueSettled?: () => boolean;
 }
 
 const gbp = (v: number) => money(v, 2);
@@ -281,13 +300,70 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   function coldOpen(): void {
     deps.say("zana", "Heads up. Shark about — walk past him.");
     // The books don't exist yet dramatically — hide the empty chrome so the
-    // first viewport is street, teeth, and one button.
+    // first viewport is street, teeth, and the choice.
     lantern.hidden = true; till.hidden = true; ledgerStrip.hidden = true;
+    clear(dayPanel);
+    dayPanel.append(el("h3", { text: "Night. The Late Market." }));
+
+    // The prologue offer is ONCE per run: a player who picked but closed
+    // before Day 1 sees only the shutters, not a second ledger entry.
+    if (deps.prologueSettled?.()) return shutters();
+
+    dayPanel.append(
+      el("p", { class: "lm-line shark", text: "Nice stall. Everybody pays the street eventually — cash now, or a little each day." }),
+      el("p", { class: "lm-line zana", text: "That's the Shark. He prices patience by the day." }),
+      el("div", { class: "lm-choices" },
+        choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take")),
+        choiceButton("Refuse", "Keep the debt. The street keeps its own books", () => prologuePick("refuse")),
+        choiceButton("Counter — 85%", "He will say no. Watch.", () => prologuePick("counter")),
+      ),
+    );
+    // The offer itself is the voiced beat — the bubble IS the presentation.
+    deps.say("shark", SHARK_PROLOGUE.offer);
+    persist();
+  }
+
+  /** The Shark's offer, recorded once. Off-book by design: the debt predates
+   *  the week, so nothing touches state.cash, state.invoices, or
+   *  dayChoices() — the paired-choice experiment and the 5-day balance are
+   *  untouched. Ledger rules (TRACK_A_SPEC A1): chapter 1, day 0, an
+   *  experimentId with NO ch1_/ch2_/ch3_ prefix (irrationalityProfile counts
+   *  those), npc set but NEVER feePaid (costOfNotActing would inflate),
+   *  deferred false. */
+  function prologuePick(kind: "take" | "refuse" | "counter"): void {
+    deps.record({
+      chapter: 1,
+      day: 0,
+      experimentId: PROLOGUE_EXPERIMENT_ID,
+      prompt: SHARK_PROLOGUE.offer,
+      optionsShown: [
+        { id: "take_70", label: "Take the 70%", framingVariable: "prologue_offer_70pct", isDefault: false },
+        { id: "refuse", label: "Refuse — keep the debt", framingVariable: "prologue_refuse", isDefault: true },
+        { id: "counter_85", label: "Counter — 85%", framingVariable: "prologue_counter_85", isDefault: false },
+      ],
+      chosenOptionId: kind === "take" ? "take_70" : kind === "counter" ? "counter_85" : "refuse",
+      deferred: false,
+      npc: {
+        npc: "The Shark",
+        decision: kind === "take" ? "accept" : kind === "counter" ? "counter" : "decline",
+      },
+      immediateConsequence:
+        kind === "take"
+          ? "Settled off the books — the old debt is gone; this week's till never saw it."
+          : kind === "counter"
+            ? "Countered at 85% — the Shark walked. The offer is gone."
+            : "Refused. The debt stays yours; the street keeps its own books.",
+    });
+    if (kind === "take") deps.noteStreet({ flair: true }); // cosmetic pulse only
+    deps.say("shark", SHARK_PROLOGUE[kind === "take" ? "accept" : kind === "counter" ? "counter" : "refuse"]);
+    shutters();
+  }
+
+  function shutters(): void {
     clear(dayPanel);
     dayPanel.append(
       el("h3", { text: "Night. The Late Market." }),
-      el("p", { class: "lm-line shark", text: "Nice stall. Everybody pays the street eventually — cash now, or a little each day." }),
-      el("p", { class: "lm-line zana", text: "That's the Shark. He prices patience by the day. Open the shutters." }),
+      el("p", { class: "lm-line zana", text: "The street keeps its books whether you open or not. Open the shutters." }),
       el("div", { class: "lm-choices" },
         choiceButton("Open the shutters", `Day 1 of 5 · till ${money(1200)}`, () => showDay()),
       ),

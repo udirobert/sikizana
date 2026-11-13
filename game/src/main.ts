@@ -9,7 +9,7 @@ import "./styles/tokens.css";
 import { AudioBus, type PlayHandle } from "./audio/bus";
 import { VoicePlayer, type Speaker } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
-import { runChapter1 } from "./chapters/ch1screen";
+import { runChapter1, PROLOGUE_EXPERIMENT_ID } from "./chapters/ch1screen";
 import type { Ch1State } from "./chapters/ch1";
 import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
@@ -18,7 +18,9 @@ import { runFinale } from "./chapters/finaleScreen";
 import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetCounters } from "./ui/street";
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
-import { getMarketMode, loadStoredMarketMode, resolveMarketMode, setMarketMode, type MarketMode } from "./engine/market";
+import { el, choiceButton, clear } from "./ui/dom";
+import { stingFor } from "./audio/stings";
+import { getMarketMode, loadStoredMarketMode, money, resolveMarketMode, setMarketMode, SOUQ_AR, type MarketMode } from "./engine/market";
 import { chapterReached, runFinished, sendTelemetry } from "./engine/telemetry";
 import { installChoiceKeys } from "./ui/keys";
 
@@ -132,7 +134,9 @@ function streetCounters(): StreetCounters {
   let npcFees = 0;
   for (const e of all) if (e.npc?.feePaid) npcFees += e.npc.feePaid;
   // The street's money so far: ch1 shed value (the lantern) + late charges +
-  // NPC fees from ch2/ch3. This is what the strip's "£X so far" tallies.
+  // NPC fees from ch2/ch3. This is what the strip's "£X so far" tallies —
+  // and the tally's breakdown lists the same three components, never a
+  // fabricated per-stall split.
   const toStreet = npcFees + streetSession.lateFees + streetSession.streetTake;
   return {
     toStreet,
@@ -140,16 +144,29 @@ function streetCounters(): StreetCounters {
     deferrals: streetSession.deferrals,
     collected: streetSession.collected,
     billSkipped: streetSession.billSkipped,
+    lateFees: streetSession.lateFees,
+    npcFees,
   };
 }
 
 /** Chapter-1 driver reports street-moving events that have no ledger entry. */
-function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number }): void {
+function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean }): void {
   if (ev.deferral) streetSession.deferrals += 1;
   if (ev.billSkipped) streetSession.billSkipped += 1;
   if (ev.collected) streetSession.collected += ev.collected;
   if (ev.lateFee) streetSession.lateFees += ev.lateFee;
   if (ev.streetTake) streetSession.streetTake += ev.streetTake;
+  // Cosmetic-only pulse (the prologue's off-book offer): the street flinches,
+  // but no counter moves — no stall lights, nothing enters the tally.
+  if (ev.flair) {
+    const slot = document.getElementById("street-slot");
+    if (slot) {
+      slot.classList.remove("lm-street-flair");
+      void slot.offsetWidth; // restart the animation
+      slot.classList.add("lm-street-flair");
+      window.setTimeout(() => slot.classList.remove("lm-street-flair"), 1600);
+    }
+  }
   renderStreet();
 }
 
@@ -164,11 +181,12 @@ const KIND_ACTORS: Record<string, { name: string; kind: "factor" | "collector" |
 };
 
 let prevLit = -1;
+let prevShut = -1;
 function renderStreet(): void {
   const slot = document.getElementById("street-slot");
   if (!slot) return;
   const counters = streetCounters();
-  const { lit } = streetState(counters);
+  const { lit, shut } = streetState(counters);
   const row = renderStreetRow(counters);
   // The run's shape rides along with the street (same node, re-parented on
   // every rebuild) so "where am I" never needs its own bar.
@@ -190,7 +208,14 @@ function renderStreet(): void {
     const actor = kind ? KIND_ACTORS[kind] : null;
     if (actor) actorStepUp(actor.name, actor.kind, actor.line);
   }
+  // A collection shutters a stall: shut stalls render leftmost, so the one
+  // that just closed sits at index prevShut.
+  if (prevShut >= 0 && shut > prevShut) {
+    const stalls = Array.from(row.querySelectorAll<HTMLElement>(".lm-stall"));
+    stalls[prevShut]?.classList.add("lm-stall-change");
+  }
   prevLit = lit;
+  prevShut = shut;
   slot.replaceChildren(row);
 }
 
@@ -253,9 +278,18 @@ function elSpan(cls: string, text: string): HTMLSpanElement {
   return s;
 }
 
-function actCard(n: 1 | 2 | 3 | "finale"): void {
-  if (n === 1) return; // the title screen was the card
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+/**
+ * The chapter sting — a scene change, not a page swap. One overlay card
+ * (eyebrow + title + epigraph) that fades and is gone in ~2.4s; the epigraph
+ * is voiced when a baked take exists (STING_LINES is the frozen contract —
+ * manifest key = display text, byte-for-byte). Missing audio degrades
+ * silently: the card always renders. Under reduced motion the card is
+ * static — deliberately different from the old actCard, which showed
+ * nothing: a chapter boundary is information, not decoration.
+ */
+function chapterSting(n: 1 | 2 | 3 | "finale"): void {
+  if (n === 1) return; // the prologue is chapter 1's entrance
+  const spec = stingFor(n);
   let host = document.getElementById("lm-act");
   if (!host) {
     host = document.createElement("div");
@@ -263,14 +297,18 @@ function actCard(n: 1 | 2 | 3 | "finale"): void {
     host.setAttribute("aria-hidden", "true"); // the chapter heading already announces it
     game.append(host);
   }
-  const card = document.createElement("div");
-  card.className = "lm-act-card";
+  const card = el("div", { class: "lm-sting-card" });
   card.append(
     elSpan("lm-act-eyebrow", n === "finale" ? "The week closes" : `Chapter ${n} of 3`),
     elSpan("lm-act-title", n === "finale" ? "Market Close" : CHAPTERS[n]),
+    el("p", { class: "lm-sting-line" }, spec.text),
   );
   host.replaceChildren(card);
-  window.setTimeout(() => { if (host?.contains(card)) host.replaceChildren(); }, 2000);
+  // The card's own text node is the karaoke target — say() would prepend
+  // into the chapter section, which clear(root) wipes the moment it mounts.
+  const lineNode = card.querySelector<HTMLElement>(".lm-sting-line");
+  if (lineNode) void voice.speak(spec.speaker, spec.text, lineNode);
+  window.setTimeout(() => { if (host?.contains(card)) host.replaceChildren(); }, 2400);
 }
 
 /** Chapter sequence — one shared frame, nothing resets between chapters. */
@@ -283,7 +321,7 @@ function beginChapter(n: 1 | 2 | 3): void {
     return r;
   })();
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== `ch${n}`;
-  actCard(n);
+  chapterSting(n);
   setProgress(`Chapter ${n} of 3 · ${CHAPTERS[n]}`, n);
   // Funnel point: how far a visitor got. Anonymous, four events a run at most.
   sendTelemetry(chapterReached(n === 1 ? "ch1" : n === 2 ? "ch2" : "ch3"));
@@ -297,6 +335,7 @@ function beginChapter(n: 1 | 2 | 3): void {
         say,
         save: (s: Ch1State) => { try { localStorage.setItem(CH1_SAVE_KEY, JSON.stringify(s)); } catch { /* private-mode */ } },
         noteStreet,
+        prologueSettled: () => ledger.all().some((e) => e.experimentId === PROLOGUE_EXPERIMENT_ID),
         onTool: () => {
           localStorage.removeItem(CH1_SAVE_KEY); // chapter closed — the run is done
           document.dispatchEvent(new CustomEvent("lm:chapter-done", { detail: 1 }));
@@ -376,7 +415,89 @@ function begin(withSound: boolean): void {
 
   // Dev/trailer jump: ?ch=2 starts mid-board without the 20-day replay.
   const jump = Number(new URLSearchParams(location.search).get("ch") ?? 1);
-  beginChapter((([1, 2, 3].includes(jump) ? jump : 1) || 1) as 1 | 2 | 3);
+  const chapter = ([1, 2, 3].includes(jump) ? jump : 1) || 1;
+
+  // First-run market pick: a scene beat, not a settings radio. Skipped for
+  // returning players, deep links (?market=, ?ch=), and anyone mid-run —
+  // the choice changes the remedy, so it must never yank a saved week.
+  if (shouldOfferMarketPick()) {
+    showMarketPick(() => beginChapter(chapter as 1 | 2 | 3));
+    return;
+  }
+  beginChapter(chapter as 1 | 2 | 3);
+}
+
+const MARKET_PICKED_KEY = "lm.market.picked";
+
+function marketExplicitlyChosen(): boolean {
+  try { return localStorage.getItem(MARKET_PICKED_KEY) === "1"; } catch { return false; }
+}
+
+function markMarketPicked(): void {
+  try { localStorage.setItem(MARKET_PICKED_KEY, "1"); } catch { /* private-mode */ }
+}
+
+function shouldOfferMarketPick(): boolean {
+  const params = new URLSearchParams(location.search);
+  if (params.has("market") || params.has("ch")) return false; // deep links resolve silently
+  if (marketExplicitlyChosen()) return false;
+  if (loadCh1Save() !== null) return false; // mid-run
+  if (ledger.all().length > 0) return false; // a run exists — even a finished one
+  return true;
+}
+
+/**
+ * The market choice as a beat: two cards, the instruments in plain words,
+ * and the Souq path surfaces its Arabic name before the shutters open.
+ * Routes through the same setMarketMode + purgeSave path as the title
+ * radio, so a pick can never leave a UK ledger under souq rules.
+ */
+function showMarketPick(onDone: () => void): void {
+  const sec = document.createElement("section");
+  sec.className = "lm-chapter";
+  sec.id = "market-pick";
+  game.append(sec);
+
+  const enter = (mode: MarketMode): void => {
+    markMarketPicked();
+    if (mode !== getMarketMode()) {
+      setMarketMode(mode);
+      purgeSave(); // numbers from the other remedy don't carry
+    }
+    sec.remove();
+    onDone();
+  };
+
+  const souqBeat = (): void => {
+    clear(sec);
+    sec.append(
+      el("h3", { text: SOUQ_AR.marketName }),
+      el("p", {
+        class: "lm-line souq-ar",
+        text: `${SOUQ_AR.marketName} — ${SOUQ_AR.marketNameGloss}. ${SOUQ_AR.zakat} on what you're still owed.`,
+      }),
+      el("p", {
+        class: "lm-hint",
+        text: `${SOUQ_AR.remedyTitle} — the fee is the one you wrote into your own terms. No interest anywhere: the instrument is a contractual charge, agreed on day one.`,
+      }),
+      el("div", { class: "lm-choices" },
+        choiceButton("Open the shutters", `Day 1 of 5 · till ${money(1200)}`, () => enter("souq")),
+      ),
+    );
+  };
+
+  sec.append(
+    el("h3", { text: "Two markets. Same week. Different law." }),
+    el("p", {
+      class: "lm-hint souq-ar-kicker",
+      text: SOUQ_AR.pickerKicker,
+    }),
+    el("p", { class: "lm-hint", text: "Pick the market your books live in. The arithmetic is identical; the law is not." }),
+    el("div", { class: "lm-choices lm-market-cards" },
+      choiceButton(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", () => enter("uk")),
+      choiceButton(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee you wrote into your own terms", souqBeat),
+    ),
+  );
 }
 
 const PROFILE_KEY = "lm.profile.v1";
@@ -437,7 +558,7 @@ function finale(): void {
     game.append(review);
   }
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "finale";
-  actCard("finale");
+  chapterSting("finale");
   setProgress("Market close", 3);
   runFinale({
     root: review,
@@ -468,6 +589,7 @@ for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="mar
     if (!radio.checked) return;
     const next = radio.value as MarketMode;
     if (next === getMarketMode()) return;
+    markMarketPicked(); // an explicit title-screen choice counts as chosen
     setMarketMode(next);
     purgeSave(); // numbers from the other remedy don't carry
   });

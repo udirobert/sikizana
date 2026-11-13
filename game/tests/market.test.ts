@@ -18,6 +18,7 @@ import {
   resolveMarketMode,
   remedy,
   setMarketMode,
+  SOUQ_AR,
   zakatNote,
   zakatOnReceivables,
   ZAKAT_RATE_PCT,
@@ -116,7 +117,21 @@ describe("zakat on receivables", () => {
     expect(note).toContain("AED");
     expect(note).toContain("2.5%");
     expect(note).toContain("commonly");
+    expect(note).toContain("زكاة");
     setMarketMode("uk");
     expect(zakatNote(1240)).toBeNull();
+  });
+});
+
+describe("SOUQ_AR frozen keys", () => {
+  // Track B bakes VO against these strings and Track C writes copy around
+  // them — the keys are the contract, so pin their presence and script.
+  it("exposes the Arabic surface keys the picker and remedy card read", () => {
+    expect(SOUQ_AR.marketName).toBe("السوق");
+    expect(SOUQ_AR.marketNameGloss).toBe("the souq");
+    expect(SOUQ_AR.zakat).toBe("زكاة");
+    expect(SOUQ_AR.remedyTitle).toBe("رسوم تأخير تعاقدية");
+    expect(SOUQ_AR.pickerKicker).toBe("سوقان · أسبوع واحد · قانونان مختلفان");
+    expect(SOUQ_AR.londonName).toBe("لندن");
   });
 });

@@ -415,3 +415,62 @@ label.lm-hint { display: block; margin: .8rem 0 }
 .lm-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: .8rem 0 }
 .lm-stat-value { font-size: var(--lm-text-lg); font-weight: 700; color: var(--lm-amber); margin: 0 }
 @media (max-width: 480px) { .lm-stat-grid { grid-template-columns: 1fr } }
+
+/* ── Track A additions: the sting card, the tally's books, scene beats ── */
+/* The sting keeps the act-card grammar (eyebrow + title, amber border,
+   pointer-events none) and adds the epigraph line — the chapter's one
+   sentence, voiced when the baked take exists. */
+.lm-sting-card {
+  display: grid; gap: 0.4rem; text-align: center; padding: 0.9rem 1.6rem 1.1rem;
+  background: rgba(20, 20, 40, 0.88); border: 1px solid var(--lm-amber); border-radius: 12px;
+  max-width: 34rem; animation: lm-act 2.3s ease-in-out forwards;
+}
+.lm-sting-line { margin: 0; font-style: italic; color: var(--lm-ink); font-size: 0.95em }
+@media (prefers-reduced-motion: reduce) { .lm-sting-card { animation: none; opacity: 1 } }
+
+/* The tally is a button now — the books are behind it. Reset chrome, keep
+   the caption look; expanded books read as small ledger lines. */
+.lm-street-tally {
+  background: none; border: none; padding: 0; font: inherit; color: inherit;
+  cursor: pointer; text-align: left;
+}
+.lm-street-tally:focus-visible { outline: 2px solid var(--lm-amber); outline-offset: 2px; border-radius: 4px }
+.lm-street-tally[aria-expanded="true"] { color: var(--lm-amber) }
+.lm-street-books {
+  flex-basis: 100%; display: block; margin-top: 0.35rem; padding: 0.5rem 0.7rem;
+  background: var(--lm-bg-mid); border: 1px solid var(--lm-ink-dim); border-radius: 8px;
+  font-size: 0.85em; color: var(--lm-ink-dim);
+}
+.lm-street-books[hidden] { display: none }
+.lm-street-book-line { display: block; font-variant-numeric: tabular-nums }
+
+/* The off-book prologue pulse: the street flinches once — cosmetic only,
+   nothing lights or moves. Respects reduced motion. */
+#street-slot.lm-street-flair .lm-street { animation: lm-street-flair 1.5s ease-out }
+@keyframes lm-street-flair {
+  0% { transform: translateX(0) }
+  20% { transform: translateX(-5px) }
+  45% { transform: translateX(4px) }
+  70% { transform: translateX(-2px) }
+  100% { transform: translateX(0) }
+}
+@media (prefers-reduced-motion: reduce) { #street-slot.lm-street-flair .lm-street { animation: none } }
+
+/* Scene beats (Ch.2 collector/factor, market pick): the NPC figure floats
+   above the card — same grammar as the stallholder actor, static size. */
+.lm-beat-fig { display: flex; justify-content: center; margin: 0.4rem 0 0.2rem }
+.lm-beat-fig svg { width: 56px; height: 62px; display: block }
+.lm-beat-fig svg * { fill: none; stroke: var(--lm-amber); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round }
+.lm-collector { border-color: var(--lm-violet) }
+.lm-collector-today { font-size: 2em; font-weight: 700; margin: 0.3rem 0; color: var(--lm-violet) }
+.lm-collector-today::before { content: "▼ "; font-size: 0.6em }
+
+/* The market pick: two cards side by side, collapsing on narrow screens. */
+.lm-market-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem }
+.lm-market-cards .lm-choice { text-align: left }
+@media (max-width: 560px) { .lm-market-cards { grid-template-columns: 1fr } }
+
+/* Arabic surfaces: the script needs room and its own direction context;
+   the Latin gloss stays inline after it. */
+.souq-ar, .souq-ar-kicker { direction: rtl; unicode-bidi: plaintext; font-size: 1.05em }
+.souq-ar-kicker { letter-spacing: 0 }

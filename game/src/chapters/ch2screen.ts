@@ -20,6 +20,7 @@ import {
   flippedOutcome,
 } from "./ch2";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
+import { stallFigure } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 import { money, remedy, isSouq, zakatNote } from "../engine/market";
@@ -200,8 +201,69 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
 
   function nextRun(): void {
     if (state.run === 2) return collectorIntl();
+    // The Factor passes mid-week — one figure, one line, one decision.
+    // Pure flavour + ledger colour: it must not touch run 2's anchor or floor.
+    if (state.run === 0) return factorTeaser();
     state.run = (state.run + 1) as 1 | 2;
     showRun();
+  }
+
+  /** The Factor's teaser — he comes back properly at the market close (Ch.3).
+   *  Ledger rules (TRACK_A_SPEC A1/A3): experimentId carries NO chapter
+   *  prefix (every axis filter keys on ch1_/ch2_/ch3_), npc set but NEVER
+   *  feePaid — a flavour offer must not enter the Cost-of-Not-Acting tally. */
+  function factorTeaser(): void {
+    clear(stage);
+    renderChrome(CH2_INVOICE);
+    const teaser = Math.round(CH2_INVOICE * 0.4); // fictional taste of his real offer
+    const figWrap = el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("factor"));
+    deps.say("factor", "You look like someone who'd rather have it today.");
+    stage.append(
+      el("h3", { text: "The Factor — polished otter" }),
+      figWrap,
+      el("div", { class: "lm-surface lm-factor" },
+        el("p", { class: "lm-factor-today", text: `${gbp(teaser)} today` }),
+        el("p", { class: "lm-hint", text: "a taste of his real offer — fictional · indicative" }),
+      ),
+      el("div", { class: "lm-choices" },
+        choiceButton(`Take it — ${gbp(teaser)}`, "Cash today; he's already gone", () => {
+          deps.record({
+            chapter: 2,
+            day: 23,
+            experimentId: "factor_teaser",
+            prompt: "The Factor stops by mid-week with a teaser offer.",
+            optionsShown: [
+              { id: "take", label: `Take it — ${money(teaser)}`, framingVariable: "factor_teaser_take", isDefault: false },
+              { id: "wave_off", label: "Wave him off", framingVariable: "factor_teaser_decline", isDefault: true },
+            ],
+            chosenOptionId: "take",
+            deferred: false,
+            npc: { npc: "The Factor", decision: "accept" },
+            immediateConsequence: "Taken — cash today, the customer gone. He'll be back at the close with the real number.",
+          });
+          state.run = 1;
+          showRun();
+        }),
+        choiceButton("Wave him off", "Keep the debt — he tips his hat and leaves", () => {
+          deps.record({
+            chapter: 2,
+            day: 23,
+            experimentId: "factor_teaser",
+            prompt: "The Factor stops by mid-week with a teaser offer.",
+            optionsShown: [
+              { id: "take", label: `Take it — ${money(teaser)}`, framingVariable: "factor_teaser_take", isDefault: false },
+              { id: "wave_off", label: "Wave him off", framingVariable: "factor_teaser_decline", isDefault: true },
+            ],
+            chosenOptionId: "wave_off",
+            deferred: false,
+            npc: { npc: "The Factor", decision: "decline" },
+            immediateConsequence: "Waved off. The debt stays yours — and so does the customer.",
+          });
+          state.run = 1;
+          showRun();
+        }),
+      ),
+    );
   }
 
   function collectorIntl(): void {
@@ -213,10 +275,18 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · the Collector wants to buy it`, tone: "overdue" },
     ]);
     deps.say("zana", "Collector at the end of the row. Careful — he buys the customer with the debt.");
+    // The Ch.3 scene treatment: figure above the card, one dominant number —
+    // his buy price in ledger-green, because buying your debt IS relief
+    // dressed as a trap (same staging as the Factor's beat).
+    const figWrap = el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("collector"));
     stage.append(
-      el("h3", { text: "A probe from the end of the row" }),
-      el("p", { class: "lm-line zana", text: probe.copy }),
-      el("p", { class: "lm-hint", text: "Fictional · typical UK recovery commission range shown elsewhere as 5–15% · indicative" }),
+      el("h3", { text: "The Collector — vulture in pinstripes" }),
+      figWrap,
+      el("div", { class: "lm-surface lm-collector" },
+        el("p", { class: "lm-collector-today", text: `${gbp(probe.buyPrice)} today` }),
+        el("p", { class: "lm-hint", text: probe.copy }),
+        el("p", { class: "lm-hint", text: "Fictional · typical UK recovery commission range shown elsewhere as 5–15% · indicative" }),
+      ),
       el("div", { class: "lm-choices" },
         choiceButton(`Sell the debt — ${gbp(probe.buyPrice)}`, "Instant cash, relationship gone", () => {
           deps.record(collectorLedgerEntry(probe, true));

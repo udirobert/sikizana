@@ -26,6 +26,10 @@ export interface StreetCounters {
   collected: number;
   /** Supplier bills left unpaid — the street takes the late charge. */
   billSkipped: number;
+  /** Late charges on skipped supplier bills (component of toStreet). */
+  lateFees?: number;
+  /** Fees paid to stallholders via npc.feePaid ledger entries. */
+  npcFees?: number;
 }
 
 export const STREET_TOTAL = 5;
@@ -159,10 +163,33 @@ function stallNote(kind: StallKind, state: "shut" | "lit" | "dim"): string {
 }
 
 /** Show (or replace) the inspector line under the strip. Re-rendering the
- *  street replaces the row, which clears the note — fresh state, fresh note. */
+ *  street replaces the row, which clears the note — fresh state, fresh note.
+ *  The stall names itself and its state first; the note carries the meaning. */
 function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" | "dim"): void {
   row.querySelector(".lm-stall-inspect")?.remove();
-  row.append(el("span", { class: "lm-stall-inspect", role: "status", text: stallNote(kind, state) }));
+  const name = STALLS.find((s) => s.kind === kind)?.name ?? kind;
+  const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
+  const cap = name.charAt(0).toUpperCase() + name.slice(1);
+  row.append(el("span", {
+    class: "lm-stall-inspect",
+    role: "status",
+    text: `${cap} — ${stateWord}. ${stallNote(kind, state)}`,
+  }));
+}
+
+/** The tally's breakdown — the components streetCounters() already computes,
+ *  never an invented per-stall split (the honesty rule: components yes,
+ *  fabricated precision no). */
+function tallyLines(c: StreetCounters): string[] {
+  const shed = c.streetTake ?? 0;
+  const late = c.lateFees ?? 0;
+  const npc = c.npcFees ?? 0;
+  return [
+    `Value shed while invoices sat unchased — ${money(shed, 0)}`,
+    `Late charges on skipped bills — ${money(late, 0)}`,
+    `Fees paid to stallholders — ${money(npc, 0)}`,
+    `Deferrals ${c.deferrals} · collections that landed ${c.collected} · skipped bills ${c.billSkipped}`,
+  ];
 }
 
 export function renderStreet(c: StreetCounters): HTMLElement {
@@ -200,13 +227,26 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     row.append(span);
   }
   // The running tally — the street's money so far (shed value + late charges +
-  // NPC fees). It's the number that makes "the stalls keep their books" real
-  // from frame one, instead of a row of icons with nothing on them.
-  row.append(
-    el("span", {
-      class: "lm-street-cap",
-      text: ` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — ${money(c.toStreet, 0)} so far`,
-    }),
+  // NPC fees). It's a button: the stalls keep their books, and the books open.
+  // The breakdown lists only components the counters actually carry — no
+  // invented per-stall splits.
+  const tally = el(
+    "button",
+    {
+      class: "lm-street-cap lm-street-tally",
+      type: "button",
+      "aria-expanded": "false",
+      "aria-label": `The stalls keep their books — ${money(c.toStreet, 0)} so far. Show the breakdown.`,
+    },
+    document.createTextNode(` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — ${money(c.toStreet, 0)} so far`),
   );
+  const books = el("span", { class: "lm-street-books", hidden: true });
+  for (const line of tallyLines(c)) books.append(el("span", { class: "lm-street-book-line", text: line }));
+  tally.addEventListener("click", () => {
+    const open = books.hidden;
+    books.hidden = !open;
+    tally.setAttribute("aria-expanded", String(open));
+  });
+  row.append(tally, books);
   return row;
 }

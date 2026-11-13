@@ -165,8 +165,31 @@ export function zakatOnReceivables(outstanding: number): number {
   return outstanding > 0 ? (outstanding * ZAKAT_RATE_PCT) / 100 : 0;
 }
 
+/**
+ * Arabic strings for the souq market — the +5 localisation surface.
+ *
+ * Frozen keys, single source of truth: the picker beat, the remedy card,
+ * and any baked Arabic VO must all read from here so the runtime string and
+ * the bake-script input can never drift (bake-voices.mjs normalizes
+ * whitespace only — watch Unicode normalization and diacritics). Track C
+ * owns the wording; Track A owns the wiring. Keys are the contract.
+ */
+export const SOUQ_AR = {
+  /** السوق — "the souq". Market name on the picker card and title beat. */
+  marketName: "السوق",
+  marketNameGloss: "the souq",
+  /** زكاة — zakat, the label on the uncollected-receivables line. */
+  zakat: "زكاة",
+  /** Remedy card title — the contractual late fee, in Arabic. */
+  remedyTitle: "رسوم تأخير تعاقدية",
+  /** Picker kicker — bilingual header line. */
+  pickerKicker: "سوقان · أسبوع واحد · قانونان مختلفان",
+  /** London card's Arabic name — the two markets named in both scripts. */
+  londonName: "لندن",
+} as const;
+
 /** The one-line souq cost-of-not-acting note. Null in the UK market. */
 export function zakatNote(outstanding: number): string | null {
   if (mode !== "souq" || outstanding <= 0) return null;
-  return `Zakat on what you are still owed: ${ZAKAT_RATE_PCT}% of ${money(outstanding)} ≈ ${money(zakatOnReceivables(outstanding))} — commonly due on receivables you expect to collect, whether or not the invoice ever clears.`;
+  return `زكاة (zakat) on what you are still owed: ${ZAKAT_RATE_PCT}% of ${money(outstanding)} ≈ ${money(zakatOnReceivables(outstanding))} — commonly due on receivables you expect to collect, whether or not the invoice ever clears.`;
 }
