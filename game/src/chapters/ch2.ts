@@ -20,6 +20,8 @@ import { mulberry32, type Rng } from "../engine/rng";
 export const CH2_INVOICE = 1240;
 export const CH2_DAYS_LATE = 60;
 export const CH2_RUN_COUNT = 3;
+/** The claimant on this one (fictional composite; the ledger's card). */
+export const CH2_CLIENT = "Meadowbank Mills";
 
 /** The counterparty's opening anchors — the ONLY engineered variable. */
 export const CH2_ANCHORS = [950, 650, 1050] as const;

@@ -15,8 +15,10 @@
 import { el } from "./dom";
 
 export interface StreetCounters {
-  /** £ actually paid to the street (NPC fees) this session. */
+  /** £ the street earned this session (ch1 shed value + late charges + NPC fees). */
   toStreet: number;
+  /** The ch1 lantern: market value the invoices shed while they sat unchased. */
+  streetTake: number;
   /** Recorded deferrals (ch1 pair days + ordinary days). */
   deferrals: number;
   /** Collections whose money landed in the till inside the chapter. */
@@ -27,15 +29,16 @@ export interface StreetCounters {
 
 export const STREET_TOTAL = 5;
 /**
- * Stalls lit before the player does anything. Deliberately ONLY the two
- * generic market stalls (cart + awning) — the Factor's, the Collector's, and
- * the Shark's stalls start DARK. A stall lights only when the player's own
- * deferral or skipped bill funds it, so the debrief's "it lit up" is true
- * only when something actually lit. (Base-3 was the v1's "the street was
- * alive before you did anything" — the critic read that as the game
- * pre-justifying its own earnings.)
+ * Stalls lit before the player does anything. Deliberately ONLY the market
+ * cart — the market itself, which predates the stall. The awning and the three
+ * NPC stalls (Factor, Collector, Shark) all start DARK: a stall lights only
+ * when the player's own deferral or skipped bill funds it, so the debrief's
+ * "it lit up" is true only when something actually lit. (Base-3 was the v1's
+ * "the street was alive before you did anything"; base-2 still pre-lit a
+ * second stall. Base-1: the place is there, but nothing is lit for the
+ * player's lateness yet.)
  */
-export const STREET_BASE_LIT = 2;
+export const STREET_BASE_LIT = 1;
 
 export interface StreetState {
   /** Ever-lit stalls (lit + shut). */
@@ -138,7 +141,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     {
       class: "lm-street",
       role: "img",
-      "aria-label": `The Late Market street: ${lit - shut} stalls lit, ${shut} shuttered, ${total - lit} dark`,
+      "aria-label": `The Late Market street: ${lit - shut} stalls lit, ${shut} shuttered, ${total - lit} dark; the stalls have taken £${c.toStreet.toFixed(0)}`,
     },
   );
   for (let i = 0; i < total; i++) {
@@ -151,10 +154,13 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     );
     row.append(span);
   }
+  // The running tally — the street's money so far (shed value + late charges +
+  // NPC fees). It's the number that makes "the stalls keep their books" real
+  // from frame one, instead of a row of icons with nothing on them.
   row.append(
     el("span", {
       class: "lm-street-cap",
-      text: ` The Late Market · ${lit - shut} lit · ${shut} shut — the stalls keep their books`,
+      text: ` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — £${Math.round(c.toStreet)} so far`,
     }),
   );
   return row;

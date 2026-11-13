@@ -114,13 +114,13 @@ async function playToDay5Closed() {
   await clickByText("Open the shutters"); await s(3800);
   await clickByText("Chase"); await s(2800); // Day 1: chase the already-overdue invoice
   await clickByText("Next day"); await s(3400);
-  await clickByText("Reply to the morning emails"); await s(2400);
+  await clickByText("Reply to the morning emails"); await s(2400); // Day 2: easy work (the 2nd invoice ages → street)
   await clickByText("Next day"); await s(4600);
-  await clickByText("Leave it for tomorrow"); await s(2800); // Day 3: defer pair A
+  await clickByText("Chase"); await s(2800); // Day 3: chase PAIR A — the £2,400 lands Day 5, in the week
   await clickByText("Next day"); await s(4800);
-  await clickByText("Leave the bill"); await s(2800); // Day 4: skip the supplier bill
+  await clickByText("Leave the bill"); await s(2800); // Day 4: skip the supplier bill (the liability note)
   await clickByText("Next day"); await s(4600);
-  await clickByText("Chase"); await s(2800); // Day 5: chase pair B
+  await clickByText("Leave it for tomorrow"); await s(2800); // Day 5: defer pair B — the present-bias tilt
   await s(600); // "Day 5 closed" on screen
 }
 
@@ -166,7 +166,7 @@ async function recordVideo() {
     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "19", "-movflags", "+faststart",
     video,
   ], { stdio: "inherit" });
-  rmSync(framesDir);
+  rmSync(framesDir, { recursive: true, force: true });
   console.log(`video → ${video} (${dur.toFixed(1)}s, ${n} frames)`);
 }
 
@@ -182,19 +182,19 @@ async function shots() {
   await clickByText("Begin — sound on"); await s(2600);
   await clickByText("Open the shutters"); await s(4200);
   await shot("v2_day1_stall.png"); // the place: till + ledger + street + choice
-  await clickByText("Chase"); await s(2600);
+  await clickByText("Chase"); await s(2600); // Day 1: chase the already-overdue invoice
   await clickByText("Next day"); await s(3200);
-  await clickByText("Reply to the morning emails"); await s(2200);
+  await clickByText("Reply to the morning emails"); await s(2200); // Day 2: easy work (auto-defers the 2nd invoice)
   await clickByText("Next day"); await s(4400);
-  await shot("v2_day3_pair.png"); // the engineered choice, framed
-  await clickByText("Leave it for tomorrow"); await s(2600);
-  await shot("v2_day3_deferred.png"); // street lit on the deferral
+  await shot("v2_day3_pair.png"); // PAIR A: the choice that moves the till (chase → lands day 5)
+  await clickByText("Chase"); await s(2600);
+  await shot("v2_day3_chased.png"); // pair A committed — "pays in 2 days" on the ledger
   await clickByText("Next day"); await s(4600);
-  await shot("v2_day4_bill.png"); // the till stress: £1,800 due
+  await shot("v2_day4_bill.png"); // the till stress: £2,000 due, the till can't cover it
   await clickByText("Leave the bill"); await s(2600);
   await clickByText("Next day"); await s(4400);
-  await shot("v2_day5_pair_b.png"); // both payoffs moved out
-  await clickByText("Chase"); await s(2600);
+  await shot("v2_day5_pair_b.png"); // PAIR B: the same choice, the payoff just past the close
+  await clickByText("Leave it for tomorrow"); await s(2600); // Day 5: defer pair B — the present-bias tilt
   await clickByText("Close the books"); // debrief: street first
   await s(4200);
   await shot("v2_debrief_street.png");

@@ -198,9 +198,9 @@ body {
 }
 
 /* ── Street strip (defer/pay drive the stalls — recovery plan §3) ── */
-#street-slot { position: sticky; top: 0; z-index: 5; background: var(--lm-bg-mid); padding: 8px 12px; border-bottom: 1px solid var(--lm-ink-dim) }
-.lm-street { display: flex; gap: 10px; align-items: center; max-width: 640px; margin: 0 auto; font-size: 0.9em }
-.lm-stall { display: inline-block; width: 34px; height: 38px; transition: opacity 300ms, filter 300ms }
+#street-slot { position: sticky; top: 0; z-index: 5; background: var(--lm-bg-mid); padding: 10px 12px; border-bottom: 1px solid var(--lm-ink-dim) }
+.lm-street { display: flex; gap: 12px; align-items: center; max-width: 720px; margin: 0 auto; font-size: 0.95em }
+.lm-stall { display: inline-block; width: 44px; height: 48px; transition: opacity 300ms, filter 300ms }
 .lm-stall svg { width: 100%; height: 100%; display: block }
 .lm-stall svg * { fill: none; stroke: var(--lm-ink-dim); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round }
 .lm-stall.lit  { filter: drop-shadow(0 0 5px rgba(255,180,84,.75)) }
@@ -214,6 +214,14 @@ body {
 }
 .lm-stall { position: relative }
 .lm-street-cap { color: var(--lm-ink-dim); font-size: 0.92em }
+
+/* ── Ch.2/Ch.3 stall chrome (the place persists — third-pass §4) ──── */
+/* The till + ledger carry over from ch1's look; only the stage below
+   them changes between beats. Centered to match the .lm-stage. */
+.lm-stall-chrome-till, .lm-stall-chrome-ledger {
+  max-width: 640px; margin: 0 auto; padding: 0 1rem;
+}
+.lm-stall-chrome-till .lm-till { margin-top: 1.4rem }
 
 /* ── Ch.2 floor chart + numeric inputs ───────────────────────────── */
 .lm-chart { display: grid; gap: .5rem; margin: .6rem 0 }

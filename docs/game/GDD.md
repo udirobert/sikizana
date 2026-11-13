@@ -112,28 +112,38 @@ Each chapter pairs **structurally symmetric** choices and changes exactly one va
 
 - **Setup:** 5 trading days on one stall screen, over the persistent night
   market (the cover painting is a dimmed backdrop behind every chapter). An
-  invoice is already 1 day overdue from frame one; the pair arrives Day 3
-  and Day 5; the supplier's £1,600 bill is due Day 4. The to-do mixes
-  fun-now tasks with the boring-now chase.
-- **Engineered pair (controlled):** Day 3 — "the money lands in 3 days" vs
-  "in 11 days"; Day 5 — "in 11" vs "in 19". Both arms of both days pay
-  *after the week*; the deferral is always the same 8-day slip. Nothing
-  in-week is printed on either button, so the debrief's framing
-  attribution is honest.
+  invoice is already overdue from frame one (seeded client, due Day 0); a
+  second real invoice is due Day 2 (so no day is a single button); the pair
+  arrives Day 3 and Day 5; the supplier's **£2,000** bill is due Day 4. The
+  to-do mixes fun-now tasks with the boring-now chase.
+- **Engineered pair (controlled, 3rd pass):** both days offer the SAME
+  numbers — "the money lands in 2 days" vs "in 10 days instead" — the only
+  variable is how near the near payoff sits: Day 3's chase lands **in the
+  week, on the till** (£2,400 arrives Day 5); Day 5's chase is the identical
+  arithmetic **one day past the close** (Day 7, off screen). No button
+  leaks which arm is better (numbers identical), so the debrief's framing
+  attribution is honest — the tilt felt is the present-bias one: the
+  identical "in 2" feels near on Day 3 and far on Day 5. A deferral
+  commits: each invoice is offered once, on its due day, and a deferral
+  (explicit or the easy work auto-committing it) locks the 10-day payoff
+  and is never re-offered shorter.
 - **The day the till can empty:** the supplier bill (Day 4). The till
   displays the *net position* (cash minus the unpaid bill), so skipping it
-  drops the till by the full £1,600 — the £40/day late charge then leaves
-  the till every morning while walk-in trade stops. A run that never chased
-  skips at +£22 on day 4 and the fee empties the till on day 5
-  (`endedEarly`). A run that chased day 1 (money lands day 3) pays the bill
-  and still ends +£1,099. A rational run and a careless run end
-  differently, and the street shows why.
+  drops the till by the full £2,000 — the £40/day late charge then leaves
+  the till every morning while walk-in trade stops. The unpaid face
+  exceeds the till, so the careless run empties **on the skip day itself**
+  (`endedEarly`), robust across seeds — not the 2nd pass's £40-fee knife
+  edge on day 5. A run that chased the early invoices pays the bill and
+  ends +£3,900–4,900. A rational run and a careless run end differently,
+  and the street shows why.
 - **The card falls, the street grows:** each ledger card shows a "worth
   today" that *falls* as the invoice ages (indicative 2%/day off face,
-  capped 25%). The drifting lantern is the street's earnings — the exact
+  capped 30%). The drifting lantern is the street's earnings — the exact
   value the invoices shed while they sat ("your lateness is someone else's
-  business model" as literal arithmetic). The statutory entitlement is a
-  larger, real legal floor, named in the debrief only, never on the card.
+  business model" as literal arithmetic) — and the street strip carries the
+  running tally ("the stalls keep their books — £X so far"). The statutory
+  entitlement is a larger, real legal floor, named in the debrief only,
+  never on the card.
 - **Debrief (street → replay → name → tool):** the street's earnings first
   ("the street took £X — £Y for the invoices you let age, £Z in late
   charges… your lateness is their trade") → line-item replay of every
@@ -186,16 +196,16 @@ design in one day; the remaining window (Nov 12 → 15) was re-planned:
 | Tue 10 | Ch.1 v1 (20-day loop + pair decisions + debrief) | Replay with rule = improvement visible | ✅ done — later cut (below) |
 | Wed 11 | Ch.2 + Ch.3 playable; NPC offers v1 | Street state changes on defer/pay | ✅ done |
 | Thu 12 | **Rebuild:** 5-day Ch.1 on one stall screen (till + ledger + street always visible); money lands in 2 days; supplier bill that can empty the till; loss state; £0 counterfactual → line-item replay; traps de-labelled; simple-language mode shipped | Minute one shows cash, an overdue invoice, and a street; a choice can hurt; rational and careless runs end differently | ✅ done (pass 1) — then **second-pass rework same day** after a playthrough review: falling "worth today" card, controlled pair (both arms pay after the week), net-position till with a bill that leaves it (£1,600; the £40 fee empties the careless run's till on day 5), persistent market backdrop, street base 3 → 2 |
-| Fri 13 | Street SVG stalls + NPC shapes; Ch.2/Ch.3 de-labelling; voice re-bake (4 lines); concept doc + budget PDFs | No trap labelled in play; honest accessibility claims only | ✅ done |
+| Fri 13 | Street SVG stalls + NPC shapes; Ch.2/Ch.3 de-labelling; voice re-bake (4 lines); concept doc + budget PDFs | No trap labelled in play; honest accessibility claims only | ✅ done — then **third-pass rework after a sharper review**: the pair becomes the till-mover (day-3 chase lands in-week; day-5 identical arithmetic past the close), deferrals commit (no re-offer, day-2 real invoice), bill £1,600 → £2,000 (careless empties day 4, every seed), street running tally + base lit 2 → 1, ch2/ch3 persistent stall chrome, legal floor is a real Act figure (£71 not £1) |
 | Sat 14 | Balance pass + edge cases, fresh-eyes playtest, screenshots, **2-min gameplay video** | "Can a new player explain the trade-off?" = yes | |
 | Sun 15 | Submission package: itch page (private), cover 630×500, screenshots, AI disclosure, concept-doc PDF + budget + 2-min video, Zoud submission | Done before 23:59 AOE | |
 
-# Appendix C — Submission materials checklists (status: Nov 12)
+# Appendix C — Submission materials checklists (status: Nov 13, 3rd pass)
 
 ## itch.io (HTML5 page, private until Zoud)
-- [x] `kind=html` project; zip with top-level `index.html`; relative case-sensitive paths (`scripts/build-itch.mjs`, 63 files, 4.9 MB, no externals)
+- [x] `kind=html` project; zip with top-level `index.html`; relative case-sensitive paths (`scripts/build-itch.mjs`, 63 files, ~4.9 MB, no externals)
 - [x] Embed w/h configured (1280×860); `viewport` meta; own Start button
-- [x] Cover 630×500 (`game/cover/cover_630x500.png`, generated by Recraft V4.1 Vector + composed title) — mascots readable at thumbnail; 8 genuine gameplay screenshots (`game/screenshots/v2/`)
+- [x] Cover 630×500 (`game/cover/cover_630x500.png`, generated by Recraft V4.1 Vector + composed title) — mascots readable at thumbnail; 8 genuine gameplay screenshots (`game/screenshots/v3/`)
 - [x] Own Start/Enable-Sound button: creates/resumes `AudioContext` inside that click
 - [ ] Mobile Friendly checkbox — NOT ticked (desktop-only; test on phone before claiming)
 - [x] itch.io AI disclosure: voice + music + SFX (ElevenLabs Starter, `eleven_v4`); cover illustration (Recraft V4.1 Vector); no AI code claims
@@ -204,7 +214,7 @@ design in one day; the remaining window (Nov 12 → 15) was re-planned:
 - [ ] Individual registration for every team member (else disqualification) — Udi Robert
 - [ ] Game on itch page + submitted to jam via itch flow
 - [x] Concept Doc PDF via a public no-login link (`docs/game/CONCEPT_DOC.pdf`, six sections, honest market section)
-- [x] 2-minute video of **actual gameplay** — `game-video/lm_run.mp4` (68s, silent, the real decision loop: title → Day 1 stall screen → pair A → bill stress → pair B → debrief)
+- [x] 2-minute video of **actual gameplay** — `game-video/lm_run.mp4` (~67s, silent, the real decision loop: title → Day 1 stall screen → day-3 pair (the till-mover) → bill stress → day-5 pair B → debrief)
 - [x] Project budget (separate document; milestone-aware) — `docs/game/BUDGET_DOC.pdf` (≤$26, ceiling check against the $15–500 band)
 - [x] AI-tool disclosure (visible to judges only): same tool list as itch
 
@@ -219,56 +229,78 @@ Game DB contains **no real user data**; decision ledger stored in browser only (
 
 ---
 
-# Appendix D — Implementation notes (as built, 2026-11-12 rebuild)
+# Appendix D — Implementation notes (as built, 2026-11-12 rebuild; 2026-11-13 3rd-pass rework)
 
 Deltas between this document and the running code, recorded so the debrief
 maths stay auditable. The Nov 12 rebuild (recovery plan, `RECOVERY_PLAN.md`)
-supersedes the 20-day v1 shipped Nov 10–11; the deltas below are the jam
-build's source of truth.
+supersedes the 20-day v1 shipped Nov 10–11; the Nov 13 third-pass rework
+re-centered Chapter 1 on the pair as the till-mover. The deltas below are
+the jam build's source of truth.
 
 - **Chapter 1 is 5 days, not 20.** The pair moved from Day 4/12 to Day 3/5
   (same `experimentId`, same structure — framing attribution unchanged).
   `CH1_DAYS = 5`.
-- **The pair is a controlled experiment: both arms pay AFTER the week.**
-  Day 3: chase → day 6 (in 3) · defer → day 14 (in 11); Day 5: chase →
-  day 16 (in 11) · defer → day 24 (in 19). The deferral is always the same
-  8-day slip; only the distance to *both* payoffs changes. A v2 bug had made
-  the day-3 chase land in-week ("pays in 2 days") while day 5 said "after
-  this week" — the structure was printed on the button, so a player who
-  chased day 3 and deferred day 5 was reading the payoff, not displaying
-  present bias. In-week money now comes only from the ordinary overdue
-  invoice (`CHASE_CLEAR_DAYS = 2`): chase Day 1 → £1,300 lands Day 3, the
-  day before the bill. That chase is what makes the bill payable.
-- **Supplier bill (Day 4):** `Quayline Foods`, **£1,600** due (v2: £1,800).
-  It is a LIABILITY, not a one-shot cash outflow: the till displays the
-  **net position** (`cash − unpaid bill`), so skipping it drops the till by
-  the full amount, and the £40/day late charge then *leaves the till*
-  (via the net position) every morning while walk-in trade stops. Traced
-  on the canonical seed: a run that never chases parks at £1,622 before the
-  bill; it skips at +£22 on day 4, and **the £40 fee empties the till on
-  day 5** — the player watches the fee do it. A run that chased early can
-  pay it and still ends +£1,099. Loss state fires on net position
+- **The pair IS the till-mover (3rd-pass rework).** The day-3 chase lands
+  **in the week, on the till the player is watching** (`CHASE_CLEAR_DAYS = 2`
+  → £2,400 lands Day 5), while the day-5 chase is the identical arithmetic
+  **one day past the close** (lands Day 7, off screen — abstract). Both days
+  offer the SAME numbers ("in 2" vs "in 10"), so no button leaks which arm
+  is better — the second-pass leak ("both arms after the week") is fixed
+  without reintroducing the first leak (structure printed on the button).
+  The tilt the player feels is the present-bias one: the identical "in 2"
+  feels NEAR on Day 3 (you watch it land) and FAR on Day 5 (it lands after
+  the close). That concreteness gap IS the experiment.
+- **Deferrals commit (round-2 fix, reworked in pass 3).** Each invoice is
+  offered ONCE, on its due day; a deferral (explicit, or the easy work
+  auto-committing it at day's end) locks the 10-day payoff and the invoice
+  is NEVER re-offered with a shorter one. `dayChoices()` always offers the
+  oldest still-undecided live invoice, so the controlled 2-vs-10 comparison
+  is locked in at the choice and lasts the whole week — the second-pass
+  bug (non-pair days re-offered an unchased invoice at `CHASE_CLEAR_DAYS`)
+  is gone.
+- **The day-2 invoice is real.** `inv-2nd` (seeded client, due Day 2) sits
+  on the desk from Day 2, so Day 2 is never a single button. Left unchased,
+  it is auto-deferred at the day's end and ages into the street's take —
+  the player's first felt deferral cost.
+- **The supplier bill (Day 4):** `Quayline Foods`, **£2,000** due
+  (2nd pass: £1,600 · v2: £1,800). It is a LIABILITY, not a one-shot cash
+  outflow: the till displays the **net position** (`cash − unpaid bill`),
+  so skipping it drops the till by the full amount, and the £40/day late
+  charge then *leaves the till* (via the net position) every morning while
+  walk-in trade stops. The till can empty on the skip day itself (the
+  unpaid face exceeds the till), not only on the last day's fee — loss
+  state is robust across seeds, not a one-seed knife edge (2nd pass
+  died on the £40 fee alone). Loss state fires on net position
   (`endedEarly: "till_empty"`), checked *before* the week-end flag so a
-  till that empties on the last day still ends as a loss.
+  till that empties on the last day still ends as a loss. A run that
+  chased the early invoices can still pay it cleanly.
 - **The card falls, the lantern is the street's take.** The ledger card's
   "worth today" is the invoice's market value — it **falls** as the invoice
-  ages (2% of face per day past due, capped at 25%, indicative, per GDD §2
+  ages (2% of face per day past due, capped at 30%, indicative, per GDD §2
   discounting lesson). The silent lantern is the **street's earnings**: the
   exact value the invoices shed while they sat (the discount the Factor
   captures) — "your lateness is someone else's business model" made literal,
   and the mirror of the card (same `daysOverdueOn`/`worth` arithmetic, so
-  card count and value share one formula). The statutory entitlement (8%
-  over base + s.5A compensation) is a larger, real legal **floor** — it is
-  reported per line in the debrief ("the law would have accrued £X over
-  those same days"), never on the card. A v2 bug conflated the two: the
-  card showed a rising entitlement while the debrief called it "money you
-  never get back" — the "potentially misleading implications" cut.
+  card count and value share one formula). The street strip carries a
+  running £ tally ("the stalls keep their books — £X so far") so the take
+  is felt while it accrues, not only at the debrief. The statutory
+  entitlement (8% over base + s.5A compensation) is a larger, real legal
+  **floor** — it is reported per line in the debrief ("the law would have
+  accrued £X over those same days"), never on the card. A v2 bug conflated
+  the two: the card showed a rising entitlement while the debrief called it
+  "money you never get back" — the "potentially misleading implications"
+  cut.
 - **Counterfactual deleted (v1) → line items priced by the street (v2).**
   `deferralLines()` prices each invoice the player let sit over the exact
   window the lantern accrued it (first day past due → day before the chase,
   `lastPlayedDay` horizon for loss runs), with the same `valueShedForDay`
   daily function — line items sum to the lantern to the penny (unit-tested
-  to 9 decimals), nothing the game invented.
+  to 9 decimals), nothing the game invented. The one-time s.5A
+  compensation accrues at the FIRST overdue day, which every priced window
+  includes by construction — so the debrief's "legal floor" is a real Act
+  figure (daily interest + the £40/£70/£100), not interest-only pennies,
+  and "two prices for one habit" compares the street's take against a
+  price the player could actually have collected.
 - **De-labelling (rubric: learning emerges in play; accuracy band):** no
   choice button or offer card carries a statute, an annualised rate, or an
   "honest" label anymore. The Shark's true annualised cost and the Factor's
@@ -277,17 +309,27 @@ build's source of truth.
   now a *reveal*). This overrules the v1 "transparency is the brand" note —
   the rubric's "potentially misleading implications" and "emergent learning"
   bands take precedence.
-- **Street (Ch.1 screen + finale):** one SVG street, five stalls — the two
-  generic market stalls (cart + awning) are the only always-lit base (v2:
-  base dropped from 3 → 2 so the Factor/Collector/Shark stalls start DARK
-  and light only on the player's own deferral/skipped-bill — the debrief's
-  "it lit up" is true only when something actually lit). The three
-  stallholders' stalls light by deferrals / skipped bill / fees, shutter
-  by collections that land.
-  `streetState()` is the single derivation; `renderStreet()` is the single
-  renderer. ch1 street events live in session counters (they create no
-  ledger entries); ch2/ch3 NPC fees are read from the ledger. One shared
-  `StreetCounters` feeds both.
+- **Street (Ch.1 screen + finale):** one SVG street, five stalls — the
+  market CART is the only always-lit base (3rd pass: base dropped 2 → 1,
+  `STREET_BASE_LIT = 1`, so the Factor/Collector/Shark stalls AND the
+  awning stall all start DARK and light only on the player's own
+  deferral/skipped-bill/fees — the debrief's "it lit up" is true only when
+  something actually lit). The three stallholders' stalls light by
+  deferrals / skipped bill / fees, shutter by collections that land. The
+  caption carries the running tally: "The Late Market · N lit · M shut ·
+  the stalls keep their books — £X so far". `streetState()` is the single
+  derivation; `renderStreet()` is the single renderer. ch1 street events
+  live in session counters (they create no ledger entries); ch2/ch3 NPC
+  fees are read from the ledger. One shared `StreetCounters` feeds both.
+- **Persistent stall chrome (3rd pass):** Ch.2 and Ch.3 no longer clear the
+  stall for a bare number field. Both render the shared stall chrome
+  (`src/ui/stall.ts`: `renderTill` + `renderLedger`, built once by
+  `makeStallChrome()`) that SURVIVES every beat — Ch.2's till is "On the
+  table" (the live anchor; the collector beat shows the buy price; the
+  debrief shows the revealed prospect) and its ledger is the claim card;
+  Ch.3's till is "Mareline's account" / "Decide at zero" and its ledger is
+  the account card. Only the stage below the chrome clears per beat.
+  Stalls are 44px (up from 34px) and the street strip is 720px wide.
 - **Ch.2 floor instrumentation:** the floor input is blank by default — a
   pre-filled value would be anchor-derived and manufacture the correlation
   the anchoring axis measures. Unset floors record `null` and are excluded

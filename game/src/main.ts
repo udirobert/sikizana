@@ -115,14 +115,18 @@ const SEED = 20261109; // jam build: one canonical run for judging
  * ch1 street events (deferrals, skipped bill, collections) create NO ledger
  * entries, so they live in session counters; ch2/ch3 NPC fees do create ledger
  * entries, so they're read from the ledger. Both feed one counter. */
-const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0 };
+const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0 };
 
 function streetCounters(): StreetCounters {
   const all = ledger.all();
   let npcFees = 0;
   for (const e of all) if (e.npc?.feePaid) npcFees += e.npc.feePaid;
+  // The street's money so far: ch1 shed value (the lantern) + late charges +
+  // NPC fees from ch2/ch3. This is what the strip's "£X so far" tallies.
+  const toStreet = npcFees + streetSession.lateFees + streetSession.streetTake;
   return {
-    toStreet: npcFees + streetSession.lateFees,
+    toStreet,
+    streetTake: streetSession.streetTake,
     deferrals: streetSession.deferrals,
     collected: streetSession.collected,
     billSkipped: streetSession.billSkipped,
@@ -130,11 +134,12 @@ function streetCounters(): StreetCounters {
 }
 
 /** Chapter-1 driver reports street-moving events that have no ledger entry. */
-function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number }): void {
+function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number }): void {
   if (ev.deferral) streetSession.deferrals += 1;
   if (ev.billSkipped) streetSession.billSkipped += 1;
   if (ev.collected) streetSession.collected += ev.collected;
   if (ev.lateFee) streetSession.lateFees += ev.lateFee;
+  if (ev.streetTake) streetSession.streetTake += ev.streetTake;
   renderStreet();
 }
 
@@ -313,6 +318,7 @@ function finale(): void {
       streetSession.billSkipped = 0;
       streetSession.collected = 0;
       streetSession.lateFees = 0;
+      streetSession.streetTake = 0;
       renderStreet();
       beginChapter(1);
     },

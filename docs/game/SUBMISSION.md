@@ -8,17 +8,19 @@ Chroma Games is later (Jan 7) — do Zoud first, then make the itch page public 
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 63 files · top-level `index.html` · relative paths · audio included · 4.9 MB |
-| Gameplay video | `game/game-video/lm_run.mp4` | 68 s (cap is 2:00) · silent · title → Day 1 place → bill stress → street change → debrief |
+| itch.zip | `game/dist/itch.zip` | 63 files · top-level `index.html` · relative paths · audio included · ~4.9 MB |
+| Gameplay video | `game/game-video/lm_run.mp4` | ~67 s (cap is 2:00) · silent · title → Day 1 place → Day 3 pair (till-mover) → Day 4 bill stress → Day 5 pair B → debrief |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
-| Screenshots | `game/screenshots/v2/*.png` | 8 genuine gameplay frames (day 1 / day 3 pair / day 4 bill / day 5 / debrief ×3) |
+| Screenshots | `game/screenshots/v3/*.png` | 8 genuine gameplay frames (day 1 / day 3 pair ×2 / day 4 bill / day 5 pair B / debrief ×3) |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
 
-All checks: `npm test` 53/53 · `tsc --noEmit` clean · `npm run build` clean ·
+All checks: `npm test` 55/55 · `tsc --noEmit` clean · `npm run build` clean ·
 line items sum to the lantern to the penny (unit-tested) · "worth today" falls
-monotonically (unit-tested) · rational +£1,099 ≠ careless `till_empty` on the
-£40 fee (unit-tested) · title-screen regression guard (`scripts/regcheck.mjs`).
+monotonically (unit-tested) · careless run empties the till on Day 4 in every
+seed, not the £40 fee's knife edge (unit-tested) · day-3 pair chase lands
+in-week on the till / day-5 pair B lands after the close, identical numbers
+(unit-tested) · title-screen regression guard (`scripts/regcheck.mjs`).
 
 ## 1. itch.io page (~15 min)
 
@@ -27,7 +29,7 @@ monotonically (unit-tested) · rational +£1,099 ≠ careless `till_empty` on th
 3. **Page settings**
    - *Embed:* width **1280**, height **860**.
    - *Cover:* `game/cover/cover_630x500.png`.
-   - *About:* short description + the 5 screenshots (`game/screenshots/v2/`).
+   - *About:* short description + the 5 screenshots (`game/screenshots/v3/`).
    - *AI disclosure* (required):
      - Voice, music, SFX — **ElevenLabs** (Starter, eleven_v4)
      - Cover illustration — **Recraft V4.1 Vector**

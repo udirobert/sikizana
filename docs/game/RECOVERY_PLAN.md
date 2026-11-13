@@ -1,28 +1,48 @@
 # The Late Market — Jam Recovery Plan (Nov 12 → Nov 15)
 
-**Status:** build work **complete as of Nov 12, second pass** (sections 1–4
-implemented and verified: 53 tests green, line items sum to the lantern to
-the penny, rational +£1,099 ≠ careless `till_empty`). The first pass
-shipped the stall screen but a sharper playthrough review caught four real
-flaws, all fixed in the second pass:
-1. **The card taught the wrong direction** — it showed a rising statutory
-   entitlement ("owed £2,473, still growing") while the debrief called it
-   "money you'll never get back." Now the card shows a **falling** market
-   value (2%/day off face, capped 25%) and the lantern is the street's take
-   — the exact value shed (mirrors the card); the Act is a larger legal
-   floor, named in the debrief only.
-2. **The pair leaked the answer** — the day-3 chase paid in-week while
-   day-5 said "after this week." Now both arms of both days pay after the
-   week (3/11 and 11/19 days); in-week money comes only from the ordinary
-   invoice (chase day 1 → lands day 3).
-3. **The bill never left the till** — skipping was a caption. Now the till
-   displays net position (cash − unpaid bill), the fee leaves the till
-   daily, trade stops, and a never-chased run dies on the £40 fee, day 5.
-4. **The market was a header** — the cover painting is now a persistent
-   dimmed backdrop behind every chapter; the street base dropped 3 → 2
-   pre-lit stalls so "it lit up" is only true when something lit.
-Final numbers diverged from the plan: the supplier bill is **£1,600** (not
-£900) and start cash **£1,100**; the video is ~70 s, not 120. The cover used
+**Status:** build work **complete as of Nov 13, third pass** (55 tests
+green, line items sum to the lantern to the penny, careless `till_empty`
+day 4 in every seed — not a knife edge). The second pass (Nov 12) fixed the
+first pass's four flaws — the card taught the wrong direction (now falling
+market value, 2%/day capped 30%; the Act is a legal floor named in the
+debrief only), the pair leaked the answer (now both arms pay after the
+week), the bill never left the till (now net position; the fee leaves
+daily), and the market was a header (now a persistent dimmed backdrop).
+A sharper review of the second pass then caught four more, all fixed in
+the third:
+1. **"The choice that moves the till is not the experiment."** Both pair
+   arms paid after the week, so chasing or deferring never moved the till
+   the player watches — the only till-mover was the seeded early invoice.
+   Now the **day-3 chase lands Day 5, in the week, on the till** (the £2,400
+   jump is visible), while day 5 offers the *identical* "in 2 vs in 10"
+   arithmetic one day past the close. No button leaks the answer (numbers
+   identical both days); the only variable is how near the near payoff
+   sits — that concreteness gap IS the present-bias tilt.
+2. **"The bias pair cannot be felt; the controlled comparison lasts one
+   morning."** Non-pair days re-offered an unchased invoice at the generic
+   `CHASE_CLEAR_DAYS`, overriding a deferral's longer payoff. Now each
+   invoice is offered once, on its due day; a deferral (explicit, or the
+   easy work auto-committing it at day's end) locks the 10-day payoff and
+   is never re-offered. Day 2 also gets a real second invoice, so it's
+   never a single button.
+3. **"Careless is a one-seed knife edge on the £40 fee."** The bill is now
+   **£2,000** (was £1,600) against a £1,200 start: the till empties on the
+   skip day itself (the unpaid face exceeds the till) in every seed, not
+   only when the fee lands on the last day. Rational and present-bias runs
+   end +£3,900–4,900 with street £0; the day-5 deferral sheds nothing in
+   chapter, so its cost is the frame, measured by the ledger's `deferred`
+   flag.
+4. **"The market is a dim wallpaper; ch2/ch3 clear the stall for a number
+   field."** The street strip now carries the running tally ("the stalls
+   keep their books — £X so far") and only the market cart starts lit
+   (base 2 → 1); ch2/ch3 render the shared stall chrome (till + ledger)
+   that survives every beat. The debrief's beat-1 street copy is now an
+   honest £ split (value shed vs late charges), and the legal floor is a
+   real Act figure (one-time s.5A compensation accrues at the first
+   overdue day, which every priced window includes) — £71 in the
+   canonical run, not £1.
+Final numbers diverged from the plan: the supplier bill is **£2,000**,
+start cash **£1,200**; the video is ~67 s, not 120. The cover used
 Recraft (not the `cover.html` fallback), and the §6 still-image fallback
 shipped as the in-game title screen AND the persistent backdrop.
 Definition-of-done items 1–2 (the itch page and the Zoud submission) are

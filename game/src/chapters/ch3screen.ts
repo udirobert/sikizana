@@ -6,6 +6,7 @@ import { el, clear, choiceButton } from "../ui/dom";
 import {
   CH3_CLIENT,
   CH3_INVOICE,
+  CH3_DAYS_LATE,
   SUNK_RECORD,
   ch3Prospect,
   createCh3State,
@@ -16,6 +17,7 @@ import {
   assumptionsLine,
   Ch3State,
 } from "./ch3";
+import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 
@@ -32,13 +34,26 @@ export function runChapter3(deps: Ch3Deps): void {
   const state: Ch3State = createCh3State();
   const { root } = deps;
   clear(root);
+  // The stall chrome PERSISTS through every beat (the place doesn't clear to
+  // a bare form — third-pass charge): the till shows the Mareline claim, the
+  // ledger the account card. Only the stage below changes between beats.
+  const chrome = makeStallChrome();
   const stage = el("div", { class: "lm-stage" });
-  root.append(stage);
+  root.append(chrome.till, chrome.ledger, stage);
+
+  /** Till = the claim on the shelf; ledger = the account card. */
+  function renderChrome(value = CH3_INVOICE, status = `${CH3_DAYS_LATE} days late`): void {
+    renderTill(chrome.till, { value, caption: "Mareline's account", decimals: 0, note: `− ${gbp(CH3_INVOICE)} still owed (${status})` });
+    renderLedger(chrome.ledger, [
+      { client: CH3_CLIENT, amount: CH3_INVOICE, status, tone: "overdue" },
+    ]);
+  }
 
   intro();
 
   function intro(): void {
     deps.say("zana", "Mareline. Three years a customer, sixty days late, four times a year. Now silence.");
+    renderChrome();
     stage.append(
       el("h3", { text: "Chapter 3 · Good Money After Bad" }),
       el("div", { class: "lm-surface" },
@@ -60,6 +75,7 @@ export function runChapter3(deps: Ch3Deps): void {
     if (state.cursor >= 3) return street();
     const n = state.cursor + 1;
     clear(stage);
+    renderChrome();
     const p = ch3Prospect();
     stage.append(
       el("h3", { text: `Round ${n} of 3 — ${CH3_CLIENT}` }),
@@ -84,6 +100,11 @@ export function runChapter3(deps: Ch3Deps): void {
   function street(): void {
     const o = streetOffers();
     clear(stage);
+    // The street's number is on the table now — the Factor's buy price.
+    renderTill(chrome.till, { value: o.factor.buyPrice, caption: "On the table", decimals: 0, note: `− ${gbp(CH3_INVOICE - o.factor.buyPrice)} the street keeps` });
+    renderLedger(chrome.ledger, [
+      { client: CH3_CLIENT, amount: CH3_INVOICE, status: `${CH3_DAYS_LATE} days late · the street wants to buy it`, tone: "dead" },
+    ]);
     deps.say("zana", "Word travels. Two offers found your door already.");
     // No honest-maths numbers on the offer cards (recovery plan §4): the
     // trap is what the player FEELS in play. The true costs surface in the
@@ -125,6 +146,12 @@ export function runChapter3(deps: Ch3Deps): void {
   function debrief(): void {
     const invested = state.rounds.reduce((s, r) => s + r.costPaid, 0);
     const p = ch3Prospect();
+    // The debrief's reveal: the account judged like a fresh one. The till now
+    // shows the PROSPECTIVE view — invoice + entitlement — not the sunk frame.
+    renderTill(chrome.till, { value: p.total, caption: "Decide at zero", decimals: 0, note: `${gbp(CH3_INVOICE)} invoice + ${gbp(p.total - CH3_INVOICE)} entitlement` });
+    renderLedger(chrome.ledger, [
+      { client: CH3_CLIENT, amount: CH3_INVOICE, status: `60 days late · worth ${gbp(p.total)} judged at zero`, tone: "chased" },
+    ]);
     let beat = 0;
     const frames: (() => void)[] = [
       () => {

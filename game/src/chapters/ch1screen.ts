@@ -41,7 +41,7 @@ export interface Ch1Deps {
   /** Fired when the chapter closes (main.ts chains to Chapter 2). */
   onTool?: (tool: "reminder_rule") => void;
   /** Street-moving events that don't create ledger entries. */
-  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number }) => void;
+  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number }) => void;
 }
 
 const gbp = (v: number) => `£${v.toFixed(2)}`;
@@ -83,12 +83,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     ledgerStrip.append(el("h4", { class: "lm-ledger-cap", text: "The ledger" }));
     const day = state.day;
     for (const inv of state.invoices) {
-      if (inv.paidDay !== null && inv.paidDay <= day) continue; // collected — off the strip
+      if (inv.paidDay !== null && inv.paidDay < day) continue; // collected — off the strip
       let status: string;
       if (inv.chasedDay !== null && inv.paidDay !== null) {
-        status = inv.paidDay <= CH1_DAYS
-          ? `pays in ${inv.paidDay - day} day${inv.paidDay - day === 1 ? "" : "s"}`
-          : "pays after this week";
+        const dd = inv.paidDay - day;
+        status = dd === 0
+          ? "pays today" // lands this morning, when the day resolves
+          : inv.paidDay <= CH1_DAYS
+            ? `pays in ${dd} day${dd === 1 ? "" : "s"}`
+            : "pays after this week";
       } else if (inv.dueDay < day) {
         // The "worth today" FALLS as the invoice ages (GDD §2 discounting
         // lesson). The count and the value share one formula (daysOverdueOn),
@@ -163,11 +166,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function dayHint(day: number): string {
     switch (day) {
-      case 1: return "The stall is open. What does today get?";
-      case 2: return "The week keeps moving. So do the books.";
-      case 3: return "Harborne's invoice is on the desk.";
+      case 1: return "The stall is open. Something in the ledger has been waiting a while.";
+      case 2: return "Another invoice is due, and the week keeps moving.";
+      case 3: return "Harborne's invoice is on the desk. It's a big one.";
       case 4: return `A bill is due today — ${gbp0(state.bill.amount)}. The till is ${gbp(netPosition(state))}.`;
-      case 5: return "The last day of the week. The books are waiting.";
+      case 5: return "The last day of the week. Harborne is on the desk again.";
       default: return "The week closes.";
     }
   }
@@ -192,10 +195,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (state.done || state.day > CH1_DAYS) return;
     const { effects, engineeredEntry } = resolveDay(state, state.day, choiceId);
     if (engineeredEntry) deps.record(engineeredEntry);
-    if (effects.lateFeeDelta > 0) deps.noteStreet({ lateFee: effects.lateFeeDelta });
-    if (effects.streetNote === "deferral") deps.noteStreet({ deferral: true });
-    if (effects.streetNote === "bill_skipped") deps.noteStreet({ billSkipped: true });
-    if (effects.collected > 0) deps.noteStreet({ collected: effects.collected });
+    // The street's running tally (the strip's "£X so far"): the value the
+    // invoices shed today + any late charge + the stall-change notes.
+    deps.noteStreet({
+      streetTake: effects.lanternDelta,
+      lateFee: effects.lateFeeDelta,
+      deferral: effects.streetNote === "deferral",
+      billSkipped: effects.streetNote === "bill_skipped",
+      collected: effects.collected,
+    });
     finishDay(effects);
   }
 
@@ -267,8 +275,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           el("p", {
             class: "lm-line siki",
             text: streetTotal > 0
-              ? `The street took ${gbp(streetTotal)} this week — ${gbp(streetTake)} for the invoices you let age,${state.lateFees > 0 ? ` and ${gbp(state.lateFees)} in late charges on the unpaid bill.` : ""} That money came out of the value your own invoices lost. Your lateness is their trade.`
-              : "You paid the street nothing this week. Nothing aged on your desk. That is the whole lesson in one sentence: the market runs on someone's lateness — this week it wasn't yours.",
+              ? `The street took ${gbp(streetTotal)} this week.` +
+                (streetTake > 0 ? ` ${gbp(streetTake)} of it is value your invoices lost while they sat unchased — that money walked off your own cards.` : "") +
+                (state.lateFees > 0 ? ` ${gbp(state.lateFees)} is the late charge on the supplier's bill you left unpaid.` : "") +
+                (streetTake > 0 ? " Your lateness is their trade." : "")
+              : "You paid the street nothing this week. Nothing aged on your desk, and the supplier got paid. The market runs on someone's lateness — this week it wasn't yours.",
           }),
           el("p", {
             class: "lm-hint",

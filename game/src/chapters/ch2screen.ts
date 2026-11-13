@@ -4,6 +4,9 @@
  */
 import { el, clear, choiceButton } from "../ui/dom";
 import {
+  CH2_CLIENT,
+  CH2_INVOICE,
+  CH2_DAYS_LATE,
   RESET_COPY,
   createCh2State,
   currentRun,
@@ -16,6 +19,7 @@ import {
   ch2Prospect,
   flippedOutcome,
 } from "./ch2";
+import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 
@@ -33,13 +37,33 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   const { state, rng } = createCh2State(seed);
   const { root } = deps;
   clear(root);
+  // The stall chrome PERSISTS through every beat (the place doesn't clear to
+  // a bare form — recovery plan §2.1, third-pass charge): the till shows the
+  // money on the table, the ledger shows the claim. Only the stage below
+  // changes between beats.
+  const chrome = makeStallChrome();
   const stage = el("div", { class: "lm-stage" });
-  root.append(stage);
+  root.append(chrome.till, chrome.ledger, stage);
+
+  /** The stall chrome for this chapter: till = the number on the table;
+   *  ledger = the claim card. `onTable` is the live number the desk shows. */
+  function renderChrome(onTable: number): void {
+    renderTill(chrome.till, { value: onTable, caption: "On the table", decimals: 0 });
+    renderLedger(chrome.ledger, [
+      {
+        client: CH2_CLIENT,
+        amount: CH2_INVOICE,
+        status: `${CH2_DAYS_LATE} days late · your claim`,
+        tone: "overdue",
+      },
+    ]);
+  }
 
   intro();
 
   function intro(): void {
     deps.say("siki", "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table.");
+    renderChrome(CH2_INVOICE);
     stage.append(
       el("h3", { text: "Chapter 2 · The Offer" }),
       el("p", { class: "lm-line siki", text: "One invoice. £1,240. Sixty days aged. Three runs at the same desk." }),
@@ -51,6 +75,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   function showRun(): void {
     const run = currentRun(state);
     clear(stage);
+    renderChrome(run.anchor);
     // No statute on the negotiation screen (recovery plan §4): the anchor is
     // the only number the desk puts on the table. The prospect reveals in the
     // debrief — that is what makes "the facts never moved" land.
@@ -89,6 +114,9 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     clear(stage);
     const latest = run.counters.length === 0 ? run.anchor : run.counters[run.counters.length - 1]!;
     const canCounter = run.counters.length < 2; // anchor + up to 2 counters
+    // The till IS the number on the table — the player's floor is set against
+    // it, so its movement is the anchor doing its work, made visible.
+    renderChrome(latest);
     stage.append(
       el("h3", { text: `Run ${run.run + 1}: on the table` }),
       el("p", { class: "lm-cash", text: gbp(latest) }),
@@ -132,6 +160,11 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   function collectorIntl(): void {
     const probe = collectorProbe();
     clear(stage);
+    // The Collector's number on the table — his buy price, not the claim.
+    renderChrome(probe.buyPrice);
+    renderLedger(chrome.ledger, [
+      { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · the Collector wants to buy it`, tone: "overdue" },
+    ]);
     deps.say("zana", "Collector at the end of the row. Careful — he buys the customer with the debt.");
     stage.append(
       el("h3", { text: "A probe from the end of the row" }),
@@ -162,6 +195,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const move = floorsSet.length >= 2 ? Math.max(...floorsSet) - Math.min(...floorsSet) : 0;
     const namedFloors = floorsSet.length >= 2;
     const flip = flippedOutcome(seed + 1);
+    // The debrief reveals the true number — put it on the till, not just in
+    // the prose (the place is the point; the fact that sat still is now shown).
+    renderTill(chrome.till, { value: ch2Prospect().total, caption: "What it is actually worth", decimals: 0 });
+    renderLedger(chrome.ledger, [
+      { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · worth ${gbp(ch2Prospect().total)} to you`, tone: "chased" },
+    ]);
     let beat = 0;
     const frames: (() => void)[] = [
       () => {
