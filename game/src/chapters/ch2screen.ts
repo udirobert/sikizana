@@ -17,13 +17,12 @@ import {
   collectorProbe,
   collectorLedgerEntry,
   ch2Prospect,
-  flippedOutcome,
 } from "./ch2";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import { stallFigure } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
-import { money, remedy, isSouq, zakatNote } from "../engine/market";
+import { money, remedy, isSouq, zakatNote, SOUQ_VO } from "../engine/market";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch2Deps {
@@ -73,7 +72,9 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   intro();
 
   function intro(): void {
-    deps.say("siki", "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table.");
+    deps.say("siki", isSouq()
+      ? SOUQ_VO.ch2Intro
+      : "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table.");
     renderChrome(CH2_INVOICE);
     stage.append(
       el("h3", { text: "Chapter 2 · The Offer" }),
@@ -311,7 +312,6 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const floorsSet = rows.map((r) => r.floor).filter((f): f is number => f !== null);
     const move = floorsSet.length >= 2 ? Math.max(...floorsSet) - Math.min(...floorsSet) : 0;
     const namedFloors = floorsSet.length >= 2;
-    const flip = flippedOutcome(seed + 1);
     // The debrief reveals the true number — put it on the till, not just in
     // the prose (the place is the point; the fact that sat still is now shown).
     renderTill(chrome.till, { value: ch2Prospect().total, caption: "What it is actually worth", decimals: 0 });
@@ -319,6 +319,9 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · worth ${gbp(ch2Prospect().total)} to you`, tone: "chased" },
     ]);
     let beat = 0;
+    const anchorLine = namedFloors
+      ? `Your floor moved ${money(Math.round(move))}. The invoice never did. That is anchoring.`
+      : "You never named a floor. Name it before their number arrives.";
     const frames: (() => void)[] = [
       () => {
         deps.say("siki", "Three runs. One invoice. Did your minimum move with their opening?");
@@ -334,37 +337,17 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         );
       },
       () => {
-        deps.say("siki", namedFloors
-          ? "The facts never moved. The opening number did."
-          : "You never named a floor. The anchor had nothing to push against — which is its own answer: decide the number before their number arrives.");
+        const walked = state.runs.some((r) => r.walked);
+        if (isSouq() && walked) deps.say("zana", SOUQ_VO.zakat);
+        else deps.say("siki", anchorLine);
         stage.append(
-          el("h3", { text: "The anchor did the work" }),
-          el("p", { class: "lm-line siki", text: namedFloors
-            ? `The prospect sat still at ${gbp(ch2Prospect().total)} — every run, same law, same invoice, same 60 days. Your floor moved ${money(Math.round(move))} across runs. When a number moves your bottom line without touching the facts, that number is not information. It is machinery — anchoring, and its fair face, the ultimatum game.`
-            : `The prospect sat still at ${gbp(ch2Prospect().total)} — every run, same law, same invoice, same 60 days. A floor you never set cannot be moved by an anchor. Set yours before the desk sets the frame.` }),
-          el("p", { class: "lm-hint", text: `Their ${gbp(1050)} opening is not generous. It is an order of battle.` }),
-          // Souq market: walking leaves the invoice on the books, and books
-          // carry zakat before they carry cash. Practice, hedged — schools
-          // differ on doubtful debts, so this is "commonly", not "always".
-          ...(isSouq() && state.runs.some((r) => r.walked) && zakatNote(CH2_INVOICE)
-            ? [el("p", { class: "lm-hint lm-zakat", text: `You walked at least once, so the invoice is still yours. ${zakatNote(CH2_INVOICE)!}` })]
+          el("h3", { text: "The anchor" }),
+          el("p", { class: "lm-line siki", text: anchorLine }),
+          el("p", { class: "lm-hint", text: `"Invoice ${gbp(CH2_INVOICE)}, 60 days late. ${remedy().quote(CH2_INVOICE, CH2_DAYS_LATE)} Settle ${gbp(ch2Prospect().total)}."` }),
+          ...(isSouq() && walked && zakatNote(CH2_INVOICE)
+            ? [el("p", { class: "lm-hint lm-zakat", text: zakatNote(CH2_INVOICE)! })]
             : []),
-          choiceButton("Continue", "", next),
-        );
-      },
-      () => {
-        deps.say("zana", isSouq()
-          ? "Flip it. Open with your own terms, not with their number."
-          : "Flip it. Open with the law, not with their number.");
-        stage.append(
-          el("h3", { text: isSouq() ? "The flip: quote your terms first" : "The flip: quote the Act first" }),
-          el("div", { class: "lm-surface" },
-            el("h4", { text: "In writing · dated · no payment promise" }),
-            el("p", { class: "lm-line zana", text: `"Invoice ${gbp(CH2_INVOICE)}, 60 days late. ${remedy().quote(CH2_INVOICE, CH2_DAYS_LATE)} Settle the account total of ${gbp(ch2Prospect().total)}."` }),
-            el("p", { class: "lm-hint", text: `Seeded flip run — their best face-saving offer comes to ~${gbp(flip.offer)}. Still short of the Act. Still better than their opening.` }),
-          ),
-          el("p", { class: "lm-hint", text: "Tool unlocked: FLIP THE ANCHOR — negotiations can now open with your own lawful number." }),
-          choiceButton("Next chapter", "The street waits", () => deps.onTool?.("flip_the_anchor")),
+          choiceButton("Next chapter", "Open with your own number", () => deps.onTool?.("flip_the_anchor")),
         );
       },
     ];

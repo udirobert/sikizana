@@ -34,6 +34,17 @@ function play(seed: number, want: (s: Ch1State, d: number) => string): Ch1State 
   return state;
 }
 
+/** Bill day sees money that lands this morning. resolveDay collects it before it spends. */
+function billKind(st: Ch1State, d: number, otherwise: string): string {
+  if (d !== BILL.dueDay) return otherwise;
+  const arriving = st.invoices.filter((i) => i.paidDay === d).reduce((s, i) => s + i.principal, 0);
+  return st.cash + arriving >= BILL.amount ? "pay_bill" : "skip_bill";
+}
+
+function daysPhrase(n: number): string {
+  return n === 1 ? "1 day" : `${n} days`;
+}
+
 /** The debrief's line items must price exactly what the lantern tallied. */
 function expectLinesSumToLantern(state: Ch1State) {
   const sum = deferralLines(state).reduce((t, l) => t + l.streetTake, 0);
@@ -48,108 +59,94 @@ describe("ch1 state creation", () => {
     expect(a.cash).toBe(b.cash);
   });
 
-  it("different seed → different ordinary invoices, same fixed pair", () => {
+  it("the pair is fixed across seeds", () => {
     const a = createCh1State(1).state;
     const b = createCh1State(999).state;
-    // The ordinary invoices are seeded (the ordinary days vary by run).
-    expect(a.invoices[0]!.principal).not.toBe(b.invoices[0]!.principal);
-    // The pair is FIXED — the debrief's framing attribution depends on it.
-    expect(a.invoices[2]!.client).toBe(b.invoices[2]!.client);
-    expect(a.invoices[2]!.principal).toBe(b.invoices[2]!.principal);
-    expect(a.invoices[3]!.client).toBe(b.invoices[3]!.client);
-    expect(a.invoices[3]!.principal).toBe(b.invoices[3]!.principal);
+    expect(a.invoices).toHaveLength(2);
+    expect(a.invoices.map((i) => [i.id, i.client, i.principal])).toEqual(
+      b.invoices.map((i) => [i.id, i.client, i.principal]),
+    );
   });
 
-  it("roster: early invoice overdue from frame one, second on day 2, pair on days 3 and 5", () => {
+  it("roster: Harborne already late on day 1, the same face due on the last day, bill between them", () => {
     const { state } = createCh1State(20261109);
     expect(state.cash).toBe(START_CASH);
-    expect(state.invoices[0]!.dueDay).toBe(0); // already overdue
-    expect(state.invoices[1]!.dueDay).toBe(2); // the second real choice day
-    expect(state.invoices[2]!.dueDay).toBe(PAIR_A_DAY);
-    expect(state.invoices[3]!.dueDay).toBe(PAIR_B_DAY);
-    // Day 2 must always be a real choice — its own invoice is due that day.
-    expect(state.invoices[0]!.client).not.toBe(state.invoices[1]!.client);
+    expect(state.invoices[0]!.id).toBe("inv-a");
+    expect(state.invoices[0]!.dueDay).toBe(0);
+    expect(state.invoices[0]!.principal).toBe(2400);
+    expect(state.invoices[1]!.id).toBe("inv-b");
+    expect(state.invoices[1]!.dueDay).toBe(PAIR_B_DAY);
+    expect(state.invoices[1]!.principal).toBe(state.invoices[0]!.principal);
+    expect(state.bill.dueDay).toBe(BILL.dueDay);
     expect(state.bill.amount).toBe(BILL.amount);
   });
 });
 
-describe("ch1 day shape (5-day stall screen)", () => {
-  it("day 1 offers the already-overdue invoice as a real choice", () => {
+describe("ch1 day shape (3-day stall screen)", () => {
+  it("day 1 offers the already-late Harborne invoice", () => {
     const { state } = createCh1State(20261109);
     const c = dayChoices(state, 1);
-    expect(c.some((x) => x.kind === "chase" && x.invoiceId === "inv-early")).toBe(true);
+    expect(c.some((x) => x.kind === "chase" && x.invoiceId === "inv-a")).toBe(true);
     expect(c.some((x) => x.kind === "fun")).toBe(true);
   });
 
-  it("day 2 offers its own invoice — never a single button", () => {
+  it("day 2 offers the supplier bill: pay or skip", () => {
     const { state } = createCh1State(20261109);
-    // Whatever day 1 did, day 2 offers inv-2nd (the second ordinary invoice).
     resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "fun")!.id);
-    const c = dayChoices(state, 2);
-    expect(c.some((x) => x.kind === "chase" && x.invoiceId === "inv-2nd")).toBe(true);
-    expect(c.some((x) => x.kind === "fun")).toBe(true);
-  });
-
-  it("day 4 offers the supplier bill: pay or skip", () => {
-    const { state } = createCh1State(20261109);
-    for (let d = 1; d < 4; d++) {
-      const c = dayChoices(state, d);
-      resolveDay(state, d, c.find((x) => x.kind === "fun")!.id);
-    }
-    const c = dayChoices(state, 4);
+    const c = dayChoices(state, BILL.dueDay);
     expect(c.find((x) => x.kind === "pay_bill")!.label).toContain(BILL.client);
-    // Display goes through the market formatter, so thousands are grouped.
     expect(c.find((x) => x.kind === "pay_bill")!.label).toContain(`£${BILL.amount.toLocaleString("en-GB")}`);
     expect(c.some((x) => x.kind === "skip_bill")).toBe(true);
+    expect(c.some((x) => x.invoiceId === "inv-b")).toBe(false);
   });
 
-  it("pair days offer the pair with the identical 2-vs-10 framing — only the near payoff's distance differs", () => {
+  it("pair days offer the pair with identical day counts — only the frame differs", () => {
     const { state } = createCh1State(20261109);
-    for (let d = 1; d < PAIR_A_DAY; d++) {
-      const c = dayChoices(state, d);
-      resolveDay(state, d, c.find((x) => x.kind === "fun")!.id);
-    }
     const aChase = dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!;
     expect(aChase.invoiceId).toBe("inv-a");
-    expect(aChase.detail).toBe(`Chase — the full £2,400 lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`);
+    expect(aChase.detail).toBe(`The full £2,400 lands in the till this week — in ${daysPhrase(PAIR_A_CHASE_CLEAR_DAYS)}.`);
     expect(dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "defer")!.detail).toBe(
       `Defer — the full £2,400 lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
     );
-    // Day 3's NEAR payoff lands IN the week (on the till); its defer lands after.
     expect(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS).toBeLessThanOrEqual(CH1_DAYS);
     expect(PAIR_A_DAY + PAIR_A_DEFER_CLEAR_DAYS).toBeGreaterThan(CH1_DAYS);
 
-    // Day 5 — the SAME numbers (2 vs 10), the near payoff just past the close.
     resolveDay(state, PAIR_A_DAY, aChase.id);
-    resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "fun")!.id);
+    resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
     const bChase = dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!;
     expect(bChase.invoiceId).toBe("inv-b");
-    expect(bChase.detail).toBe(`Chase — the full £2,400 lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`);
+    expect(bChase.detail).toBe(`The full £2,400 lands after the week closes — in ${daysPhrase(PAIR_B_CHASE_CLEAR_DAYS)}.`);
     expect(dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "defer")!.detail).toBe(
       `Defer — the full £2,400 lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
     );
-    // The days are numerically identical — no button leaks which is "better."
     expect(PAIR_A_CHASE_CLEAR_DAYS).toBe(PAIR_B_CHASE_CLEAR_DAYS);
     expect(PAIR_A_DEFER_CLEAR_DAYS).toBe(PAIR_B_DEFER_CLEAR_DAYS);
     expect(PAIR_B_DAY + PAIR_B_CHASE_CLEAR_DAYS).toBeGreaterThan(CH1_DAYS);
   });
 
-  it("the deferral is the same 8-day slip in both arms (controlled experiment)", () => {
-    expect(DEFER_EXTRA_DAYS).toBe(8);
+  it("the deferral is the same slip in both arms (controlled experiment)", () => {
+    expect(DEFER_EXTRA_DAYS).toBe(DEFER_CLEAR_DAYS - PAIR_A_CHASE_CLEAR_DAYS);
+    expect(DEFER_EXTRA_DAYS).toBe(9);
     expect(DEFER_CLEAR_DAYS - PAIR_A_CHASE_CLEAR_DAYS).toBe(PAIR_B_DEFER_CLEAR_DAYS - PAIR_B_CHASE_CLEAR_DAYS);
   });
 
   it("a deferral commits: the deferred invoice is never re-offered with a shorter payoff", () => {
     const { state } = createCh1State(20261109);
-    resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "fun")!.id); // inv-early commits
-    // inv-early must not reappear in any later day's offer (the round-2 leak).
+    resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "fun")!.id);
     for (let d = 2; d <= CH1_DAYS; d++) {
-      const c = dayChoices(state, d);
-      expect(c.some((x) => x.invoiceId === "inv-early")).toBe(false);
-      const fun = c.find((x) => x.kind === "fun")!;
       if (state.done) break;
+      const c = dayChoices(state, d);
+      expect(c.some((x) => x.invoiceId === "inv-a")).toBe(false);
+      const fun = c.find((x) => x.kind === "fun")!;
       resolveDay(state, d, fun.id);
     }
+  });
+
+  it("yesterday's chase makes the bill button say the till can cover it", () => {
+    const { state } = createCh1State(20261109);
+    resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "chase")!.id);
+    const pay = dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!;
+    expect(pay.detail).toContain("stall stays open");
   });
 });
 
@@ -170,7 +167,7 @@ describe("ch1 the falling worth + the street's engine", () => {
 
   it("worth today falls as the invoice ages, and the card's count matches the curve", () => {
     const { state } = createCh1State(20261109);
-    const inv = state.invoices[0]!; // inv-early, dueDay 0
+    const inv = state.invoices[0]!; // Harborne, already late
     const w1 = worthToday(inv, 1);
     const w3 = worthToday(inv, 3);
     const w5 = worthToday(inv, 5);
@@ -199,25 +196,23 @@ describe("ch1 the falling worth + the street's engine", () => {
 
   it("deferralLines price exactly what the lantern tallied (sum invariant)", () => {
     // Fun all week → everything commits and sheds; the line items must match.
-    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+    const s = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     expectLinesSumToLantern(s);
   });
 
   it("a chased invoice produces no line; a committed one is priced over the days it sat", () => {
-    // Chase everything (incl. day 1) → inv-early landed day 3, never sat → no line.
-    const chased = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
-    expect(deferralLines(chased).find((l) => l.invoiceId === "inv-early")).toBeUndefined();
-    // Fun all week → every invoice commits and sits; inv-2nd has a priced line.
-    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
-    const line = deferralLines(s).find((l) => l.invoiceId === "inv-2nd")!;
+    const chased = play(20261109, (st, d) => billKind(st, d, "chase"));
+    expect(deferralLines(chased).find((l) => l.invoiceId === "inv-a")).toBeUndefined();
+    const s = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
+    const line = deferralLines(s).find((l) => l.invoiceId === "inv-a")!;
     expect(line.streetTake).toBeGreaterThan(0);
     expect(line.daysLate).toBeGreaterThan(0);
   });
 
   it("the statutory floor is reported per line and is a real Act figure", () => {
-    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+    const s = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     const lines = deferralLines(s);
-    expect(lines.length).toBeGreaterThanOrEqual(2);
+    expect(lines.length).toBeGreaterThanOrEqual(1);
     for (const l of lines) expect(l.statutory).toBeGreaterThan(0);
     // The legal floor exists even when the player deferred zero pair days.
     expect(lines.reduce((t, l) => t + l.statutory, 0)).toBeGreaterThan(0);
@@ -225,80 +220,65 @@ describe("ch1 the falling worth + the street's engine", () => {
 });
 
 describe("ch1 money lands inside the chapter", () => {
-  it("chase on day 1 pays day 3 — collected in the morning of day 3", () => {
+  it("chase on day 1 pays the next morning — in time for the bill", () => {
     const { state } = createCh1State(20261109);
     const principal = state.invoices[0]!.principal;
     resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "chase")!.id);
-    resolveDay(state, 2, dayChoices(state, 2).find((x) => x.kind === "fun")!.id);
-    const e3 = resolveDay(state, 3, dayChoices(state, 3).find((x) => x.kind === "fun")!.id);
-    expect(e3.effects.collected).toBe(1);
-    // cash minus the collected principal = start + day-2 + day-3 walk-in trade.
-    const trade = (d: number) => 140 + ((d * 37) % 60);
-    expect(state.cash - principal).toBe(START_CASH + trade(2) + trade(3));
+    const e2 = resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
+    expect(e2.effects.collected).toBe(1);
+    expect(state.cash).toBe(START_CASH + principal - BILL.amount);
+    expect(state.endedEarly).toBeNull();
   });
 
-  it("the day-3 pair chase pays IN the week (day 5); the day-5 pair chase pays after (day 7)", () => {
+  it("the day-1 pair chase pays in the week; the day-3 pair chase pays after the close", () => {
     const { state } = createCh1State(20261109);
-    for (let d = 1; d < PAIR_A_DAY; d++) {
-      const c = dayChoices(state, d);
-      resolveDay(state, d, c.find((x) => x.kind === "fun")!.id);
-    }
     resolveDay(state, PAIR_A_DAY, dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!.id);
-    // The choice that moves the till: £2,400 lands day 5, on screen.
-    expect(state.invoices[2]!.paidDay).toBe(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS); // day 5
-    expect(state.invoices[2]!.paidDay).toBeLessThanOrEqual(CH1_DAYS);
-    // Day 5: the identical choice, the payoff just past the close.
-    resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "fun")!.id);
+    expect(state.invoices[0]!.paidDay).toBe(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS);
+    expect(state.invoices[0]!.paidDay).toBeLessThanOrEqual(CH1_DAYS);
+    resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
     resolveDay(state, PAIR_B_DAY, dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!.id);
-    expect(state.invoices[3]!.paidDay).toBe(PAIR_B_DAY + PAIR_B_CHASE_CLEAR_DAYS); // day 7
-    expect(state.invoices[3]!.paidDay).toBeGreaterThan(CH1_DAYS);
+    expect(state.invoices[1]!.paidDay).toBe(PAIR_B_DAY + PAIR_B_CHASE_CLEAR_DAYS);
+    expect(state.invoices[1]!.paidDay).toBeGreaterThan(CH1_DAYS);
   });
 });
 
 describe("ch1 supplier bill — the day the till can empty", () => {
-  it("paying the bill is a cash out — affordable only if the early chases landed", () => {
+  it("paying the bill spends the morning's landing and stays open", () => {
     const { state } = createCh1State(20261109);
-    // Chase day 1 → £1,200 lands day 3. (Day 4: nothing else lands.)
+    const principal = state.invoices[0]!.principal;
     resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "chase")!.id);
-    resolveDay(state, 2, dayChoices(state, 2).find((x) => x.kind === "fun")!.id);
-    resolveDay(state, 3, dayChoices(state, 3).find((x) => x.kind === "fun")!.id);
     const before = state.cash;
-    const e4 = resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "pay_bill")!.id);
-    expect(e4.effects.cashDelta).toBe(-BILL.amount);
-    expect(state.cash).toBe(before - BILL.amount);
+    const e2 = resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
+    expect(e2.effects.cashDelta).toBe(principal - BILL.amount);
+    expect(state.cash).toBe(before + principal - BILL.amount);
+    expect(state.bill.paidDay).toBe(BILL.dueDay);
   });
 
-  it("skipping the bill: the liability outruns the till — it empties on day 4", () => {
-    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+  it("skipping the bill: the liability outruns the till — it empties on bill day", () => {
+    const s = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     expect(s.endedEarly).toBe("till_empty");
-    // The loss lands on the day of the skip, before any late fee accrues: the
-    // unpaid face (£2,000) is simply more than the till holds (£1,722).
-    expect(s.bill.skippedDay).toBe(4);
+    expect(s.bill.skippedDay).toBe(BILL.dueDay);
     expect(netPosition(s)).toBeLessThan(0);
-    // The bill's liability (face + any accrued fee) is what the till shows owed.
     expect(s.bill.amount + s.lateFees).toBeGreaterThan(s.cash);
   });
 
   it("choosing something else on bill day still marks the bill unpaid (auto-skip)", () => {
     const { state } = createCh1State(20261109);
-    for (let d = 1; d < 4; d++) {
-      const c = dayChoices(state, d);
-      resolveDay(state, d, c.find((x) => x.kind === "fun")!.id);
-    }
-    resolveDay(state, 4, dayChoices(state, 4).find((x) => x.kind === "fun")!.id);
-    expect(state.bill.skippedDay).toBe(4);
+    resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "fun")!.id);
+    resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "fun")!.id);
+    expect(state.bill.skippedDay).toBe(BILL.dueDay);
   });
 
   it("a rational run stays positive: chase everything, pay the bill", () => {
-    const s = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
+    const s = play(20261109, (st, d) => billKind(st, d, "chase"));
     expect(s.endedEarly).toBeNull();
     expect(netPosition(s)).toBeGreaterThan(START_CASH);
-    expect(s.streetTake).toBe(0); // nothing was ever left to age
+    expect(s.streetTake).toBe(0);
   });
 
   it("rational and careless runs end differently (the critic's core demand)", () => {
-    const rational = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
-    const careless = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+    const rational = play(20261109, (st, d) => billKind(st, d, "chase"));
+    const careless = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     expect(rational.endedEarly).toBeNull();
     expect(careless.endedEarly).toBe("till_empty");
     expect(netPosition(rational) - netPosition(careless)).toBeGreaterThan(500);
@@ -307,14 +287,14 @@ describe("ch1 supplier bill — the day the till can empty", () => {
 
 describe("ch1 debrief fuel (street take, not the £0 counterfactual)", () => {
   it("a clean chase-everything run produces zero street take and zero line items", () => {
-    const s = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
+    const s = play(20261109, (st, d) => billKind(st, d, "chase"));
     expect(s.streetTake).toBe(0);
     expect(deferralLines(s)).toHaveLength(0);
   });
 
   it("a fully-deferred run has the largest street take — and it sums to the lines", () => {
-    const deferAll = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
-    const chaseSome = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
+    const deferAll = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
+    const chaseSome = play(20261109, (st, d) => billKind(st, d, "chase"));
     expect(deferAll.streetTake).toBeGreaterThan(chaseSome.streetTake);
     expect(deferAll.streetTake).toBeGreaterThan(0);
     expectLinesSumToLantern(deferAll);

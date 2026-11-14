@@ -79,3 +79,5 @@ docs/seapoint/cards/.hyperframes/
 # Seapoint film build outputs (regenerable: ElevenLabs TTS cache, intermediate cuts)
 docs/seapoint/vo/
 docs/seapoint/cards/confirm_cut.mp4
+game/public/cinematic/
+game/cinematic-src/

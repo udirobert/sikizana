@@ -47,7 +47,7 @@ the books they are. A voiced day-opener (Siki or Zana, one line) frames
 each morning.
 
 1. **Plan** — pick today's one action: *serve walk-in work, chase an invoice, pay the supplier bill, accept/decline a street offer*.
-2. **Watch the ledger age** — unpaid invoices accrue a "worth today" price every day (the discounting lesson, one UI element); a chase pays in 2 days so money lands in the till inside the week.
+2. **Watch the ledger age** — unpaid invoices accrue a "worth today" price every day (the discounting lesson, one UI element); a chase pays the next morning, so Day 1's money is in the till before the bill.
 3. **Handle temptation** — each chapter plants one engineered decision exploiting one bias.
 4. **Live the consequence** — cash and the ledger update; the street's stalls light when you defer and shutter when you get paid; skipping the supplier bill can run the till empty, which ends the week early.
 
@@ -148,34 +148,31 @@ overdue; 8% written off as bad debt).
 
 Each chapter pairs **structurally symmetric** choices and changes exactly one variable, so the debrief can attribute behaviour honestly. All decisions recorded to the **decision ledger** (JSON): timestamp, chapter, options shown (incl. defaults), framing variable, choice, immediate consequence, deferred consequence. The Irrationality Profile is computed from ledger aggregates, not vibes.
 
-## A2. Chapter 1 — *The Cost of Tomorrow* (present bias) — 5-day build
+## A2. Chapter 1 — *The Cost of Tomorrow* (present bias) — 3-day build
 
-- **Setup:** 5 trading days on one stall screen, over the persistent night
-  market (the cover painting is a dimmed backdrop behind every chapter). An
-  invoice is already overdue from frame one (seeded client, due Day 0); a
-  second real invoice is due Day 2 (so no day is a single button); the pair
-  arrives Day 3 and Day 5; the supplier's **£2,000** bill is due Day 4. The
-  to-do mixes fun-now tasks with the boring-now chase.
-- **Engineered pair (controlled, 3rd pass):** both days offer the SAME
-  numbers — "the money lands in 2 days" vs "in 10 days instead" — the only
-  variable is how near the near payoff sits: Day 3's chase lands **in the
-  week, on the till** (£2,400 arrives Day 5); Day 5's chase is the identical
-  arithmetic **one day past the close** (Day 7, off screen). No button
-  leaks which arm is better (numbers identical), so the debrief's framing
+- **Setup:** 3 trading days on one stall screen, over the persistent night
+  market (the cover painting is a dimmed backdrop behind every chapter).
+  Harborne's £2,400 is already late when the shutters open. The supplier's
+  **£2,000** bill is due Day 2. The same Harborne amount is due again on
+  Day 3. The to-do mixes fun-now tasks with the boring-now chase.
+- **Engineered pair:** both days offer the SAME numbers — "the money lands
+  in 1 day" vs "in 10 days instead" — the only variable is how near the
+  near payoff sits: Day 1's chase lands **in the week, on the till**
+  (£2,400 arrives Day 2, before the bill); Day 3's chase is the identical
+  arithmetic **the morning after the close**. No button leaks which arm
+  is better (numbers identical), so the debrief's framing
   attribution is honest — the tilt felt is the present-bias one: the
-  identical "in 2" feels near on Day 3 and far on Day 5. A deferral
-  commits: each invoice is offered once, on its due day, and a deferral
-  (explicit or the easy work auto-committing it) locks the 10-day payoff
-  and is never re-offered shorter.
-- **The day the till can empty:** the supplier bill (Day 4). The till
+  identical "in 1 day" is tomorrow morning on Day 1, and the morning
+  after the close on Day 3. A deferral commits: each invoice is offered
+  once, and a deferral (explicit or the easy work auto-committing it)
+  locks the 10-day payoff and is never re-offered shorter.
+- **The day the till can empty:** the supplier bill (Day 2). The till
   displays the *net position* (cash minus the unpaid bill), so skipping it
-  drops the till by the full £2,000 — the £40/day late charge then leaves
-  the till every morning while walk-in trade stops. The unpaid face
-  exceeds the till, so the careless run empties **on the skip day itself**
-  (`endedEarly`), robust across seeds — not the 2nd pass's £40-fee knife
-  edge on day 5. A run that chased the early invoices pays the bill and
-  ends +£3,900–4,900. A rational run and a careless run end differently,
-  and the street shows why.
+  drops the till by the full £2,000. The unpaid face exceeds the £1,200
+  start, so the careless run empties **on the skip day itself**
+  (`endedEarly`). A run that chased Harborne on Day 1 can pay the bill
+  from the money that lands that morning. A rational run and a careless
+  run end differently, and the street shows why.
 - **The card falls, the street grows:** each ledger card shows a "worth
   today" that *falls* as the invoice ages (indicative 2%/day off face,
   capped 30%). The drifting lantern is the street's earnings — the exact
@@ -278,19 +275,16 @@ supersedes the 20-day v1 shipped Nov 10–11; the Nov 13 third-pass rework
 re-centered Chapter 1 on the pair as the till-mover. The deltas below are
 the jam build's source of truth.
 
-- **Chapter 1 is 5 days, not 20.** The pair moved from Day 4/12 to Day 3/5
-  (same `experimentId`, same structure — framing attribution unchanged).
-  `CH1_DAYS = 5`.
-- **The pair IS the till-mover (3rd-pass rework).** The day-3 chase lands
-  **in the week, on the till the player is watching** (`CHASE_CLEAR_DAYS = 2`
-  → £2,400 lands Day 5), while the day-5 chase is the identical arithmetic
-  **one day past the close** (lands Day 7, off screen — abstract). Both days
-  offer the SAME numbers ("in 2" vs "in 10"), so no button leaks which arm
-  is better — the second-pass leak ("both arms after the week") is fixed
-  without reintroducing the first leak (structure printed on the button).
-  The tilt the player feels is the present-bias one: the identical "in 2"
-  feels NEAR on Day 3 (you watch it land) and FAR on Day 5 (it lands after
-  the close). That concreteness gap IS the experiment.
+- **Chapter 1 is 3 days.** The pair is Day 1 and Day 3 (same `experimentId`).
+  `CH1_DAYS = 3`. The Claims Desk is the next chapter, not day five.
+- **The pair IS the till-mover.** The day-1 chase lands **in the week, on
+  the till the player is watching** (`CHASE_CLEAR_DAYS = 1` → £2,400 lands
+  Day 2, the morning the bill is due), while the day-3 chase is the identical
+  arithmetic **the morning after the close**. Both days offer the SAME
+  numbers ("in 1 day" vs "in 10"), so no button leaks which arm is better.
+  The tilt the player feels is the present-bias one: the identical "in 1 day"
+  is tomorrow morning on Day 1, and the morning after the close on Day 3.
+  That concreteness gap IS the experiment.
 - **Deferrals commit (round-2 fix, reworked in pass 3).** Each invoice is
   offered ONCE, on its due day; a deferral (explicit, or the easy work
   auto-committing it at day's end) locks the 10-day payoff and the invoice
@@ -299,11 +293,9 @@ the jam build's source of truth.
   is locked in at the choice and lasts the whole week — the second-pass
   bug (non-pair days re-offered an unchased invoice at `CHASE_CLEAR_DAYS`)
   is gone.
-- **The day-2 invoice is real.** `inv-2nd` (seeded client, due Day 2) sits
-  on the desk from Day 2, so Day 2 is never a single button. Left unchased,
-  it is auto-deferred at the day's end and ages into the street's take —
-  the player's first felt deferral cost.
-- **The supplier bill (Day 4):** `Quayline Foods`, **£2,000** due
+- **Day 2 is the bill.** Harborne's chase from Day 1 lands that morning,
+  which is what makes £2,000 payable. There is no second ordinary invoice.
+- **The supplier bill (Day 2):** `Quayline Foods`, **£2,000** due
   (2nd pass: £1,600 · v2: £1,800). It is a LIABILITY, not a one-shot cash
   outflow: the till displays the **net position** (`cash − unpaid bill`),
   so skipping it drops the till by the full amount, and the £40/day late

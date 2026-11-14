@@ -30,6 +30,12 @@ export interface StreetCounters {
   lateFees?: number;
   /** Fees paid to stallholders via npc.feePaid ledger entries. */
   npcFees?: number;
+  /**
+   * Face of invoices that are due and still unchased. This is the number
+   * the street shows — the money that has not come in — rather than the
+   * few pounds a fictional daily haircut sheds.
+   */
+  held?: number;
 }
 
 export const STREET_TOTAL = 5;
@@ -204,6 +210,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
       "aria-label": `The Late Market street: ${lit - shut} stalls lit, ${shut} shuttered, ${total - lit} dark; the stalls have taken ${money(c.toStreet, 0)}`,
     },
   );
+  const stalls = el("div", { class: "lm-street-stalls" });
   for (let i = 0; i < total; i++) {
     const stall = STALLS[i]!;
     const state = i < shut ? "shut" : i < lit ? "lit" : "dim";
@@ -226,21 +233,25 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     span.addEventListener("keydown", (ev: KeyboardEvent) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); inspect(); }
     });
-    row.append(span);
+    stalls.append(span);
   }
-  // The running tally — the street's money so far (shed value + late charges +
-  // NPC fees). It's a button: the stalls keep their books, and the books open.
-  // The breakdown lists only components the counters actually carry — no
-  // invented per-stall splits.
+  // The money sits on its own line, never wrapped into the stall row.
+  // The breakdown lists only components the counters actually carry.
+  const taken = money(c.toStreet, 0);
+  const held = c.held ?? 0;
+  const headline = held > 0 ? `${money(held, 0)} still on the street` : `${taken} to the street`;
+  const meta = el("div", { class: "lm-street-meta" });
   const tally = el(
     "button",
     {
       class: "lm-street-cap lm-street-tally",
       type: "button",
       "aria-expanded": "false",
-      "aria-label": `The stalls keep their books — ${money(c.toStreet, 0)} so far. Show the breakdown.`,
+      "aria-label": held > 0
+        ? `${money(held, 0)} of your invoices are due and still unchased. Show the breakdown.`
+        : `The stalls keep their books — ${taken} so far. Show the breakdown.`,
     },
-    document.createTextNode(` The Late Market · ${lit - shut} lit · ${shut} shut · the stalls keep their books — ${money(c.toStreet, 0)} so far`),
+    document.createTextNode(headline),
   );
   const books = el("span", { class: "lm-street-books", hidden: true });
   for (const line of tallyLines(c)) books.append(el("span", { class: "lm-street-book-line", text: line }));
@@ -249,6 +260,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     books.hidden = !open;
     tally.setAttribute("aria-expanded", String(open));
   });
-  row.append(tally, books);
+  meta.append(tally, books);
+  row.append(stalls, meta);
   return row;
 }

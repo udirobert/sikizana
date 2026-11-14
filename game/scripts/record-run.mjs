@@ -108,27 +108,35 @@ const clickByText = async (needle) => {
   })()`);
   if (!ok) throw new Error(`button not found: "${needle}"`);
 };
+const clickIf = async (needle) => evalJs(`(() => {
+  const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes(${JSON.stringify(needle)}));
+  if (!b) return false; b.click(); return true;
+})()`);
+/** Title → London → skip the moonrise → refuse the Shark → the stall. */
+async function reachTheStall() {
+  await clickByText("Begin — sound on");
+  await sleep(700);
+  if (await clickIf("London")) await sleep(400);
+  await clickIf("Skip");
+  await sleep(300);
+  await clickIf("Refuse");
+  await sleep(300);
+  await clickByText("Open the shutters");
+}
 
 // ── Scenario: the 5-day run (video + shots both start here) ────────────────
 const s = (label) => sleep(label); // dwell
 
 /**
- * Plays Day 1 → "Day 5 closed" (the close-books day button is ON SCREEN,
- * unclicked). Caller decides: shots() clicks it to enter the debrief.
+ * The 90-second path: defer Harborne on day 1, leave the bill on day 2.
+ * The week ends there. "Close the books" is on screen, unclicked.
  */
 async function playToDay5Closed() {
-  await clickByText("Begin — sound on"); await s(2600);
-  await clickByText("Open the shutters"); await s(3800);
-  await clickByText("Chase"); await s(2800); // Day 1: chase the already-overdue invoice
+  await reachTheStall(); await s(800);
+  await clickByText("Leave it for tomorrow"); await s(2800); // Day 1: defer the £2,400 already on the street
   await clickByText("Next day"); await s(3400);
-  await clickByText("Reply to the morning emails"); await s(2400); // Day 2: easy work (the 2nd invoice ages → street)
-  await clickByText("Next day"); await s(4600);
-  await clickByText("Chase"); await s(2800); // Day 3: chase PAIR A — the £2,400 lands Day 5, in the week
-  await clickByText("Next day"); await s(4800);
-  await clickByText("Leave the bill"); await s(2800); // Day 4: skip the supplier bill (the liability note)
-  await clickByText("Next day"); await s(4600);
-  await clickByText("Leave it for tomorrow"); await s(2800); // Day 5: defer pair B — the present-bias tilt
-  await s(600); // "Day 5 closed" on screen
+  await clickByText("Leave the bill"); await s(2800); // Day 2: the till answers the same day
+  await s(600);
 }
 
 // ── Video mode: 10fps capture for the full run ─────────────────────────────
@@ -164,14 +172,10 @@ async function recordVideo() {
     await s(2600); // title card
     await playToDay5Closed();
     await clickByText("Close the books");
-    await s(6800); // debrief beat 1 — the street's earnings
-    await clickByText("Look at the books");
-    await s(7200); // beat 2 — line items on the player's data
-    await clickByText("Continue");
-    await s(6800); // beat 3 — the bias named, on their numbers
-    await clickByText("Continue");
-    await s(5600); // beat 4 — the rule
-    await clickByText("Close the books"); // → chapter 2 intro: the Claims Desk
+    await s(6800); // debrief — the street's number
+    await clickByText("The two prices");
+    await s(5600); // the two prices, bias named only if the pair split
+    await clickByText("When an invoice falls due"); // → chapter 2
     await s(3200);
     await clickByText("Walk into the office"); await s(3200); // desk opener, run 1
     await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
@@ -198,41 +202,44 @@ async function recordVideo() {
 // ── Shots mode: named screenshots at key scenes ────────────────────────────
 async function shots() {
   mkdirSync(OUT, { recursive: true });
-  const shot = (name) => send("Page.captureScreenshot", { format: "png" }).then((r) => {
+  const shot = (name) => send("Page.captureScreenshot", { format: "png" }).then(async (r) => {
     const p = join(OUT, name);
     writeFileSync(p, Buffer.from(r.data, "base64"));
-    console.log(`screenshot → ${p}`);
+    const label = await evalJs(`JSON.stringify({ h: (document.querySelector("h3")||{}).textContent||"", cine: !!document.querySelector(".lm-cine"), pick: !!document.querySelector("#market-pick") })`);
+    console.log(`screenshot → ${p}  ${label}`);
   });
   await s(2600);
-  await clickByText("Begin — sound on"); await s(2600);
-  await clickByText("Open the shutters"); await s(4200);
-  await shot("v2_day1_stall.png"); // the place: till + ledger + street + choice
+  await shot("v3_title.png");
+  await clickByText("Begin — sound on"); await s(900);
+  await shot("v3_market_pick.png"); // both lawful markets on the table
+  await clickIf("London"); await s(600);
+  await shot("v3_after_begin.png"); // cinematic bridge
+  await clickIf("Skip"); await s(1200);
+  await shot("v3_cold_open.png"); // post-cinematic cold open — VO beats run long
+  // The Shark's offer lands after several voiced beats — poll for it.
+  for (let i = 0; i < 160; i++) {
+    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
+    if (up) break;
+    await s(250);
+  }
+  await shot("v3_shark_offer.png"); // the prologue decision, before the answer
+  await clickByText("Refuse"); await s(500);
+  await shot("v3_shutters.png"); // "Open the shutters" — first real button
+  await clickByText("Open the shutters"); await s(1000);
+  await shot("v3_day1_stall.png"); // £2,400 still on the street, Harborne already late
   const cap = async (label) => { const t = await evalJs(`[...document.querySelectorAll("#street-slot .lm-stall")].map(s=>s.dataset.kind+"="+s.className.replace("lm-stall ","")).join(" ")`); console.log(`[stalls ${label}] ${t}`); };
-  await clickByText("Chase"); await s(2600); // Day 1: chase the already-overdue invoice
+  await clickByText("Leave it for tomorrow"); await s(2600);
   await cap("d1");
+  await shot("v3_day1_defer.png");
   await clickByText("Next day"); await s(3200);
-  await clickByText("Reply to the morning emails"); await s(1400); // Day 2: easy work (auto-defers the 2nd invoice)
-  await cap("d2");
-  await shot("v2_day2_defer.png");
-  await clickByText("Next day"); await s(4400);
-  await shot("v2_day3_pair.png"); // PAIR A: the choice that moves the till (chase → lands day 5)
-  await clickByText("Chase"); await s(1100);
-  await cap("d3");
-  await shot("v2_day3_chased.png"); // pair A committed — AND the Factor steps up (his stall just lit)
-  await shot("v2_actor_factor.png"); // the Factor, clearly: the street's idea as a character
-  await clickByText("Next day"); await s(4600);
-  await shot("v2_day4_bill.png"); // the till stress: £2,000 due, the till can't cover it
+  await shot("v3_day2_bill.png");
   await clickByText("Leave the bill"); await s(2600);
-  await clickByText("Next day"); await s(4400);
-  await shot("v2_day5_pair_b.png"); // PAIR B: the same choice, the payoff just past the close
-  await clickByText("Leave it for tomorrow"); await s(2600); // Day 5: defer pair B — the present-bias tilt
-  await clickByText("Close the books"); // debrief: street first
+  await cap("d2");
+  await clickByText("Close the books");
   await s(4200);
-  await shot("v2_debrief_street.png");
-  await clickByText("Look at the books"); await s(4200);
-  await shot("v2_debrief_replay.png"); // line items on own data
-  await clickByText("Continue"); await s(4200);
-  await shot("v2_debrief_named.png"); // the bias named
+  await shot("v3_debrief_street.png");
+  await clickByText("The two prices"); await s(4200);
+  await shot("v3_debrief_named.png"); // the two prices, bias named if the pair split
 }
 
 // ── Finale mode: full run ch1→ch2→ch3→finale, screenshots at the payoff ────
@@ -244,51 +251,47 @@ async function finale() {
     console.log(`screenshot → ${p}`);
   });
   await s(2200);
-  await clickByText("Begin — sound on"); await s(2200);
-  await clickByText("Open the shutters"); await s(3000);
-  // ch1 — rational-ish: chase early, defer pair A (line item), pay bill, chase B
+  await reachTheStall(); await s(800);
+  // ch1 — chase day 1 so the bill is payable, pay it, defer the last Harborne
   await clickByText("Chase"); await s(2200);
   await clickByText("Next day"); await s(2600);
-  await clickByText("Reply to the morning emails"); await s(2000);
-  await clickByText("Next day"); await s(3200);
+  await clickByText("Pay"); await s(2200);
+  await clickByText("Next day"); await s(2600);
   await clickByText("Leave it for tomorrow"); await s(2200);
-  await clickByText("Next day"); await s(3200);
-  await clickByText("Pay"); await s(2200); // pay the bill (affordable after chase)
-  await clickByText("Next day"); await s(3200);
-  await clickByText("Chase"); await s(2200);
-  await clickByText("Close the books"); await s(3200); // debrief: street first
-  await clickByText("Look at the books"); await s(2600);
-  await clickByText("Continue"); await s(2600);
-  await clickByText("Continue"); await s(2600);
-  await clickByText("Close the books"); await s(3000); // ch2 intro
+  await clickByText("Close the books"); await s(3200);
+  await clickByText("The two prices"); await s(2600);
+  await clickByText("When an invoice falls due"); await s(3000); // ch2 intro
   await clickByText("Walk into the office"); await s(2600);
-  for (let run = 0; run < 3; run++) {
-    await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
-    await clickByText("Set the floor"); await s(2200);
-    await clickByText("Accept"); await s(2200);
-    if (run < 2) await clickByText("Walk into the office").catch(() => {});
-  }
+  // run 1 → Factor teaser → run 2 → run 3 (auto-advance) → Collector probe
+  await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
+  await clickByText("Set the floor"); await s(2200);
+  await clickByText("Accept"); await s(2200);
+  await clickByText("Wave him off"); await s(2600); // Factor teaser → run 2
+  await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
+  await clickByText("Set the floor"); await s(2200);
+  await clickByText("Accept"); await s(2200); // run 2 clears → run 3 opens
+  await evalJs("(() => { const i = document.querySelector('input[type=number]'); if (i) { i.value = '900'; i.dispatchEvent(new Event('input')); } return true; })()");
+  await clickByText("Set the floor"); await s(2200);
+  await clickByText("Accept"); await s(2200); // run 3 clears → the Collector
   // Collector probe — take the Factor's money in ch3 later; here: decline
   await clickByText("Decline"); await s(2600);
-  await clickByText("Continue"); await s(2600);
   await clickByText("Continue"); await s(2600);
   await clickByText("Next chapter"); await s(2600); // ch3 intro
   await clickByText("Open the account"); await s(2600);
   await clickByText("Keep the line going"); await s(2200);
   await clickByText("Stop work on this account"); await s(2200); // walk → street offers
-  await clickByText("Take the Factor's money"); await s(2200); // street fee → stall
-  await clickByText("Continue"); await s(2600);
-  await clickByText("Continue"); await s(2600); // reveal beat
-  await clickByText("To the finale prep"); await s(3000);
+  await clickByText("Take the Factor's money"); await s(2200); // → the Shark smiles
+  await clickByText("Decline"); await s(2600); // Shark → debrief beat 1
+  await clickByText("Continue"); await s(2600); // → the sunk-cost beat
+  await clickByText("To the finale"); await s(3000);
   // FINALE
-  await shot("v2_finale_close.png"); // "You Were the Experiment" + street
+  await shot("v3_finale_close.png"); // "You Were the Experiment" + street
   await clickByText("Let the market close"); await s(4000);
-  await shot("v2_finale_market_closed.png");
-  await clickByText("Read your ledger"); await s(2600);
-  await clickByText("Continue"); await s(3200);
-  await shot("v2_finale_profile.png"); // the Irrationality Profile
-  await clickByText("Continue"); await s(2600);
-  await shot("v2_finale_cost.png"); // Cost of Not Acting + Rationality Delta
+  await shot("v3_finale_market_closed.png");
+  await clickByText("Your week in one line"); await s(2600);
+  await shot("v3_finale_profile.png"); // the week in one line
+  await clickByText("See the cost"); await s(2600);
+  await shot("v3_finale_cost.png"); // Cost of Not Acting
 }
 
 // ── UI mode: keyboard + chapter-2 trail, asserted headlessly (npm run build) ─
@@ -307,8 +310,25 @@ async function uiProbe() {
   const dayHeading = () => evalJs(`(document.querySelector("#ch1 .lm-day h3")||{}).textContent||""`);
 
   await sleep(2200);
-  await clickByText("Begin — sound on"); await sleep(2400);
-  await clickByText("Open the shutters"); await sleep(1400);
+  await reachTheStall(); await sleep(600);
+  const fit = await evalJs(`(() => {
+    const c = document.querySelector("#ch1 .lm-choices");
+    const stalls = document.querySelector(".lm-street-stalls");
+    const tally = document.querySelector(".lm-street-tally");
+    const cr = c ? c.getBoundingClientRect() : { bottom: 9999 };
+    const sr = stalls ? stalls.getBoundingClientRect() : { height: 0 };
+    return {
+      choiceBottom: Math.round(cr.bottom),
+      stallH: Math.round(sr.height),
+      tally: (tally && tally.textContent) || "",
+      lecture: document.body.innerText.includes("can't prove"),
+    };
+  })()`);
+  check(fit && fit.choiceBottom <= 860, "day-1 choices sit inside 860px", JSON.stringify(fit));
+  check(fit && fit.stallH >= 100, "stalls read as a street", JSON.stringify(fit));
+  check(fit && /still on the street|to the street/.test(fit.tally) && !fit.tally.includes("so far"), "street money is one line", fit && fit.tally);
+  check(fit && /2,400/.test(fit.tally), "day 1 opens on Harborne's £2,400", fit && fit.tally);
+  check(fit && fit.lecture === false, "the confession line is gone");
 
   const caps = await evalJs(`[...document.querySelectorAll("#ch1 .lm-choice")].map((b) => (b.dataset.key || "-") + ":" + (b.querySelector(".lm-choice-label") || {}).textContent)`);
   check(Array.isArray(caps) && caps.length >= 2 && caps.every((c) => /^[1-9]:/.test(c)), "visible choices carry 1..n keycaps", JSON.stringify(caps));
@@ -318,7 +338,7 @@ async function uiProbe() {
   await press("1", "Digit1", 49);
   check(/Day 1 closed/.test(await dayHeading()), "key 1 resolves the day");
   await press("Enter", "Enter", 13);
-  check(/Day 2 of 5/.test(await dayHeading()), "Enter takes a lone choice");
+  check(/Day 2 of 3/.test(await dayHeading()), "Enter takes a lone choice");
 
   // The finale's outbound door is an <a class="lm-choice">: it must never take a
   // key, or a stray press would navigate someone off the ending.
@@ -334,18 +354,12 @@ async function uiProbe() {
   // Past the keyboard: play out the week and reach chapter 2's counter, where
   // the desk's numbers are supposed to stack into a visible trail.
   const pick = async (needle, dwell = 1600) => { await clickByText(needle); await sleep(dwell); };
-  await pick("Reply to the morning emails");
+  await pick("Pay");
   await pick("Next day");
   await pick("Leave it for tomorrow", 1200);
-  await pick("Next day");
-  await pick("Leave the bill", 1200);
-  await pick("Next day");
-  await pick("Chase", 1200);
   await pick("Close the books");
-  await pick("Look at the books");
-  await pick("Continue");
-  await pick("Continue");
-  await pick("Close the books", 2200);
+  await pick("The two prices");
+  await pick("When an invoice falls due", 2200);
   await pick("Walk into the office");
   await evalJs(`(() => { const i = document.querySelector("input[type=number]"); if (i) { i.value = "1100"; i.dispatchEvent(new Event("input")); } return true; })()`);
   await pick("Set the floor", 1200);
@@ -377,5 +391,8 @@ try {
   try { ws?.close(); } catch {}
   chrome.kill("SIGKILL");
   server.close();
-  rmSync(PROFILE, { recursive: true, force: true });
+  // Chrome releases the profile a moment after SIGKILL. A leftover temp dir
+  // is not a failed run.
+  await new Promise((r) => setTimeout(r, 400));
+  try { rmSync(PROFILE, { recursive: true, force: true }); } catch { /* profile still held */ }
 }

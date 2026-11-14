@@ -6,8 +6,7 @@
 import { el, clear, choiceButton } from "../ui/dom";
 import { renderStreet, type StreetCounters } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
-import { phrased } from "../i18n";
-import { money, remedy, zakatNote } from "../engine/market";
+import { money, remedy, zakatNote, isSouq, SOUQ_VO } from "../engine/market";
 import { productCheckUrl } from "../engine/links";
 import { verdictLine, type FinaleView } from "./finale";
 
@@ -34,7 +33,24 @@ export function runFinale(deps: FinaleDeps): void {
 
   // ── Beat 1: the street assembles, then closes stall by stall. ──
   function marketClose(): void {
-    deps.say("siki", "Market close. This is the street your decisions built.");
+    // Souq: the zakat callback gets its own beat first — the AR line runs
+    // ~7s and speak() cuts the previous take, so it can't share a frame.
+    if (isSouq()) {
+      deps.say("siki", SOUQ_VO.debriefZakat);
+      stage.append(
+        el("h3", { text: "The souq keeps one more ledger" }),
+        el("p", { class: "lm-hint lm-zakat", text: "2.5% on what you are still owed — due whether or not the invoice ever clears." }),
+        el("div", { class: "lm-choices" },
+          choiceButton("Let the market close", "Watch what your ledger funded, shutter", marketCloseOpen),
+        ),
+      );
+      return;
+    }
+    marketCloseOpen();
+  }
+
+  function marketCloseOpen(): void {
+    deps.say("siki", isSouq() ? SOUQ_VO.finaleClose : "Market close. This is the street your decisions built.");
     stage.append(
       el("h3", { text: "The week, read back" }),
       el("p", { class: "lm-hint", text: "Every stall below was lit by something you postponed, paid for, or walked away from. One week, one stall — this is what your own ledger funded." }),
@@ -81,86 +97,12 @@ export function runFinale(deps: FinaleDeps): void {
         el("div", { class: "lm-surface" },
           el("p", { class: "lm-line siki", text: "The Late Market never sleeps. Either you fetch it, or you discount it." }),
         ),
-        el("p", { class: "lm-hint", text: "Some of this was not you. Some months, there simply isn't enough. Then the fix isn't willpower — it's survival support. Ask early; it works better." }),
-        choiceButton("Read your ledger", "Every offer shown, every default, every consequence", ledgerBeat),
+        choiceButton("Your week in one line", "", verdictBeat),
       );
     }
   }
 
-  // ── Beat 2: the full decision ledger, replayed. ──
-  function ledgerBeat(): void {
-    deps.say("siki", "Let's read what you actually did — not what a textbook would do.");
-    clear(stage);
-    const entries = deps.entries();
-    const list = el("div", { class: "lm-surface lm-review-scroll" });
-    if (entries.length === 0) {
-      list.append(el("p", { class: "lm-hint", text: "Nothing recorded — a clean ledger is its own kind of run." }));
-    }
-    for (const e of entries) {
-      list.append(el("div", { class: "lm-review-entry" },
-        el("p", { text: `Day ${e.day} · ${e.prompt}` }),
-        el("p", { class: "lm-hint", text: `→ ${e.chosenOptionId}${e.deferred ? " (deferred)" : ""} — ${e.immediateConsequence}` }),
-      ));
-    }
-    stage.append(
-      el("h3", { text: `Your ledger — ${entries.length} recorded decisions` }),
-      list,
-      choiceButton("Continue", "", profileBeat),
-    );
-  }
-
-  // ── Beat 3: where the player leaned — three axes, own data, n honest. ──
-  function profileBeat(): void {
-    deps.say("siki", "Three numbers, computed from your own choices. Not a diagnosis — a mirror.");
-    clear(stage);
-    stage.append(el("h3", { text: "Where you leaned" }));
-    // The honest frame, said ONCE: each axis is measured from the player's own
-    // recorded choices against the baseline that chases on time — not a
-    // clinical "you have bias X". The pair was the same offer run twice (the
-    // visible repetition is in the deferral line below), so the lean is
-    // something the player can SEE in their own data, not our attribution.
-    // Stating the hedge twice here and again in the finale is what capped the
-    // ending — rigour, said once, is a claim; said thrice, it's an apology.
-    stage.append(el("p", { class: "lm-hint", text: phrased({
-      normal: "Each number is measured from your own recorded choices against the baseline that chases on time. One week suggests a lean; it doesn't diagnose one — read it as your week, not your character.",
-      plain: "Each number is from your own choices, compared to the player who always chases on time. Not a test — where you leaned this week.",
-    }) }));
-    if (view.partial) {
-      stage.append(el("p", { class: "lm-hint", text: "Partial run — some chapters were skipped, so unmeasured axes read low. The bars below reflect only what was recorded." }));
-    }
-    const card = el("div", { class: "lm-surface lm-profile" });
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    for (const axis of view.axes) {
-      const num = el("strong", { text: reduced ? `${axis.value}` : "0" });
-      const bar = el("div", { class: "lm-bar", style: `width:${reduced ? Math.min(100, axis.value) : 0}%` });
-      // The mirror lands gradually: each number counts up and its bar grows.
-      if (!reduced) {
-        const t0 = performance.now(), dur = 850;
-        const frame = (t: number) => {
-          const p = Math.min(1, (t - t0) / dur);
-          const e = 1 - Math.pow(1 - p, 3);
-          num.textContent = `${Math.round(axis.value * e)}`;
-          bar.setAttribute("style", `width:${Math.min(100, axis.value) * e}%`);
-          if (p < 1) requestAnimationFrame(frame);
-        };
-        requestAnimationFrame(frame);
-      }
-      card.append(
-        el("div", { class: "lm-axis" },
-          el("div", { class: "lm-axis-head" },
-            el("span", { text: axis.key === "deferral" ? "Deferral" : axis.key === "anchoring" ? "Anchoring" : "Sunk cost" }),
-            num,
-          ),
-          bar,
-          el("p", { class: "lm-hint", text: axis.line }),
-          el("p", { class: "lm-hint", text: `Named: ${axis.nameThat}` }),
-        ),
-      );
-    }
-    stage.append(card, choiceButton("Continue", "", verdictBeat));
-  }
-
-  // ── Beat 3½: the week in one line — the quotable verdict. ──
+  // ── The week in one line — the quotable verdict. ──
   function verdictBeat(): void {
     const v = verdictLine(view.profile);
     deps.say("siki", v.siki);
@@ -171,7 +113,7 @@ export function runFinale(deps: FinaleDeps): void {
         el("p", { class: "lm-line siki", text: v.siki }),
         el("p", { class: "lm-line zana", text: v.zana }),
       ),
-      el("p", { class: "lm-hint", text: "One run suggests; it doesn't prove. Run it back and watch the line move." }),
+      el("p", { class: "lm-hint", text: "Run it back. The line should move." }),
       choiceButton("See the cost", "What the street kept", costBeat),
     );
     deps.say("zana", v.zana);
@@ -186,7 +128,7 @@ export function runFinale(deps: FinaleDeps): void {
       el("h3", { text: "The Cost of Not Acting" }),
       el("div", { class: "lm-surface" },
         (() => {
-          const total = el("p", { class: "lm-cash" });
+          const total = el("p", { class: "lm-take" });
           const target = c.toStreet + c.forgoneStatutory;
           // The final number counts up to its full weight — then the verdict.
           if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || target === 0) {
@@ -230,24 +172,7 @@ export function runFinale(deps: FinaleDeps): void {
       // the week's eyes have somewhere real to go — Sikizana reads actual
       // books the way the player just learned to read this one. Copy only;
       // read-only, human-in-the-loop, no money moved, no provider named.
-      el("div", { class: "lm-surface" },
-        el("p", { class: "lm-line siki", text: "You just learned to read one ledger in a week. Siki reads real ones — your actual books, your actual late payers, the same eyes, no street attached." }),
-        el("p", { class: "lm-hint", text: "Sikizana, the AI finance assistant this game was built to meet: read-only by default, human-in-the-loop for everything consequential." }),
-      ),
       el("div", { class: "lm-choices" },
-        // The door. The finale hands the player the real tool — same eyes, their
-        // actual books — rather than describing it and stopping. Opens in a new
-        // tab so a judge who clicks keeps the ending they just earned, and the
-        // URL is built in engine/links.ts so click-through is counted.
-        el("a", {
-          class: "lm-choice lm-choice-go",
-          href: productCheckUrl(),
-          target: "_blank",
-          rel: "noopener noreferrer",
-        },
-          el("span", { class: "lm-choice-label", text: "Check your own books" }),
-          el("span", { class: "lm-choice-detail", text: "Free, read-only, ten minutes — the same scan, on your actual late payers. Nothing moves without you." }),
-        ),
         choiceButton("Run it back", !deps.delta
           ? "First run banked — the street raises its prices next week"
           : deps.delta.score === 0
@@ -256,6 +181,17 @@ export function runFinale(deps: FinaleDeps): void {
               ? `${Math.abs(deps.delta.score).toFixed(0)} under your best — the street raises its prices next week`
               : `${Math.abs(deps.delta.score).toFixed(0)} over your best — take it back next week`, deps.onRestart),
         choiceButton("Back to the title", "Close the books for tonight", () => window.location.reload()),
+      ),
+      // A footnote, not a choice. The week ends on the replay. The product
+      // stays available and read-only, and it does not take a key.
+      el("p", { class: "lm-hint" },
+        "The same scan, on a real set of books, stays read-only. ",
+        el("a", {
+          href: productCheckUrl(),
+          target: "_blank",
+          rel: "noopener noreferrer",
+          text: "Look when you want.",
+        }),
       ),
     );
   }

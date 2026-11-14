@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CH1_DAYS,
   BILL,
+  START_CASH,
+  PAIR_A_DAY,
+  PAIR_B_DAY,
   createCh1State,
   dayChoices,
   resolveDay,
@@ -23,6 +26,12 @@ function play(seed: number, want: (state: Ch1State, day: number) => string): Ch1
   return state;
 }
 
+function billKind(st: Ch1State, d: number, otherwise: string): string {
+  if (d !== BILL.dueDay) return otherwise;
+  const arriving = st.invoices.filter((i) => i.paidDay === d).reduce((s, i) => s + i.principal, 0);
+  return st.cash + arriving >= BILL.amount ? "pay_bill" : "skip_bill";
+}
+
 /** The line items must sum exactly to the lantern (street take) — the
  *  debrief's replay is priced from the same daily arithmetic. */
 function expectLinesSumToLantern(state: Ch1State) {
@@ -32,51 +41,39 @@ function expectLinesSumToLantern(state: Ch1State) {
 
 describe("ch1 balance archetypes (seed 20261109)", () => {
   it("rational run (chase everything, pay the bill) ends healthy, with no street earnings", () => {
-    const s = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
+    const s = play(20261109, (st, d) => billKind(st, d, "chase"));
     expect(s.endedEarly).toBeNull();
-    expect(netPosition(s)).toBeGreaterThan(3000); // ends well above the start
-    expect(s.streetTake).toBe(0); // nothing was ever left to age
+    expect(netPosition(s)).toBeGreaterThan(START_CASH);
+    expect(s.streetTake).toBe(0);
     expect(deferralLines(s)).toHaveLength(0);
     expectLinesSumToLantern(s);
   });
 
-  it("present-bias run (chase the near day-3 payoff, defer the far day-5 one) — the frame, not the facts, did the work", () => {
-    // The tilt the experiment measures: the identical "in 2" feels near on Day 3
-    // (it lands in the week, on the till) and far on Day 5 (it lands after the
-    // close). The player chases the near one and defers the far one.
-    const s = play(20261109, (st, d) => {
-      if (d === 5) return "defer";
-      if (d === 4) return st.cash >= BILL.amount ? "pay_bill" : "skip_bill";
-      return "chase";
-    });
+  it("present-bias run (chase the near payoff, defer the far one) — the frame, not the facts, did the work", () => {
+    const s = play(20261109, (st, d) => (d === PAIR_B_DAY ? "defer" : billKind(st, d, "chase")));
     expect(s.endedEarly).toBeNull();
-    expect(netPosition(s)).toBeGreaterThan(2500);
-    // The near payoff was chased (lands day 5, in the week); the far one was
-    // committed to deferral (pays day 15, after the close).
-    expect(s.invoices[2]!.chasedDay).toBe(3);
-    expect(s.invoices[3]!.deferredDay).toBe(5);
-    // The day-5 deferral sheds nothing inside the chapter (the invoice only
-    // goes past-due on day 6): the till is IDENTICAL to the rational run. The
-    // cost of the tilt is the frame, not cash — the profile measures it from
-    // the ledger's `deferred` flag, not the street take.
+    expect(netPosition(s)).toBeGreaterThan(START_CASH);
+    expect(s.invoices[0]!.chasedDay).toBe(PAIR_A_DAY);
+    expect(s.invoices[1]!.deferredDay).toBe(PAIR_B_DAY);
+    // The last-day deferral is due that morning, so it sheds nothing inside
+    // the chapter. The till matches the rational run. The profile measures
+    // the tilt from the ledger, not from cash.
     expect(s.streetTake).toBe(0);
     expectLinesSumToLantern(s);
   });
 
-  it("careless run (fun all week, skip the bill) empties the till on day 4 — the bill face does it", () => {
-    const s = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+  it("careless run (fun, then skip the bill) empties the till on bill day", () => {
+    const s = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     expect(s.endedEarly).toBe("till_empty");
-    // The loss lands on the day of the skip: the unpaid face (£2,000) is simply
-    // more than the till holds — not a one-seed knife edge on the £40 fee.
-    expect(s.bill.skippedDay).toBe(4);
+    expect(s.bill.skippedDay).toBe(BILL.dueDay);
     expect(netPosition(s)).toBeLessThan(0);
     expect(deferralLines(s).length).toBeGreaterThanOrEqual(1);
     expectLinesSumToLantern(s);
   });
 
   it("rational and careless runs end differently (the critic's core demand)", () => {
-    const rational = play(20261109, (st, d) => (d === 4 ? (st.cash >= BILL.amount ? "pay_bill" : "skip_bill") : "chase"));
-    const careless = play(20261109, (_st, d) => (d === 4 ? "skip_bill" : "fun"));
+    const rational = play(20261109, (st, d) => billKind(st, d, "chase"));
+    const careless = play(20261109, (_st, d) => (d === BILL.dueDay ? "skip_bill" : "fun"));
     expect(rational.endedEarly).toBeNull();
     expect(careless.endedEarly).toBe("till_empty");
     expect(netPosition(rational) - netPosition(careless)).toBeGreaterThan(500);

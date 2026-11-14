@@ -1,3 +1,46 @@
+# The Late Market — trailer script v3 (three-day week, ~90 s)
+
+> **Record from this section.** 1280×860, HUD visible. Do not upload
+> `game/game-video/lm_run.mp4` — that file predates the Souq and this week.
+> Ninety seconds: the Shark, one deferral, the bill, one Souq frame, the
+> street closing on the amount still out. The last frame is the title.
+> The product link is a footnote under "Run it back". Do not end on it.
+
+Clear the browser's site data for the game first, or use a private window.
+The save remembers a run.
+
+| # | Time | Clicks |
+|---|------|--------|
+| 1 | 0:00–0:12 | Begin — sound on. London, if the market cards are up. Skip. Refuse. Hold on the Shark's three buttons. |
+| 2 | 0:12–0:32 | Open the shutters. Day 1 of 3. The street reads **£2,400 still on the street**. Leave it for tomorrow. A stall lights in that beat. |
+| 3 | 0:32–0:48 | Next day. Day 2. Leave the bill. The till answers the same morning. |
+| 4 | 0:48–1:02 | Reload with `?market=souq` (or pick السوق on the title). One frame: dirhams, and the zakat line. Do not play the week again. |
+| 5 | 1:02–1:22 | Back on the UK run: Close the books. The largest type is the amount still on the street. |
+| 6 | 1:22–1:30 | Title. Free in the browser. |
+
+```text
+[0:00]  A debt collector offers seventy percent, cash tonight. Take it, refuse it, or name your own number.
+
+[0:12]  £2,400 is already on the street. Leave it. A stall lights. That wait just became someone else's business.
+
+[0:32]  The supplier's bill is due the next morning. Leave it, and the till answers the same day.
+
+[0:48]  Same week, in dirhams. Lateness here is a fee you wrote yourself — and zakat on what you never collected.
+
+[1:02]  Market close. This is what is still on the street.
+
+[1:22]  The Late Market. Ten minutes. Free in your browser.
+```
+
+The other cut, if you want the week to survive on camera: Chase on day 1,
+Pay on day 2, Leave it for tomorrow on day 3. Day 1's money is in the till
+before the bill. Day 3 is the same offer, and it lands after the week closes.
+
+# The Late Market — trailer script v2 (superseded)
+
+> Do not record from here. v2 still walks a five-day week and ends on the
+> product door. The shot list above replaces it.
+
 # The Late Market — trailer script v2 (cold-open cut, ~105 s)
 
 > **Why v2:** the v1 cut ( `game/game-video/narration_script.txt` ) plays the week

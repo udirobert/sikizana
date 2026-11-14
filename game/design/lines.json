@@ -310,6 +310,76 @@
    "tts_voice": "IN2V4qht1zMBoNajEhTY",
    "rate": 0.9,
    "text": "You look like someone who'd rather have it today. I can make that happen — for a price."
+  },
+  {
+   "id": "souq_souq_picker",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "سوقان. أسبوع واحد. قانونان مختلفان."
+  },
+  {
+   "id": "souq_souq_intro",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "السوق. الأسبوع نفسه، لكن قانون مختلف — شروطك أنت تحدد ثمن التأخير، والزكاة تنتظر ما لا تحصّله أبدًا."
+  },
+  {
+   "id": "souq_souq_zakat",
+   "speaker": "zana",
+   "chapter": 0,
+   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
+   "text": "والسوق يحتفظ بدفتر آخر: الزكاة على ما لا يزال مستحقًا لك. اثنان ونصف بالمئة — مستحقة سواء سُدِّدت الفاتورة أم لا."
+  },
+  {
+   "id": "souq_ch1_intro_souq",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "اليوم الأول. الخزينة فيها 5,760 درهمًا. فاتورة كوايلين البالغة 9,600 درهم تستحق في اليوم الرابع. هناك شيء في الدفتر ينزف بالفعل."
+  },
+  {
+   "id": "souq_ch1_debrief_rule",
+   "speaker": "zana",
+   "chapter": 0,
+   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
+   "text": "هذه هي القاعدة. ردّدها حتى تصبح مملة."
+  },
+  {
+   "id": "souq_ch2_intro",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "مكتب التسوية في السوق يشتري الاتفاق. يفتحون كل تفاوض برقمهم. لاحظ أي رقم صار على الطاولة بالفعل."
+  },
+  {
+   "id": "souq_ch2_debrief_flip_souq",
+   "speaker": "zana",
+   "chapter": 0,
+   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
+   "text": "اقلبها. ابدأ بشروطك، لا برقمهم."
+  },
+  {
+   "id": "souq_ch3_intro",
+   "speaker": "zana",
+   "chapter": 0,
+   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
+   "text": "ماريلاين. ثلاث سنوات كعميلة، متأخرة ستون يومًا، أربع مرات في السنة. والآن صمت."
+  },
+  {
+   "id": "souq_souq_debrief_zakat",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "ظلت الزكاة تتراكم على ما لم تحصّله طوال الأسبوع. السوق يحسب ما نسيه الصندوق."
+  },
+  {
+   "id": "souq_finale_close",
+   "speaker": "siki",
+   "chapter": 0,
+   "tts_voice": "WcswLmU3iGeMrhxfWXKN",
+   "text": "إغلاق السوق. هذا هو الشارع الذي بنتْه قراراتك."
   }
  ]
 }

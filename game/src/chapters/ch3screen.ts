@@ -14,13 +14,11 @@ import {
   ch3LedgerEntry,
   streetOffers,
   streetLedgerEntry,
-  assumptionsLine,
   Ch3State,
 } from "./ch3";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
-import { phrased } from "../i18n";
-import { money } from "../engine/market";
+import { money, isSouq, SOUQ_VO } from "../engine/market";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch3Deps {
@@ -61,7 +59,7 @@ export function runChapter3(deps: Ch3Deps): void {
   intro();
 
   function intro(): void {
-    deps.say("zana", "Mareline. Three years a customer, sixty days late, four times a year. Now silence.");
+    deps.say("zana", isSouq() ? SOUQ_VO.ch3Intro : "Mareline. Three years a customer, sixty days late, four times a year. Now silence.");
     renderChrome();
     stage.append(
       el("h3", { text: "Chapter 3 · Good Money After Bad" }),
@@ -193,39 +191,20 @@ export function runChapter3(deps: Ch3Deps): void {
     let beat = 0;
     const frames: (() => void)[] = [
       () => {
-        deps.say("siki", "Look at what you paid while nobody answered. Then look again — as if the account were brand new.");
+        deps.say("siki", "Look at what you paid while nobody answered.");
         stage.append(
-          el("h3", { text: "Your account has a past. The decision doesn't." }),
-          el("div", { class: "lm-surface" },
-            el("p", { text: `Put in this chapter: ${gbp(invested)} (rounds: ${state.rounds.map((r) => r.action ?? "—").join(" → ")})` }),
-            el("p", { text: `Prospect, decide-at-zero view: ${gbp(p.total)} of invoice + statutory entitlement` }),
-            el("p", { class: "lm-hint", text: assumptionsLine() }),
-          ),
-          choiceButton("Continue", "", next),
-        );
-      },
-      () => {
-        // The reveal the offer cards withheld (recovery plan §4): the true
-        // annualised cost of the street's money, on honest arithmetic.
-        const o = streetOffers();
-        stage.append(
-          el("h3", { text: "What the street's money really costs" }),
-          el("div", { class: "lm-surface" },
-            el("p", { text: `The Factor took ${gbp(CH3_INVOICE - o.factor.buyPrice)} of the invoice for speed — about ${Math.round(o.factor.annualDiscountPct)}% a year, paid every time you needed cash today.` }),
-            el("p", { text: `The Shark's £${o.shark.daily} a day is ${o.shark.annualisedPct / 100}× the cash advanced, every year, once it is annualised. The daily number is small on purpose.` }),
-            el("p", { class: "lm-hint", text: phrased({ normal: "Fictional offers · based on typical UK factoring and recovery-commission ranges · indicative · no provider is recommended — the Zana ladder collects for free.", plain: "These offers are fictional, based on typical UK ranges. The free ladder — Zana's reminders — never charges." }) }),
-          ),
+          el("h3", { text: "What you put in, and what is left" }),
+          el("p", { class: "lm-take", text: gbp(invested) }),
+          el("p", { class: "lm-hint", text: `Put in while nobody answered. Judged at zero, the account is ${gbp(p.total)}.` }),
           choiceButton("Continue", "", next),
         );
       },
       () => {
         deps.say("siki", "History is a fact. It is not a reason.");
         stage.append(
-          el("h3", { text: "Sunk cost, named" }),
-          el("p", { class: "lm-line siki", text: "Every round you kept a silent account because of the three years behind it — the discounts, the extensions, the phone calls — is a round the street's arithmetic charged you twice. Continuing can be right. But it is right when the PROSPECT pays for it — always 60-late, interest-priced, silent — not when the history does. That is the panel you now carry: decide at zero." }),
-          el("p", { class: "lm-hint", text: "Tool unlocked: DECIDE AT ZERO — old accounts get judged like fresh ones: prospects only." }),
-          el("p", { class: "lm-hint", text: "And honestly: sometimes the only realistic prospect is a discount or a lawyer, and the fall you take is smaller than the one you fear. Support exists; ask early. (No provider will ever be named here.)" }),
-          choiceButton("To the finale prep", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
+          el("h3", { text: "Sunk cost" }),
+          el("p", { class: "lm-line siki", text: "History is a fact. It is not a reason. Decide at zero: the prospect pays for the next chase, or it doesn't." }),
+          choiceButton("To the finale", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
         );
       },
     ];

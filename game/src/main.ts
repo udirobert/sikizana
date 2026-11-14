@@ -10,7 +10,7 @@ import { AudioBus, type PlayHandle } from "./audio/bus";
 import { VoicePlayer, type Speaker } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
 import { runChapter1, PROLOGUE_EXPERIMENT_ID } from "./chapters/ch1screen";
-import type { Ch1State } from "./chapters/ch1";
+import { CH1_DAYS, type Ch1State } from "./chapters/ch1";
 import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
 import { buildFinaleView, verdictLine } from "./chapters/finale";
@@ -20,7 +20,7 @@ import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 import { el, choiceButton, clear } from "./ui/dom";
 import { stingFor } from "./audio/stings";
-import { getMarketMode, loadStoredMarketMode, money, resolveMarketMode, setMarketMode, SOUQ_AR, type MarketMode } from "./engine/market";
+import { getMarketMode, loadStoredMarketMode, money, resolveMarketMode, setMarketMode, SOUQ_AR, SOUQ_VO, type MarketMode } from "./engine/market";
 import { chapterReached, runFinished, sendTelemetry } from "./engine/telemetry";
 import { installChoiceKeys } from "./ui/keys";
 
@@ -127,7 +127,7 @@ const SEED = 20261109; // jam build: one canonical run for judging
  * ch1 street events (deferrals, skipped bill, collections) create NO ledger
  * entries, so they live in session counters; ch2/ch3 NPC fees do create ledger
  * entries, so they're read from the ledger. Both feed one counter. */
-const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0 };
+const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0, held: 0 };
 
 function streetCounters(): StreetCounters {
   const all = ledger.all();
@@ -146,16 +146,18 @@ function streetCounters(): StreetCounters {
     billSkipped: streetSession.billSkipped,
     lateFees: streetSession.lateFees,
     npcFees,
+    held: streetSession.held,
   };
 }
 
 /** Chapter-1 driver reports street-moving events that have no ledger entry. */
-function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean }): void {
+function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number }): void {
   if (ev.deferral) streetSession.deferrals += 1;
   if (ev.billSkipped) streetSession.billSkipped += 1;
   if (ev.collected) streetSession.collected += ev.collected;
   if (ev.lateFee) streetSession.lateFees += ev.lateFee;
   if (ev.streetTake) streetSession.streetTake += ev.streetTake;
+  if (ev.held !== undefined) streetSession.held = ev.held;
   // Cosmetic-only pulse (the prologue's off-book offer): the street flinches,
   // but no counter moves — no stall lights, nothing enters the tally.
   if (ev.flair) {
@@ -182,6 +184,8 @@ const KIND_ACTORS: Record<string, { name: string; kind: "factor" | "collector" |
 
 let prevLit = -1;
 let prevShut = -1;
+/** Re-applied on held-only redraws so a stall that just lit stays the one that moved. */
+let pulseKind: string | null = null;
 function renderStreet(): void {
   const slot = document.getElementById("street-slot");
   if (!slot) return;
@@ -190,7 +194,8 @@ function renderStreet(): void {
   const row = renderStreetRow(counters);
   // The run's shape rides along with the street (same node, re-parented on
   // every rebuild) so "where am I" never needs its own bar.
-  if (progressEl) row.append(progressEl);
+  const meta = row.querySelector(".lm-street-meta");
+  if (progressEl) (meta ?? row).append(progressEl);
   // The stall that just changed flares once (recovery plan §3: the street
   // changes *when* you leave it — the player should see the stall move). If
   // it's a named stallholder, that character steps up with a line. Track the
@@ -204,7 +209,8 @@ function renderStreet(): void {
     const litStalls = stalls.filter((s) => s.classList.contains("lit"));
     const changed = litStalls[litStalls.length - 1] ?? null; // rightmost lit
     changed?.classList.add("lm-stall-change");
-    const kind = changed?.dataset.kind;
+    pulseKind = changed?.dataset.kind ?? null;
+    const kind = pulseKind;
     const actor = kind ? KIND_ACTORS[kind] : null;
     if (actor) actorStepUp(actor.name, actor.kind, actor.line);
   }
@@ -214,6 +220,7 @@ function renderStreet(): void {
     const stalls = Array.from(row.querySelectorAll<HTMLElement>(".lm-stall"));
     stalls[prevShut]?.classList.add("lm-stall-change");
   }
+  if (pulseKind) row.querySelector(`[data-kind="${pulseKind}"]`)?.classList.add("lm-stall-change");
   prevLit = lit;
   prevShut = shut;
   slot.replaceChildren(row);
@@ -465,7 +472,13 @@ function showMarketPick(onDone: () => void): void {
       purgeSave(); // numbers from the other remedy don't carry
     }
     sec.remove();
-    onDone();
+    // The title→Ch.1 bridge: the cinematic plays for every fresh pick,
+    // then the Souq path gets its bilingual title card before the
+    // shutters open (the beat souq_intro was written for).
+    playCinematic(() => {
+      if (mode === "souq") souqTitleCard(onDone);
+      else onDone();
+    });
   };
 
   const souqBeat = (): void => {
@@ -484,9 +497,12 @@ function showMarketPick(onDone: () => void): void {
         text: `${SOUQ_AR.remedyTitle} — the fee is the one you wrote into your own terms. No interest anywhere: the instrument is a contractual charge, agreed on day one.`,
       }),
       el("div", { class: "lm-choices" },
-        choiceButton("Open the shutters", `Day 1 of 5 · till ${money(1200)}`, () => enter("souq")),
+        choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => enter("souq")),
       ),
     );
+    // The picker beat voiced in Arabic — the bubble IS the display text,
+    // so the manifest key and karaoke stay byte-identical.
+    say("siki", SOUQ_VO.picker);
   };
 
   sec.append(
@@ -501,6 +517,78 @@ function showMarketPick(onDone: () => void): void {
       choiceButton(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee you wrote into your own terms", souqBeat),
     ),
   );
+}
+
+/**
+ * The title→Ch.1 bridge: the moonrise cinematic, muted and skippable.
+ * prefers-reduced-motion gets the poster card and an explicit Begin —
+ * the film never plays for them. A missing/failed asset falls through
+ * to onDone so the game can never be blocked by the bridge.
+ */
+function playCinematic(onDone: () => void): void {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const wrap = el("div", { class: "lm-cine" });
+  let done = false;
+  const finish = (): void => {
+    if (done) return;
+    done = true;
+    wrap.remove();
+    onDone();
+  };
+  const skip = el("button", {
+    class: "lm-cine-skip", type: "button",
+    text: reduced ? "Begin ›" : "Skip ›",
+  });
+  skip.addEventListener("click", finish);
+  if (reduced) {
+    wrap.append(
+      el("img", { class: "lm-cine-poster", src: "cinematic/cinematic-poster.jpg", alt: "" }),
+      skip,
+    );
+    document.body.append(wrap);
+    skip.focus();
+    return;
+  }
+  const video = el("video", {
+    class: "lm-cine-video",
+    src: "cinematic/cinematic.mp4",
+    poster: "cinematic/cinematic-poster.jpg",
+    autoplay: true, muted: true, playsinline: true, preload: "auto",
+  });
+  video.muted = true;
+  video.defaultMuted = true;
+  video.addEventListener("ended", finish);
+  video.addEventListener("error", finish);
+  wrap.append(video, skip);
+  document.body.append(wrap);
+  skip.focus();
+  void video.play().catch(finish);
+}
+
+/**
+ * The Souq path's bilingual title card — the beat souq_intro was written
+ * for ("plays over the bilingual title card"). Static content, so
+ * reduced-motion players get it too: it's a story beat, not motion.
+ */
+function souqTitleCard(onDone: () => void): void {
+  const sec = document.createElement("section");
+  sec.className = "lm-chapter";
+  sec.id = "souq-title";
+  game.append(sec);
+  sec.append(
+    el("h3", { class: "souq-ar", text: `${SOUQ_AR.marketName} · The Late Market` }),
+    el("p", {
+      class: "lm-hint souq-ar",
+      text: `${SOUQ_AR.remedyTitle} — ${SOUQ_AR.zakat} on what you're still owed. The fee is the one you wrote into your own terms.`,
+    }),
+    el("div", { class: "lm-choices" },
+      choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => {
+        sec.remove();
+        onDone();
+      }),
+    ),
+  );
+  say("siki", SOUQ_VO.intro);
 }
 
 const PROFILE_KEY = "lm.profile.v1";
@@ -579,6 +667,7 @@ function finale(): void {
       streetSession.collected = 0;
       streetSession.lateFees = 0;
       streetSession.streetTake = 0;
+      streetSession.held = 0;
       renderStreet();
       beginChapter(1);
     },

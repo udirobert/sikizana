@@ -1,24 +1,20 @@
 /**
  * Chapter 1 — "The Cost of Tomorrow" (GDD A2; recovery plan §2): pure simulator.
  *
- * 5 trading days (cut from 20 — jam build, docs/game/RECOVERY_PLAN.md):
- *   Day 1 — the first ordinary invoice is due (chase in 2 / defer in 10).
- *   Day 2 — a second ordinary invoice comes due (same 2-vs-10 offer).
- *   Day 3 — engineered PAIR A (Harborne, £2,400): chase (in 2) or defer (in
- *           10). The 2-day payoff LANDS on Day 5 — IN the week, on the till.
- *           This is the choice that moves the till the player is watching.
- *   Day 4 — the supplier's bill comes due (£2,000): pay it or leave it.
- *   Day 5 — engineered PAIR B (Harborne, £2,400): the SAME 2-vs-10 offer, but
- *           the 2-day payoff lands Day 7 — just AFTER the close, off screen.
+ * 3 trading days. The Claims Desk is the next chapter, so the week is only
+ * the experiment and the bill:
+ *   Day 1 — PAIR A. Harborne, £2,400, already late. Chase and it lands
+ *           tomorrow morning, in the till, before the bill is due.
+ *   Day 2 — Quayline's £2,000 bill. Payable if yesterday was a chase.
+ *           Leave it and the till position goes empty.
+ *   Day 3 — PAIR B. The same Harborne amount and the same day counts.
+ *           The chase lands the morning after the books close.
  *
- * The pair (Days 3 & 5) is the controlled experiment (A1): BOTH days offer the
- * SAME numbers — "in 2 days" vs "in 10 days", the same 8-day slip. The only
- * variable is HOW NEAR the near payoff sits: Day 3's lands IN the week (visible
- * on the till the player is watching); Day 5's lands AFTER the close (abstract,
- * off screen). No between-days NUMBERS asymmetry, so nothing on a button leaks
- * the answer — the debrief's framing attribution stays honest. The tilt the
- * player feels is the present-bias one: the identical "in 2" feels near on Day
- * 3 (you can see it land) and far on Day 5 (it lands after the week).
+ * BOTH pair days offer the SAME numbers — chase in 1 day, defer in 10.
+ * The only variable is how near the near payoff sits: day 1's lands in
+ * the week, on the till; day 3's lands after the close. Nothing on a
+ * button leaks which is "better." The tilt is present bias: the identical
+ * "in 1 day" is tomorrow morning, or the morning after the week is over.
  *
  * A deferral is a COMMITMENT, not a postponement: once the player defers an
  * invoice, it locks to the 10-day payoff and is NEVER re-offered — so a
@@ -26,13 +22,11 @@
  * a later day. The controlled comparison therefore lasts the whole week, not
  * one morning (the round-2 leak, fixed).
  *
- * The till: the chase/defer choice on Day 3 moves it directly — chase and
- * £2,400 lands on Day 5; defer and that money leaves the week. The ordinary
- * invoices (Days 1 & 2) are what make the Day-4 bill payable: chase both early
- * and the bill is covered; do the easy work instead and skipping the bill
- * empties the till. The bill is a LIABILITY — skipping it starts a £40/day
- * late charge that grows the amount owed, and the till POSITION (cash minus
- * unpaid bill) is what empties.
+ * The till: chasing Harborne on day 1 puts £2,400 in the till on the
+ * morning the bill is due. Deferring it leaves the £1,200 start short of
+ * £2,000, and leaving the bill empties the till that same day. The bill
+ * is a LIABILITY — skipping it starts a £40/day late charge, and the till
+ * POSITION (cash minus unpaid bill) is what empties.
  *
  * Every deferral accrues statutory interest/compensation-forgone silently,
  * surfaced only as the drifting lantern number (the street's take). The
@@ -48,27 +42,24 @@ import { money } from "../engine/market";
 import type { LedgerEntry } from "../engine/ledger";
 import { mulberry32, type Rng } from "../engine/rng";
 
-export const CH1_DAYS = 5;
-export const PAIR_A_DAY = 3;
-export const PAIR_B_DAY = 5;
+export const CH1_DAYS = 3;
+export const PAIR_A_DAY = 1;
+export const PAIR_B_DAY = 3;
 /**
- * EVERY chase clears in 2 days, EVERY deferral in 10 — the same 2-vs-10 offer
- * on all four invoice days, so no button on any day leaks which is "better."
+ * EVERY chase clears the next morning, EVERY deferral in 10 — the same
+ * offer on both Harborne days, so no button leaks which is "better."
  * Real ~30-day waits live in the assumptions sheet, never on a button.
+ * Clear is 1, not 2: day 1's chase has to be in the till on day 2, when
+ * the supplier's bill is due. A 2-day clear would make every run miss it.
  */
-export const CHASE_CLEAR_DAYS = 2;
+export const CHASE_CLEAR_DAYS = 1;
 export const DEFER_CLEAR_DAYS = 10;
 /**
- * The controlled PAIR (Days 3 & 5) is the present-bias experiment (A1). Both
- * days offer the SAME numbers — "in 2 days" (chase) vs "in 10 days" (defer) —
+ * The controlled PAIR (Days 1 & 3) is the present-bias experiment. Both
+ * days offer the SAME numbers — chase tomorrow, defer in 10 —
  * the only variable is how NEAR the near payoff sits:
- *   Day 3: chase → day 5 (in 2, IN the week, on the till you're watching)
- *   Day 5: chase → day 7 (in 2, after the close, off screen)
- * So Day 3's chase visibly moves the till (£2,400 lands Day 5), while Day 5 is
- * the same arithmetic one day past the close. The numbers are identical — no
- * button leaks the answer — so the debrief's framing attribution is honest.
- * The tilt the player feels is the present-bias one: the identical "in 2"
- * feels near on Day 3 (you watch it land) and far on Day 5 (it lands after).
+ *   Day 1: chase → day 2 (in the week, on the till, before the bill)
+ *   Day 3: chase → day 4 (after the close, off screen)
  */
 export const PAIR_A_CHASE_CLEAR_DAYS = CHASE_CLEAR_DAYS;
 export const PAIR_A_DEFER_CLEAR_DAYS = DEFER_CLEAR_DAYS;
@@ -77,17 +68,21 @@ export const PAIR_B_DEFER_CLEAR_DAYS = DEFER_CLEAR_DAYS;
 /** The deferral's cost, in days — identical in both arms. */
 export const DEFER_EXTRA_DAYS = DEFER_CLEAR_DAYS - CHASE_CLEAR_DAYS;
 
+/** "1 day" / "10 days". The chase is next morning, so the singular is the common case. */
+function dayWord(n: number): string {
+  return n === 1 ? "1 day" : `${n} days`;
+}
+
 /**
- * The supplier bill — the day the till can actually empty (recovery plan
- * §2.2). £2,000 against a £1,200 start: the only way to pay it cleanly is the
- * money the Day-1/Day-2 chases bring in by Day 4. Skip it and the liability
- * grows £40/day; the till POSITION (cash minus liability) is what empties —
- * and it does so robustly (not a one-seed knife edge).
+ * The supplier bill — the day the till can actually empty. £2,000 against
+ * a £1,200 start: the only way to pay it cleanly is yesterday's Harborne
+ * chase, which lands this morning. Skip it and the liability grows
+ * £40/day; the till POSITION (cash minus liability) is what empties.
  */
 export const BILL = {
   client: "Quayline Foods",
   amount: 2000,
-  dueDay: 4,
+  dueDay: 2,
   /** Per-day late charge that grows the unpaid liability — and leaves the
    *  till (the net position it erodes is what the player watches die). */
   lateFee: 40,
@@ -231,22 +226,15 @@ export interface DayEffect {
 /** The engineered pair — structurally identical, timing framing only. */
 export interface EngineeredPair {
   experimentId: string;
-  first: { day: 3; framingVariable: "timing_today_vs_later"; invoice: { id: string; client: string; principal: number } };
-  second: { day: 5; framingVariable: "timing_delayed_both"; invoice: { id: string; client: string; principal: number } };
+  first: { day: number; framingVariable: "timing_today_vs_later"; invoice: { id: string; client: string; principal: number } };
+  second: { day: number; framingVariable: "timing_delayed_both"; invoice: { id: string; client: string; principal: number } };
 }
 
 export const ENGINEERED_PAIR: EngineeredPair = {
-  experimentId: "ch1_present_pair_a",    first: { day: 3, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400 } },
-    second: { day: 5, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works · INV-238", principal: 2400 } },
+  experimentId: "ch1_present_pair_a",
+  first: { day: PAIR_A_DAY, framingVariable: "timing_today_vs_later", invoice: { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400 } },
+  second: { day: PAIR_B_DAY, framingVariable: "timing_delayed_both", invoice: { id: "inv-b", client: "Harborne Print Works · INV-238", principal: 2400 } },
 };
-
-const CLIENTS = [
-  "Barrow & Sons",
-  "Milk Street Caſe",
-  "Fenwick Lighting",
-  "Salt & Twine",
-  "Ropewalk Dry Goods",
-] as const;
 
 function makeBill(): Ch1Bill {
   return {
@@ -273,31 +261,20 @@ export function netPosition(state: Ch1State): number {
 }
 
 /**
- * Roster (deterministic from seed):
- *  - inv-early: ordinary, ALREADY overdue before the chapter (dueDay 0) — the
- *               ledger shows a falling "worth today" from frame one.
- *  - inv-2nd:   ordinary, due Day 2 — the second real choice day, so Day 2 is
- *               never a single button.
- *  - inv-a / inv-b: the engineered PAIR (Harborne, £2,400), FIXED, never
- *               jittered — the debrief's framing attribution is only honest
- *               if Days 3 and 5 always offer the pair.
+ * Roster. Two Harborne invoices, fixed, never jittered — the debrief's
+ * framing attribution is only honest if both days offer the same face.
+ *  - inv-a: already late when the shutters open (dueDay 0). Day 1's choice.
+ *            Chasing it pays on the morning the bill is due.
+ *  - inv-b: due on the last day. The same amount. Its chase pays after close.
+ * The seed still builds an rng for callers; the pair does not read it.
  */
 export function createCh1State(seed: number): { state: Ch1State; rng: Rng } {
   const rng = mulberry32(seed);
-  const earlyClient = CLIENTS[Math.floor(rng() * CLIENTS.length)]!;
-  const earlyPrincipal = 1000 + Math.floor(rng() * 10) * 100; // £1,000–£1,900
-  // A DIFFERENT client for Day 2 (same pool, redrawn) — two live invoices,
-  // never the same face twice on the ledger.
-  let secondClient = earlyClient;
-  while (secondClient === earlyClient) secondClient = CLIENTS[Math.floor(rng() * CLIENTS.length)]!;
-  const secondPrincipal = 900 + Math.floor(rng() * 10) * 100; // £900–£1,800
   const state: Ch1State = {
     day: 1,
     cash: START_CASH,
     invoices: [
-      { id: "inv-early", client: earlyClient, principal: earlyPrincipal, dueDay: 0, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
-      { id: "inv-2nd", client: secondClient, principal: secondPrincipal, dueDay: 2, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
-      { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400, dueDay: PAIR_A_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
+      { id: "inv-a", client: "Harborne Print Works · INV-231", principal: 2400, dueDay: 0, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
       { id: "inv-b", client: "Harborne Print Works · INV-238", principal: 2400, dueDay: PAIR_B_DAY, chasedDay: null, deferredDay: null, paidDay: null, deferrals: 0 },
     ],
     bill: makeBill(),
@@ -334,11 +311,9 @@ export function valueShedForDay(inv: Ch1Invoice, day: number): number {
 
 /**
  * Offer for one day — one action. The day's shape:
- *   1: fun | chase/defer (the already-overdue ordinary invoice)
- *   2: fun | chase/defer (the second ordinary invoice, due today)
- *   3: fun | PAIR A chase/defer (Harborne — in 2 vs in 10)
- *   4: pay/skip bill | fun (the bill day — the till can empty)
- *   5: fun | PAIR B chase/defer (Harborne — same in 2 vs in 10)
+ *   1: chase/defer PAIR A (Harborne, already late) | fun
+ *   2: pay/skip the supplier bill | fun (the till can empty)
+ *   3: chase/defer PAIR B (Harborne — same day counts, payoff after close)
  *
  * The day's invoice offer is the OLDEST still-undecided live invoice
  * (dueDay ≤ today, not chased, not deferred, not paid) — one decision per
@@ -364,7 +339,13 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
   if (state.bill.dueDay === day && state.bill.paidDay === null && state.bill.skippedDay === null) {
     // The ordinary day where the till can empty. No dressed-up numbers — just
     // the bill, what it costs, and what skipping costs.
-    const canCover = state.cash >= state.bill.amount;
+    // Money promised for this morning is already in the till when the bill
+    // is paid — resolveDay collects before it spends — so the button has
+    // to count it, or yesterday's chase looks unaffordable on its payday.
+    const arriving = state.invoices
+      .filter((i) => i.paidDay === day)
+      .reduce((s, i) => s + i.principal, 0);
+    const canCover = state.cash + arriving >= state.bill.amount;
     decisionChoices.push({
       id: `pay_bill-${day}`,
       label: `Pay ${state.bill.client} — ${money(state.bill.amount)}`,
@@ -393,11 +374,14 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     .sort((a, b) => a.dueDay - b.dueDay)[0];
   if (due) {
     const isEngineered = isPairDay && (due.id === pair.first.invoice.id || due.id === pair.second.invoice.id);
+    // Pair days keep the same amounts and the same day counts. The words
+    // around them are the frame: day 1's money is in the till this week,
+    // day 3's identical wait lands after the week closes.
     const chaseDetail = isEngineered
       ? day === pair.first.day
-        ? `Chase — the full ${money(due.principal)} lands in ${PAIR_A_CHASE_CLEAR_DAYS} days.`
-        : `Chase — the full ${money(due.principal)} lands in ${PAIR_B_CHASE_CLEAR_DAYS} days.`
-      : `Chase — the full ${money(due.principal)} lands in ${CHASE_CLEAR_DAYS} days.`;
+        ? `The full ${money(due.principal)} lands in the till this week — in ${dayWord(PAIR_A_CHASE_CLEAR_DAYS)}.`
+        : `The full ${money(due.principal)} lands after the week closes — in ${dayWord(PAIR_B_CHASE_CLEAR_DAYS)}.`
+      : `Chase — the full ${money(due.principal)} lands in ${dayWord(CHASE_CLEAR_DAYS)}.`;
     const deferDetail = isEngineered
       ? day === pair.first.day
         ? `Defer — the full ${money(due.principal)} lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
@@ -475,7 +459,7 @@ export function resolveDay(
     invoice.paidDay = day + CHASE_CLEAR_DAYS;
     lines.push(
       invoice.paidDay <= CH1_DAYS
-        ? `Zana's first-stage reminder goes out. ${invoice.client} pays in ${CHASE_CLEAR_DAYS} days.`
+        ? `Zana's first-stage reminder goes out. ${invoice.client} pays in ${dayWord(CHASE_CLEAR_DAYS)}.`
         : `Zana's first-stage reminder goes out. ${invoice.client} will pay after this week closes.`,
     );
   } else if (deferred && invoice) {
@@ -583,21 +567,21 @@ function buildEngineeredEntry(
     // Both days are the SAME "chase in 2 vs defer in 10" — the only engineered
     // variable is how NEAR the near payoff sits (in the week vs after the close).
     prompt: isA
-      ? "Harborne's invoice is due today. Chase in 2 days, or defer to 10?"
-      : "Harborne again (new invoice), due today. Chase in 2 days, or defer to 10?",
+      ? `Harborne's invoice is due today. Chase in ${dayWord(CHASE_CLEAR_DAYS)}, or defer to ${dayWord(DEFER_CLEAR_DAYS)}?`
+      : `Harborne again (new invoice), due today. Chase in ${dayWord(CHASE_CLEAR_DAYS)}, or defer to ${dayWord(DEFER_CLEAR_DAYS)}?`,
     optionsShown: [
-      { id: "chase_now", label: `Chase — in ${PAIR_A_CHASE_CLEAR_DAYS} days`, framingVariable: isA ? "near_payoff_in_week" : "near_payoff_after_close", isDefault: false },
-      { id: "defer", label: `Defer — in ${PAIR_A_DEFER_CLEAR_DAYS} days`, framingVariable: isA ? "near_payoff_in_week" : "near_payoff_after_close", isDefault: false },
+      { id: "chase_now", label: `Chase — in ${dayWord(PAIR_A_CHASE_CLEAR_DAYS)}`, framingVariable: isA ? "near_payoff_in_week" : "near_payoff_after_close", isDefault: false },
+      { id: "defer", label: `Defer — in ${dayWord(PAIR_A_DEFER_CLEAR_DAYS)}`, framingVariable: isA ? "near_payoff_in_week" : "near_payoff_after_close", isDefault: false },
     ],
     chosenOptionId: chosen,
     deferred: chosen !== "chase_now",
     immediateConsequence: deferred
       ? isA
-        ? "Committed — the money now lands 8 days later, off the till."
-        : "Committed — the money now lands 8 days later, further past the close."
+        ? `Committed — the money now lands ${dayWord(DEFER_EXTRA_DAYS)} later, off the till.`
+        : `Committed — the money now lands ${dayWord(DEFER_EXTRA_DAYS)} later, further past the close.`
       : isA
-        ? "Chased — the money lands in 2 days, in the week."
-        : "Chased — the money lands in 2 days, just after the close.",
+        ? `Chased — the money lands in ${dayWord(CHASE_CLEAR_DAYS)}, in the week.`
+        : `Chased — the money lands in ${dayWord(CHASE_CLEAR_DAYS)}, just after the close.`,
     deferredConsequence: deferred ? `Statutory entitlement accrues silently from day ${pair.first.day}.` : undefined,
   };
 }
@@ -662,7 +646,11 @@ export function deferralLines(state: Ch1State): DeferralLine[] {
     const endDay = inv.chasedDay !== null ? inv.chasedDay - 1 : horizon;
     const p = pricedDeferral(inv, startDay, endDay);
     if (!p) continue;
-    const pairDay = inv.deferrals > 0 && (inv.dueDay === PAIR_A_DAY || inv.dueDay === PAIR_B_DAY) ? inv.dueDay : null;
+    // inv-a is already late (dueDay 0) on the day it is offered (day 1),
+    // so the pair day is the decision day, not the due day.
+    const pairDay = inv.deferrals > 0
+      ? inv.id === "inv-a" ? PAIR_A_DAY : inv.id === "inv-b" ? PAIR_B_DAY : null
+      : null;
     out.push({
       invoiceId: inv.id,
       client: inv.client,

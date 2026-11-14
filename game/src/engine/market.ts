@@ -193,3 +193,22 @@ export function zakatNote(outstanding: number): string | null {
   if (mode !== "souq" || outstanding <= 0) return null;
   return `زكاة (zakat) on what you are still owed: ${ZAKAT_RATE_PCT}% of ${money(outstanding)} ≈ ${money(zakatOnReceivables(outstanding))} — commonly due on receivables you expect to collect, whether or not the invoice ever clears.`;
 }
+
+/**
+ * Spoken Arabic lines for the souq path — byte-identical to the baked
+ * manifest keys (design/lines.json souq_* entries) and to
+ * docs/game/arabic-strings.json `vo`. Say them verbatim or the take won't
+ * resolve. English stays canonical; these only fire when isSouq().
+ */
+export const SOUQ_VO = {
+  picker: "سوقان. أسبوع واحد. قانونان مختلفان.",
+  intro: "السوق. الأسبوع نفسه، لكن قانون مختلف — شروطك أنت تحدد ثمن التأخير، والزكاة تنتظر ما لا تحصّله أبدًا.",
+  zakat: "والسوق يحتفظ بدفتر آخر: الزكاة على ما لا يزال مستحقًا لك. اثنان ونصف بالمئة — مستحقة سواء سُدِّدت الفاتورة أم لا.",
+  ch1Intro: "اليوم الأول. الخزينة فيها 5,760 درهمًا. فاتورة كوايلين البالغة 9,600 درهم تستحق في اليوم الرابع. هناك شيء في الدفتر ينزف بالفعل.",
+  ch1DebriefRule: "هذه هي القاعدة. ردّدها حتى تصبح مملة.",
+  ch2Intro: "مكتب التسوية في السوق يشتري الاتفاق. يفتحون كل تفاوض برقمهم. لاحظ أي رقم صار على الطاولة بالفعل.",
+  ch2DebriefFlip: "اقلبها. ابدأ بشروطك، لا برقمهم.",
+  ch3Intro: "ماريلاين. ثلاث سنوات كعميلة، متأخرة ستون يومًا، أربع مرات في السنة. والآن صمت.",
+  debriefZakat: "ظلت الزكاة تتراكم على ما لم تحصّله طوال الأسبوع. السوق يحسب ما نسيه الصندوق.",
+  finaleClose: "إغلاق السوق. هذا هو الشارع الذي بنتْه قراراتك.",
+} as const;

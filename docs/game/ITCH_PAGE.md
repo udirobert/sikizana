@@ -13,27 +13,22 @@ A night market opens where your uncollected invoices sleep.
 "Your week in one line: the near cost always shouted loudest, and the far one barely whispered."
 
 ## Short description (1–2 lines)
-A financial-literature game where your own decisions become the experiment.
-Chase late invoices, face the Claims Desk, and decide what a silent customer
-is worth — the game runs behavioural experiments on you, then reads your
-choices back as data. Siki explains. Zana collects. The street keeps the ledger.
+A financial-literacy game. You keep a stall open for one week while a night
+market buys every invoice you leave. Chase, or watch a stall light. Siki
+explains. Zana collects. The street keeps the ledger.
 
 ## Long description
 The Late Market is a narrative management game about the least dramatic
 financial decision in the world: what to do about an overdue invoice.
 
-Across three chapters and one market week you will:
+You keep a stall open for three days. Leave an invoice, and a stall on the
+street lights — the Factor, the Collector, or the Shark steps up and names
+their price. Chase it, and a stall shutters. The week ends on one number:
+what the street took.
 
-- **Chase or defer** across five days of stall-keeping, while the till, the
-  street, and the lantern keep score of every postponement.
-- **Name your floor** at the Claims Desk, where three runs at the same
-  invoice reveal whose number moved yours.
-- **Decide at zero** when a three-year customer goes silent — then meet the
-  Factor and the Shark, who have priced your patience to the day.
-
-Every decision is recorded in a visible ledger, and the finale reads it back:
-where you leaned, what the street kept, and your week in one line. Then run
-it back and beat your Rationality Delta.
+Then the Claims Desk puts a number down first, and a three-year customer
+goes quiet. The ending reads your week back in one line. Run it again and
+move that line.
 
 **Privacy.** The game stores nothing about you: your run lives in your browser only.
 It counts how far a run got, which market you played, and whether a replay beat your
@@ -59,6 +54,8 @@ free ladder (Zana's reminders) always collects for free.
 
 ## Cover / screenshots
 - Cover: `docs/game/cover.html` (630×500)
-- Screenshots: `game/screenshots/` — prefer a stall day, the Shark's close,
-  and the verdict beat
-- Video: `game/game-video/lm_run.mp4` (~105 s, narrated, captioned by play)
+- Screenshots: `game/screenshots/v6/` — prefer `v3_market_pick` (both
+  lawful markets), `v3_shark_offer` (the prologue decision), `v3_day1_stall`
+  (the street lit), `v3_debrief_street`, `v3_finale_cost`
+- Video: record from `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s). No finished
+  cut exists yet — the old mp4s were deleted 2026-11-14.
