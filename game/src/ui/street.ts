@@ -171,18 +171,20 @@ function stallNote(kind: StallKind, state: "shut" | "lit" | "dim"): string {
 
 /** Show (or replace) the inspector line under the strip. Re-rendering the
  *  street replaces the row, which clears the note — fresh state, fresh note.
- *  The stall names itself and its state first; the note carries the meaning. */
-function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" | "dim"): void {
+ *  The stall names itself and its state first; the note carries the meaning.
+ *  A lit stall also gets Zana's murmur — the running street take, so the
+ *  hover answers "what has this cost me?" in the game's own voice. */
+function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" | "dim", taken: number): void {
   row.querySelector(".lm-stall-inspect")?.remove();
   const name = STALLS.find((s) => s.kind === kind)?.name ?? kind;
   const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
   const cap = name.charAt(0).toUpperCase() + name.slice(1);
   const note = stallNote(kind, state);
-  row.append(el("span", {
-    class: "lm-stall-inspect",
-    role: "status",
-    text: `${cap} — ${stateWord}. ${note.charAt(0).toUpperCase()}${note.slice(1)}`,
-  }));
+  const parts: (Node | string)[] = [`${cap} — ${stateWord}. ${note.charAt(0).toUpperCase()}${note.slice(1)}`];
+  if (state === "lit" && taken > 0) {
+    parts.push(el("span", { class: "lm-stall-murmur", text: ` — Zana: ${money(taken, 0)} to the street so far.` }));
+  }
+  row.append(el("span", { class: "lm-stall-inspect", role: "status" }, ...parts));
 }
 
 /** The tally's breakdown — the components streetCounters() already computes,
@@ -226,10 +228,11 @@ export function renderStreet(c: StreetCounters): HTMLElement {
       },
       svgNode(stallSvg(stall.kind)),
     );
-    // The street is tappable: each stall names itself and says what it means
-    // right now — the place answers back instead of sitting as decoration.
-    const inspect = () => showStallNote(row, stall.kind, state);
+    // The street answers back: hover on desktop, tap/click/Enter everywhere.
+    const inspect = () => showStallNote(row, stall.kind, state, c.toStreet);
     span.addEventListener("click", inspect);
+    span.addEventListener("mouseenter", inspect);
+    span.addEventListener("focus", inspect);
     span.addEventListener("keydown", (ev: KeyboardEvent) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); inspect(); }
     });

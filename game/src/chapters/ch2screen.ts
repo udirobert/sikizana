@@ -3,6 +3,7 @@
  * Pure sim lives in ch2.ts; this file only marshals DOM + ledger.
  */
 import { el, clear, choiceButton } from "../ui/dom";
+import { speakerPara } from "../ui/characters";
 import {
   CH2_CLIENT,
   CH2_INVOICE,
@@ -78,7 +79,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     renderChrome(CH2_INVOICE);
     stage.append(
       el("h3", { text: "Chapter 2 · The Offer" }),
-      el("p", { class: "lm-line siki", text: `One invoice. ${gbp(CH2_INVOICE)}. Sixty days aged. Three runs at the same desk.` }),
+      speakerPara("siki", `One invoice. ${gbp(CH2_INVOICE)}. Sixty days aged. Three runs at the same desk.`),
       el("p", { class: "lm-hint", text: RESET_COPY }),
       // The souq market's whole lesson is stated here, before the first
       // sitting: the ceiling was fixed in your own terms on day one. A judge
@@ -173,7 +174,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
               else roundsLoop(); // their hands are up; re-render shows the note
             })]
           : []),
-        choiceButton("Stop work on it", "Walk away from the desk with the invoice", () => {
+        choiceButton("Stop work on it", run.run === 0 ? "Walk away from the desk with the invoice" : "", () => {
           walk(state);
           deps.record(ch2LedgerEntry(state, snapshot(run)));
           nextRun();
@@ -217,14 +218,14 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     clear(stage);
     renderChrome(CH2_INVOICE);
     const teaser = Math.round(CH2_INVOICE * 0.4); // fictional taste of his real offer
-    const figWrap = el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("factor"));
+    const figWrap = el("div", { class: "lm-beat-fig lm-factor-fig", "aria-hidden": "true" }, stallFigure("factor"));
     deps.say("factor", "You look like someone who'd rather have it today.");
     stage.append(
       el("h3", { text: "The Factor — polished otter" }),
       figWrap,
       el("div", { class: "lm-surface lm-factor" },
         el("p", { class: "lm-factor-today", text: `${gbp(teaser)} today` }),
-        el("p", { class: "lm-hint", text: "a taste of his real offer — fictional · indicative" }),
+        el("p", { class: "lm-hint", text: "a taste of his real offer" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Take it — ${gbp(teaser)}`, "Cash today; he's already gone", () => {
@@ -246,6 +247,10 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
           showRun();
         }),
         choiceButton("Wave him off", "Keep the debt — he tips his hat and leaves", () => {
+          // The sublabel promises a hat-tip; let the figure deliver it before
+          // the next sitting cuts in (~700ms, CSS-guarded for reduced motion).
+          figWrap.classList.add("lm-factor-bow");
+          window.setTimeout(() => {
           deps.record({
             chapter: 2,
             day: 23,
@@ -262,6 +267,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
           });
           state.run = 1;
           showRun();
+          }, 700);
         }),
       ),
     );
@@ -286,7 +292,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       el("div", { class: "lm-surface lm-collector" },
         el("p", { class: "lm-collector-today", text: `${gbp(probe.buyPrice)} today` }),
         el("p", { class: "lm-hint", text: probe.copy }),
-        el("p", { class: "lm-hint", text: "Fictional · typical UK recovery commission range shown elsewhere as 5–15% · indicative" }),
+        el("p", { class: "lm-hint", text: "typical UK recovery commission runs 5–15%" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Sell the debt — ${gbp(probe.buyPrice)}`, "Instant cash, relationship gone", () => {
@@ -342,7 +348,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         else deps.say("siki", anchorLine);
         stage.append(
           el("h3", { text: "The anchor" }),
-          el("p", { class: "lm-line siki", text: anchorLine }),
+          speakerPara("siki", anchorLine),
           el("p", { class: "lm-hint", text: `"Invoice ${gbp(CH2_INVOICE)}, 60 days late. ${remedy().quote(CH2_INVOICE, CH2_DAYS_LATE)} Settle ${gbp(ch2Prospect().total)}."` }),
           ...(isSouq() && walked && zakatNote(CH2_INVOICE)
             ? [el("p", { class: "lm-hint lm-zakat", text: zakatNote(CH2_INVOICE)! })]

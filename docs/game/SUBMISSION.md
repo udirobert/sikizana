@@ -27,10 +27,10 @@ one closing paragraph of the pitch, not the pitch.
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 133 files · top-level `index.html` · relative paths · audio + cinematic included · ~18.8 MB (rebuilt 2026-11-14 01:36, post-Track A) |
+| itch.zip | `game/dist/itch.zip` | 129 files · top-level `index.html` · relative paths · audio + cinematic included · ~18.8 MB (rebuilt 2026-11-14 ~12:40, post-delight passes) |
 | Gameplay video | record per `docs/game/TRAILER_SCRIPT.md` (v3) | **NOT YET RECORDED.** Stale mp4s deleted 2026-11-14. `narration_v2.mp3` is baked; `record-run.mjs --mode video --seg a|b` captures the new flow (prologue → picker → three-day week → Souq frame → close). ~90 s cap is 2:00. |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
-| Screenshots | `game/screenshots/v6/*.png` | 15 genuine frames re-shot 2026-11-14 against the Track A build: title, market pick (both lawful markets), cinematic, Shark prologue, shutters, day 1 stall/defer, day 2 bill, debrief ×2, finale ×4. Supersedes `v5/` (pre-Track A, five-day structure — deleted). |
+| Screenshots | `game/screenshots/v9/*.png` | 15 genuine frames re-shot 2026-11-14 against the delight-pass build: title, market pick (chalkboard A-board vs lantern tag), cinematic, Shark prologue, shutters, day 1 stall/defer, day 2 bill, debrief ×2, finale ×4. Carries the full presentation pass — persistent fiction mark, consequence stingers, Zana stall murmur, daybreak veil, paper-tag choices, cast portraits on every line. Supersedes `v6/`–`v8/` (deleted). |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
 | Judge's guide | `docs/game/JUDGE_GUIDE.pdf` | one-pager: what to look for (the three experiments) + how to play both markets |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
@@ -50,7 +50,7 @@ pinned against exported product values (`tests/vectors.test.ts`).
 3. **Page settings**
    - *Embed:* width **1280**, height **860**.
    - *Cover:* `game/cover/cover_630x500.png`.
-   - *About:* paste-ready copy in `docs/game/ITCH_PAGE.md` + the screenshots (`game/screenshots/v5/`).
+   - *About:* paste-ready copy in `docs/game/ITCH_PAGE.md` + the screenshots (`game/screenshots/v9/`).
    - *AI disclosure* (required):
      - Voice, music, SFX — **ElevenLabs** (Starter, eleven_v4)
      - Cover illustration — **Recraft V4.1 Vector**

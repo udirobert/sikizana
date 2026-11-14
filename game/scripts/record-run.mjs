@@ -305,7 +305,8 @@ async function uiProbe() {
     const common = { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
     await send("Input.dispatchKeyEvent", { type: "keyDown", ...common, ...(key.length === 1 ? { text: key, unmodifiedText: key } : {}) });
     await send("Input.dispatchKeyEvent", { type: "keyUp", ...common });
-    await sleep(420);
+    // >640ms: the daybreak veil delays the next day by design.
+    await sleep(950);
   };
   const dayHeading = () => evalJs(`(document.querySelector("#ch1 .lm-day h3")||{}).textContent||""`);
 

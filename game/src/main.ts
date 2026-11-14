@@ -16,6 +16,7 @@ import { runChapter3 } from "./chapters/ch3screen";
 import { buildFinaleView, verdictLine } from "./chapters/finale";
 import { runFinale } from "./chapters/finaleScreen";
 import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetCounters } from "./ui/street";
+import { speakerPara } from "./ui/characters";
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 import { el, choiceButton, clear } from "./ui/dom";
@@ -99,14 +100,13 @@ function say(speaker: Speaker, text: string): void {
   const sections = Array.from(game.querySelectorAll(":scope > section.lm-chapter")) as HTMLElement[];
   const active = sections.length ? sections[sections.length - 1]! : game;
   for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
-  const bubble = document.createElement("p");
-  bubble.className = `lm-line ${speaker}`;
-  bubble.textContent = text;
-  bubble.setAttribute("role", "note");
+  const bubble = speakerPara(speaker, text);
   active.prepend(bubble);
   // Only the narrators get stingers; the stallholders arrive unannounced.
   if (speaker === "siki" || speaker === "zana") sting(speaker);
-  void voice.speak(speaker, text, bubble);
+  // Karaoke rebuilds only the text node — figure and nameplate survive.
+  const lineNode = bubble.querySelector<HTMLElement>(".lm-line-text");
+  if (lineNode) void voice.speak(speaker, text, lineNode);
 }
 
 function saveLedger(): void {
@@ -150,6 +150,23 @@ function streetCounters(): StreetCounters {
   };
 }
 
+/** Consequence stingers — one procedural figure per street event, so the
+ *  ledger's three moves (feed the street / kill the bill / money lands)
+ *  each have their own sound. Silent-first and muted players get nothing;
+ *  the visuals carry the same meaning. */
+function consequenceSfx(kind: "defer" | "collect" | "bill"): void {
+  if (!bus.unlocked || !prefs.sound) return;
+  if (kind === "defer") {
+    bus.tone(196, { dur: 0.22, gain: 0.1 });
+    bus.tone(147, { dur: 0.3, gain: 0.09, delay: 0.09 });
+  } else if (kind === "collect") {
+    bus.tone(392, { dur: 0.16, gain: 0.1 });
+    bus.tone(523, { dur: 0.24, gain: 0.09, delay: 0.08 });
+  } else {
+    bus.tone(110, { dur: 0.3, type: "triangle", gain: 0.12, slideTo: 82 });
+  }
+}
+
 /** Chapter-1 driver reports street-moving events that have no ledger entry. */
 function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number }): void {
   if (ev.deferral) streetSession.deferrals += 1;
@@ -158,6 +175,9 @@ function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?:
   if (ev.lateFee) streetSession.lateFees += ev.lateFee;
   if (ev.streetTake) streetSession.streetTake += ev.streetTake;
   if (ev.held !== undefined) streetSession.held = ev.held;
+  if (ev.collected) consequenceSfx("collect");
+  else if (ev.deferral) consequenceSfx("defer");
+  else if (ev.billSkipped) consequenceSfx("bill");
   // Cosmetic-only pulse (the prologue's off-book offer): the street flinches,
   // but no counter moves — no stall lights, nothing enters the tally.
   if (ev.flair) {
@@ -410,6 +430,14 @@ function begin(withSound: boolean): void {
   actorSlot.id = "street-actor";
   game.append(actorSlot);
 
+  // The honesty mark, once, always on screen — so the cards don't have to
+  // keep re-litigating "fictional · indicative" on every beat. The audit
+  // page is the proof; this is the label the rails ask for.
+  const fictionMark = document.createElement("p");
+  fictionMark.className = "lm-fiction-mark";
+  fictionMark.textContent = "Fictional figures · indicative · arithmetic audited in public";
+  game.append(fictionMark);
+
   document.addEventListener("lm:chapter-done", (ev) => {
     const n = (ev as CustomEvent<number>).detail as 1 | 2 | 3;
     actorSlot.replaceChildren();
@@ -513,8 +541,8 @@ function showMarketPick(onDone: () => void): void {
     }),
     el("p", { class: "lm-hint", text: "Pick the market your books live in. The arithmetic is identical; the law is not." }),
     el("div", { class: "lm-choices lm-market-cards" },
-      choiceButton(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", () => enter("uk")),
-      choiceButton(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee you wrote into your own terms", souqBeat),
+      (() => { const c = choiceButton(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", () => enter("uk")); c.classList.add("lm-market-uk"); return c; })(),
+      (() => { const c = choiceButton(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee you wrote into your own terms", souqBeat); c.classList.add("lm-market-souq"); return c; })(),
     ),
   );
 }

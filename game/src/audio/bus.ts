@@ -102,6 +102,31 @@ export class AudioBus {
     void this.play(url, { channel: "sfx", volume }).catch(() => undefined);
   }
 
+  /**
+   * A tiny procedural sting — no asset to bake, same unlock/mute path as
+   * everything else. Used for consequence punctuation (a deferral thuds
+   * differently than a collection landing) where a baked take would be
+   * wallpaper: these are felt, not heard as lines.
+   */
+  tone(freq: number, opts: { dur?: number; type?: OscillatorType; gain?: number; slideTo?: number; delay?: number } = {}): void {
+    if (!this.ctx || !this.channels || this.ctx.state !== "running") return;
+    const t0 = this.ctx.currentTime + (opts.delay ?? 0);
+    const dur = opts.dur ?? 0.18;
+    const osc = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    osc.type = opts.type ?? "sine";
+    osc.frequency.setValueAtTime(freq, t0);
+    if (opts.slideTo) osc.frequency.exponentialRampToValueAtTime(opts.slideTo, t0 + dur);
+    const peak = (opts.gain ?? 0.12) * CHANNEL_VOLUME.sfx;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g);
+    g.connect(this.channels.sfx);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }
+
   /** Silence everything immediately (mute toggle). */
   silence(): void {
     for (const src of this.live) { try { src.stop(); } catch { /* noop */ } }

@@ -54,8 +54,9 @@ free ladder (Zana's reminders) always collects for free.
 
 ## Cover / screenshots
 - Cover: `docs/game/cover.html` (630×500)
-- Screenshots: `game/screenshots/v6/` — prefer `v3_market_pick` (both
-  lawful markets), `v3_shark_offer` (the prologue decision), `v3_day1_stall`
-  (the street lit), `v3_debrief_street`, `v3_finale_cost`
+- Screenshots: `game/screenshots/v9/` — prefer `v3_market_pick` (chalkboard
+  vs lantern tag — the two markets as two objects), `v3_shark_offer` (the
+  prologue decision, Shark portrait), `v3_day1_stall` (the street lit,
+  paper-tag choices), `v3_debrief_named`, `v3_finale_cost` (the bill)
 - Video: record from `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s). No finished
   cut exists yet — the old mp4s were deleted 2026-11-14.

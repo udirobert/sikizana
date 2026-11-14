@@ -13,6 +13,7 @@
  * both saying the same thing (recovery plan §2.3).
  */
 import { el, clear, choiceButton } from "../ui/dom";
+import { speakerPara } from "../ui/characters";
 import {
   BILL,
   CH1_DAYS,
@@ -255,8 +256,8 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (deps.prologueSettled?.()) return shutters();
 
     dayPanel.append(
-      el("p", { class: "lm-line shark", text: "Nice stall. Everybody pays the street eventually — cash now, or a little each day." }),
-      el("p", { class: "lm-line zana", text: "That's the Shark. He prices patience by the day." }),
+      speakerPara("shark", "Nice stall. Everybody pays the street eventually — cash now, or a little each day."),
+      speakerPara("zana", "That's the Shark. He prices patience by the day."),
       el("div", { class: "lm-choices" },
         choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take")),
         choiceButton("Refuse", "Keep the debt. The street keeps its own books", () => prologuePick("refuse")),
@@ -308,7 +309,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     clear(dayPanel);
     dayPanel.append(
       el("h3", { text: "Night. The Late Market." }),
-      el("p", { class: "lm-line zana", text: "The street keeps its books whether you open or not. Open the shutters." }),
+      speakerPara("zana", "The street keeps its books whether you open or not. Open the shutters."),
       el("div", { class: "lm-choices" },
         choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => showDay()),
       ),
@@ -343,6 +344,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     2: { speaker: "zana", line: "Quayline's bill is due today. Pay it, or the street starts charging." },
     3: { speaker: "siki", line: "Harborne again. Same amount. This one lands after the week closes." },
   };
+
+  /** Dusk→dawn veil between days (~640ms). Reduced motion skips it — the
+   *  day still turns, just without the animation. */
+  function dayBreak(next: () => void): void {
+    if (reducedMotion) { next(); return; }
+    const veil = el("div", { class: "lm-daybreak", "aria-hidden": "true" });
+    document.body.append(veil);
+    window.setTimeout(() => { veil.remove(); next(); }, 640);
+  }
 
   function showDay(): void {
     if (state.done) return debrief();
@@ -440,7 +450,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         ),
       );
     } else {
-      dayPanel.append(el("div", { class: "lm-choices" }, choiceButton("Next day", "", () => showDay())));
+      // The week turns over with a breath of dawn, not a cut — the place
+      // keeps moving while the player decides again.
+      dayPanel.append(el("div", { class: "lm-choices" }, choiceButton("Next day", "", () => dayBreak(showDay))));
     }
     persist();
   }
@@ -472,7 +484,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       if (name) deps.say("siki", name);
       dayPanel.append(
         el("h3", { text: "Two prices for one wait" }),
-        el("p", { class: "lm-line siki", text: price }),
+        speakerPara("siki", price),
         ...(state.endedEarly === "till_empty"
           ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
           : []),

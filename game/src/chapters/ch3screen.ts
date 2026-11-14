@@ -3,6 +3,8 @@
  * unlocked by the debrief ("decide at zero"). Street offers interleave.
  */
 import { el, clear, choiceButton } from "../ui/dom";
+import { speakerPara } from "../ui/characters";
+import { stallFigure } from "../ui/street";
 import {
   CH3_CLIENT,
   CH3_INVOICE,
@@ -87,12 +89,15 @@ export function runChapter3(deps: Ch3Deps): void {
     // The silence speaks once per round (voiced overhead bubble, baked) — the
     // stage below stays a decision, not a transcript.
     deps.say(n === 1 ? "siki" : "zana", ROUND_SILENCE[n - 1]!);
+    // Sublabels teach on round 1; rounds 2–3 repeat the same three doors, so
+    // the labels stand alone (the cost figure is identical every round).
+    const taught = state.cursor === 0;
     stage.append(
       el("h3", { text: `Round ${n} of 3 — ${CH3_CLIENT}` }),
       el("div", { class: "lm-choices" },
-        choiceButton("Keep the line going", `Quiet cost this round: £${p.perRoundCost} of your time`, () => step("continue")),
-        choiceButton("Escalate — discount + call", "£60 and a phone call you don't want to make", () => step("escalate")),
-        choiceButton("Stop work on this account", "Close the account; keep the door open", () => step("walk")),
+        choiceButton("Keep the line going", taught ? `Quiet cost this round: £${p.perRoundCost} of your time` : "", () => step("continue")),
+        choiceButton("Escalate — discount + call", taught ? "£60 and a phone call you don't want to make" : "", () => step("escalate")),
+        choiceButton("Stop work on this account", taught ? "Close the account; keep the door open" : "", () => step("walk")),
       ),
     );
   }
@@ -131,9 +136,10 @@ export function runChapter3(deps: Ch3Deps): void {
     // money TODAY, so it lands in ledger-green — the trap dressed as relief.
     stage.append(
       el("h3", { text: "The Factor — polished otter" }),
+      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("factor")),
       el("div", { class: "lm-surface lm-factor" },
         el("p", { class: "lm-factor-today", text: `${gbp(o.factor.buyPrice)} today` }),
-        el("p", { class: "lm-hint", text: "the rest of the invoice is theirs · fictional · indicative" }),
+        el("p", { class: "lm-hint", text: "the rest of the invoice is theirs" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
@@ -158,10 +164,11 @@ export function runChapter3(deps: Ch3Deps): void {
     // number. The daily figure is the whole trap, so it gets the whole card.
     stage.append(
       el("h3", { text: "The Shark — smiling fish" }),
+      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("shark")),
       el("div", { class: "lm-surface lm-shark" },
         el("p", { class: "lm-shark-now", text: `${gbp(o.shark.cashNow)} now` }),
         el("p", { class: "lm-shark-daily", text: `then just £${o.shark.daily} a day` }),
-        el("p", { class: "lm-hint", text: "fictional · indicative" }),
+        el("p", { class: "lm-hint", text: "the daily number is the whole offer" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
@@ -203,7 +210,7 @@ export function runChapter3(deps: Ch3Deps): void {
         deps.say("siki", "History is a fact. It is not a reason.");
         stage.append(
           el("h3", { text: "Sunk cost" }),
-          el("p", { class: "lm-line siki", text: "History is a fact. It is not a reason. Decide at zero: the prospect pays for the next chase, or it doesn't." }),
+          speakerPara("siki", "History is a fact. It is not a reason. Decide at zero: the prospect pays for the next chase, or it doesn't."),
           choiceButton("To the finale", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
         );
       },

@@ -4,6 +4,7 @@
  * derived); persistence of the Rationality Delta lives in main.ts.
  */
 import { el, clear, choiceButton } from "../ui/dom";
+import { speakerPara } from "../ui/characters";
 import { renderStreet, type StreetCounters } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { money, remedy, zakatNote, isSouq, SOUQ_VO } from "../engine/market";
@@ -95,7 +96,7 @@ export function runFinale(deps: FinaleDeps): void {
         el("h3", { text: "Market close" }),
         row,
         el("div", { class: "lm-surface" },
-          el("p", { class: "lm-line siki", text: "The Late Market never sleeps. Either you fetch it, or you discount it." }),
+          speakerPara("siki", "The Late Market never sleeps. Either you fetch it, or you discount it."),
         ),
         choiceButton("Your week in one line", "", verdictBeat),
       );
@@ -110,8 +111,8 @@ export function runFinale(deps: FinaleDeps): void {
     stage.append(
       el("h3", { text: "Your week in one line" }),
       el("div", { class: "lm-surface lm-verdict" },
-        el("p", { class: "lm-line siki", text: v.siki }),
-        el("p", { class: "lm-line zana", text: v.zana }),
+        speakerPara("siki", v.siki),
+        speakerPara("zana", v.zana),
       ),
       el("p", { class: "lm-hint", text: "Run it back. The line should move." }),
       choiceButton("See the cost", "What the street kept", costBeat),
@@ -126,7 +127,7 @@ export function runFinale(deps: FinaleDeps): void {
     const c = view.cost;
     stage.append(
       el("h3", { text: "The Cost of Not Acting" }),
-      el("div", { class: "lm-surface" },
+      el("div", { class: "lm-surface lm-bill" },
         (() => {
           const total = el("p", { class: "lm-take" });
           const target = c.toStreet + c.forgoneStatutory;
@@ -154,7 +155,7 @@ export function runFinale(deps: FinaleDeps): void {
         ...(zakatNote(c.forgoneStatutory)
           ? [el("p", { class: "lm-hint lm-zakat", text: zakatNote(c.forgoneStatutory)! })]
           : []),
-        el("p", { class: "lm-hint", text: "Fictional run total — your books, your choices. The country-wide numbers are real:" }),
+        el("p", { class: "lm-hint", text: "The country-wide numbers below are real:" }),
       ),
       el("div", { class: "lm-stat-grid" },
         ...view.stats.map((s) => el("div", { class: "lm-surface lm-stat" },
