@@ -12,10 +12,13 @@
  * narrow viewports the pair stacks above the choices, side by side, so the
  * "one decision, two lenses" reading survives the collapse.
  *
- * Council lines are TEXT by design on beats where an NPC or the scene owns
- * the voice (the spoken line stays one-per-beat — the council mutters
- * beside you, it doesn't lecture at you). Beats with no competing voice
- * chain their council lines through say().
+ * Council lines are TEXT by default: on beats where an NPC or the scene owns
+ * the voice (the spoken line stays one-per-beat — the council mutters beside
+ * you, it doesn't lecture at you). Beats that own their voice chain the
+ * lines through say() with the card as host: the take plays with the
+ * karaoke running inside the card and a speaking glow on it (see
+ * `speakInSeat` in ch1screen) — the card IS the bubble, so the same
+ * sentence is never stacked twice on one screen.
  */
 import { el } from "./dom";
 import { speakerFigure, NAMES } from "./characters";

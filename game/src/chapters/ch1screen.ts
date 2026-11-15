@@ -16,6 +16,7 @@ import { el, clear, choiceButton } from "../ui/dom";
 import { streetFocus } from "../ui/street";
 import { speakerPara } from "../ui/characters";
 import { councilGrid } from "../ui/council";
+import { dayTiles } from "../ui/dayTiles";
 import {
   BILL,
   CH1_DAYS,
@@ -108,8 +109,11 @@ export interface Ch1Deps {
   pairEntries: () => LedgerEntry[];
   /** Audio bus marker — muted-safe; lines render as text regardless.
    * onDone fires when the line lands (spoken take ended, or silent text —
-   * callers arm the decision clock there so the timer never races the VO). */
-  say: (speaker: Speaker, text: string, onDone?: () => void) => void;
+   * callers arm the decision clock there so the timer never races the VO).
+   * `host`: speak from a seat instead of a bubble — the karaoke highlight
+   * lands inside that element (a counsel card's text) and no separate
+   * stacked box is created. */
+  say: (speaker: Speaker, text: string, onDone?: () => void, host?: HTMLElement) => void;
   /** Persist run state (localStorage; cleared on demand — privacy rails). */
   save: (state: Ch1State) => void;
   /** Fired when the chapter closes (main.ts chains to Chapter 2). */
@@ -177,13 +181,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     };
     requestAnimationFrame(frame);
   }
-  /** Week progress dots — the week has a shape, not just a count. */
+  /** Week progress tiles — the week has a shape, not just a count. */
   function weekDots(day: number): HTMLElement {
-    return el("span", {
-      "aria-hidden": "true",
-      class: "lm-dots",
-      text: ` ${"●".repeat(day)}${"○".repeat(Math.max(0, CH1_DAYS - day))}`,
-    });
+    return dayTiles(day, CH1_DAYS);
   }
 
   /** Face that is due and still unchased — what the street is holding. */
@@ -644,11 +644,19 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
    *  answer second (she's the lesson). One voice at a time, chained through
    *  onDone; the pair-day clock (if any) arms only after both land. The
    *  one-shot moments take over a slot rather than adding a third line —
-   *  the surprise is the line, not an extra one. */
+   *  the surprise is the line, not an extra one.
+   *
+   *  CRAFT: the cards speak from their own seats — the karaoke highlight
+   *  runs inside the counsel card and the card glows while its take plays.
+   *  No duplicate bubble is stacked above the panel (the card already
+   *  carries the text — a bubble would show the same sentence twice). The
+   *  Shark-shadow visitation is the exception: it's a moment, not a
+   *  counsel, so it keeps its bubble over the shadow sweep. */
   function speakCouncil(day: number, arm?: () => void): void {
     const c = COUNCIL[day];
     if (!c) return;
     let zana = c.zana;
+    let visitation = false;
     // The Shark's shadow: once, mid-week, only if the old debt was kept.
     // The shadow's MESSAGE depends on how you've played: trap runs get the
     // menace; disciplined runs get his revised number — clean books are the
@@ -657,9 +665,22 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (day >= 2 && !reacted.shadow && state.prologueChoice && !state.prologueChoice.endsWith("take_70")) {
       reacted.shadow = true;
       zana = !reacted.defer && !reacted.skipped ? MOMENT_COUNTER_78 : MOMENT_SHADOW;
+      visitation = true;
       deps.streetFx?.("shark-shadow");
     }
-    deps.say("zana", zana, () => deps.say("siki", c.siki, arm));
+    const speakInSeat = (speaker: "siki" | "zana", text: string, done: (() => void) | undefined): void => {
+      const card = dayPanel.querySelector<HTMLElement>(`.lm-counsel.${speaker}`);
+      const seat = dayPanel.querySelector<HTMLElement>(`.lm-counsel.${speaker} .lm-counsel-text`);
+      if (!card || !seat) { deps.say(speaker, text, done); return; }
+      card.classList.add("lm-counsel-speaking");
+      deps.say(speaker, text, () => {
+        card.classList.remove("lm-counsel-speaking");
+        done?.();
+      }, seat);
+    };
+    const sikiRead = () => speakInSeat("siki", c.siki, arm);
+    if (visitation) deps.say("zana", zana, sikiRead);
+    else speakInSeat("zana", zana, sikiRead);
   }
 
   function pick(choiceId: string): void {

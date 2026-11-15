@@ -1,7 +1,7 @@
 /*
  * Second Week — read-back additions only.
  * Everything else reuses tokens.css grammar: lm-till-*, lm-day, lm-choice*,
- * lm-inv-*, lm-lantern, lm-dots, lm-debrief. No new animations.
+ * lm-inv-*, lm-lantern, lm-day-tiles, lm-debrief. No new animations.
  */
 .lm-sw-readback { margin-top: 0.6rem }
 .lm-sw-readback .lm-till-row-net .lm-till-line-val { font-size: 1.35em }

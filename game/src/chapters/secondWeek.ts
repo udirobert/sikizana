@@ -23,6 +23,7 @@
  */
 import "./second-week.css";
 import { el, clear, choiceButton } from "../ui/dom";
+import { dayTiles } from "../ui/dayTiles";
 import { money, isSouq } from "../engine/market";
 import type { Speaker } from "../audio/voice";
 import { netPosition, type DayEffect } from "./ch1";
@@ -167,13 +168,9 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     deps.save(state);
   }
 
-  /** Week progress dots — five days have a shape, not just a count. */
+  /** Week progress tiles — five days have a shape, not just a count. */
   function weekDots(day: number): HTMLElement {
-    return el("span", {
-      "aria-hidden": "true",
-      class: "lm-dots",
-      text: ` ${"●".repeat(day)}${"○".repeat(Math.max(0, WEEK2_DAYS - day))}`,
-    });
+    return dayTiles(day, WEEK2_DAYS);
   }
 
   /** Face that is due and still unchased — what the street is holding. */

@@ -31,6 +31,7 @@ import { burst, trail } from "./ui/fx";
 import { camera } from "./ui/camera";
 import { sequence } from "./ui/tween";
 import { gutClockEnabled, setGutClockEnabled } from "./ui/gutTimer";
+import { dayTiles } from "./ui/dayTiles";
 
 // Market is resolved before anything renders: ?market=souq (trailer/deep link)
 // wins, then the saved choice. Switching it at the title clears stale progress
@@ -118,7 +119,7 @@ function sting(speaker: "siki" | "zana"): void {
  * rule (recovery plan §2.3) is about CONTENT: the spoken line is short,
  * the chapter's cards carry the detail — enforced in each chapter screen.
  */
-function say(speaker: Speaker, text: string, onDone?: () => void): void {
+function say(speaker: Speaker, text: string, onDone?: () => void, host?: HTMLElement): void {
   // The VISIBLE chapter is the stage: sections live inside #game-cam, and
   // beginChapter hides the rest, so "not hidden" picks the one the player
   // is on (finale/week2/review included). No match falls back to #game.
@@ -128,10 +129,18 @@ function say(speaker: Speaker, text: string, onDone?: () => void): void {
   // One voice at a time: a new narrator line supersedes a lingering
   // street-actor take, and vice versa (see actorStepUp).
   document.getElementById("street-actor")?.replaceChildren();
-  const bubble = speakerPara(speaker, text);
-  active.prepend(bubble);
   // Only the narrators get stingers; the stallholders arrive unannounced.
   if (speaker === "siki" || speaker === "zana") sting(speaker);
+  // The council speaks from its own seat: with a host node (a counsel
+  // card's text element) the karaoke lands in that card and no second box
+  // is stacked above the panel — the voice comes from the portrait. The
+  // card already carries the text, so the bubble would be a duplicate.
+  if (host) {
+    void voice.speak(speaker, text, host, onDone);
+    return;
+  }
+  const bubble = speakerPara(speaker, text);
+  active.prepend(bubble);
   // Karaoke rebuilds only the text node — figure and nameplate survive.
   const lineNode = bubble.querySelector<HTMLElement>(".lm-line-text");
   if (lineNode) void voice.speak(speaker, text, lineNode, onDone);
@@ -494,9 +503,8 @@ let counterRail: HTMLElement | null = null;
 
 function setProgress(label: string, reached: number): void {
   if (!progressEl) return;
-  const dots = "●".repeat(reached).padEnd(3, "○");
   progressEl.replaceChildren(
-    elSpan("lm-progress-dots", dots),
+    dayTiles(reached, 3),
     elSpan("lm-progress-label", label),
   );
 }

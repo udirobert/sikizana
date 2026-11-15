@@ -106,10 +106,18 @@ pinned against exported product values (`tests/vectors.test.ts`).
   centuries-old name for selling receivables at a discount, anchoring named
   before the debrief. Zana's lens is the cost read, bluntly. On Chapter 1's
   day beats the council SPEAKS — Zana's read, then Siki's answer, chained
-  through onDone so the pair-day clock still arms on pure decision time.
-  Eleven new takes baked (eleven_v4, same dictionary); the prologue, ch2
-  floor and ch3 street-offer councils are text-only by design — the NPC or
-  the scene owns that beat's one voice.
+  through onDone so the pair-day clock still arms on pure decision time —
+  and the cards speak from their own seats: the karaoke word-highlight
+  runs inside the counsel card while a speaking glow lifts it, so the
+  voice comes from the portrait and the same sentence is never stacked
+  twice on one screen (one less box; ~110px of viewport won back on the
+  day screens). Eleven takes baked for this cast (eleven_v4, same
+  dictionary); the prologue, ch2 floor and ch3 street-offer councils are
+  text-only by design — the NPC or the scene owns that beat's one voice.
+- **Craft pass on the week's shape:** the progress marks are drawn day
+  tiles now, not font-dependent text dots — spent days dim amber, today
+  full amber with a lantern breath, days to come hollow — the same craft
+  object in the day header and the street rail's chapter chip.
 - **Zana recast to canon:** the enforcer was playing concierge in the
   prologue. "Open the shutters" is now Siki's line (new bake: "…Yours begin
   the moment you open the shutters."), and every remaining Zana line is

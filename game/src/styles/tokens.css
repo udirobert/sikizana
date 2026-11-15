@@ -223,8 +223,19 @@ body {
   35% { transform: scale(1.18); box-shadow: 0 0 18px 2px rgba(255, 180, 84, 0.8) }
   100% { transform: scale(1) }
 }
-/* Week progress dots beside the day header — shape of the week at a glance. */
-.lm-dots { color: var(--lm-amber); letter-spacing: 0.15em; font-size: 0.85em }
+/* Week progress tiles beside the day header — shape of the week at a
+   glance, drawn as elements so no player's font decides the geometry.
+   Spent days dim amber, today full amber with a lantern breath, days to
+   come hollow. Same craft object in the street rail's chapter chip. */
+.lm-day-tiles { display: inline-flex; gap: 0.3em; margin-left: 0.45em; vertical-align: -0.05em }
+.lm-day-tile { width: 0.5em; height: 0.5em; border-radius: 0.1em; border: 1px solid var(--lm-ink-dim); opacity: 0.5 }
+.lm-day-tile.done { background: var(--lm-amber); border-color: var(--lm-amber); opacity: 0.45 }
+.lm-day-tile.now {
+  background: var(--lm-amber); border-color: var(--lm-amber);
+  animation: lm-tile-breathe 2.4s ease-in-out infinite;
+}
+@keyframes lm-tile-breathe { 0%, 100% { opacity: 1 } 50% { opacity: 0.55 } }
+@media (prefers-reduced-motion: reduce) { .lm-day-tile.now { animation: none } }
 
 .lm-day-log { padding-left: 1.2rem }
 .lm-day-log li::marker { content: "· " }
@@ -468,12 +479,11 @@ body {
 }
 .lm-street-cap { color: var(--lm-ink-dim); font-size: 0.92em }
 /* Where you are in the run — rides in the street strip, so it never needs a
-   bar of its own. Dots for shape, words for the act. */
+   bar of its own. Tiles for shape, words for the act. */
 .lm-progress {
   display: inline-flex; align-items: baseline; gap: 0.4rem; white-space: nowrap;
   font-size: 0.75em; color: var(--lm-ink-dim); letter-spacing: 0.02em; opacity: 0.8;
 }
-.lm-progress-dots { color: var(--lm-amber); letter-spacing: 0.12em; font-size: 0.82em }
 @media (max-width: 560px) { .lm-progress { font-size: 0.78em; gap: 0.3rem } }
 
 /* ── The act card: a chapter is a scene change, not a page swap ───── */
@@ -1371,6 +1381,21 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
 }
 .lm-counsel.siki { border-color: var(--lm-siki); --tilt: -0.5deg }
 .lm-counsel.zana { border-color: var(--lm-zana); --tilt: 0.5deg }
+/* The council speaks from its seat: while a take plays, the card lifts a
+   notch off the board, its edge catches the lantern, and the portrait
+   breathes — the voice comes from the portrait, not a second stacked box. */
+.lm-counsel { transition: transform 300ms ease, box-shadow 300ms ease, opacity 300ms ease }
+.lm-counsel-speaking {
+  opacity: 1;
+  transform: rotate(var(--tilt, 0deg)) translateY(-2px);
+  box-shadow: 0 0 0 1px var(--lm-amber), 0 6px 16px rgb(0 0 0 / 0.35), 0 0 18px rgb(255 180 84 / 0.22);
+}
+.lm-counsel-speaking .lm-speaker-fig { animation: lm-counsel-breathe 1.8s ease-in-out infinite }
+@keyframes lm-counsel-breathe { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.07) } }
+@media (prefers-reduced-motion: reduce) {
+  .lm-counsel-speaking { transform: rotate(var(--tilt, 0deg)) }
+  .lm-counsel-speaking .lm-speaker-fig { animation: none }
+}
 .lm-counsel .lm-speaker-fig { width: 2.1em; height: 2.1em; margin: 0 }
 .lm-counsel-name { font-weight: 700; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.08em }
 .lm-counsel.siki .lm-counsel-name { color: var(--lm-siki) }
