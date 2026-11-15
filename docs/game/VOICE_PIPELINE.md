@@ -26,7 +26,7 @@ Key correction from research: the design endpoint supports **`eleven_ttv_v3`** (
 > An adult owl storyteller. Warm, precise, quietly curious. Rounded resonance, clear consonants, restrained theatricality, measured pacing. A distinctive speaking voice — not a hoot, not a celebrity imitation.
 
 **Zana — voice description:**
-> An adult dog enforcer. Compact, mid-to-low register. Direct consonants, short dry phrases, streetwise, controlled impatience with occasional unguarded warmth. Assertive, never cartoonish, clearly contrasted with a warm narrator.
+> An adult owl enforcer — the dark counterpart to Siki (same species, opposite temperament). Compact, mid-to-low register. Direct consonants, short dry phrases, streetwise, controlled impatience with occasional unguarded warmth. Assertive, never cartoonish, clearly contrasted with a warm narrator.
 
 **Audition protocol:** same 6-line set for both — acknowledgment / explanation / name-heavy / number-heavy / urgent warning / quiet confidential. Approve only if the contrast *survives* neutral delivery and emotional shifts (research criterion). Pronunciation of "Siki" and "Zana" goes in a **pronunciation dictionary (version pinned)** the moment we have both IDs.
 

@@ -47,7 +47,7 @@ const SPRITES = [
   ["collector", "a stern vulture in pinstripe suit, cold calculating debt collector, holding an invoice"],
   ["shark", "a grinning cartoon shark in a sharp suit, fast-talking loan shark, holding a contract"],
   ["siki", "a small round owl bookkeeper wearing round spectacles, wise and gentle, holding a ledger book"],
-  ["zana", "a scruffy dog with floppy ears and a wagging tail, loyal and energetic, the chaser"],
+  ["zana", "a small round black owl enforcer with slate-charcoal feathers and glowing rose-red eyes, stern determined scowl, dark plum-red scarf and leather harness, the chaser — Siki's darker counterpart (canon: web ZanaMascot, the dark owl)"],
 ];
 
 const key = process.env.RECRAFT_API_KEY;
