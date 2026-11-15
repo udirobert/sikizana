@@ -30,6 +30,10 @@ const STALL_SHUT_MS = 380;
 
 export function runFinale(deps: FinaleDeps): void {
   streetFocus("full"); // market close is the street's biggest scene
+  // The market close renders the street INSIDE the stage (the scene canvas
+  // can only live in one place), so the persistent strip steps aside for
+  // the finale — one street on screen, not two, and not an empty band.
+  document.getElementById("street-slot")?.classList.add("lm-street-hidden");
   const { root, view } = deps;
   clear(root);
   const stage = el("div", { class: "lm-stage" });

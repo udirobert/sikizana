@@ -845,14 +845,13 @@ function showMarketPick(onDone: () => void): void {
       purgeSave(); // numbers from the other remedy don't carry
     }
     sec.remove();
-    // First-run intro: the moonrise cinematic sets the street, then one
-    // story card sets the week — who you are, what's out on the street —
-    // before the Shark takes the stage. The player walks into the cold
-    // open knowing the stakes.
-    playCinematic(() => {
-      if (mode === "souq") souqTitleCard(() => showStoryCard(onDone));
-      else showStoryCard(onDone);
-    });
+    // The cold open has ALREADY played (the film and the story card come
+    // before this pick — the first minute is one scene). Replaying them here
+    // showed the player the whole intro twice; the pick now steps straight
+    // into the street. The souq keeps its own bilingual title card, because
+    // that card IS its remedy statement.
+    if (mode === "souq") souqTitleCard(() => onDone());
+    else onDone();
   };
 
   const souqBeat = (): void => {
@@ -1184,6 +1183,9 @@ function beginSecondWeek(): void {
   })();
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "week2";
   // Second-week beats are decisions again — one-viewport compaction back on.
+  // The finale hid the persistent strip (its market close rendered the
+  // street in its own stage); the second week needs the strip back.
+  document.getElementById("street-slot")?.classList.remove("lm-street-hidden");
   document.getElementById("street-slot")?.classList.add("lm-street-compact");
   sec.classList.add("lm-beat-compact");
   setProgress("The second week", 3);

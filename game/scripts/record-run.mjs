@@ -128,18 +128,19 @@ const clickIf = async (needle) => evalJs(`(() => {
   const b = bs.find((x) => x.offsetParent !== null) ?? bs[0];
   if (!b) return false; b.click(); return true;
 })()`);
-/** Title → market pick → cinematic → story card → Shark offer → shutters → stall. */
+/** Title → cinematic → story card → market pick → Shark offer → shutters → stall. */
 async function reachTheStall() {
   await clickByText("Begin — sound on");
   await sleep(700);
-  if (await clickIf("London")) await sleep(400);
-  await clickIf("Skip");
-  await sleep(300);
+  await clickIf("Skip");            // the cold open plays first (one scene)
+  await sleep(400);
   // The story card's gate (was "Open the shutters" on the old welcome beat —
   // the consequence pass gave the intro this card and moved the shutters
   // button to the post-refuse gate).
   await clickByText("Step into the street");
-  await sleep(300);
+  await sleep(400);
+  await clickIf("London");          // the market pick now comes after the story card
+  await sleep(400);
   for (let i = 0; i < 160; i++) {
     const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
     if (up) break;
@@ -309,12 +310,12 @@ async function shots() {
   await s(2600);
   await shot("v3_title.png");
   await clickByText("Begin — sound on"); await s(900);
-  await shot("v3_market_pick.png"); // both lawful markets on the table
-  await clickIf("London"); await s(600);
-  await shot("v3_after_begin.png"); // cinematic bridge
+  await shot("v3_after_begin.png"); // the cold open — the film, before anything else
   await clickIf("Skip"); await s(1200);
   await shot("v3_cold_open.png"); // the story card — Siki's stakes, Zana's intro
-  await clickByText("Step into the street"); await s(1200); // story card → the Shark takes the stage
+  await clickByText("Step into the street"); await s(1200); // story card → the market pick
+  await shot("v3_market_pick.png"); // both lawful markets on the table
+  await clickIf("London"); await s(800);
   await shot("v3_welcome_done.png");
   // The Shark's offer lands after several voiced beats — poll for it.
   for (let i = 0; i < 160; i++) {

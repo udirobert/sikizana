@@ -23,7 +23,15 @@ export function clear(node: HTMLElement): void {
 /** Buttons that ignore clicks while a phase is advancing (anti double-fire). */
 export function choiceButton(label: string, detail: string, onPick: () => void): HTMLButtonElement {
   const b = el("button", { class: "lm-choice", type: "button" });
-  b.append(el("span", { class: "lm-choice-label", text: label }), el("span", { class: "lm-choice-detail", text: detail }));
+  b.append(
+    el("span", { class: "lm-choice-label", text: label }),
+    el("span", { class: "lm-choice-detail", text: detail }),
+    // The kind tag is a real element, not a pseudo: the keycap and the
+    // paper-tag's punched hole already own ::before and ::after, and three
+    // decorations on two pseudo-elements meant they landed on the title.
+    // The engine's kind class (added by the chapter) fills it in via CSS.
+    el("span", { class: "lm-kind-tag", "aria-hidden": "true" }),
+  );
   let armed = true;
   b.addEventListener("click", () => {
     if (!armed) return;

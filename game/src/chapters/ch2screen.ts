@@ -382,12 +382,31 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · worth ${gbp(ch2Prospect().total)} to you`, tone: "chased" },
     ]);
     let beat = 0;
-    const anchorLine = namedFloors
-      ? `Your floor moved ${money(Math.round(move))}. The invoice never did. That is anchoring.`
-      : "You never named a floor. Name it before their number arrives.";
+    const anchorLine = !namedFloors
+      ? "You never named a floor. Name it before their number arrives."
+      : move > 0
+        ? `Your floor moved ${money(Math.round(move))}. The invoice never did. That is anchoring.`
+        : "Your floor held. Their numbers moved around it — the question is what your floor was tracking.";
     const frames: (() => void)[] = [
       () => {
         deps.say("siki", "Three runs. One invoice. Did your minimum move with their opening?");
+        // The deduction: Siki asks, the player calls it, the chart grades.
+        // Display-only verdicts (no baked take yet) — the naming in frame 1
+        // stays voiced and verbatim.
+        const grade = (saidMoved: boolean): void => {
+          const actuallyMoved = move > 0;
+          const right = saidMoved === actuallyMoved;
+          clear(stage);
+          stage.append(
+            el("h3", { text: "Your call" }),
+            speakerPara("siki", right
+              ? actuallyMoved
+                ? `You called it. Your floor moved ${money(Math.round(move))}; the invoice never did.`
+                : "You called it. Your floor held steady across every run — their anchors moved around it."
+              : `Not quite — read your own rows again: ${rows.map((r, i) => `Run ${i + 1}: their ${gbp(r.anchor)} → your floor ${r.floor === null ? "not set" : gbp(r.floor)}`).join(" · ")}.`),
+            choiceButton("Continue", "", next),
+          );
+        };
         stage.append(
           el("h3", { text: "Your floors against their anchors" }),
           el("p", { class: "lm-hint", text: `True worth ${gbp(ch2Prospect().total)} — dashed line. Bars are your floors, ticks are their anchors.` }),
@@ -401,7 +420,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
               ),
             ),
           )),
-          choiceButton("Continue", "", next),
+          ...(namedFloors
+            ? [el("div", { class: "lm-choices" },
+              choiceButton("It moved with their opening", "", () => grade(true)),
+              choiceButton("It held steady", "", () => grade(false)),
+            )]
+            : [choiceButton("Continue", "", next)]),
         );
       },
       () => {
@@ -409,7 +433,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         if (isSouq() && walked) deps.say("zana", SOUQ_VO.zakat);
         // The spoken line stays static (baked); the amount lives in the card
         // below and the run rows above — the rule, not the number, is voiced.
-        else deps.say("siki", namedFloors ? "Your floor moved. The invoice never did. That is anchoring." : anchorLine);
+        else if (!namedFloors) deps.say("siki", anchorLine);
+        else if (move > 0) deps.say("siki", "Your floor moved. The invoice never did. That is anchoring.");
+        // New string, silent until baked: today's line claims movement that
+        // didn't happen when the floor held — a false line is worse than a
+        // silent one.
+        else deps.say("siki", "Your floor held. Their numbers moved around it — the question is what your floor was tracking.");
         stage.append(
           el("h3", { text: "The anchor" }),
           speakerPara("siki", anchorLine),

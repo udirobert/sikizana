@@ -480,7 +480,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
   // Live number leads: realised take + rate, face moves to breakdown.
   const perDay = c.deferrals > 0 && c.streetTake > 0 ? Math.round((c.streetTake / Math.max(1, c.deferrals)) * 10) / 10 : 0;
   const headline = c.toStreet > 0
-    ? `${taken} so far${perDay > 0 ? ` · £${perDay}/day` : ""}${held > 0 ? ` · ${money(held, 0)} still out` : ""}`
+    ? `${taken} so far${perDay > 0 ? ` · £${perDay}/day` : ""}`
     : held > 0 ? `${money(held, 0)} still on the street` : "Nothing to the street yet";
   const meta = el("div", { class: "lm-street-meta" });
   const tally = el("span", { class: "lm-street-cap lm-street-tally", text: headline });
@@ -492,8 +492,9 @@ export function renderStreet(c: StreetCounters): HTMLElement {
       ? `${money(held, 0)} of your invoices are due and still unchased. Show the breakdown.`
       : `The stalls keep their books — ${taken}. Show the breakdown.`,
     // The label previews what's inside (NN/g: users must predict hidden
-    // content from the trigger alone — "Details" predicts nothing).
-    text: `show the ${taken}`,
+    // content from the trigger alone — "Details" predicts nothing). With
+    // nothing taken yet there is no amount to quote, so it names the thing.
+    text: c.toStreet > 0 ? `show the ${taken}` : "show the breakdown",
   });
   const books = el("span", { class: "lm-street-books", hidden: true });
   for (const line of tallyLines(c)) books.append(el("span", { class: "lm-street-book-line", text: line }));

@@ -269,16 +269,36 @@ export function runChapter3(deps: Ch3Deps): void {
       },
       () => {
         deps.say("siki", "History is a fact. It is not a reason.");
+        // The deduction: the evidence (frame 0's total) is on screen, so ask
+        // what it was FOR before the card names the bias. Display-only
+        // verdicts — the voiced line above stays verbatim.
+        const card = (): HTMLElement => profileCard({
+          key: "sunkCost",
+          value: state.rounds.length ? Math.round((state.rounds.filter((r) => r.action === "continue" || r.action === "escalate").length / state.rounds.length) * 100) : 0,
+          line: `You put in ${gbp(invested)} across ${state.rounds.filter((r) => r.action).length} rounds. Judged at zero, the account is ${gbp(p.total)}. One run suggests; it doesn't prove.`,
+          nameThat: "sunk cost — history priced as if it were prospect",
+        }, "Chapter 3");
+        const finish = (verdict: string | null): void => {
+          clear(stage);
+          stage.append(
+            el("h3", { text: "Sunk cost" }),
+            ...(verdict ? [speakerPara("siki", verdict)] : []),
+            card(),
+            choiceButton("To the finale", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
+          );
+        };
         stage.append(
           el("h3", { text: "Sunk cost" }),
           speakerPara("siki", "History is a fact. It is not a reason. Decide at zero: the prospect pays for the next chase, or it doesn't."),
-          profileCard({
-            key: "sunkCost",
-            value: state.rounds.length ? Math.round((state.rounds.filter((r) => r.action === "continue" || r.action === "escalate").length / state.rounds.length) * 100) : 0,
-            line: `You put in ${gbp(invested)} across ${state.rounds.filter((r) => r.action).length} rounds. Judged at zero, the account is ${gbp(p.total)}. One run suggests; it doesn't prove.`,
-            nameThat: "sunk cost — history priced as if it were prospect",
-          }, "Chapter 3"),
-          choiceButton("To the finale", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
+        );
+        // Nothing paid in, nothing to deduce from — keep today's straight path.
+        if (invested <= 0) { finish(null); return; }
+        stage.append(
+          el("p", { class: "lm-hint", text: "She never answered. What were you paying for?" }),
+          el("div", { class: "lm-choices" },
+            choiceButton("A live customer", "", () => finish(`Four rounds, no answer — the rounds are the data. ${gbp(invested)} in while nobody answered; the account is ${gbp(p.total)} judged at zero.`)),
+            choiceButton("The money already in", "", () => finish(`That's the one. ${gbp(invested)} in, the account worth ${gbp(p.total)} judged fresh — history, not prospect.`)),
+          ),
         );
       },
     ];

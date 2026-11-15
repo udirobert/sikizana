@@ -252,6 +252,26 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       el("span", { class: "lm-till-line-label", text: "In hand" }),
       netVal));
     till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), tillGrid);
+    // The books, in one line, next to the money (F5). The ledger cards are the
+    // detail — but they sit below the fold in the embed, and what the player
+    // needs to decide (what is owed to you, what is late, what you owe) must
+    // never be the thing they have to scroll for. Same arithmetic, read at a
+    // glance: face, late face, and the bill.
+    {
+      const live = state.invoices.filter((i) => i.paidDay === null || i.paidDay > state.day);
+      const face = live.reduce((s, i) => s + i.principal, 0);
+      const late = live
+        .filter((i) => i.dueDay < state.day && i.chasedDay === null)
+        .reduce((s, i) => s + i.principal, 0);
+      const billLive = state.bill.paidDay === null && !(state.bill.skippedDay !== null && state.bill.paidDay !== null);
+      const bits: string[] = [];
+      if (face > 0) bits.push(`owed to you ${gbp0(face)}`);
+      if (late > 0) bits.push(`${gbp0(late)} late`);
+      if (billLive) bits.push(`you owe ${state.bill.client} ${gbp0(state.bill.amount)}`);
+      if (bits.length) {
+        till.append(el("span", { class: "lm-till-books", text: bits.join(" · ") }));
+      }
+    }
     // The week's most-watched number reports its own movement.
     const netDelta = net - fromNet;
     if (netDelta !== 0 && !reducedMotion) {
@@ -882,11 +902,13 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       const streetTakeTotal = lines.reduce((t, l) => t + l.streetTake, 0);
       const price = two.gap > 0
         ? `${gbp0(two.face)} did not come in. Chased and enforced it pays ${gbp(two.enforced)}. The street's market pays ${gbp(two.street)}.`
-        : statutoryFloor === 0 && stillOut > 0
-          ? `${gbp0(stillOut)} did not come in. Its wait starts after the close — this week priced none of it.`
-          : isSouq()
-            ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
-            : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
+        : stillOut === 0 && statutoryFloor === 0
+          ? "You got it all in. Nothing of yours slept out there — the street got nothing from you this week."
+          : statutoryFloor === 0 && stillOut > 0
+            ? `${gbp0(stillOut)} did not come in. Its wait starts after the close — this week priced none of it.`
+            : isSouq()
+              ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
+              : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
       const name = differed
         ? "You deferred one and chased the other. The offers matched. Only when the money landed changed. That tilt is present bias."
         : bothChased
@@ -894,7 +916,42 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           : bothLeft
             ? "You left both. The near one and the far one were the same offer. That tilt is present bias."
             : "";
-      if (name) deps.say("siki", name);
+      // The deduction: the receipt and the two rows are on screen, so ask
+      // what moved the player BEFORE the voiced line names it. Gated on the
+      // split — with no contrast there is nothing to deduce, and the naming
+      // plays straight. verdicts are display-only; `name` stays voiced.
+      const finish = (verdict: string | null): void => {
+        if (verdict) dayPanel.append(speakerPara("siki", verdict));
+        if (name) deps.say("siki", name);
+        dayPanel.append(
+          profileCard({
+            key: "deferral",
+            value: entries.length ? Math.round((deferred.length / entries.length) * 100) : 0,
+            line: entries.length >= 2
+              ? `Day ${entries[0]!.day}: you ${entries[0]!.deferred ? "left it" : "chased"} · Day ${entries[entries.length - 1]!.day}: you ${entries[entries.length - 1]!.deferred ? "left it" : "chased"} — the same offer twice, only the timing moved. One run suggests; it doesn't prove.`
+              : entries.length === 1
+                ? `Day ${entries[0]!.day}: you ${entries[0]!.deferred ? "left it" : "chased"} — one arm of the pair. The other never came: the week ended first.`
+                : "No paired decisions recorded — this axis went unmeasured.",
+            nameThat: "present bias — costs near today feel huge, costs far away feel like rounding",
+          }, "Chapter 1"),
+          ...(state.endedEarly === "till_empty"
+            ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
+            : []),
+          ...(() => {
+            // Zana's clock read-back: the timed beats you didn't get to are
+            // the same money the debrief is pricing. Observation, not judgement.
+            const called = gutCalls()
+              .filter((c) => c.experimentId.startsWith("ch1_present_pair") && c.chosenOptionId === "time_called")
+              .length;
+            return called > 0
+              ? [el("p", { class: "lm-hint", text: `Zana's clock called it ${called === 1 ? "once" : `${called} times`} — the money you didn't get to is on that list.` })]
+              : [];
+          })(),
+          el("div", { class: "lm-choices" },
+            choiceButton("When an invoice falls due, chase it the same day", "Chapter 1 complete", () => closeBooks()),
+          ),
+        );
+      };
       dayPanel.classList.add("lm-debrief");
       dayPanel.append(
         el("div", { class: "lm-beat-head" },
@@ -922,31 +979,19 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           class: "lm-hint",
           text: `Your two rows, side by side: ${entries.slice().sort((a, b) => a.day - b.day).map((e) => `Day ${e.day} — ${e.deferred ? "left it" : "chased"}`).join(" · ")}.`,
         })] : []),
-        profileCard({
-          key: "deferral",
-          value: entries.length ? Math.round((deferred.length / entries.length) * 100) : 0,
-          line: entries.length >= 2
-            ? `Day ${entries[0]!.day}: you ${entries[0]!.deferred ? "left it" : "chased"} · Day ${entries[entries.length - 1]!.day}: you ${entries[entries.length - 1]!.deferred ? "left it" : "chased"} — the same offer twice, only the timing moved. One run suggests; it doesn't prove.`
-            : "No paired decisions recorded — this axis went unmeasured.",
-          nameThat: "present bias — costs near today feel huge, costs far away feel like rounding",
-        }, "Chapter 1"),
-        ...(state.endedEarly === "till_empty"
-          ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
+        // The split is the experiment, so the split earns the question. Every
+        // other path keeps today's straight naming via finish(null).
+        ...(differed
+          ? [el("h3", { text: "Same offer twice" }),
+            el("p", { class: "lm-hint", text: "Same offer twice. You chased one and left the other — what moved you?" }),
+            el("div", { class: "lm-choices" },
+              choiceButton("The numbers were different", "", () => finish("The numbers were identical both days. It was the wording — and when the money landed.")),
+              choiceButton("The wording around them", "", () => finish("That's the one — same numbers, different frame.")),
+              choiceButton("When the money landed", "", () => finish("That's the one — same numbers, different wait.")),
+            )]
           : []),
-        ...(() => {
-          // Zana's clock read-back: the timed beats you didn't get to are
-          // the same money the debrief is pricing. Observation, not judgement.
-          const called = gutCalls()
-            .filter((c) => c.experimentId.startsWith("ch1_present_pair") && c.chosenOptionId === "time_called")
-            .length;
-          return called > 0
-            ? [el("p", { class: "lm-hint", text: `Zana's clock called it ${called === 1 ? "once" : `${called} times`} — the money you didn't get to is on that list.` })]
-            : [];
-        })(),
-        el("div", { class: "lm-choices" },
-          choiceButton("When an invoice falls due, chase it the same day", "Chapter 1 complete", () => closeBooks()),
-        ),
       );
+      if (!differed) finish(null);
     }
 
     clear(dayPanel);
