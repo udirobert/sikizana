@@ -5,7 +5,7 @@
  */
 import { el, clear, choiceButton } from "../ui/dom";
 import { speakerPara } from "../ui/characters";
-import { renderStreet, type StreetCounters } from "../ui/street";
+import { renderStreet, streetFocus, type StreetCounters } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { money, remedy, zakatNote, isSouq, SOUQ_VO } from "../engine/market";
 import { productCheckUrl } from "../engine/links";
@@ -27,6 +27,7 @@ const gbp = (v: number) => money(v, 2);
 const STALL_SHUT_MS = 380;
 
 export function runFinale(deps: FinaleDeps): void {
+  streetFocus("full"); // market close is the street's biggest scene
   const { root, view } = deps;
   clear(root);
   const stage = el("div", { class: "lm-stage" });
@@ -65,8 +66,10 @@ export function runFinale(deps: FinaleDeps): void {
       clear(stage);
       streetWrap.remove();
       const row = renderStreet(deps.street);
+      const tillTarget = el("div", { class: "lm-till lm-till-top", text: "Coin coming home — watch the stalls shutter." });
       stage.append(
         el("h3", { text: "Market close" }),
+        tillTarget,
         row,
         el("div", { class: "lm-choices" },
           choiceButton("Skip the lights going out", "", () => finishClose()),
@@ -77,8 +80,27 @@ export function runFinale(deps: FinaleDeps): void {
       if (reduced || stalls.length === 0) return finishClose();
       stalls.forEach((s, i) => {
         window.setTimeout(() => {
-          s.className = "lm-stall shut";
-          if (i === stalls.length - 1) finishClose();
+          // Coin flight stall → till: money coming home, then shutter.
+          try {
+            const r = s.getBoundingClientRect();
+            const t = tillTarget.getBoundingClientRect();
+            const coin = document.createElement("div");
+            coin.className = "lm-coin";
+            coin.style.left = `${r.left + r.width / 2}px`;
+            coin.style.top = `${r.top + r.height / 2}px`;
+            document.body.append(coin);
+            if (!reduced) {
+              coin.animate([
+                { transform: "translate(0,0) scale(1)", opacity: 1 },
+                { transform: `translate(${t.left - r.left}px, ${t.top - r.top}px) scale(0.5)`, opacity: 0.9 },
+              ], { duration: 550, easing: "cubic-bezier(.3,.7,.4,1)" }).onfinish = () => coin.remove();
+            } else coin.remove();
+          } catch { /* decorative only */ }
+          s.classList.remove("lm-stall-change");
+          void s.offsetWidth;
+          s.classList.add("lm-stall-change");
+          window.setTimeout(() => { s.className = "lm-stall shut"; }, 180);
+          if (i === stalls.length - 1) window.setTimeout(() => finishClose(), STALL_SHUT_MS + 200);
         }, (i + 1) * STALL_SHUT_MS);
       });
     }

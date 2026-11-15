@@ -23,20 +23,20 @@ arithmetic the game teaches is pinned to the production product's values in
 CI, and the finale hands the player a link into the live tool. That engine is
 one closing paragraph of the pitch, not the pitch.
 
-## What ships (verified 2026-11-14)
+## What ships (verified 2026-11-15)
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 129 files · top-level `index.html` · relative paths · audio + cinematic included · ~18.8 MB (rebuilt 2026-11-14 ~12:40, post-delight passes) |
-| Gameplay video | record per `docs/game/TRAILER_SCRIPT.md` (v3) | **NOT YET RECORDED.** Stale mp4s deleted 2026-11-14. `narration_v2.mp3` is baked; `record-run.mjs --mode video --seg a|b` captures the new flow (prologue → picker → three-day week → Souq frame → close). ~90 s cap is 2:00. |
+| itch.zip | `game/dist/itch.zip` | 174 files · top-level `index.html` · relative paths · audio + cinematic included · ~33 MB (rebuilt 2026-11-15 ~00:51 via `build-itch.mjs`, incl. cohesion + one-voice + viewport passes) |
+| Gameplay video | `game/out/gameplay-cut.mp4` | **HOLD — draft, not final.** 67 s silent cut recorded 2026-11-15 against the current flow (`record-run.mjs --mode video --seg a|b --gpu`; `reachTheStall` fixed for the welcome-beat flow). More game work is planned before the final cut. Narration doesn't fit: `game-video/narration_v2.mp3` runs 79 s against the 67 s cut, so muxing with `-shortest` would truncate the last ~12 s of VO. `trailer.mp4` (61 s) predates the Nov 15 flow fix — unverified, do not upload. Re-record segs a+b and re-time narration after the game work lands. |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
-| Screenshots | `game/screenshots/v9/*.png` | 15 genuine frames re-shot 2026-11-14 against the delight-pass build: title, market pick (chalkboard A-board vs lantern tag), cinematic, Shark prologue, shutters, day 1 stall/defer, day 2 bill, debrief ×2, finale ×4. Carries the full presentation pass — persistent fiction mark, consequence stingers, Zana stall murmur, daybreak veil, paper-tag choices, cast portraits on every line. Supersedes `v6/`–`v8/` (deleted). |
+| Screenshots | `game/screenshots/v3_*.png` | 12 genuine frames re-shot 2026-11-15 against the cohesion build. Lead order: market_pick → shark_offer → day1_stall, then day1_defer, day2_bill, debrief ×2. GIFs `game/out/gif-zana.gif` + `gif-souq.gif` for the body. Supersedes `v9/`–`v13/`. Page theme + lead order in `docs/game/ITCH_PAGE.md`; rationale in `docs/game/ITCH_BEST_PRACTICES.md`. |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
 | Judge's guide | `docs/game/JUDGE_GUIDE.pdf` | one-pager: what to look for (the three experiments) + how to play both markets |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
 
-All checks: `npm test` 84/84 · `tsc --noEmit` clean · `npm run build` clean ·
-regression guard (`scripts/regcheck.mjs`) · Souq Mode shipped (AED +
+All checks: `npm test` 91/91 · `tsc --noEmit` clean · `npm run build` clean ·
+regression guard (`scripts/regcheck.mjs`) PASS · Souq Mode shipped (AED +
 contractual, interest-free remedy + zakat) · line items sum to the lantern to
 the penny · "worth today" falls monotonically · careless run empties the till
 on Day 2 in every seed · day-1 pair chase lands in-week / day-3 pair B lands
@@ -50,7 +50,7 @@ pinned against exported product values (`tests/vectors.test.ts`).
 3. **Page settings**
    - *Embed:* width **1280**, height **860**.
    - *Cover:* `game/cover/cover_630x500.png`.
-   - *About:* paste-ready copy in `docs/game/ITCH_PAGE.md` + the screenshots (`game/screenshots/v9/`).
+   - *About:* paste-ready copy in `docs/game/ITCH_PAGE.md` + the screenshots (`game/screenshots/v3_*.png`).
    - *AI disclosure* (required):
      - Voice, music, SFX — **ElevenLabs** (Starter, eleven_v4)
      - Cover illustration — **Recraft V4.1 Vector**
@@ -67,7 +67,7 @@ pinned against exported product values (`tests/vectors.test.ts`).
 3. Uploads:
    - Concept doc PDF: `docs/game/CONCEPT_DOC.pdf` (or a public no-login link).
    - Judge's guide: `docs/game/JUDGE_GUIDE.pdf` — what to look for, one page.
-   - 2-minute gameplay video: record per `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s) — `record-run.mjs --mode video --seg a` and `--seg b`, concat, mux `game/game-video/narration_v2.mp3`. No finished cut exists yet; do not upload anything older.
+   - 2-minute gameplay video: **not final yet** — `game/out/gameplay-cut.mp4` (67 s, silent, recorded 2026-11-15) is a draft; the game gets more work first, then segs a+b are re-recorded and narration is re-timed to the final cut. Do not upload any existing mp4 as-is.
    - Project budget: `docs/game/BUDGET_DOC.pdf`.
    - AI disclosure (judges-only): ElevenLabs (audio) + Recraft (cover art).
 4. Submit with at least 12 h of buffer before AOE.

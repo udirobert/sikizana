@@ -1,6 +1,6 @@
 # The Late Market — Voice Pipeline (ElevenLabs)
 
-**Researched:** 2026-11-09 via Parallel deep-research (run `trun_3fbfb0976af54811bc7adef6b310e0c1`) against current docs.
+**Researched:** 2026-11-09 via Parallel deep-research (run `trun_3fbfb0976af54811bc7adef6b310e0c1`) against current docs. **Re-verified 2026-11-14:** `eleven_v4` still #1/#2 AA (1340/1339 Elo, Sept 28 2026 launch, 90+ langs); challengers `Qwen-Audio 3.1 Plus`, `Sonic 3.6`, `Gemini 3.8 Flash TTS` noted below but not adopted.
 **Account:** Pro · ~426K chars banked this cycle · commercial licence included.
 **Architecture ruling:** all audio **pre-baked**; the client plays assets + timing JSON; no API key ships to the browser.
 
@@ -12,7 +12,7 @@
 |---|---|---|
 | **All authored dialogue masters** | `eleven_v4` ($0.08/1k chars) | Richest performance; latency is irrelevant for pre-baked lines; supports bracketed acting tags + native pronunciation workflow |
 | Warm long narration fallback (bake tests only) | `eleven_multilingual_v2` | Stable classic; different control surface — do NOT carry v4 tags into it |
-| (Not used) Real-time variants | `eleven_v4_turbo`, `v3_conversational` |turbo at $0.04/1k; latency wins don't help static assets |
+| (Not used) Real-time variants | `eleven_v4_turbo`, `v3_conversational` |turbo at $0.04/1k; latency wins don't help static assets. Alternatives (not adopted): `Qwen-Audio 3.1 Plus`, `Sonic 3.6`, `Gemini 3.8 Flash TTS` |
 | **Music** | `music_v2_5` ($0.15/min) | Prompt-led + composition plans; loops still need manual seam engineering |
 | **SFX one-shots** | `eleven_text_to_sound_v3` via `POST /v1/sound-generation` (0.1–30s) | Expressive foley; select explicitly (schema defaults to v2!) |
 | **SFX ambient loops** | v2 `loop: true` — the ONLY model with native looping | ⚠️ v2 deprecated **March 1, 2027** → sample/retain approved loop assets immediately; never design around it long-term |

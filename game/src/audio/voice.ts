@@ -117,7 +117,7 @@ export class VoicePlayer {
    * `bubble` is the DOM node that received the display text — word-level
    * karaoke highlighting is applied to it from the timing file.
    */
-  async speak(speaker: Speaker, text: string, bubble: HTMLElement): Promise<void> {
+  async speak(speaker: Speaker, text: string, bubble: HTMLElement, onDone?: () => void): Promise<void> {
     this.stop();
     if (!this.isEnabled()) return;
     const manifest = await this.loadManifest();
@@ -148,7 +148,7 @@ export class VoicePlayer {
     this.displayText = text;
 
     audio.addEventListener("timeupdate", () => this.scheduleHighlight());
-    audio.addEventListener("ended", () => this.stop());
+    audio.addEventListener("ended", () => { this.stop(); onDone?.(); });
     void audio.play().catch(() => this.stop());
   }
 

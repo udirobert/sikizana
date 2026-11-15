@@ -54,9 +54,12 @@ await new Promise((r) => server.listen(PORT, "127.0.0.1", r));
 const PROFILE = `/tmp/lm-chrome-${process.pid}`;
 rmSync(PROFILE, { recursive: true, force: true });
 const CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
+// --gpu keeps WebGL alive (SwiftShader) so the Pixi street scene renders
+// in captures; default stays --disable-gpu for the fast DOM probe path.
+const GPU = process.argv.includes("--gpu");
 const chrome = spawn(CHROME, [
   "--headless=new", `--remote-debugging-port=${PORT + 2}`,
-  "--disable-gpu", `--user-data-dir=${PROFILE}`, "about:blank",
+  ...(GPU ? [] : ["--disable-gpu"]), `--user-data-dir=${PROFILE}`, "about:blank",
 ], { stdio: ["ignore", "pipe", "inherit"] });
 
 let ws = null;
@@ -112,16 +115,23 @@ const clickIf = async (needle) => evalJs(`(() => {
   const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes(${JSON.stringify(needle)}));
   if (!b) return false; b.click(); return true;
 })()`);
-/** Title → London → skip the moonrise → refuse the Shark → the stall. */
+/** Title → market pick → cinematic → welcome → Shark offer → shutters → stall. */
 async function reachTheStall() {
   await clickByText("Begin — sound on");
   await sleep(700);
   if (await clickIf("London")) await sleep(400);
   await clickIf("Skip");
   await sleep(300);
-  await clickIf("Refuse");
+  await clickByText("Open the shutters"); // welcome card → cold open
   await sleep(300);
-  await clickByText("Open the shutters");
+  for (let i = 0; i < 160; i++) {
+    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
+    if (up) break;
+    await sleep(250);
+  }
+  await clickByText("Refuse");
+  await sleep(300);
+  await clickByText("Open the shutters"); // shutters gate → Day 1
 }
 
 // ── Scenario: the 5-day run (video + shots both start here) ────────────────
@@ -215,7 +225,9 @@ async function shots() {
   await clickIf("London"); await s(600);
   await shot("v3_after_begin.png"); // cinematic bridge
   await clickIf("Skip"); await s(1200);
-  await shot("v3_cold_open.png"); // post-cinematic cold open — VO beats run long
+  await shot("v3_cold_open.png"); // post-cinematic — the welcome beat (Siki & Zana introduce themselves)
+  await clickByText("Open the shutters"); await s(1200); // welcome card → Ch.1 cold open
+  await shot("v3_welcome_done.png");
   // The Shark's offer lands after several voiced beats — poll for it.
   for (let i = 0; i < 160; i++) {
     const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
@@ -223,10 +235,16 @@ async function shots() {
     await s(250);
   }
   await shot("v3_shark_offer.png"); // the prologue decision, before the answer
-  await clickByText("Refuse"); await s(500);
-  await shot("v3_shutters.png"); // "Open the shutters" — first real button
-  await clickByText("Open the shutters"); await s(1000);
+  await clickByText("Refuse"); await s(1200);
+  await shot("v3_shark_refused.png");
+  await clickByText("Open the shutters"); await s(1500); // ch1's own gate before Day 1
   await shot("v3_day1_stall.png"); // £2,400 still on the street, Harborne already late
+  // Day-1 choices land after the cold-open beats — poll for the defer button.
+  for (let i = 0; i < 160; i++) {
+    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Leave it for tomorrow"))`);
+    if (up) break;
+    await s(250);
+  }
   const cap = async (label) => { const t = await evalJs(`[...document.querySelectorAll("#street-slot .lm-stall")].map(s=>s.dataset.kind+"="+s.className.replace("lm-stall ","")).join(" ")`); console.log(`[stalls ${label}] ${t}`); };
   await clickByText("Leave it for tomorrow"); await s(2600);
   await cap("d1");

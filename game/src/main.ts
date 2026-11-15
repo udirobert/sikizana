@@ -15,15 +15,19 @@ import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
 import { buildFinaleView, verdictLine } from "./chapters/finale";
 import { runFinale } from "./chapters/finaleScreen";
-import { renderStreet as renderStreetRow, stallFigure, streetState, type StreetCounters } from "./ui/street";
+import { renderStreet as renderStreetRow, streetState, noteSceneDay, scenePulse, sceneReactHome, sceneStepUp, type StreetCounters } from "./ui/street";
 import { speakerPara } from "./ui/characters";
 import type { LedgerEntry } from "./engine/ledger";
 import { setSimpleLanguage } from "./i18n";
 import { el, choiceButton, clear } from "./ui/dom";
 import { stingFor } from "./audio/stings";
+import { scoreBed, scoreEvent } from "./audio/score";
 import { getMarketMode, loadStoredMarketMode, money, resolveMarketMode, setMarketMode, SOUQ_AR, SOUQ_VO, type MarketMode } from "./engine/market";
 import { chapterReached, runFinished, sendTelemetry } from "./engine/telemetry";
 import { installChoiceKeys } from "./ui/keys";
+import { burst, trail } from "./ui/fx";
+import { camera } from "./ui/camera";
+import { sequence } from "./ui/tween";
 
 // Market is resolved before anything renders: ?market=souq (trailer/deep link)
 // wins, then the saved choice. Switching it at the title clears stale progress
@@ -86,7 +90,9 @@ const stung = new Set<string>();
 function sting(speaker: "siki" | "zana"): void {
   if (stung.has(speaker)) return;
   stung.add(speaker);
-  bus.playOnce(`audio/sfx/${speaker}_stinger.mp3`, 0.8);
+  // Identity motif, not a fanfare: with every line now baked, the stinger
+  // sits UNDER the first take rather than clashing with it.
+  bus.playOnce(`audio/sfx/${speaker}_stinger.mp3`, 0.35);
 }
 
 /**
@@ -100,6 +106,9 @@ function say(speaker: Speaker, text: string): void {
   const sections = Array.from(game.querySelectorAll(":scope > section.lm-chapter")) as HTMLElement[];
   const active = sections.length ? sections[sections.length - 1]! : game;
   for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
+  // One voice at a time: a new narrator line supersedes a lingering
+  // street-actor take, and vice versa (see actorStepUp).
+  document.getElementById("street-actor")?.replaceChildren();
   const bubble = speakerPara(speaker, text);
   active.prepend(bubble);
   // Only the narrators get stingers; the stallholders arrive unannounced.
@@ -189,6 +198,17 @@ function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?:
       window.setTimeout(() => slot.classList.remove("lm-street-flair"), 1600);
     }
   }
+  if (ev.collected || ev.deferral || ev.billSkipped) {
+    camera.punch();
+    const moved = document.querySelector<HTMLElement>(".lm-stall.lm-stall-change");
+    const r = moved?.getBoundingClientRect();
+    if (r) {
+      if (ev.collected) burst({ shape: "coin", count: 16, colors: ["#ffd166", "#6fd08c"], origin: r });
+      else if (ev.deferral) trail({ shape: "mote", count: 10, origin: r });
+      else burst({ shape: "petal", count: 8, origin: tillRect() ?? r });
+    }
+  }
+  if (ev.billSkipped) camera.settle();
   renderStreet();
 }
 
@@ -206,6 +226,61 @@ let prevLit = -1;
 let prevShut = -1;
 /** Re-applied on held-only redraws so a stall that just lit stays the one that moved. */
 let pulseKind: string | null = null;
+/** The pitch's reaction to the last ledger beat — survives row rebuilds. */
+let homeReact: { cls: string; until: number } | null = null;
+
+const calmMotion = (): boolean => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** A coin arcs between the till and the stall that moved — the ledger
+ *  event made visible. `to-street`: deferral funds a stall; `to-till`:
+ *  a collection lands. Decorative only; the counters already moved. */
+function flyCoin(from: DOMRect, to: DOMRect, dir: "to-street" | "to-till"): void {
+  if (calmMotion()) return;
+  const coin = document.createElement("div");
+  coin.className = "lm-coin";
+  const sx = from.left + from.width / 2 - 7;
+  const sy = from.top + from.height / 2 - 7;
+  const tx = to.left + to.width / 2 - 7;
+  const ty = to.top + to.height / 2 - 7;
+  coin.style.left = `${sx}px`;
+  coin.style.top = `${sy}px`;
+  document.body.append(coin);
+  const peakY = Math.min(sy, ty) - 70;
+  coin.animate([
+    { transform: "translate(0, 0) scale(1)", opacity: 1 },
+    { transform: `translate(${(tx - sx) / 2}px, ${peakY - sy}px) scale(1.15)`, opacity: 1, offset: 0.55 },
+    { transform: `translate(${tx - sx}px, ${ty - sy}px) scale(0.55)`, opacity: 0.85 },
+  ], { duration: 750, easing: "cubic-bezier(.3,.7,.4,1)" }).onfinish = () => coin.remove();
+  // Lands in the ears too: a bright clink for money coming home, a duller
+  // one for money leaving for the street. Scheduled on the audio clock to
+  // land with the visual (~700ms); no-ops when the bus is locked/muted.
+  if (dir === "to-till") {
+    bus.tone(2093, { dur: 0.14, gain: 0.05, delay: 0.7 });
+    bus.tone(2794, { dur: 0.1, gain: 0.035, delay: 0.73 });
+  } else {
+    bus.tone(660, { dur: 0.18, type: "triangle", gain: 0.06, slideTo: 440, delay: 0.7 });
+  }
+}
+
+/** The till the coin flies from/to — whichever chrome the chapter drew. */
+function tillRect(): DOMRect | null {
+  const el = document.querySelector<HTMLElement>(".lm-till, .lm-stall-chrome-till");
+  return el ? el.getBoundingClientRect() : null;
+}
+
+/** One line of street world-texture — chapters feed it (ch1: one per day).
+ *  OpenTTD ticker pattern: a 2-line feed, newest on top; the street
+ *  remembers what just happened instead of overwriting it. */
+function streetWhisper(text: string): void {
+  const el = document.getElementById("street-whisper");
+  if (!el) return;
+  const line = document.createElement("p");
+  line.className = "lm-whisper-line lm-rise";
+  line.textContent = text;
+  el.prepend(line);
+  while (el.children.length > 2) el.lastElementChild?.remove();
+}
+
 function renderStreet(): void {
   const slot = document.getElementById("street-slot");
   if (!slot) return;
@@ -213,8 +288,9 @@ function renderStreet(): void {
   const { lit, shut } = streetState(counters);
   const row = renderStreetRow(counters);
   // The run's shape rides along with the street (same node, re-parented on
-  // every rebuild) so "where am I" never needs its own bar.
-  const meta = row.querySelector(".lm-street-meta");
+  // every rebuild) so "where am I" never needs its own bar. Meta lives on
+  // the counter rail now, so search the whole slot, not just the row.
+  const meta = slot.querySelector(".lm-street-meta");
   if (progressEl) (meta ?? row).append(progressEl);
   // The stall that just changed flares once (recovery plan §3: the street
   // changes *when* you leave it — the player should see the stall move). If
@@ -229,52 +305,96 @@ function renderStreet(): void {
     const litStalls = stalls.filter((s) => s.classList.contains("lit"));
     const changed = litStalls[litStalls.length - 1] ?? null; // rightmost lit
     changed?.classList.add("lm-stall-change");
+    if (changed?.dataset.idx !== undefined) scenePulse(Number(changed.dataset.idx));
     pulseKind = changed?.dataset.kind ?? null;
+    // Deferral lands hard on the people keeping your pitch. The row is
+    // rebuilt on every street render, so the reaction is carried as a
+    // short-lived flag and re-applied to whichever row is current.
+    homeReact = { cls: "lm-home-droop", until: Date.now() + 1400 };
+  scoreEvent("defer"); // a stall lit on the street's terms — tension up
+    // The money's path, made visible: till → the stall it just lit.
+    const till = tillRect();
+    if (till && changed) flyCoin(till, changed.getBoundingClientRect(), "to-street");
     const kind = pulseKind;
     const actor = kind ? KIND_ACTORS[kind] : null;
-    if (actor) actorStepUp(actor.name, actor.kind, actor.line);
+    if (actor) {
+      actorStepUp(actor.name, actor.kind, actor.line);
+      // Faction beats get their reserved camera/particle response —
+      // the FEEL_MATRIX rows for the three named stallholders.
+      const r = changed?.getBoundingClientRect();
+      if (r) {
+        if (kind === "shark") {
+          camera.shake(3);
+          scoreEvent("shark");
+          burst({ shape: "shard", count: 14, colors: ["#e5604f", "#ff7b72"], origin: r });
+        } else if (kind === "collector") {
+          camera.settle();
+          burst({ shape: "shard", count: 12, colors: ["#b79bff", "#8f7ae0"], origin: r });
+        } else {
+          burst({ shape: "coin", count: 10, colors: ["#f5c04e", "#ffd166"], origin: r });
+        }
+      }
+    }
   }
   // A collection shutters a stall: shut stalls render leftmost, so the one
   // that just closed sits at index prevShut.
   if (prevShut >= 0 && shut > prevShut) {
     const stalls = Array.from(row.querySelectorAll<HTMLElement>(".lm-stall"));
-    stalls[prevShut]?.classList.add("lm-stall-change");
+    const closed = stalls[prevShut] ?? null;
+    closed?.classList.add("lm-stall-change");
+    if (closed?.dataset.idx !== undefined) scenePulse(Number(closed.dataset.idx));
+    // Money coming home is the pitch's good day.
+    homeReact = { cls: "lm-home-cheer", until: Date.now() + 1400 };
+  scoreEvent("collect"); // money came home — release
+    // And the cash comes home: stall → till.
+    const till = tillRect();
+    if (till && closed) flyCoin(closed.getBoundingClientRect(), till, "to-till");
   }
   if (pulseKind) row.querySelector(`[data-kind="${pulseKind}"]`)?.classList.add("lm-stall-change");
+  // The companions' reaction survives row rebuilds for its ~1s window.
+  if (homeReact) {
+    if (Date.now() < homeReact.until) {
+      row.querySelector(".lm-stall-home")?.classList.add(homeReact.cls);
+      sceneReactHome(homeReact.cls as "lm-home-cheer" | "lm-home-droop");
+    } else homeReact = null;
+  }
   prevLit = lit;
   prevShut = shut;
-  slot.replaceChildren(row);
+  slot.replaceChildren(row, ...(counterRail ? [counterRail] : []));
 }
 
-/** A stallholder steps to your stall: their figure + a line, briefly. Text
- *  always; voiced only if the line is in the baked manifest (else silent). */
+/** A stallholder steps to your stall: their line, briefly, in the same
+ *  painterly voice as every other beat (speakerPara portrait, not line
+ *  art). Text always; voiced only if the line is in the baked manifest
+ *  (else silent). The figure performs in-scene via sceneStepUp. */
 function actorStepUp(name: string, kind: "factor" | "collector" | "shark", line: string): void {
   const slot = document.getElementById("street-actor");
   if (!slot) return;
+  // A new event supersedes a fading one: reset the fade before re-filling.
+  slot.classList.remove("lm-actor-out");
   slot.replaceChildren();
-  const fig = stallFigure(kind);
-  fig.classList.add("lm-stall-actor-fig");
-  const figWrap = document.createElement("div");
-  figWrap.className = "lm-stall-actor-fig-wrap";
-  figWrap.setAttribute("aria-hidden", "true");
-  figWrap.append(fig);
-  const bubble = document.createElement("p");
-  bubble.className = "lm-line stall-actor lm-rise";
-  bubble.setAttribute("role", "note");
-  const who = document.createElement("span");
-  who.className = "lm-stall-actor-who";
-  who.textContent = name;
-  // The line gets its own span: the voice player's karaoke rebuilds its
-  // target node's content, so the name prefix must live outside it.
-  const lineSpan = document.createElement("span");
-  lineSpan.textContent = line;
-  bubble.append(who, document.createTextNode(" — "), lineSpan);
-  slot.append(figWrap, bubble);
+  void name;
+  // One voice at a time: the consequence voice replaces the day-opener.
+  const sections = Array.from(document.querySelectorAll("#game > section.lm-chapter")) as HTMLElement[];
+  const active = sections.length ? sections[sections.length - 1]! : null;
+  if (active) for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
+  // Painterly standard: the portrait lives inside the bubble, same grammar
+  // as Siki/Zana everywhere else — no floating line-art figure above it.
+  const bubble = speakerPara(kind, line);
+  bubble.classList.add("stall-actor", "lm-rise");
+  const lineSpan = bubble.querySelector<HTMLElement>(".lm-line-text");
+  slot.append(bubble);
   // The stallholder performs their own line — silent when the take isn't
   // baked (manifest miss), but the text always lands.
-  void voice.speak(kind, line, lineSpan);
-  // Clear after a beat unless the street re-renders (a new event supersedes).
-  window.setTimeout(() => { if (slot.contains(bubble)) slot.replaceChildren(); }, 6000);
+  if (lineSpan) void voice.speak(kind, line, lineSpan);
+  // In-scene step-up: the sprite approaches your counter in the place,
+  // while the DOM line stays the accessible text. Indices: factor 2,
+  // collector 3, shark 4 (STALLS order cart/awning/factor/collector/shark).
+  sceneStepUp(kind === "factor" ? 2 : kind === "collector" ? 3 : 4);
+  // Sits for the take, fades like it arrived, then clears — unless the
+  // street re-renders (a new event supersedes and wipes it first).
+  window.setTimeout(() => { slot.classList.add("lm-actor-out"); }, 6200);
+  window.setTimeout(() => { if (slot.contains(bubble)) slot.replaceChildren(); slot.classList.remove("lm-actor-out"); }, 6700);
 }
 
 /**
@@ -288,6 +408,10 @@ function actorStepUp(name: string, kind: "factor" | "collector" | "shark", line:
 const CHAPTERS: Record<1 | 2 | 3, string> = { 1: "The Stall", 2: "The Offer", 3: "Good Money After Bad" };
 
 let progressEl: HTMLElement | null = null;
+/** The counter rail — the wooden edge between the street (far plane) and
+ *  the chapter boards (near plane). Lives inside #street-slot so it sticks
+ *  with the strip and carries the street's books on the counter front. */
+let counterRail: HTMLElement | null = null;
 
 function setProgress(label: string, reached: number): void {
   if (!progressEl) return;
@@ -314,6 +438,23 @@ function elSpan(cls: string, text: string): HTMLSpanElement {
  * static — deliberately different from the old actCard, which showed
  * nothing: a chapter boundary is information, not decoration.
  */
+/**
+ * The camera rig: chapter content lives inside #game-cam so camera moves
+ * (drift/punch/settle/shake/pan) transform the scene — while the street
+ * strip, actor line, whisper and fiction mark stay pinned siblings.
+ * Created lazily on first stage append.
+ */
+let camEl: HTMLElement | null = null;
+function stageAppend(node: HTMLElement): void {
+  if (!camEl) {
+    camEl = document.createElement("div");
+    camEl.id = "game-cam";
+    game.append(camEl);
+    camera.attach(camEl); // apply any pending camera state (idle etc.)
+  }
+  camEl.append(node);
+}
+
 function chapterSting(n: 1 | 2 | 3 | "finale"): void {
   if (n === 1) return; // the prologue is chapter 1's entrance
   const spec = stingFor(n);
@@ -322,7 +463,7 @@ function chapterSting(n: 1 | 2 | 3 | "finale"): void {
     host = document.createElement("div");
     host.id = "lm-act";
     host.setAttribute("aria-hidden", "true"); // the chapter heading already announces it
-    game.append(host);
+    stageAppend(host);
   }
   const card = el("div", { class: "lm-sting-card" });
   card.append(
@@ -331,6 +472,8 @@ function chapterSting(n: 1 | 2 | 3 | "finale"): void {
     el("p", { class: "lm-sting-line" }, spec.text),
   );
   host.replaceChildren(card);
+  camera.flash(); // chapter turns get the lantern pulse (camera/flash.js)
+  scoreEvent("sting");
   // The card's own text node is the karaoke target — say() would prepend
   // into the chapter section, which clear(root) wipes the moment it mounts.
   const lineNode = card.querySelector<HTMLElement>(".lm-sting-line");
@@ -344,11 +487,12 @@ function beginChapter(n: 1 | 2 | 3): void {
     const r = document.createElement("section");
     r.className = "lm-chapter";
     r.id = `ch${n}`;
-    game.append(r);
+    stageAppend(r);
     return r;
   })();
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== `ch${n}`;
   chapterSting(n);
+  camera.panIn(); // the scene travels in — pan, not cut
   setProgress(`Chapter ${n} of 3 · ${CHAPTERS[n]}`, n);
   // Funnel point: how far a visitor got. Anonymous, four events a run at most.
   sendTelemetry(chapterReached(n === 1 ? "ch1" : n === 2 ? "ch2" : "ch3"));
@@ -362,6 +506,8 @@ function beginChapter(n: 1 | 2 | 3): void {
         say,
         save: (s: Ch1State) => { try { localStorage.setItem(CH1_SAVE_KEY, JSON.stringify(s)); } catch { /* private-mode */ } },
         noteStreet,
+        whisper: streetWhisper,
+        sceneDay: noteSceneDay,
         prologueSettled: () => ledger.all().some((e) => e.experimentId === PROLOGUE_EXPERIMENT_ID),
         onTool: () => {
           localStorage.removeItem(CH1_SAVE_KEY); // chapter closed — the run is done
@@ -378,6 +524,7 @@ function beginChapter(n: 1 | 2 | 3): void {
         root,
         record: (e: Omit<LedgerEntry, "id">) => { ledger.record(e); saveLedger(); renderStreet(); },
         pairEntries: () => ledger.all().filter((e) => e.chapter === 2 && e.experimentId.startsWith("ch2_anchor")),
+        entries: () => ledger.all(),
         say,
         onTool: () => document.dispatchEvent(new CustomEvent("lm:chapter-done", { detail: 2 })),
       },
@@ -388,6 +535,7 @@ function beginChapter(n: 1 | 2 | 3): void {
     runChapter3({
       root,
       record: (e: Omit<LedgerEntry, "id">) => { ledger.record(e); saveLedger(); renderStreet(); },
+      entries: () => ledger.all(),
       say,
       onTool: () => document.dispatchEvent(new CustomEvent("lm:chapter-done", { detail: 3 })),
     });
@@ -403,6 +551,7 @@ async function startBeds(): Promise<void> {
   bedsStarted = true;
   void bus.play("audio/sfx/market_ambience.mp3", { channel: "ambience", loop: true });
   if (prefs.music) musicHandle = await bus.play("audio/sfx/market_music.mp3", { channel: "music", loop: true });
+  scoreBed(bus, musicHandle);
 }
 
 function begin(withSound: boolean): void {
@@ -421,6 +570,11 @@ function begin(withSound: boolean): void {
   const streetSlot = document.createElement("div");
   streetSlot.id = "street-slot";
   game.append(streetSlot);
+  // The counter rail: a wooden edge the street's books sit on. Rendered
+  // inside the sticky slot by renderStreet (row + rail, in that order).
+  counterRail = document.createElement("div");
+  counterRail.id = "counter-rail"; // not aria-hidden: it carries the Details toggle
+  streetSlot.append(counterRail); // in-DOM before renderStreet so street.ts can find it
   renderStreet();
 
   // The stallholder "actor" line — the street's character who steps up when
@@ -430,6 +584,13 @@ function begin(withSound: boolean): void {
   actorSlot.id = "street-actor";
   game.append(actorSlot);
 
+  // The street whisper — one line of world-texture under the stalls,
+  // fed by chapters (ch1 sets one per day). Empty until first use.
+  const whisperEl = document.createElement("div");
+  whisperEl.id = "street-whisper";
+  whisperEl.className = "lm-street-whisper";
+  game.insertBefore(whisperEl, actorSlot);
+
   // The honesty mark, once, always on screen — so the cards don't have to
   // keep re-litigating "fictional · indicative" on every beat. The audit
   // page is the proof; this is the label the rails ask for.
@@ -437,6 +598,20 @@ function begin(withSound: boolean): void {
   fictionMark.className = "lm-fiction-mark";
   fictionMark.textContent = "Fictional figures · indicative · arithmetic audited in public";
   game.append(fictionMark);
+
+  // Market-bg parallax — the backdrop drifts a few px against the pointer.
+  // Fine pointers only, never under reduced motion; CSS owns the smoothing.
+  const bg = document.getElementById("market-bg");
+  if (bg && window.matchMedia("(pointer: fine)").matches && !calmMotion()) {
+    window.addEventListener("pointermove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 14;
+      const y = (e.clientY / window.innerHeight - 0.5) * 10;
+      // Deadzone (Phaser follow-with-deadzone): sub-4px offsets do nothing —
+      // the backdrop must not "swim" when the pointer is nearly still.
+      if (Math.abs(x) < 4 && Math.abs(y) < 3) return;
+      bg.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(1.06)`;
+    });
+  }
 
   document.addEventListener("lm:chapter-done", (ev) => {
     const n = (ev as CustomEvent<number>).detail as 1 | 2 | 3;
@@ -447,6 +622,60 @@ function begin(withSound: boolean): void {
 
   // The keyboard is a first-class way to play: 1–3 pick, Enter continues.
   installChoiceKeys(game);
+
+  // Camera: ambient drift for the whole run (killed under reduced motion).
+  camera.idle(true);
+
+  // Till inspection — OpenTTD's cost-estimation pattern: hover/focus the
+  // till and its real breakdown appears. Delegated, so chapter re-renders
+  // never need rewiring.
+  const tillTip = document.createElement("div");
+  tillTip.id = "till-tip";
+  tillTip.className = "lm-till-tip";
+  tillTip.hidden = true;
+  tillTip.setAttribute("role", "status");
+  game.append(tillTip);
+  const showTillTip = (till: HTMLElement): void => {
+    const c = streetCounters();
+    tillTip.innerHTML = "";
+    const lines = [
+      ["Shed while invoices sat", c.streetTake],
+      ["Late charges on skipped bills", c.lateFees ?? 0],
+      ["Fees to stallholders", c.npcFees ?? 0],
+    ] as const;
+    for (const [label, v] of lines) {
+      if (!v) continue;
+      const row = document.createElement("span");
+      row.className = "lm-till-tip-line";
+      row.textContent = `${label} — ${money(v, 0)}`;
+      tillTip.append(row);
+    }
+    const total = document.createElement("span");
+    total.className = "lm-till-tip-line lm-till-tip-total";
+    total.textContent = `To the street — ${money(c.toStreet, 0)}`;
+    tillTip.append(total);
+    const r = till.getBoundingClientRect();
+    tillTip.style.left = `${Math.min(r.left, window.innerWidth - 240)}px`;
+    tillTip.style.top = `${r.bottom + 8}px`;
+    tillTip.hidden = false;
+  };
+  game.addEventListener("mouseover", (e) => {
+    const t = (e.target as HTMLElement).closest?.(".lm-till, .lm-stall-chrome-till");
+    if (t instanceof HTMLElement) showTillTip(t);
+  });
+  game.addEventListener("focusin", (e) => {
+    const t = (e.target as HTMLElement).closest?.(".lm-till, .lm-stall-chrome-till");
+    if (t instanceof HTMLElement) showTillTip(t);
+  });
+  const hideTillTip = (e: Event): void => {
+    const t = (e.target as HTMLElement).closest?.(".lm-till, .lm-stall-chrome-till");
+    if (!(t instanceof HTMLElement)) return;
+    const next = (e as MouseEvent).relatedTarget as HTMLElement | null;
+    if (next?.closest?.(".lm-till-tip, .lm-till, .lm-stall-chrome-till")) return;
+    tillTip.hidden = true;
+  };
+  game.addEventListener("mouseout", hideTillTip);
+  game.addEventListener("focusout", hideTillTip);
 
   // Dev/trailer jump: ?ch=2 starts mid-board without the 20-day replay.
   const jump = Number(new URLSearchParams(location.search).get("ch") ?? 1);
@@ -491,7 +720,7 @@ function showMarketPick(onDone: () => void): void {
   const sec = document.createElement("section");
   sec.className = "lm-chapter";
   sec.id = "market-pick";
-  game.append(sec);
+  stageAppend(sec);
 
   const enter = (mode: MarketMode): void => {
     markMarketPicked();
@@ -533,17 +762,26 @@ function showMarketPick(onDone: () => void): void {
     say("siki", SOUQ_VO.picker);
   };
 
+  const marketCards = (): HTMLButtonElement[] => {
+    const mk = (label: string, detail: string, cls: string, art: string, fn: () => void): HTMLButtonElement => {
+      const c = choiceButton(label, detail, fn);
+      c.classList.add(cls);
+      const txt = el("span", { class: "lm-choice-text" });
+      for (const k of [...c.children]) txt.append(k);
+      c.append(txt);
+      c.prepend(el("img", { class: "lm-market-art", src: art, alt: "" }));
+      return c;
+    };
+    return [
+      mk(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", "lm-market-uk", "/assets/sprites/awning.png", () => enter("uk")),
+      mk(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee in your own terms · Arabic throughout", "lm-market-souq", "/assets/sprites/cart.png", souqBeat),
+    ];
+  };
+
   sec.append(
-    el("h3", { text: "Two markets. Same week. Different law." }),
-    el("p", {
-      class: "lm-hint souq-ar-kicker",
-      text: SOUQ_AR.pickerKicker,
-    }),
-    el("p", { class: "lm-hint", text: "Pick the market your books live in. The arithmetic is identical; the law is not." }),
-    el("div", { class: "lm-choices lm-market-cards" },
-      (() => { const c = choiceButton(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", () => enter("uk")); c.classList.add("lm-market-uk"); return c; })(),
-      (() => { const c = choiceButton(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee you wrote into your own terms", souqBeat); c.classList.add("lm-market-souq"); return c; })(),
-    ),
+    el("h3", { text: "Where do your books live?" }),
+    el("p", { class: "lm-hint", text: "Same sums. Different street rules." }),
+    el("div", { class: "lm-choices lm-market-cards" }, ...marketCards()),
   );
 }
 
@@ -554,6 +792,9 @@ function showMarketPick(onDone: () => void): void {
  * to onDone so the game can never be blocked by the bridge.
  */
 function playCinematic(onDone: () => void): void {
+  // The Souq gets its own cut — same grammar, sandstone and brass. Mode is
+  // committed before the bridge runs, so the preview never lies.
+  const film = getMarketMode() === "souq" ? "cinematic-souq" : "cinematic";
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const wrap = el("div", { class: "lm-cine" });
   let done = false;
@@ -561,7 +802,7 @@ function playCinematic(onDone: () => void): void {
     if (done) return;
     done = true;
     wrap.remove();
-    onDone();
+    showWelcome(onDone);
   };
   const skip = el("button", {
     class: "lm-cine-skip", type: "button",
@@ -570,7 +811,7 @@ function playCinematic(onDone: () => void): void {
   skip.addEventListener("click", finish);
   if (reduced) {
     wrap.append(
-      el("img", { class: "lm-cine-poster", src: "cinematic/cinematic-poster.jpg", alt: "" }),
+      el("img", { class: "lm-cine-poster", src: `cinematic/${film}-poster.jpg`, alt: "" }),
       skip,
     );
     document.body.append(wrap);
@@ -579,8 +820,8 @@ function playCinematic(onDone: () => void): void {
   }
   const video = el("video", {
     class: "lm-cine-video",
-    src: "cinematic/cinematic.mp4",
-    poster: "cinematic/cinematic-poster.jpg",
+    src: `cinematic/${film}.mp4`,
+    poster: `cinematic/${film}-poster.jpg`,
     autoplay: true, muted: true, playsinline: true, preload: "auto",
   });
   video.muted = true;
@@ -594,6 +835,61 @@ function playCinematic(onDone: () => void): void {
 }
 
 /**
+ * Siki welcomes the player on the road in — the context the cold open
+ * was missing (who you are, what the street is, what the first choice
+ * costs). Presentation only: no ledger, no sim touch. Painted V5
+ * portrait carries the quality bar; text always lands, VO later.
+ */
+function showWelcome(onDone: () => void): void {
+  const wrap = el("div", { class: "lm-welcome" });
+  const card = el("div", { class: "lm-welcome-card", role: "dialog", "aria-label": "Welcome to the Late Market" });
+  const face = document.createElement("img");
+  face.className = "lm-welcome-face";
+  face.src = "assets/sprites/siki.png";
+  face.alt = "Siki the owl bookkeeper";
+  face.width = 112;
+  face.height = 112;
+  const owed = money(2400, 0);
+  // Zana's entrance: her painted portrait + line land as text always; the
+  // baked take voices it only when the text matches the manifest (UK text).
+  // Souq mode gets Souq-safe text and stays silent — never the wrong debt.
+  const zanaText = getMarketMode() === "souq"
+    ? "I'm Zana. You point, I chase. Say the word and we open the shutters."
+    : "I'm Zana. You point, I chase. First one's Harborne — say the word.";
+  const zanaPara = speakerPara("zana", zanaText);
+  card.append(
+    face,
+    el("h3", { text: "Psst — over here." }),
+    speakerPara("siki", `I'm Siki — I keep your books. That's Zana — she chases what's owed. ${owed} of yours is already sleeping out on that street.`),
+    zanaPara,
+    el("p", { class: "lm-hint", text: "The Shark walks past before the shutters open. What you do there follows you all week." }),
+    el("div", { class: "lm-choices" },
+      choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · meet the street`, () => {
+        wrap.remove();
+        onDone();
+      }),
+    ),
+  );
+  wrap.append(card);
+  document.body.append(wrap);
+  const btn = wrap.querySelector<HTMLButtonElement>(".lm-choice");
+  btn?.focus();
+  // Voiced when the baked take exists (welcome_siki, eleven_v4); silent
+  // otherwise — the text always lands. Stop on close so it never bleeds.
+  // Siki speaks first, then Zana answers — chained on natural end so the
+  // takes never overlap. Closed early: the flag stops the chain, stop()
+  // kills the take, and the text has already landed for both.
+  let welcomeClosed = false;
+  const lineNodes = card.querySelectorAll<HTMLElement>(".lm-line-text");
+  const sikiNode = lineNodes[0];
+  const zanaNode = lineNodes[1];
+  if (sikiNode) void voice.speak("siki", `I'm Siki — I keep your books. That's Zana — she chases what's owed. ${owed} of yours is already sleeping out on that street.`, sikiNode, () => {
+    if (!welcomeClosed && zanaNode) void voice.speak("zana", zanaText, zanaNode);
+  });
+  card.querySelector(".lm-choice")?.addEventListener("click", () => { welcomeClosed = true; voice.stop(); }, { once: true });
+}
+
+/**
  * The Souq path's bilingual title card — the beat souq_intro was written
  * for ("plays over the bilingual title card"). Static content, so
  * reduced-motion players get it too: it's a story beat, not motion.
@@ -602,7 +898,7 @@ function souqTitleCard(onDone: () => void): void {
   const sec = document.createElement("section");
   sec.className = "lm-chapter";
   sec.id = "souq-title";
-  game.append(sec);
+  stageAppend(sec);
   sec.append(
     el("h3", { class: "souq-ar", text: `${SOUQ_AR.marketName} · The Late Market` }),
     el("p", {
@@ -674,10 +970,11 @@ function finale(): void {
     review = document.createElement("section");
     review.id = "finale";
     review.className = "lm-chapter"; // hidden automatically by beginChapter
-    game.append(review);
+    stageAppend(review);
   }
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "finale";
   chapterSting("finale");
+  noteSceneDay(4); // market close — the grade warms to dawn
   setProgress("Market close", 3);
   runFinale({
     root: review,
@@ -700,6 +997,20 @@ function finale(): void {
       beginChapter(1);
     },
   });
+
+  // The money shot: settle → flash → shake, then every lit stall emits
+  // its cost in sequence — the street's whole week made visible at once.
+  const litRects = Array.from(document.querySelectorAll<HTMLElement>(".lm-stall.lit"))
+    .map((s) => s.getBoundingClientRect());
+  void sequence([
+    () => camera.settle(),
+    () => camera.flash(),
+  ]).then(() => {
+    camera.shake(3);
+    litRects.forEach((r, i) => {
+      window.setTimeout(() => burst({ shape: "coin", count: 10, origin: r }), i * 90);
+    });
+  });
 }
 
 // ── Market picker (title screen) ──
@@ -709,7 +1020,8 @@ for (const radio of document.querySelectorAll<HTMLInputElement>('input[name="mar
     if (!radio.checked) return;
     const next = radio.value as MarketMode;
     if (next === getMarketMode()) return;
-    markMarketPicked(); // an explicit title-screen choice counts as chosen
+    // No markMarketPicked here: this is a default-market setting, not the
+    // canonical pick — first-run players still get the painted door cards.
     setMarketMode(next);
     purgeSave(); // numbers from the other remedy don't carry
   });
@@ -731,14 +1043,14 @@ optSound?.addEventListener("change", () => {
   prefs.sound = optSound.checked;
   savePrefs();
   bus.setVolume(prefs.sound ? 1 : 0);
-  if (!prefs.sound) { bus.silence(); voice.stop(); bedsStarted = false; musicHandle = null; }
+  if (!prefs.sound) { bus.silence(); voice.stop(); bedsStarted = false; musicHandle = null; scoreBed(bus, null); }
   else void startBeds();
 });
 optMusic?.addEventListener("change", () => {
   prefs.music = optMusic.checked;
   savePrefs();
   if (!prefs.music) { musicHandle?.stop(); musicHandle = null; }
-  else if (bus.unlocked && prefs.sound) void bus.play("audio/sfx/market_music.mp3", { channel: "music", loop: true }).then((h) => { musicHandle = h; });
+  else if (bus.unlocked && prefs.sound) void bus.play("audio/sfx/market_music.mp3", { channel: "music", loop: true }).then((h) => { musicHandle = h; scoreBed(bus, h); });
 });
 optText?.addEventListener("change", () => {
   prefs.textScale = (optText.value as Prefs["textScale"]) || "md";

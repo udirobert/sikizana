@@ -8,66 +8,28 @@
  "dictionary": "voices.json#pronunciation_dictionary (version-pinned at bake time)",
  "lines": [
   {
-   "id": "ch1_intro_new",
+   "id": "welcome_siki",
    "speaker": "siki",
    "chapter": 1,
-   "text": "Day one. Till £1,200. Quayline's £2,000 bill lands Day 4. Something on the ledger is already bleeding."
+   "text": "I'm Siki — I keep your books. That's Zana — she chases what's owed. £2,400 of yours is already sleeping out on that street."
+  },
+  {
+   "id": "welcome_zana",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "I'm Zana. You point, I chase. First one's Harborne — say the word."
   },
   {
    "id": "ch1_intro_resume",
    "speaker": "siki",
    "chapter": 1,
-   "text": "The shutters were left open. Day {day} of 5 — the books remember where you stopped.",
+   "text": "The shutters were left open. Day {day} of 3 — the books remember where you stopped.",
    "variants": {
     "day": [
      2,
-     3,
-     4,
-     5
+     3
     ]
    }
-  },
-  {
-   "id": "ch1_debrief_replay",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "Let's look at what you did with that pair. Not what a textbook would do. What you did."
-  },
-  {
-   "id": "ch1_debrief_framing_zero",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "You chased both times. Good. But notice how the same choice felt different when both ends sat further out."
-  },
-  {
-   "id": "ch1_debrief_framing_one_d3",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "1 of the two was deferred (Day 3) — the frame, not the facts, did the work."
-  },
-  {
-   "id": "ch1_debrief_framing_one_d5",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "1 of the two was deferred (Day 5) — the frame, not the facts, did the work."
-  },
-  {
-   "id": "ch1_debrief_framing_both",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "2 of the two was deferred (Day 3 and Day 5) — the frame, not the facts, did the work."
-  },
-  {
-   "id": "ch1_debrief_deferral",
-   "speaker": "siki",
-   "chapter": 1,
-   "text": "Deferral is not always a trap."
-  },
-  {
-   "id": "ch1_debrief_rule",
-   "speaker": "zana",
-   "chapter": 1,
-   "text": "Here's the rule. Say it until it's boring."
   },
   {
    "id": "ch2_intro",
@@ -88,22 +50,10 @@
    "text": "Three runs. One invoice. Did your minimum move with their opening?"
   },
   {
-   "id": "ch2_debrief_anchor_floors",
-   "speaker": "siki",
-   "chapter": 2,
-   "text": "The facts never moved. The opening number did."
-  },
-  {
    "id": "ch2_debrief_anchor_nofloors",
    "speaker": "siki",
    "chapter": 2,
-   "text": "You never named a floor. The anchor had nothing to push against — which is its own answer: decide the number before their number arrives."
-  },
-  {
-   "id": "ch2_debrief_flip",
-   "speaker": "zana",
-   "chapter": 2,
-   "text": "Flip it. Open with the law, not with their number."
+   "text": "You never named a floor. Name it before their number arrives."
   },
   {
    "id": "ch3_intro",
@@ -121,7 +71,7 @@
    "id": "ch3_debrief_look",
    "speaker": "siki",
    "chapter": 3,
-   "text": "Look at what you paid while nobody answered. Then look again — as if the account were brand new."
+   "text": "Look at what you paid while nobody answered."
   },
   {
    "id": "ch3_debrief_sunk",
@@ -134,18 +84,6 @@
    "speaker": "siki",
    "chapter": 4,
    "text": "Market close. This is the street your decisions built."
-  },
-  {
-   "id": "finale_replay",
-   "speaker": "siki",
-   "chapter": 4,
-   "text": "Let's read what you actually did — not what a textbook would do."
-  },
-  {
-   "id": "finale_profile",
-   "speaker": "siki",
-   "chapter": 4,
-   "text": "Three numbers, computed from your own choices. Not a diagnosis — a mirror."
   },
   {
    "id": "finale_cost",
@@ -182,12 +120,6 @@
    "speaker": "siki",
    "chapter": 1,
    "text": "There it is — the full face, on your till, not the street's."
-  },
-  {
-   "id": "react_defer_first",
-   "speaker": "zana",
-   "chapter": 1,
-   "text": "Noted. The street thanks you — literally."
   },
   {
    "id": "react_bill_paid",
@@ -309,7 +241,7 @@
    "chapter": 2,
    "tts_voice": "IN2V4qht1zMBoNajEhTY",
    "rate": 0.9,
-   "text": "You look like someone who'd rather have it today. I can make that happen — for a price."
+   "text": "You look like someone who'd rather have it today."
   },
   {
    "id": "souq_souq_picker",
@@ -340,25 +272,11 @@
    "text": "اليوم الأول. الخزينة فيها 5,760 درهمًا. فاتورة كوايلين البالغة 9,600 درهم تستحق في اليوم الرابع. هناك شيء في الدفتر ينزف بالفعل."
   },
   {
-   "id": "souq_ch1_debrief_rule",
-   "speaker": "zana",
-   "chapter": 0,
-   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
-   "text": "هذه هي القاعدة. ردّدها حتى تصبح مملة."
-  },
-  {
    "id": "souq_ch2_intro",
    "speaker": "siki",
    "chapter": 0,
    "tts_voice": "WcswLmU3iGeMrhxfWXKN",
    "text": "مكتب التسوية في السوق يشتري الاتفاق. يفتحون كل تفاوض برقمهم. لاحظ أي رقم صار على الطاولة بالفعل."
-  },
-  {
-   "id": "souq_ch2_debrief_flip_souq",
-   "speaker": "zana",
-   "chapter": 0,
-   "tts_voice": "3AH0h1SXwwhE8vUUWuQW",
-   "text": "اقلبها. ابدأ بشروطك، لا برقمهم."
   },
   {
    "id": "souq_ch3_intro",
@@ -380,6 +298,132 @@
    "chapter": 0,
    "tts_voice": "WcswLmU3iGeMrhxfWXKN",
    "text": "إغلاق السوق. هذا هو الشارع الذي بنتْه قراراتك."
+  },
+  {
+   "id": "day_scene_1",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Harborne is already late. Chase it, or leave it for the street."
+  },
+  {
+   "id": "day_scene_2",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Quayline's bill is due today. Pay it, or the street starts charging."
+  },
+  {
+   "id": "day_scene_3",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Harborne again. Same amount. This one lands after the week closes."
+  },
+  {
+   "id": "coldopen_zana_shark",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Heads up. Shark about — walk past him."
+  },
+  {
+   "id": "debrief_still_out",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "That money is still on the street."
+  },
+  {
+   "id": "debrief_nothing_out",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Nothing you were owed is still sitting out."
+  },
+  {
+   "id": "debrief_pair_differed",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "You deferred one and chased the other. The offers matched. Only when the money landed changed. That tilt is present bias."
+  },
+  {
+   "id": "debrief_pair_both_chased",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "You chased both. The near one and the far one were the same offer."
+  },
+  {
+   "id": "debrief_pair_both_left",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "You left both. The near one and the far one were the same offer. That tilt is present bias."
+  },
+  {
+   "id": "verdict_siki_clean",
+   "speaker": "siki",
+   "chapter": 4,
+   "text": "Your week in one line: a clean ledger — nothing leaned on you this week."
+  },
+  {
+   "id": "verdict_zana_clean",
+   "speaker": "zana",
+   "chapter": 4,
+   "text": "Run it back and see if it holds."
+  },
+  {
+   "id": "verdict_siki_anchor_uk",
+   "speaker": "siki",
+   "chapter": 4,
+   "text": "Your week in one line: their opening number moved your bottom line more than the law did."
+  },
+  {
+   "id": "verdict_zana_anchor_uk",
+   "speaker": "zana",
+   "chapter": 4,
+   "text": "Quote the Act first. Open with your number, not theirs."
+  },
+  {
+   "id": "verdict_siki_anchor_souq",
+   "speaker": "siki",
+   "chapter": 4,
+   "text": "Your week in one line: their opening number moved your bottom line more than your own terms did."
+  },
+  {
+   "id": "verdict_zana_anchor_souq",
+   "speaker": "zana",
+   "chapter": 4,
+   "text": "Open with your number, and the fee you wrote into the terms."
+  },
+  {
+   "id": "verdict_siki_sunk",
+   "speaker": "siki",
+   "chapter": 4,
+   "text": "Your week in one line: the history kept charging you after the prospect stopped paying."
+  },
+  {
+   "id": "verdict_zana_sunk",
+   "speaker": "zana",
+   "chapter": 4,
+   "text": "Decide at zero. Judge the old account like a fresh one."
+  },
+  {
+   "id": "verdict_siki_deferral",
+   "speaker": "siki",
+   "chapter": 4,
+   "text": "Your week in one line: the near cost always shouted loudest, and the far one barely whispered."
+  },
+  {
+   "id": "verdict_zana_deferral",
+   "speaker": "zana",
+   "chapter": 4,
+   "text": "Chase Tuesday's money on Tuesday."
+  },
+  {
+   "id": "anchor_static",
+   "speaker": "siki",
+   "chapter": 2,
+   "text": "Your floor moved. The invoice never did. That is anchoring."
+  },
+  {
+   "id": "welcome_siki_souq",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "I'm Siki — I keep your books. That's Zana — she chases what's owed. AED 11,520 of yours is already sleeping out on that street."
   }
  ]
 }

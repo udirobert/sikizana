@@ -20,16 +20,19 @@ import {
   ch2Prospect,
 } from "./ch2";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
-import { stallFigure } from "../ui/street";
+import { streetFocus } from "../ui/street";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 import { money, remedy, isSouq, zakatNote, SOUQ_VO } from "../engine/market";
+import { PROLOGUE_EXPERIMENT_ID } from "./ch1screen";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch2Deps {
   root: HTMLElement;
   record: (e: Omit<LedgerEntry, "id">) => void;
   pairEntries: () => LedgerEntry[]; // ch2_anchor_r* entries
+  /** Full ledger, read-only: lets the desk remember the prologue (copy only). */
+  entries?: () => readonly LedgerEntry[];
   say: (speaker: Speaker, text: string) => void;
   onTool?: (tool: "flip_the_anchor") => void;
 }
@@ -45,6 +48,7 @@ const DESK_OPENERS = [
 const gbp = (v: number) => money(v, 0);
 
 export function runChapter2(deps: Ch2Deps, seed: number): void {
+  streetFocus("recede"); // desk work: the camera racks to the table
   const { state, rng } = createCh2State(seed);
   const { root } = deps;
   clear(root);
@@ -101,8 +105,18 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     // the only number the desk puts on the table. The prospect reveals in the
     // debrief — that is what makes "the facts never moved" land.
     const prevFloor = run.run > 0 ? state.runs[(run.run - 1) as 0 | 1]?.floor ?? null : null;
+    // The desk was listening before your week began: if the Shark took his
+    // piece in the prologue, the Collector says so — text-only aside, UK
+    // path only. Copy reads the ledger; the sim never sees it.
+    const sharkTook = (deps.entries?.() ?? []).some(
+      (e) => e.experimentId === PROLOGUE_EXPERIMENT_ID && e.chosenOptionId === "take_70",
+    );
     stage.append(
       el("h3", { text: `Run ${run.run + 1} of 3` }),
+      ...(run.run === 0 && sharkTook && !isSouq() ? [el("p", {
+        class: "lm-hint",
+        text: "The Shark took his piece before your week began. The desk remembers — everybody on this street does.",
+      })] : []),
       ...(prevFloor !== null ? [el("p", {
         class: "lm-line desk",
         text: `Back. Last time your floor was ${gbp(prevFloor)} — set before their number arrived. Set it again: yours, not theirs.`,
@@ -158,28 +172,30 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     if (!canCounter) stage.append(el("p", { class: "lm-hint", text: "The desk spreads its hands. It will not move further." }));
     const underFloor = run.floor !== null && latest < run.floor;
     stage.append(
-      el("div", { class: "lm-choices" },
-        choiceButton("Accept " + gbp(latest), underFloor
-          ? `Under your floor of ${gbp(run.floor!)} — clears at their number anyway`
-          : "The invoice clears at their number", () => {
-          accept(state);
-          deps.record(ch2LedgerEntry(state, snapshot(run)));
-          nextRun();
-        }),
-        ...(canCounter
-          ? [choiceButton("Say it isn't enough", `Their ${run.counters.length === 0 ? "opening" : "last"} was ${gbp(latest)}`, () => {
-              // One explicit, visible counter move per click.
-              const moved = counterpartyCounter(state, rng);
-              if (moved !== null) roundsLoop();
-              else roundsLoop(); // their hands are up; re-render shows the note
-            })]
-          : []),
-        choiceButton("Stop work on it", run.run === 0 ? "Walk away from the desk with the invoice" : "", () => {
-          walk(state);
-          deps.record(ch2LedgerEntry(state, snapshot(run)));
-          nextRun();
-        }),
-      ),
+      ...(() => {
+          const a = choiceButton("Accept " + gbp(latest), underFloor
+            ? `Under your floor of ${gbp(run.floor!)} — clears at their number anyway`
+            : "The invoice clears at their number", () => {
+            accept(state);
+            deps.record(ch2LedgerEntry(state, snapshot(run)));
+            nextRun();
+          });
+          a.classList.add(underFloor ? "lm-choice-trap" : "lm-choice-primary");
+          const s = choiceButton("Say it isn't enough", `Their ${run.counters.length === 0 ? "opening" : "last"} was ${gbp(latest)}`, () => {
+            const moved = counterpartyCounter(state, rng);
+            if (moved !== null) roundsLoop();
+            else roundsLoop();
+          });
+          s.classList.add("lm-choice-primary");
+          const w = choiceButton("Stop work on it", run.run === 0 ? "Walk away from the desk with the invoice" : "", () => {
+            walk(state);
+            deps.record(ch2LedgerEntry(state, snapshot(run)));
+            nextRun();
+          });
+          w.classList.add("lm-choice-quiet");
+          const btns = canCounter ? [a, s, w] : [a, w];
+          return [el("div", { class: "lm-choices" }, ...btns)];
+        })(),
     );
   }
 
@@ -218,7 +234,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     clear(stage);
     renderChrome(CH2_INVOICE);
     const teaser = Math.round(CH2_INVOICE * 0.4); // fictional taste of his real offer
-    const figWrap = el("div", { class: "lm-beat-fig lm-factor-fig", "aria-hidden": "true" }, stallFigure("factor"));
+    const figWrap = el("div", { class: "lm-beat-fig lm-factor-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/factor.png", alt: "" }));
     deps.say("factor", "You look like someone who'd rather have it today.");
     stage.append(
       el("h3", { text: "The Factor — polished otter" }),
@@ -285,7 +301,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     // The Ch.3 scene treatment: figure above the card, one dominant number —
     // his buy price in ledger-green, because buying your debt IS relief
     // dressed as a trap (same staging as the Factor's beat).
-    const figWrap = el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("collector"));
+    const figWrap = el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/collector.png", alt: "" }));
     stage.append(
       el("h3", { text: "The Collector — vulture in pinstripes" }),
       figWrap,
@@ -345,7 +361,9 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       () => {
         const walked = state.runs.some((r) => r.walked);
         if (isSouq() && walked) deps.say("zana", SOUQ_VO.zakat);
-        else deps.say("siki", anchorLine);
+        // The spoken line stays static (baked); the amount lives in the card
+        // below and the run rows above — the rule, not the number, is voiced.
+        else deps.say("siki", namedFloors ? "Your floor moved. The invoice never did. That is anchoring." : anchorLine);
         stage.append(
           el("h3", { text: "The anchor" }),
           speakerPara("siki", anchorLine),

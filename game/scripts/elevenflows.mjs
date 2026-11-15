@@ -3,10 +3,12 @@
  * ElevenLabs Flows (Image & Video) client — Track B asset pipeline.
  * Async submit-and-poll; no webhook needed for batch asset work.
  *
- * Usage:
- *   node scripts/elevenflows.mjs image --model gemini-3-pro-image \
+ * Usage (models verified 2026-11-14 — Flows catalog: gpt-image-2.5-sunburst /
+ * flare, gemini-3-pro-image, gemini-3.1-flash-image (14 refs), veo-3.1 /
+ * veo-3.1-fast; ByteDance Seedream disabled by default):
+ *   node scripts/elevenflows.mjs image --model gpt-image-2.5-sunburst \
  *     --prompt "..." --ratio 16:9 --res 2K --out public/cinematic/key1.png
- *   node scripts/elevenflows.mjs video --model veo-3.1-fast-generate-001 \
+ *   node scripts/elevenflows.mjs video --model veo-3.1-generate-001 \
  *     --prompt "..." --secs 8 --ratio 16:9 --res 1080p [--audio] \
  *     [--negative "..."] [--no-enhance] \
  *     [--start-frame path.png] [--end-frame path.png] \
@@ -73,7 +75,7 @@ if (cmd === "status") {
   console.log(JSON.stringify(await api(`/v1/flows/${kind}/${id}`), null, 1));
 } else if (cmd === "image") {
   const body = {
-    model_id: opt("model", "gemini-3-pro-image"),
+    model_id: opt("model", "gpt-image-2.5-sunburst"),
     prompt: opt("prompt"),
     aspect_ratio: opt("ratio", "16:9"),
     resolution: opt("res", "2K"),

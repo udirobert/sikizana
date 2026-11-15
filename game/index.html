@@ -7,32 +7,42 @@
     <link rel="stylesheet" href="/src/styles/tokens.css" />
   </head>
   <body>
-    <!-- The market never leaves: the night-market painting is a persistent
-         dimmed backdrop behind EVERY chapter, so Ch.2/Ch.3 live in the same
-         place as Ch.1 instead of clearing back to a bare form. -->
-    <img id="market-bg" class="lm-market-bg" src="/src/assets/market-bg.png" alt="" aria-hidden="true" />
+    <!-- The market never leaves: three painted panoramas (dusk → deep
+         night → pre-dawn) crossfade on the real day counter, so the week
+         visibly moves through the night behind EVERY chapter. -->
+    <div id="market-bg" class="lm-market-bg" aria-hidden="true">
+      <img class="lm-bg-layer is-on" src="/assets/market-bg-dusk.jpg" alt="" />
+      <img class="lm-bg-layer" src="/assets/market-bg-night.jpg" alt="" />
+      <img class="lm-bg-layer" src="/assets/market-bg-dawn.jpg" alt="" />
+    </div>
+    <!-- Legibility scrim: the painting is now visible enough to be a place,
+         so a soft vignette keeps the ledger panels readable over it. -->
+    <div class="lm-scrim" aria-hidden="true"></div>
     <!-- Start overlay is our own audio-unlock surface: itch.io's launch click
          does NOT unlock Web Audio inside the iframe (GDD App.C). -->
     <div id="start" role="dialog" aria-labelledby="start-title">
-      <img class="lm-title-art" src="/src/assets/cover.png" alt="The Late Market — a night market street with lanterns, Siki and Zana at a stall, and three stallholders keeping their books" />
+      <!-- Poster scene: the painted dusk market with the Duo composited
+           front-and-centre — they ARE the key art, not figures in it. -->
+      <div class="lm-title-scene" aria-hidden="true">
+        <img class="lm-title-bg" src="/assets/market-bg-dusk.jpg" alt="" />
+        <img class="lm-title-duo lm-title-siki" src="/assets/sprites/siki.png" alt="" />
+        <img class="lm-title-duo lm-title-zana" src="/assets/sprites/zana.png" alt="" />
+      </div>
       <div class="lm-title-panel">
-        <h1 id="start-title">Siki &amp; Zana: The Late Market</h1>
+        <h1 id="start-title">Siki <span class="lm-title-amp">&amp;</span> Zana</h1>
+        <p class="lm-title-sub">The Late Market</p>
         <p class="lm-title-tag">A night market opens where your uncollected invoices sleep.</p>
         <div class="lm-title-actions">
           <button id="start-btn" type="button">▶ Begin — sound on</button>
-          <button id="start-muted" type="button">Begin — silent first</button>
+          <button id="start-muted" type="button" class="lm-title-quiet">Begin — silent first</button>
         </div>
         <p class="lm-title-keys">One hand is enough: <kbd>1</kbd>–<kbd>3</kbd> choose, <kbd>Enter</kbd> continues. Clicking works too.</p>
-        <!-- Two markets, two lawful remedies. The Gulf run is not the UK run
-             with a different symbol: there the late-payment charge is the
-             contractual fee you agreed to, not statutory interest. -->
-        <fieldset class="lm-market-pick">
-          <legend>Which market?</legend>
-          <label><input type="radio" name="market" value="uk" checked /> UK — pounds, statutory interest</label>
-          <label><input type="radio" name="market" value="souq" /> Gulf — AED, contractual late fee</label>
-        </fieldset>
-        <details id="opts">
-          <summary>Options</summary>
+        <!-- Everything else lives behind one disclosure: the title makes a
+             promise, the market doors deliver it as the first beat. The
+             radios here are a default-market setting for returning players;
+             first-run picks still go through the painted door cards. -->
+        <details id="opts" class="lm-title-options">
+          <summary>⚙ Options</summary>
           <div class="lm-title-opts">
             <label><input type="checkbox" id="opt-sound" checked /> Sound</label>
             <label><input type="checkbox" id="opt-music" checked /> Music bed</label>
@@ -44,9 +54,14 @@
               </select>
             </label>
             <label><input type="checkbox" id="opt-simplelang" /> Simple language</label>
+            <fieldset class="lm-market-pick lm-market-switch">
+              <legend>Market</legend>
+              <label><input type="radio" name="market" value="uk" checked /> UK — pounds, statutory interest</label>
+              <label><input type="radio" name="market" value="souq" /> Gulf — AED, contractual late fee</label>
+            </fieldset>
+            <button id="purge-save" type="button" class="lm-title-erase">Erase my saved progress</button>
           </div>
         </details>
-        <button id="purge-save" type="button" class="lm-title-erase">Erase my saved progress</button>
       </div>
     </div>
     <main id="game" hidden></main>

@@ -13,6 +13,7 @@
  * both saying the same thing (recovery plan §2.3).
  */
 import { el, clear, choiceButton } from "../ui/dom";
+import { streetFocus } from "../ui/street";
 import { speakerPara } from "../ui/characters";
 import {
   BILL,
@@ -58,6 +59,10 @@ export interface Ch1Deps {
   /** Street-moving events that don't create ledger entries. `flair` is a
    *  cosmetic-only pulse — it must never feed street counters. */
   noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number }) => void;
+  /** One line of street world-texture per day (flavour only — no mechanics). */
+  whisper?: (text: string) => void;
+  /** Day counter → the street scene's dusk→dawn grade (presentation only). */
+  sceneDay?: (day: number) => void;
   /** True once the prologue offer has a ledger entry — a player who chose
    *  but closed before Day 1 must not be offered it twice. */
   prologueSettled?: () => boolean;
@@ -67,15 +72,17 @@ const gbp = (v: number) => money(v, 2);
 const gbp0 = (v: number) => money(v, 0);
 
 export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null = null): void {
+  streetFocus("full"); // the stall chapter keeps the street in focus
   const state = saved ?? createCh1State(seed).state;
   const root = deps.root;
   clear(root);
 
   const lantern = el("div", { class: "lm-lantern", "aria-live": "polite", text: "" });
-  const till = el("div", { class: "lm-till", "aria-live": "polite" });
+  const till = el("div", { class: "lm-till lm-till-top", "aria-live": "polite" });
   const ledgerStrip = el("details", { class: "lm-ledger" });
   const dayPanel = el("div", { class: "lm-day" });
-  root.append(dayPanel, till, ledgerStrip, lantern);
+  // Till first: the money is the first viewport, choices second, ledger last.
+  root.append(till, dayPanel, ledgerStrip, lantern);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // ── Till delight: count-up tween + lantern pulse (display-only; the sim
@@ -149,6 +156,16 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       el("span", { class: "lm-till-line-label", text: "In hand" }),
       netVal));
     till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), tillGrid);
+    // The week's most-watched number reports its own movement.
+    const netDelta = net - fromNet;
+    if (netDelta !== 0 && !reducedMotion) {
+      const chip = el("span", {
+        class: `lm-till-delta ${netDelta > 0 ? "up" : "down"}`,
+        text: `${netDelta > 0 ? "+" : "−"}${gbp(Math.abs(netDelta))}`,
+      });
+      chip.addEventListener("animationend", () => chip.remove());
+      till.append(chip);
+    }
     if (net < 0) {
       till.append(el("span", { class: "lm-till-warn", text: "▼ in hand runs red" }));
     }
@@ -223,6 +240,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   intro();
 
+  /** Austerity cold open: before Day 1 the street is a place, not an
+   *  instrument — the Pixi scene still renders, but the ledger chrome
+   *  (tally, Details, inspect, stall captions) stays hidden until money
+   *  can actually move. Progressive disclosure: nothing on screen that
+   *  can't act yet. */
+  function streetAusterity(pre: boolean): void {
+    document.getElementById("street-slot")?.classList.toggle("lm-street-pre", pre);
+  }
+
   function intro(): void {
     const resuming = saved !== null && saved.day > 1;
     // The cold open: minute one is a scene, not a ledger. The Shark walks
@@ -231,6 +257,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     // chrome stays unrendered until the shutters open (resuming players,
     // who have seen it, go straight to the counter).
     if (!resuming) return coldOpen();
+    streetAusterity(false); // a returning run is already inside the ledger era
     deps.say("siki", `The shutters were left open. Day ${state.day} of ${CH1_DAYS} — the books remember where you stopped.`);
     clear(dayPanel);
     dayPanel.append(
@@ -244,6 +271,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   }
 
   function coldOpen(): void {
+    streetAusterity(true);
     deps.say("zana", "Heads up. Shark about — walk past him.");
     // The books don't exist yet dramatically — hide the empty chrome so the
     // first viewport is street, teeth, and the choice.
@@ -258,11 +286,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     dayPanel.append(
       speakerPara("shark", "Nice stall. Everybody pays the street eventually — cash now, or a little each day."),
       speakerPara("zana", "That's the Shark. He prices patience by the day."),
-      el("div", { class: "lm-choices" },
-        choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take")),
-        choiceButton("Refuse", "Keep the debt. The street keeps its own books", () => prologuePick("refuse")),
-        choiceButton("Counter — 85%", "He will say no. Watch.", () => prologuePick("counter")),
-      ),
+      ...(() => {
+        const take = choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take"));
+        take.classList.add("lm-choice-trap");
+        const refuse = choiceButton("Refuse", "Keep the debt. The street keeps its own books", () => prologuePick("refuse"));
+        refuse.classList.add("lm-choice-primary");
+        const counter = choiceButton("Counter — 85%", "He will say no. Watch.", () => prologuePick("counter"));
+        counter.classList.add("lm-choice-quiet");
+        return [el("div", { class: "lm-choices" }, take, refuse, counter)];
+      })(),
     );
     // The offer itself is the voiced beat — the bubble IS the presentation.
     deps.say("shark", SHARK_PROLOGUE.offer);
@@ -306,6 +338,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   }
 
   function shutters(): void {
+    streetAusterity(true); // still pre-ledger: the offer is a scene, not a book
     clear(dayPanel);
     dayPanel.append(
       el("h3", { text: "Night. The Late Market." }),
@@ -326,11 +359,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       .filter((i) => i.paidDay === day)
       .reduce((sum, i) => sum + i.principal, 0);
     switch (day) {
-      case 1: return `Harborne, ${money(2400)}, already late. Chase it and the money is here tomorrow.`;
+      case 1: return `Harborne ${money(2400)} — chase: here tomorrow.`;
       case 2: return landing > 0
-        ? `Harborne's ${money(landing)} lands this morning. Quayline's bill is due.`
-        : `Quayline's bill is due. In hand: ${gbp(netPosition(state))}.`;
-      case 3: return `Last day. Harborne again — ${money(2400)}. This one lands after the week closes.`;
+        ? `${money(landing)} landed. Quayline ${money(2000)} due today.`
+        : `Quayline ${money(2000)} due today. In hand: ${gbp(netPosition(state))}.`;
+      case 3: return `Last: Harborne ${money(2400)} again — lands after close.`;
       default: return "The week closes.";
     }
   }
@@ -354,12 +387,26 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     window.setTimeout(() => { veil.remove(); next(); }, 640);
   }
 
+  /** The night deepens across the week — the backdrop tint shifts a step
+   *  per day so the close feels earned, not just labelled. */
+  const DAY_TINTS = ["#141428", "#171230", "#1b0e2c"] as const;
+  /** One whisper per day: the street keeps living while you decide. */
+  const DAY_WHISPERS = [
+    "The Factor was seen at the north gate, counting other people's days.",
+    "Someone's awning is still warm. Nobody knows whose.",
+    "The Collector counts money that isn't his. He sleeps fine.",
+  ] as const;
+
   function showDay(): void {
     if (state.done) return debrief();
+    streetAusterity(false); // Day 1: the ledger chrome arrives with the money
     const day = state.day;
+    document.documentElement.style.setProperty("--lm-bg-deep", DAY_TINTS[day - 1] ?? DAY_TINTS[0]);
+    deps.whisper?.(DAY_WHISPERS[(day - 1) % DAY_WHISPERS.length]!);
+    deps.sceneDay?.(day);
     lantern.hidden = false; till.hidden = false; ledgerStrip.hidden = false;
     renderChrome();
-    root.append(dayPanel, till, ledgerStrip, lantern);
+    root.append(till, dayPanel, ledgerStrip, lantern);
     const choices = dayChoices(state, day);
     const scene = DAY_SCENE[day];
     // Souq day 1 gets its own cold-open line (the baked AR take carries
@@ -372,7 +419,18 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         `Day ${day} of ${CH1_DAYS}`, weekDots(day)),
       el("p", { class: "lm-hint", text: dayHint(day) }),
       el("div", { class: "lm-choices" },
-        ...choices.map((c) => choiceButton(c.label, c.detail, () => pick(c.id))),
+        ...choices.map((c) => {
+          const b = choiceButton(c.label, c.detail, () => pick(c.id));
+          // The engine's own kind rides the card — hover reveals what kind
+          // of move this is (real data, not invented framing).
+          b.classList.add(`lm-kind-${c.kind}`);
+          // Visual weight: primary moves the till, traps feed the street,
+          // easy work is deliberately quiet.
+          if (c.kind === "chase" || c.kind === "pay_bill") b.classList.add("lm-choice-primary");
+          else if (c.kind === "defer" || c.kind === "skip_bill") b.classList.add("lm-choice-trap");
+          else b.classList.add("lm-choice-quiet");
+          return b;
+        }),
       ),
     );
   }
@@ -410,7 +468,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function finishDay(effects: DayEffect): void {
     clear(root); // re-render chrome with a pop on the till
-    root.append(dayPanel, till, ledgerStrip, lantern);
+    root.append(till, dayPanel, ledgerStrip, lantern);
     const day = effects.day;
     renderChrome(true);
     // Money actually landed in the till today (a chase cleared, or trade came
@@ -427,10 +485,20 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       ? (effects.cashDelta > 0 ? `+${gbp(effects.cashDelta)}` : `−${gbp(-effects.cashDelta)}`)
       : null;
     if (streetBeat) {
-      dayPanel.append(
-        el("h3", { text: effects.streetNote === "bill_skipped" ? "The bill stays." : "You left it." }),
-        ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: gbp(streetFigure) })] : []),
+      // Compact street beat: the art carries the beat (painterly standard,
+      // same left-object grammar as the market pick), the figure sits
+      // beside the title — not stacked above it — so the beat fits one
+      // viewport with the till on screen.
+      const beatArt = effects.streetNote === "bill_skipped" ? "assets/sprites/parchment.png" : "assets/sprites/factor.png";
+      dayPanel.classList.add("lm-street-beat");
+      const head = el("div", { class: "lm-beat-head" },
+        el("img", { class: "lm-beat-art", src: beatArt, alt: "", "aria-hidden": "true" }),
+        el("div", { class: "lm-beat-titles" },
+          el("h3", { text: effects.streetNote === "bill_skipped" ? "The bill stays." : "You left it." }),
+          ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: gbp(streetFigure) })] : []),
+        ),
       );
+      dayPanel.append(head);
     } else {
       const log = el("ul", { class: "lm-day-log" });
       for (const l of effects.lines) log.append(el("li", { text: l }));
@@ -482,8 +550,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
             ? "You left both. The near one and the far one were the same offer. That tilt is present bias."
             : "";
       if (name) deps.say("siki", name);
+      dayPanel.classList.add("lm-debrief");
       dayPanel.append(
-        el("h3", { text: "Two prices for one wait" }),
+        el("div", { class: "lm-beat-head" },
+          el("img", { class: "lm-beat-art", src: "assets/sprites/siki.png", alt: "", "aria-hidden": "true" }),
+          el("div", { class: "lm-beat-titles" },
+            el("h3", { text: "Two prices, one wait" }),
+            el("p", { class: "lm-take", text: gbp0(statutoryFloor) }),
+          ),
+        ),
         speakerPara("siki", price),
         ...(state.endedEarly === "till_empty"
           ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
@@ -495,18 +570,24 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     }
 
     clear(dayPanel);
+    dayPanel.classList.add("lm-debrief");
     const takenLine = stillOut > 0
       ? `${gbp0(stillOut)} is still on the street.`
       : "Nothing you were owed is still sitting out.";
     deps.say("siki", stillOut > 0 ? "That money is still on the street." : takenLine);
     const rows = entries.map((e) => {
       const verb = e.chosenOptionId === "chase_now" ? "chased" : "left it";
-      return el("p", { text: `Day ${e.day}: ${verb}` });
+      return el("li", { class: `lm-debrief-chip${verb === "chased" ? " is-home" : ""}`, text: `Day ${e.day} · ${verb}` });
     });
     dayPanel.append(
-      el("h3", { text: "Still on the street" }),
-      el("p", { class: "lm-take", text: gbp0(stillOut) }),
-      ...(rows.length ? [el("div", { class: "lm-surface" }, ...rows)] : []),
+      el("div", { class: "lm-beat-head" },
+        el("img", { class: "lm-beat-art", src: "assets/sprites/awning.png", alt: "", "aria-hidden": "true" }),
+        el("div", { class: "lm-beat-titles" },
+          el("h3", { text: "Still on the street" }),
+          el("p", { class: "lm-take", text: gbp0(stillOut) }),
+        ),
+      ),
+      ...(rows.length ? [el("ul", { class: "lm-debrief-chips" }, ...rows)] : []),
       el("div", { class: "lm-choices" },
         choiceButton("The two prices", "", beatPrices),
       ),

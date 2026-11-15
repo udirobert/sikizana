@@ -50,14 +50,14 @@ await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 860, dev
 await send("Page.navigate", { url: `http://127.0.0.1:${PORT}/` });
 await new Promise((r) => setTimeout(r, 1500));
 
-const before = await evalJs(`JSON.stringify({ art: !!document.querySelector(".lm-title-art"), panel: !!document.querySelector(".lm-title-panel"), startHidden: document.getElementById("start").hidden })`);
+const before = await evalJs(`JSON.stringify({ art: !!document.querySelector(".lm-title-scene"), duo: document.querySelectorAll(".lm-title-duo").length, panel: !!document.querySelector(".lm-title-panel"), startHidden: document.getElementById("start").hidden })`);
 console.log("title state:", before);
 
 await evalJs(`document.getElementById("start-btn").click()`);
 await new Promise((r) => setTimeout(r, 600));
 // The art is hidden via display:none on #start (it is not removed from the
 // DOM), so assert layout-visibility: zero box, not DOM absence.
-const after = await evalJs(`JSON.stringify({ startHidden: document.getElementById("start").hidden, artBox: (() => { const a = document.querySelector(".lm-title-art"); return a ? a.getBoundingClientRect() : null; })(), gameVisible: !document.getElementById("game").hidden, dayHeading: document.querySelector("#ch1 h3")?.textContent })`);
+const after = await evalJs(`JSON.stringify({ startHidden: document.getElementById("start").hidden, artBox: (() => { const a = document.querySelector(".lm-title-scene"); return a ? a.getBoundingClientRect() : null; })(), gameVisible: !document.getElementById("game").hidden, dayHeading: document.querySelector("#ch1 h3")?.textContent })`);
 console.log("after begin:", after);
 const a = JSON.parse(after);
 const artHidden = a.artBox === null || (a.artBox.width === 0 && a.artBox.height === 0);

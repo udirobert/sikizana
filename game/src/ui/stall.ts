@@ -56,8 +56,20 @@ export function renderTill(container: HTMLElement, v: TillView): void {
   num.className = `lm-till-num${v.pop ? " lm-pop" : ""}`;
   const from = lastDrawn.get(container);
   lastDrawn.set(container, v.value);
-  const tween = from !== undefined && from !== v.value && !prefersReducedMotion();
+  const changed = from !== undefined && from !== v.value;
+  const tween = changed && !prefersReducedMotion();
   num.textContent = money(tween ? from : v.value, decimals);
+  // The delta chip: the ledger's movement, signed, floated off the number.
+  // Reduced-motion users still get the number — just without the float.
+  if (changed && !prefersReducedMotion()) {
+    const delta = v.value - from;
+    const chip = el("span", {
+      class: `lm-till-delta ${delta >= 0 ? "up" : "down"}`,
+      text: `${delta >= 0 ? "+" : "−"}${money(Math.abs(delta), decimals)}`,
+    });
+    chip.addEventListener("animationend", () => chip.remove());
+    wrap.append(chip);
+  }
   if (tween) {
     const t0 = performance.now();
     const step = (t: number) => {

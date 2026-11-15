@@ -135,8 +135,8 @@ read (workspace Siki voice per v1 convention — blind to the frame, per the
 - **Door:** verdict screen → the finale CTA card (product link). Do NOT show
   the URL resolving — the link opening the real product is a post-jam beat;
   for the trailer, hold on the card.
-- **End card:** cover + title + disclosure line ("Voices: ElevenLabs ·
-  illustration: Recraft · made for Zoud GameLab").
+- **End card:** cover + title + disclosure line ("Voices: ElevenLabs eleven_v4 ·
+  illustration: GPT Image 2.5 Sunburst / Nano Banana 2.1 via fal (cover base: Recraft V4.1 Vector) · made for Zoud GameLab").
 
 ## Rules
 

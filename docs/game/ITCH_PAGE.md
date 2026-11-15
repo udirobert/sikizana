@@ -52,11 +52,21 @@ free ladder (Zana's reminders) always collects for free.
   respected, colourblind-safe by construction (state is never colour-alone)
 - Made with pre-baked AI voiceover (ElevenLabs) and original music bed
 
-## Cover / screenshots
-- Cover: `docs/game/cover.html` (630×500)
-- Screenshots: `game/screenshots/v9/` — prefer `v3_market_pick` (chalkboard
-  vs lantern tag — the two markets as two objects), `v3_shark_offer` (the
-  prologue decision, Shark portrait), `v3_day1_stall` (the street lit,
-  paper-tag choices), `v3_debrief_named`, `v3_finale_cost` (the bill)
-- Video: record from `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s). No finished
-  cut exists yet — the old mp4s were deleted 2026-11-14.
+## Cover / screenshots (lead order matters — best-practice 2026-11-15)
+- Cover: `game/cover/cover_630x500.png` (630×500, reads at thumbnail)
+- Screenshots: `game/screenshots/v3_*.png` — LEAD with these three in order:
+  1. `v3_market_pick` (premise in one glance: two objects, two laws)
+  2. `v3_shark_offer` (decision + face — the hook)
+  3. `v3_day1_stall` (consequence — lit street, paper-tag choices)
+  Then `v3_debrief_named`, `v3_finale_cost`. Never lead with menus.
+  Full set: re-shoot with `node scripts/record-run.mjs --mode shots --gpu`.
+- GIFs in description body (a good GIF sells the game by itself):
+  `game/out/gif-zana.gif` + `game/out/gif-souq.gif` (3 s, 480px).
+- Video: `game/out/trailer.mp4` (61 s cinematic cut). Gameplay cut per
+  `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s) — see `docs/game/ITCH_BEST_PRACTICES.md`.
+
+## Page theme (match the game — featured pages always do)
+- Background: `#141428` (indigo night), text `#f2efe6`, links `#ffb454`.
+- Single column (HTML5 embed hides screenshot column — embed images in body).
+- Embed: 1280×860. Price: free. Embeddable: on. Mobile Friendly: OFF
+  until a phone playtest. Visibility: PRIVATE for Zoud, public for Chroma.

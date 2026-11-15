@@ -4,7 +4,7 @@
  */
 import { el, clear, choiceButton } from "../ui/dom";
 import { speakerPara } from "../ui/characters";
-import { stallFigure } from "../ui/street";
+import { streetFocus } from "../ui/street";
 import {
   CH3_CLIENT,
   CH3_INVOICE,
@@ -21,11 +21,14 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import type { LedgerEntry } from "../engine/ledger";
 import { money, isSouq, SOUQ_VO } from "../engine/market";
+import { PROLOGUE_EXPERIMENT_ID } from "./ch1screen";
 import type { Speaker } from "../audio/voice";
 
 export interface Ch3Deps {
   root: HTMLElement;
   record: (e: Omit<LedgerEntry, "id">) => void;
+  /** Full ledger, read-only: the street remembers the prologue + teaser. */
+  entries?: () => readonly LedgerEntry[];
   say: (speaker: Speaker, text: string) => void;
   onTool?: (tool: "decide_at_zero") => void;
 }
@@ -40,6 +43,7 @@ const ROUND_SILENCE = [
 const gbp = (v: number) => money(v, 0);
 
 export function runChapter3(deps: Ch3Deps): void {
+  streetFocus("full"); // the street's offers are the subject again
   const state: Ch3State = createCh3State();
   const { root } = deps;
   clear(root);
@@ -119,6 +123,24 @@ export function runChapter3(deps: Ch3Deps): void {
     factorBeat();
   }
 
+  /** What the street remembers about this player (UK path only — copy, never sim). */
+  function streetMemory(): { factorHint: string | null; sharkHint: string | null } {
+    if (isSouq()) return { factorHint: null, sharkHint: null };
+    const all = deps.entries?.() ?? [];
+    const teaser = all.find((e) => e.experimentId === "factor_teaser");
+    const prologue = all.find((e) => e.experimentId === PROLOGUE_EXPERIMENT_ID);
+    return {
+      factorHint: teaser?.chosenOptionId === "take"
+        ? "You paid him for impatience once already this week. He knows."
+        : teaser?.chosenOptionId === "wave_off"
+          ? "You waved him off mid-week. He kept the smile. The number didn't move."
+          : null,
+      sharkHint: !prologue ? null : prologue.chosenOptionId === "take_70"
+        ? "He remembers the old debt. Act like it."
+        : "You left his money on the table once. He remembers that too.",
+    };
+  }
+
   function factorBeat(): void {
     const o = streetOffers();
     clear(stage);
@@ -136,10 +158,11 @@ export function runChapter3(deps: Ch3Deps): void {
     // money TODAY, so it lands in ledger-green — the trap dressed as relief.
     stage.append(
       el("h3", { text: "The Factor — polished otter" }),
-      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("factor")),
+      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/factor.png", alt: "" })),
       el("div", { class: "lm-surface lm-factor" },
         el("p", { class: "lm-factor-today", text: `${gbp(o.factor.buyPrice)} today` }),
         el("p", { class: "lm-hint", text: "the rest of the invoice is theirs" }),
+        ...(streetMemory().factorHint ? [el("p", { class: "lm-hint", text: streetMemory().factorHint! })] : []),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
@@ -164,11 +187,12 @@ export function runChapter3(deps: Ch3Deps): void {
     // number. The daily figure is the whole trap, so it gets the whole card.
     stage.append(
       el("h3", { text: "The Shark — smiling fish" }),
-      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, stallFigure("shark")),
+      el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/shark.png", alt: "" })),
       el("div", { class: "lm-surface lm-shark" },
         el("p", { class: "lm-shark-now", text: `${gbp(o.shark.cashNow)} now` }),
         el("p", { class: "lm-shark-daily", text: `then just £${o.shark.daily} a day` }),
         el("p", { class: "lm-hint", text: "the daily number is the whole offer" }),
+        ...(streetMemory().sharkHint ? [el("p", { class: "lm-hint", text: streetMemory().sharkHint! })] : []),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
