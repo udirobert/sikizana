@@ -369,7 +369,11 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
       );
     }
     if (state.done) {
-      if (state.endedEarly === "till_empty") deps.say("zana", "The till ran empty. That is the price of leaving the bill.");
+      // The death lands here too: the street dims behind the read-back.
+      if (state.endedEarly === "till_empty") {
+        root.classList.add("lm-week-dead");
+        deps.say("zana", "The till ran empty. That is the price of leaving the bill.");
+      }
       dayPanel.append(
         el("div", { class: "lm-choices" },
           choiceButton("Read the week back", state.endedEarly === "till_empty" ? "The till ran empty" : "The week is over", () => summary()),

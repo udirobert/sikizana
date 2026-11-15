@@ -1523,7 +1523,8 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
    empty wooden band above the real one). */
 #street-slot.lm-street-hidden { display: none }
 
-#street-slot.lm-street-compact .lm-street-stalls--scene { height: 132px }#street-slot.lm-street-compact .lm-street-stalls { height: 132px }
+#street-slot.lm-street-compact .lm-street-stalls--scene { height: 118px }
+#street-slot.lm-street-compact .lm-street-stalls { height: 118px }
 #street-slot.lm-street-compact #counter-rail .lm-street-meta {
   flex-direction: row; justify-content: center; align-items: baseline;
   gap: 0.9rem; padding-block: 0.12rem; flex-wrap: wrap;
@@ -1567,3 +1568,57 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
 #ch1.lm-beat-compact { padding-bottom: 0.6rem; }
 #street-slot.lm-street-compact #counter-rail .lm-street-meta { gap: 0.7rem; }
 #street-slot.lm-street-compact #counter-rail .lm-street-tally { padding: 0; }
+
+/* ── Fun pass (Nov 2026): the machine reacts ─────────────────────────
+   Clean-run gold, till-death dim + shudder, fate discs, ambient drift.
+   All stateless classes; all honour prefers-reduced-motion. */
+/* The clean run: the whole street warms gold behind the debrief. */
+.lm-clean-run #street-slot { filter: sepia(0.35) saturate(1.5) brightness(1.12); transition: filter 1.2s ease-out }
+.lm-clean-run .lm-till { box-shadow: 0 0 22px rgba(224, 181, 84, 0.45); border-color: var(--lm-gold, #e0b354) }
+/* The death: the street gutters out; the till shudders once. */
+.lm-week-dead #street-slot { filter: grayscale(0.65) brightness(0.65); transition: filter 1.2s ease-out }
+.lm-week-dead .lm-stall { opacity: 0.22 }
+.lm-till-shudder { animation: lm-till-shudder 900ms ease-out }
+@keyframes lm-till-shudder {
+  0% { transform: translateX(0) }
+  15% { transform: translateX(-6px) }
+  35% { transform: translateX(5px) }
+  55% { transform: translateX(-3px) }
+  75% { transform: translateX(2px) }
+  100% { transform: translateX(0) }
+}
+/* Fate discs: the coin and the die get one big turning face. */
+.lm-fate {
+  width: 3.2em; height: 3.2em; margin: 0.6rem auto; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.3em; font-weight: 700;
+  color: var(--lm-amber); border: 2px solid var(--lm-amber);
+  background: radial-gradient(circle at 35% 30%, rgba(224, 181, 84, 0.25), rgba(10, 8, 24, 0.6));
+  animation: lm-fate-spin 1.2s ease-in-out;
+}
+@keyframes lm-fate-spin {
+  0% { transform: rotateY(0) scale(0.8); opacity: 0.4 }
+  30% { opacity: 1 }
+  100% { transform: rotateY(720deg) scale(1); opacity: 1 }
+}
+/* Ambient drift: two dust-motes cross the street on a slow loop — pure
+   texture, no text (nothing for screen readers to meet), pointer-transparent. */
+#street-slot::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgba(224, 181, 84, 0.5) 1.5px, transparent 2px),
+    radial-gradient(circle, rgba(139, 134, 184, 0.45) 1.5px, transparent 2px);
+  background-size: 340px 120px, 260px 140px;
+  background-repeat: repeat;
+  animation: lm-drift 46s linear infinite;
+  opacity: 0.55;
+}
+@keyframes lm-drift {
+  0% { background-position: 0 0, 0 0 }
+  100% { background-position: 340px 24px, -260px -18px }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-clean-run #street-slot, .lm-week-dead #street-slot { transition: none }
+  .lm-till-shudder, .lm-fate { animation: none }
+  #street-slot::before { animation: none; opacity: 0.3 }
+}

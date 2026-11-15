@@ -7,6 +7,10 @@ import {
   ch3Prospect,
   streetOffers,
   streetLedgerEntry,
+  sharkFlipTerms,
+  haggleOutcome,
+  haggledBuyPrice,
+  sharkBloodPrice,
   assumptionsLine,
 } from "../src/chapters/ch3";
 
@@ -61,6 +65,25 @@ describe("ch3 sunk-cost rig", () => {
     expect(e.npc?.feePaid).toBe(fee);
     expect(e.experimentId).toBe("ch3_street_factor");
     expect(streetLedgerEntry("The Shark", 0, false).npc?.feePaid ?? 0).toBe(0);
+  });
+
+  it("double-or-nothing prices both landings: heads doubles, tails zeroes, daily stands", () => {
+    const o = streetOffers();
+    const t = sharkFlipTerms(o.shark.cashNow, o.shark.daily, o.shark.termDays);
+    expect(t.winCashNow).toBe(o.shark.cashNow * 2);
+    expect(t.loseCashNow).toBe(0);
+    expect(t.winFee).toBe(Math.max(0, Math.round(o.shark.termDays * o.shark.daily - o.shark.cashNow * 2)));
+    expect(t.loseFee).toBe(Math.round(o.shark.termDays * o.shark.daily));
+    expect(t.loseFee).toBeGreaterThanOrEqual(t.winFee);
+  });
+
+  it("haggle: 4+ nods at +8%, 3 or less walks and bloods the Shark's advance", () => {
+    expect(haggleOutcome(3)).toBe("walk");
+    expect(haggleOutcome(4)).toBe("nod");
+    expect(haggleOutcome(6)).toBe("nod");
+    expect(haggledBuyPrice(1000)).toBe(1080);
+    const o = streetOffers();
+    expect(sharkBloodPrice(o.shark.cashNow)).toBeLessThan(o.shark.cashNow);
   });
 
   it("assumptions line cites the Act and round numbers", () => {

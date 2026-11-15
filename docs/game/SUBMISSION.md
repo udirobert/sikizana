@@ -27,7 +27,7 @@ one closing paragraph of the pitch, not the pitch.
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 202 files · top-level `index.html` · relative paths · audio + cinematic included · 45 MB (rebuilt 2026-11-15 ~19:48 UTC via `build-itch.mjs`, incl. consequence pass, owl Zana, council-speaks-from-seat, day tiles, the souq prologue-council dirham fix, and the debrief-flip deduction questions) |
+| itch.zip | `game/dist/itch.zip` | 202 files · top-level `index.html` · relative paths · audio + cinematic included · 45 MB (rebuilt 2026-11-15 ~21:15 UTC via `build-itch.mjs`, incl. consequence pass, owl Zana, council-speaks-from-seat, day tiles, the souq prologue-council dirham fix, the debrief-flip deduction questions, and the fun pass: clean-run gold, till-death beat, NPC taunts, Shark double-or-nothing, Factor haggle, ambient drift) |
 | Gameplay video | `game/out/trailer-final.mp4` | **FINAL — ready for upload.** 86 s narrated cut per `TRAILER_SCRIPT.md` v3 (`record-run.mjs --seg v3` + souq still beat + painted end card): prologue offer → day-1 defer → day-2 bill → the Souq frame (dirhams + zakat) → debrief → owl end card with the AI-disclosure credit line. Six baked Siki narration takes (`out/trailer-vo/tr3_*.mp3`, re-mixed at scene-mapped offsets) over the game's own market-music bed. Supersedes `gameplay-cut.mp4` (silent draft) and `trailer.mp4` (61 s, dog-era). |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
 | Trailer end card | `game/out/trailer-painted-end-owl.png` | Painted end card re-generated with the owl Zana (the old card still showed the dog); discloses "Voices: ElevenLabs eleven-v4. Made for Zoud GameLab." |

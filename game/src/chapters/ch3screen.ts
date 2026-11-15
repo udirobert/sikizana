@@ -17,6 +17,10 @@ import {
   ch3LedgerEntry,
   streetOffers,
   streetLedgerEntry,
+  sharkFlipTerms,
+  haggleOutcome,
+  haggledBuyPrice,
+  sharkBloodPrice,
   Ch3State,
 } from "./ch3";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
@@ -43,6 +47,21 @@ const ROUND_SILENCE = [
 ];
 
 const gbp = (v: number) => money(v, 0);
+
+/** A visible moment of chance: the disc turns through its faces, then the
+ *  caller reveals the landing. Display-only suspense — the sim prices both
+ *  landings up front, so the animation can never move money. Reduced-motion
+ *  gets the landing with no spin. */
+function fateRoll(faces: string[], ms: number, done: (face: string) => void): HTMLElement {
+  const disc = el("div", { class: "lm-fate", "aria-hidden": "true", text: faces[0]! });
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const land = (): void => done(faces[Math.floor(Math.random() * faces.length)]!);
+  if (still || faces.length < 2) { window.setTimeout(land, 0); return disc; }
+  let i = 0;
+  const tick = window.setInterval(() => { i = (i + 1) % faces.length; disc.textContent = faces[i]!; }, 90);
+  window.setTimeout(() => { window.clearInterval(tick); land(); }, ms);
+  return disc;
+}
 
 export function runChapter3(deps: Ch3Deps): void {
   streetFocus("full"); // the street's offers are the subject again
@@ -148,6 +167,52 @@ export function runChapter3(deps: Ch3Deps): void {
   function factorBeat(): void {
     const o = streetOffers();
     clear(stage);
+    /** One counter only: the die decides, the door remembers. A nod clears
+     *  today at +8%; a walk shuts the Factor's door and the Shark smells
+     *  blood (his advance shrinks). The button is gone once pushed. */
+    function pushHim(): void {
+      const row = stage.querySelector(".lm-choices");
+      if (!(row instanceof HTMLElement)) return;
+      clear(row);
+      row.append(
+        el("p", { class: "lm-hint", text: "The die is on the table — one throw, no appeals." }),
+        fateRoll(["1", "2", "3", "4", "5", "6"], 1100, (face) => {
+          const haggled: Omit<LedgerEntry, "id"> = {
+            ...streetLedgerEntry("The Factor", 0, false),
+            optionsShown: [...streetLedgerEntry("The Factor", 0, false).optionsShown,
+              { id: "haggle", label: "Push him — one counter", framingVariable: "street_factor_haggle", isDefault: false }],
+          };
+          if (haggleOutcome(Number(face)) === "nod") {
+            const price = haggledBuyPrice(streetOffers().factor.buyPrice);
+            state.factorHaggle = "nod";
+            deps.record({
+              ...haggled,
+              npc: { npc: "The Factor", decision: "accept", feePaid: CH3_INVOICE - price },
+              chosenOptionId: "accept",
+              immediateConsequence: `Pushed once and he nodded — cleared today at ${gbp(price)}.`,
+            });
+            clear(stage);
+            stage.append(
+              speakerPara("factor", "Bold. Lucky. Paid — never push twice."),
+              el("p", { class: "lm-take", text: `${gbp(price)} today` }),
+              el("div", { class: "lm-choices" }, choiceButton("Continue", "", () => sharkBeat())),
+            );
+          } else {
+            state.factorHaggle = "walk";
+            deps.record({
+              ...haggled,
+              chosenOptionId: "decline",
+              immediateConsequence: "Pushed once and he walked. The Factor's door is shut; the Shark smells blood.",
+            });
+            clear(stage);
+            stage.append(
+              speakerPara("factor", "He keeps the smile and shuts his door. The fish is still smiling — try him."),
+              el("div", { class: "lm-choices" }, choiceButton("Continue", "", () => sharkBeat())),
+            );
+          }
+        }),
+      );
+    }
     // The street's number is on the table now — the Factor's buy price.
     renderTill(chrome.till, { value: o.factor.buyPrice, caption: "Their offer", decimals: 0, note: `− ${gbp(CH3_INVOICE - o.factor.buyPrice)} the street keeps · owed, not cash` });
     renderLedger(chrome.ledger, [
@@ -184,6 +249,7 @@ export function runChapter3(deps: Ch3Deps): void {
               deps.record(streetLedgerEntry("The Factor", 0, false));
               sharkBeat();
             }),
+            choiceButton("Push him — one counter", "Name a better price. He nods, or he walks.", () => pushHim()),
           ))
         : el("div", { class: "lm-choices" },
             choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
@@ -195,6 +261,7 @@ export function runChapter3(deps: Ch3Deps): void {
               deps.record(streetLedgerEntry("The Factor", 0, false));
               sharkBeat();
             }),
+            choiceButton("Push him — one counter", "Name a better price. He nods, or he walks.", () => pushHim()),
           ),
     );
   }
@@ -202,15 +269,52 @@ export function runChapter3(deps: Ch3Deps): void {
   function sharkBeat(): void {
     const o = streetOffers();
     clear(stage);
-    renderTill(chrome.till, { value: o.shark.cashNow, caption: "Their offer", decimals: 0, note: `then £${o.shark.daily} a day · owed, not cash` });
+    // A walked-away Factor talks: the Shark smells blood and the advance
+    // shrinks. The daily never moves — only the cash now does.
+    const blooded = state.factorHaggle === "walk";
+    const cashNow = blooded ? sharkBloodPrice(o.shark.cashNow) : o.shark.cashNow;
+    renderTill(chrome.till, { value: cashNow, caption: "Their offer", decimals: 0, note: blooded ? `then £${o.shark.daily} a day · owed, not cash — less up front, the Factor talked` : `then £${o.shark.daily} a day · owed, not cash` });
     deps.say("shark", "A little now. A little each day. The daily number is small — that is rather the point.");
+    /** Double-or-nothing on his own coin: heads doubles the cash now,
+     *  tails leaves nothing now — the daily stands either way. The sim
+     *  prices both landings up front; the spin is only suspense. */
+    function flipCoin(): void {
+      const row = stage.querySelector(".lm-choices");
+      if (!(row instanceof HTMLElement)) return;
+      clear(row);
+      row.append(
+        el("p", { class: "lm-hint", text: "The coin is in the air — his coin, his rules." }),
+        fateRoll(["Heads", "Tails"], 1300, (face) => {
+          const won = face === "Heads";
+          const t = sharkFlipTerms(cashNow, o.shark.daily, o.shark.termDays);
+          const fee = won ? t.winFee : t.loseFee;
+          const base = streetLedgerEntry("The Shark", fee, true);
+          deps.record({
+            ...base,
+            optionsShown: [...base.optionsShown,
+              { id: "counter_flip", label: "Counter — double or nothing", framingVariable: "street_shark_counter", isDefault: false }],
+            immediateConsequence: won
+              ? `Called heads on his coin and it landed — twice the cash now at ${gbp(t.winCashNow)}. The daily stands.`
+              : "Called heads on his coin and it didn't land — nothing now, and the daily still stands.",
+          });
+          clear(stage);
+          stage.append(
+            ...(won
+              ? [speakerPara("shark", "Heads. He pays double and smiles wider — pride is also a tell."),
+                el("p", { class: "lm-take", text: `${gbp(t.winCashNow)} now` })]
+              : [speakerPara("shark", "Tails. Nothing now — the daily still stands. That smile was the whole offer.")]),
+            el("div", { class: "lm-choices" }, choiceButton("Continue", "", () => debrief())),
+          );
+        }),
+      );
+    }
     // The close is a full-screen beat: the street goes quiet, one card, one
     // number. The daily figure is the whole trap, so it gets the whole card.
     stage.append(
       el("h3", { text: "The Shark — smiling fish" }),
       el("div", { class: "lm-beat-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/shark.png", alt: "" })),
       el("div", { class: "lm-surface lm-shark" },
-        el("p", { class: "lm-shark-now", text: `${gbp(o.shark.cashNow)} now` }),
+        el("p", { class: "lm-shark-now", text: `${gbp(cashNow)} now` }),
         el("p", { class: "lm-shark-daily", text: `then just £${o.shark.daily} a day` }),
         el("p", { class: "lm-hint", text: "the daily number is the whole offer" }),
         ...(streetMemory().sharkHint ? [el("p", { class: "lm-hint", text: streetMemory().sharkHint! })] : []),
@@ -220,10 +324,9 @@ export function runChapter3(deps: Ch3Deps): void {
             siki: "The daily number is the whole offer. Small numbers hide in daylight — price the full term before you nod.",
             zana: "He's betting you won't multiply the daily by the days. Don't oblige him.",
           }, el("div", { class: "lm-choices" },
-            choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
-              const o2 = streetOffers();
+            choiceButton(`Take the Shark's money — ${gbp(cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
               // Their true take: termDays × daily − cashNow (the rest is still owed).
-              const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
+              const fee = Math.max(0, Math.round(o.shark.termDays * o.shark.daily - cashNow));
               deps.record(streetLedgerEntry("The Shark", fee, true));
               debrief();
             }),
@@ -231,11 +334,11 @@ export function runChapter3(deps: Ch3Deps): void {
               deps.record(streetLedgerEntry("The Shark", 0, false));
               debrief();
             }),
+            choiceButton("Counter — double or nothing", "Heads: twice the cash now. Tails: nothing now — the daily still stands.", () => flipCoin()),
           ))
         : el("div", { class: "lm-choices" },
-            choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
-              const o2 = streetOffers();
-              const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
+            choiceButton(`Take the Shark's money — ${gbp(cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
+              const fee = Math.max(0, Math.round(o.shark.termDays * o.shark.daily - cashNow));
               deps.record(streetLedgerEntry("The Shark", fee, true));
               debrief();
             }),
@@ -243,6 +346,7 @@ export function runChapter3(deps: Ch3Deps): void {
               deps.record(streetLedgerEntry("The Shark", 0, false));
               debrief();
             }),
+            choiceButton("Counter — double or nothing", "Heads: twice the cash now. Tails: nothing now — the daily still stands.", () => flipCoin()),
           ),
     );
   }

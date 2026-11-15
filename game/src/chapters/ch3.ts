@@ -42,6 +42,8 @@ export interface Ch3State {
   rounds: [Ch3Round, Ch3Round, Ch3Round];
   cursor: 0 | 1 | 2 | 3; // 3 = resolved
   npcOfferTaken: { npc: "The Factor" | "The Shark"; feePaid: number } | null;
+  /** One counter only: how the Factor answered the player's push (null = never pushed). */
+  factorHaggle: "nod" | "walk" | null;
   done: boolean;
 }
 
@@ -61,6 +63,7 @@ export function createCh3State(): Ch3State {
     rounds: [0, 1, 2].map((r) => ({ round: r as 0 | 1 | 2, action: null, costPaid: 0 })) as [Ch3Round, Ch3Round, Ch3Round],
     cursor: 0,
     npcOfferTaken: null,
+    factorHaggle: null,
     done: false,
   };
 }
@@ -153,6 +156,36 @@ export function streetLedgerEntry(
         : `Cleared today. Paid for it: ${money(feePaid)} (≈${streetOffers().factor.annualDiscountPct}%/yr cost of impatience).`
       : "Declined. The street's stalls stay lit either way.",
   };
+}
+
+/** Double-or-nothing on the Shark's advance: heads doubles the cash now,
+ *  tails leaves nothing now — the daily stands either way. Pure: the screen
+ *  flips the coin, the sim prices both landings. Same expected cash-now as
+ *  the plain take; the gamble is variance, priced honestly in the copy. */
+export function sharkFlipTerms(cashNow: number, daily: number, termDays: number): {
+  winCashNow: number; loseCashNow: number; winFee: number; loseFee: number;
+} {
+  const totalOwed = termDays * daily;
+  return {
+    winCashNow: cashNow * 2,
+    loseCashNow: 0,
+    winFee: Math.max(0, Math.round(totalOwed - cashNow * 2)),
+    loseFee: Math.max(0, Math.round(totalOwed)),
+  };
+}
+
+/** The Factor's haggle — one counter, the die decides: 4+ he nods at +8%,
+ *  3 or less he walks, and the Shark smells blood (−15% on his advance). */
+export function haggleOutcome(roll: number): "nod" | "walk" {
+  return roll >= 4 ? "nod" : "walk";
+}
+
+export function haggledBuyPrice(buyPrice: number): number {
+  return Math.round(buyPrice * 1.08);
+}
+
+export function sharkBloodPrice(cashNow: number): number {
+  return Math.round(cashNow * 0.85);
 }
 
 /** Used in the assumptions sheet + tests: the Act's maths at the base rate. */

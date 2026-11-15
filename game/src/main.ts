@@ -793,15 +793,23 @@ function begin(withSound: boolean): void {
   const jump = Number(new URLSearchParams(location.search).get("ch") ?? 1);
   const chapter = ([1, 2, 3].includes(jump) ? jump : 1) || 1;
 
-  // First minute is one scene: cold open (film + story) first, market pick
-  // after. Default UK; Souq offered as a line inside the story card.
-  // Skipped for returning players, deep links, mid-run (remedy must not yank a saved week).
+  // First minute is one scene: the cold open film plays first, then the
+  // market pick, then ONE story card — the card sits after the pick so its
+  // figures are already in the player's currency (a souq player must never
+  // read "£2,400" in a dirham game), and it is never shown twice.
+  // Skipped for returning players, deep links, mid-run (the remedy must not
+  // yank a saved week).
   const fresh = chapter === 1 && loadCh1Save() === null && ledger.all().length === 0;
   if (fresh) {
-    playCinematic(() => showStoryCard(() => {
-      if (shouldOfferMarketPick()) showMarketPick(() => beginChapter(1));
-      else beginChapter(1);
-    }));
+    playCinematic(() => {
+      const afterPick = (): void => showStoryCard(() => beginChapter(1));
+      if (shouldOfferMarketPick()) showMarketPick(afterPick);
+      // A souq run that skipped the picker (deep link, or a returning
+      // player) still meets its bilingual card — that card IS the souq's
+      // remedy statement, in Arabic.
+      else if (getMarketMode() === "souq") souqTitleCard(afterPick);
+      else afterPick();
+    });
     return;
   }
   beginChapter(chapter as 1 | 2 | 3);
@@ -845,13 +853,12 @@ function showMarketPick(onDone: () => void): void {
       purgeSave(); // numbers from the other remedy don't carry
     }
     sec.remove();
-    // The cold open has ALREADY played (the film and the story card come
-    // before this pick — the first minute is one scene). Replaying them here
-    // showed the player the whole intro twice; the pick now steps straight
-    // into the street. The souq keeps its own bilingual title card, because
-    // that card IS its remedy statement.
-    if (mode === "souq") souqTitleCard(() => onDone());
-    else onDone();
+    // The cold open has ALREADY played (the film comes before this pick).
+    // Replaying the intro here showed the player the whole thing twice; the
+    // pick now steps straight into the story card. The souq's own bilingual
+    // card IS the souqBeat the player just came from — showing it again
+    // would put two souq cards back to back.
+    onDone();
   };
 
   const souqBeat = (): void => {
@@ -870,7 +877,7 @@ function showMarketPick(onDone: () => void): void {
         text: `${SOUQ_AR.remedyTitle} — the fee is the one you wrote into your own terms. No interest anywhere: the instrument is a contractual charge, agreed on day one.`,
       }),
       el("div", { class: "lm-choices" },
-        choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => enter("souq")),
+        choiceButton("Enter the souq", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => enter("souq")),
       ),
     );
     // The picker beat voiced in Arabic — the bubble IS the display text,

@@ -358,7 +358,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         }),
         choiceButton("Decline", "Keep the debt and the customer", () => {
           deps.record(collectorLedgerEntry(probe, false));
-          debrief();
+          // One taunt, once: he loses the paper, not the appetite.
+          clear(stage);
+          stage.append(
+            speakerPara("collector", "He tips his hat. Debts outlive refusals — I'll be at the end of the row."),
+            el("div", { class: "lm-choices" }, choiceButton("Continue", "", () => debrief())),
+          );
         }),
       ),
     );

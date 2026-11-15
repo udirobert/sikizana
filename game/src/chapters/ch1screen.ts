@@ -605,6 +605,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     "The Factor was seen at the north gate, counting other people's days.",
     "Someone's awning is still warm. Nobody knows whose.",
     "The Collector counts money that isn't his. He sleeps fine.",
+    "A hawker cries late figs at the north gate — sweet as the excuse you'll tell.",
+    "Dice on an upturned crate. Someone's rent is riding on it.",
+    "The lantern sways, though nobody touched it.",
   ] as const;
 
   function showDay(): void {
@@ -845,11 +848,23 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       );
     }
     if (state.done) {
-      dayPanel.append(
-        el("div", { class: "lm-choices" },
-          choiceButton("Close the books", state.endedEarly === "till_empty" ? "The till ran empty" : "The week is over", () => debrief()),
-        ),
-      );
+      // The till-empty ending is the game's one death, so it lands like one:
+      // the street dims, the till shudders, and the books stay shut a beat
+      // before they can be closed. (Reduced motion: no wait, same words.)
+      const dead = state.endedEarly === "till_empty";
+      if (dead) {
+        root.classList.add("lm-week-dead");
+        till.classList.add("lm-till-shudder");
+      }
+      const closeWrap = el("div", { class: "lm-choices" });
+      const closeBtn = choiceButton("Close the books", dead ? "The till ran empty" : "The week is over", () => debrief());
+      if (dead && !reducedMotion) {
+        dayPanel.append(closeWrap);
+        window.setTimeout(() => { if (closeWrap.isConnected) closeWrap.append(closeBtn); }, 1400);
+      } else {
+        closeWrap.append(closeBtn);
+        dayPanel.append(closeWrap);
+      }
     } else {
       // The week turns over with a breath of dawn, not a cut — the place
       // keeps moving while the player decides again.
@@ -900,6 +915,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         };
       }, { face: 0, enforced: 0, street: 0, factor: 0, gap: 0 });
       const streetTakeTotal = lines.reduce((t, l) => t + l.streetTake, 0);
+      // The one unambiguous win gets the one unambiguous celebration: the
+      // street lights gold behind the debrief, and Zana — who respects
+      // collected money — says so. till_empty can never be clean.
+      const cleanRun = two.gap <= 0 && stillOut === 0 && statutoryFloor === 0 && !state.endedEarly;
+      if (cleanRun) root.classList.add("lm-clean-run");
       const price = two.gap > 0
         ? `${gbp0(two.face)} did not come in. Chased and enforced it pays ${gbp(two.enforced)}. The street's market pays ${gbp(two.street)}.`
         : stillOut === 0 && statutoryFloor === 0
@@ -922,6 +942,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       // plays straight. verdicts are display-only; `name` stays voiced.
       const finish = (verdict: string | null): void => {
         if (verdict) dayPanel.append(speakerPara("siki", verdict));
+        if (cleanRun) dayPanel.append(speakerPara("zana", "Every penny in. The street hates that. I don't."));
         if (name) deps.say("siki", name);
         dayPanel.append(
           profileCard({
