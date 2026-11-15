@@ -9,12 +9,14 @@ import "./styles/tokens.css";
 import { AudioBus, type PlayHandle } from "./audio/bus";
 import { VoicePlayer, type Speaker } from "./audio/voice";
 import { DecisionLedger } from "./engine/ledger";
-import { runChapter1, PROLOGUE_EXPERIMENT_ID } from "./chapters/ch1screen";
+import { runChapter1 } from "./chapters/ch1screen";
 import { CH1_DAYS, type Ch1State } from "./chapters/ch1";
 import { runChapter2 } from "./chapters/ch2screen";
 import { runChapter3 } from "./chapters/ch3screen";
 import { buildFinaleView, verdictLine } from "./chapters/finale";
 import { runFinale } from "./chapters/finaleScreen";
+import { runSecondWeek, BEST_KEY } from "./chapters/secondWeek";
+import type { Week2State } from "./engine/weekGen";
 import { renderStreet as renderStreetRow, streetState, noteSceneDay, scenePulse, sceneReactHome, sceneStepUp, type StreetCounters } from "./ui/street";
 import { speakerPara } from "./ui/characters";
 import type { LedgerEntry } from "./engine/ledger";
@@ -28,6 +30,7 @@ import { installChoiceKeys } from "./ui/keys";
 import { burst, trail } from "./ui/fx";
 import { camera } from "./ui/camera";
 import { sequence } from "./ui/tween";
+import { gutClockEnabled, setGutClockEnabled } from "./ui/gutTimer";
 
 // Market is resolved before anything renders: ?market=souq (trailer/deep link)
 // wins, then the saved choice. Switching it at the title clears stale progress
@@ -40,7 +43,20 @@ const game = document.getElementById("game") as HTMLElement;
 
 const LEDGER_KEY = "lm.ledger.v1";
 const CH1_SAVE_KEY = "lm.ch1.v1";
+const WEEK2_KEY = "***********";
 const PREFS_KEY = "lm.prefs.v1";
+/** How many times the narrated intro has been OFFERED (counted at mount, not
+ *  completion — a player who skips at 1s has still "seen" the intro beat).
+ *  Drives the replay affordance: the skip is labelled for them, and it is
+ *  never focused (the film must not die to a stray Enter). */
+const INTRO_SEEN_KEY = "lm.intro.seen.v1";
+
+function introSeenCount(): number {
+  try { return Number(localStorage.getItem(INTRO_SEEN_KEY) ?? "0") || 0; } catch { return 0; }
+}
+function markIntroSeen(): void {
+  try { localStorage.setItem(INTRO_SEEN_KEY, String(introSeenCount() + 1)); } catch { /* private-mode */ }
+}
 
 interface Prefs { sound: boolean; music: boolean; textScale: "sm" | "md" | "lg"; simpleLang: boolean }
 
@@ -102,8 +118,11 @@ function sting(speaker: "siki" | "zana"): void {
  * rule (recovery plan §2.3) is about CONTENT: the spoken line is short,
  * the chapter's cards carry the detail — enforced in each chapter screen.
  */
-function say(speaker: Speaker, text: string): void {
-  const sections = Array.from(game.querySelectorAll(":scope > section.lm-chapter")) as HTMLElement[];
+function say(speaker: Speaker, text: string, onDone?: () => void): void {
+  // The VISIBLE chapter is the stage: sections live inside #game-cam, and
+  // beginChapter hides the rest, so "not hidden" picks the one the player
+  // is on (finale/week2/review included). No match falls back to #game.
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("section.lm-chapter")).filter((s) => !s.hidden);
   const active = sections.length ? sections[sections.length - 1]! : game;
   for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
   // One voice at a time: a new narrator line supersedes a lingering
@@ -115,18 +134,48 @@ function say(speaker: Speaker, text: string): void {
   if (speaker === "siki" || speaker === "zana") sting(speaker);
   // Karaoke rebuilds only the text node — figure and nameplate survive.
   const lineNode = bubble.querySelector<HTMLElement>(".lm-line-text");
-  if (lineNode) void voice.speak(speaker, text, lineNode);
+  if (lineNode) void voice.speak(speaker, text, lineNode, onDone);
+  else onDone?.();
 }
 
 function saveLedger(): void {
   try { localStorage.setItem(LEDGER_KEY, ledger.serialize()) } catch { /* private-mode: in-memory only */ }
 }
 
-/** Title-screen purge (privacy rail: players scrub before sharing). */
+/** Title-screen purge (privacy rail: players scrub before sharing). Also the
+ *  scrub run when switching market modes — numbers from the other remedy
+ *  never carry. In both cases the wipe must be TOTAL: storage, in-memory
+ *  ledger and street counters, and every title line that leaned on them. */
 function purgeSave(): void {
   localStorage.removeItem(LEDGER_KEY);
   localStorage.removeItem(CH1_SAVE_KEY);
+  localStorage.removeItem(WEEK2_KEY);
   localStorage.removeItem(PROFILE_KEY);
+  localStorage.removeItem(BEST_KEY);
+  localStorage.removeItem(INTRO_SEEN_KEY); // the scrub is total: the next Begin is a first impression again
+  // Memory too, not just storage: without this, Erase followed by Begin
+  // silently continues the old run (in-memory ledger + street counters),
+  // and the button looks dead because nothing changes on screen.
+  ledger = new DecisionLedger();
+  streetSession.deferrals = 0;
+  streetSession.billSkipped = 0;
+  streetSession.collected = 0;
+  streetSession.lateFees = 0;
+  streetSession.streetTake = 0;
+  streetSession.held = 0;
+  streetSession.prologueLit = false;
+  renderStreet();
+  // The scrub must be FELT: the best-run line goes, a short-lived promise
+  // takes its place.
+  document.querySelector(".lm-title-best")?.remove();
+  const panel = document.querySelector(".lm-title-panel");
+  if (panel && !panel.querySelector(".lm-title-scrubbed")) {
+    const note = document.createElement("p");
+    note.className = "lm-title-best lm-title-scrubbed";
+    note.textContent = "The books are blank — your next Begin starts a fresh market.";
+    panel.append(note);
+    window.setTimeout(() => note.remove(), 6000);
+  }
 }
 
 const SEED = 20261109; // jam build: one canonical run for judging
@@ -136,7 +185,7 @@ const SEED = 20261109; // jam build: one canonical run for judging
  * ch1 street events (deferrals, skipped bill, collections) create NO ledger
  * entries, so they live in session counters; ch2/ch3 NPC fees do create ledger
  * entries, so they're read from the ledger. Both feed one counter. */
-const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0, held: 0 };
+const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0, held: 0, prologueLit: false };
 
 function streetCounters(): StreetCounters {
   const all = ledger.all();
@@ -156,6 +205,13 @@ function streetCounters(): StreetCounters {
     lateFees: streetSession.lateFees,
     npcFees,
     held: streetSession.held,
+    /** The Shark's stall claim: he took the old debt off your hands at 70%
+     *  of face — the £720 he keeps lights a market stall (the market runs
+     *  on everyone's lateness, including his profit on yours). Session
+     *  counter, deliberately NOT ledger feePaid: costOfNotActing sums
+     *  npc.feePaid on acceptances, and the prologue must not inflate the
+     *  finale's week-arithmetic. */
+    prologueLit: streetSession.prologueLit,
   };
 }
 
@@ -177,18 +233,20 @@ function consequenceSfx(kind: "defer" | "collect" | "bill"): void {
 }
 
 /** Chapter-1 driver reports street-moving events that have no ledger entry. */
-function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number }): void {
+function noteStreet(ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number; prologueLit?: boolean }): void {
   if (ev.deferral) streetSession.deferrals += 1;
   if (ev.billSkipped) streetSession.billSkipped += 1;
   if (ev.collected) streetSession.collected += ev.collected;
   if (ev.lateFee) streetSession.lateFees += ev.lateFee;
   if (ev.streetTake) streetSession.streetTake += ev.streetTake;
   if (ev.held !== undefined) streetSession.held = ev.held;
+  if (ev.prologueLit) streetSession.prologueLit = true;
   if (ev.collected) consequenceSfx("collect");
   else if (ev.deferral) consequenceSfx("defer");
   else if (ev.billSkipped) consequenceSfx("bill");
-  // Cosmetic-only pulse (the prologue's off-book offer): the street flinches,
-  // but no counter moves — no stall lights, nothing enters the tally.
+  // Cosmetic-only pulse (the prologue's off-book offer): the street flinches.
+  // The take's REAL visibility travels separately, via prologueLit — one
+  // stall lights, one line enters the tally's breakdown, no till arithmetic.
   if (ev.flair) {
     const slot = document.getElementById("street-slot");
     if (slot) {
@@ -279,6 +337,19 @@ function streetWhisper(text: string): void {
   line.textContent = text;
   el.prepend(line);
   while (el.children.length > 2) el.lastElementChild?.remove();
+}
+
+/** One-shot street effects for the moment beats: the Shark's shadow sweeps
+ *  the stalls once, mid-week, only on the run where the player kept the old
+ *  debt. CSS owns the sweep (reduced motion: the Zana line carries it). */
+function streetFx(fx: "shark-shadow"): void {
+  if (fx !== "shark-shadow") return;
+  const slot = document.getElementById("street-slot");
+  if (!slot || calmMotion()) return;
+  slot.classList.remove("lm-shark-sweep");
+  void slot.offsetWidth; // restart the animation if one is somehow alive
+  slot.classList.add("lm-shark-sweep");
+  window.setTimeout(() => slot.classList.remove("lm-shark-sweep"), 1800);
 }
 
 function renderStreet(): void {
@@ -375,7 +446,7 @@ function actorStepUp(name: string, kind: "factor" | "collector" | "shark", line:
   slot.replaceChildren();
   void name;
   // One voice at a time: the consequence voice replaces the day-opener.
-  const sections = Array.from(document.querySelectorAll("#game > section.lm-chapter")) as HTMLElement[];
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("section.lm-chapter")).filter((s) => !s.hidden);
   const active = sections.length ? sections[sections.length - 1]! : null;
   if (active) for (const old of Array.from(active.querySelectorAll(":scope > p.lm-line"))) old.remove();
   // Painterly standard: the portrait lives inside the bubble, same grammar
@@ -507,11 +578,27 @@ function beginChapter(n: 1 | 2 | 3): void {
         save: (s: Ch1State) => { try { localStorage.setItem(CH1_SAVE_KEY, JSON.stringify(s)); } catch { /* private-mode */ } },
         noteStreet,
         whisper: streetWhisper,
+        streetFx,
         sceneDay: noteSceneDay,
-        prologueSettled: () => ledger.all().some((e) => e.experimentId === PROLOGUE_EXPERIMENT_ID),
         onTool: () => {
           localStorage.removeItem(CH1_SAVE_KEY); // chapter closed — the run is done
           document.dispatchEvent(new CustomEvent("lm:chapter-done", { detail: 1 }));
+        },
+        // "Start the week over" on the resume screen — same semantics as the
+        // finale's restart: this run's ledger, save and street counters go,
+        // the Shark gets another pass (prologue is per-run).
+        onRestart: () => {
+          ledger = new DecisionLedger();
+          saveLedger();
+          localStorage.removeItem(CH1_SAVE_KEY);
+          streetSession.deferrals = 0;
+          streetSession.billSkipped = 0;
+          streetSession.collected = 0;
+          streetSession.lateFees = 0;
+          streetSession.streetTake = 0;
+          streetSession.held = 0;
+          renderStreet();
+          beginChapter(1);
         },
       },
       SEED,
@@ -688,6 +775,14 @@ function begin(withSound: boolean): void {
     showMarketPick(() => beginChapter(chapter as 1 | 2 | 3));
     return;
   }
+  // The narrated intro (film + story card) is a FRESH RUN's first
+  // impression, not a per-browser one: it plays even when the market pick
+  // doesn't (mode already chosen, or an ?market= deep link). Mid-run
+  // resumes and chapter jumps go straight to the board.
+  if (chapter === 1 && loadCh1Save() === null && ledger.all().length === 0) {
+    playCinematic(() => showStoryCard(() => beginChapter(1)));
+    return;
+  }
   beginChapter(chapter as 1 | 2 | 3);
 }
 
@@ -729,12 +824,13 @@ function showMarketPick(onDone: () => void): void {
       purgeSave(); // numbers from the other remedy don't carry
     }
     sec.remove();
-    // The title→Ch.1 bridge: the cinematic plays for every fresh pick,
-    // then the Souq path gets its bilingual title card before the
-    // shutters open (the beat souq_intro was written for).
+    // First-run intro: the moonrise cinematic sets the street, then one
+    // story card sets the week — who you are, what's out on the street —
+    // before the Shark takes the stage. The player walks into the cold
+    // open knowing the stakes.
     playCinematic(() => {
-      if (mode === "souq") souqTitleCard(onDone);
-      else onDone();
+      if (mode === "souq") souqTitleCard(() => showStoryCard(onDone));
+      else showStoryCard(onDone);
     });
   };
 
@@ -786,27 +882,62 @@ function showMarketPick(onDone: () => void): void {
 }
 
 /**
- * The title→Ch.1 bridge: the moonrise cinematic, muted and skippable.
- * prefers-reduced-motion gets the poster card and an explicit Begin —
- * the film never plays for them. A missing/failed asset falls through
- * to onDone so the game can never be blocked by the bridge.
+ * The title→Ch.1 bridge: the moonrise cinematic, muted and skippable —
+ * and NARRATED. Siki's baked intro line plays over the film as a karaoke
+ * subtitle; the cut is 8s and the take ~11s, so the bridge holds on the
+ * last frame until the line lands. This is the game's verbal + visual
+ * intro, and it ends in the Siki story card.
+ *
+ * prefers-reduced-motion gets the poster card and an explicit Begin — the
+ * film never plays for them; the story card carries the intro in text.
+ * A missing/failed asset falls through to onDone so the game can never be
+ * blocked by the bridge.
  */
+/** The narrated intro line — baked for both markets. The manifest key is
+ * the display text byte-for-byte (do not reword without re-baking). */
+const INTRO_LINE = {
+  uk: "I'm Siki — I keep your books. That's Zana — she chases what's owed. £2,400 of yours is already sleeping out on that street.",
+  souq: "I'm Siki — I keep your books. That's Zana — she chases what's owed. AED 11,520 of yours is already sleeping out on that street.",
+} as const;
+
+/** Zana's card line — her own voice on the story card (the card is
+ * player-paced reading time, so the take adds no wall-clock to the intro).
+ * Same rule: byte-for-byte with the manifest key; re-bake if reworded. */
+const INTRO_ZANA = "I'm Zana. You point, I chase. First one's Harborne — say the word.";
+
 function playCinematic(onDone: () => void): void {
-  // The Souq gets its own cut — same grammar, sandstone and brass. Mode is
-  // committed before the bridge runs, so the preview never lies.
-  const film = getMarketMode() === "souq" ? "cinematic-souq" : "cinematic";
+  // The Souq gets its own cut and its own take — same grammar, sandstone
+  // and brass. Mode is committed before the bridge runs, so it never lies.
+  const souq = getMarketMode() === "souq";
+  const film = souq ? "cinematic-souq" : "cinematic";
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // Replay affordance (best practice: force once, never again, never
+  // silently): a returning player's skip says what it skips, so the intro
+  // never feels like a wall. Counted at mount — skipping at 1s still
+  // counts as having met the beat.
+  const replay = introSeenCount() > 0;
+  markIntroSeen();
   const wrap = el("div", { class: "lm-cine" });
   let done = false;
+  let filmDone = false;
+  let voiceDone = false;
   const finish = (): void => {
     if (done) return;
     done = true;
+    document.removeEventListener("keydown", onKeySkip); // the Esc hatch goes with the overlay
+    voice.stop(); // skipping the intro skips the voice too
     wrap.remove();
-    showWelcome(onDone);
+    onDone();
   };
+  // Esc skips — quiet, deliberate, and not a gameplay key. Nothing is
+  // auto-focused on the film path: a stray Enter (the player just pressed
+  // it on Begin) must not kill the intro before it starts.
+  const onKeySkip = (e: KeyboardEvent): void => { if (e.key === "Escape") finish(); };
+  document.addEventListener("keydown", onKeySkip);
+  const settle = (): void => { if (filmDone && voiceDone) finish(); };
   const skip = el("button", {
     class: "lm-cine-skip", type: "button",
-    text: reduced ? "Begin ›" : "Skip ›",
+    text: reduced ? "Begin ›" : replay ? "Skip intro ›" : "Skip ›",
   });
   skip.addEventListener("click", finish);
   if (reduced) {
@@ -815,7 +946,7 @@ function playCinematic(onDone: () => void): void {
       skip,
     );
     document.body.append(wrap);
-    skip.focus();
+    skip.focus(); // here the button IS the action; Enter must work
     return;
   }
   const video = el("video", {
@@ -826,45 +957,56 @@ function playCinematic(onDone: () => void): void {
   });
   video.muted = true;
   video.defaultMuted = true;
-  video.addEventListener("ended", finish);
-  video.addEventListener("error", finish);
-  wrap.append(video, skip);
+  // The film's last frame holds while Siki finishes the line — the tail
+  // of the intro, not a freeze: the karaoke is still moving.
+  video.addEventListener("ended", () => { filmDone = true; settle(); });
+  video.addEventListener("error", () => { filmDone = true; settle(); });
+  const lineText = souq ? INTRO_LINE.souq : INTRO_LINE.uk;
+  const sub = speakerPara("siki", lineText);
+  sub.classList.add("lm-cine-sub");
+  wrap.append(video, sub, skip);
   document.body.append(wrap);
-  skip.focus();
-  void video.play().catch(finish);
+  void video.play().catch(() => { filmDone = true; settle(); });
+  // Karaoke rides the timing file; the text always lands.
+  const lineNode = sub.querySelector<HTMLElement>(".lm-line-text");
+  if (lineNode) void voice.speak("siki", lineText, lineNode, () => { voiceDone = true; settle(); });
+  else { voiceDone = true; settle(); }
 }
 
 /**
- * Siki welcomes the player on the road in — the context the cold open
- * was missing (who you are, what the street is, what the first choice
- * costs). Presentation only: no ledger, no sim touch. Painted V5
- * portrait carries the quality bar; text always lands, VO later.
+ * One story card after the narrated cinematic: the intro's last beat —
+ * Siki has just spoken over the film; this card is the stakes in writing,
+ * and Zana introduces HERSELF in her own voice (her take plays during the
+ * player's reading time — no wall-clock cost, and clicking through into
+ * the street hands the stage to the Shark, cutting her off cleanly).
+ * Relatable by design (the jam's brief: everyday money decisions): work
+ * done, invoice sent, money still waiting.
  */
-function showWelcome(onDone: () => void): void {
+function showStoryCard(onDone: () => void): void {
   const wrap = el("div", { class: "lm-welcome" });
-  const card = el("div", { class: "lm-welcome-card", role: "dialog", "aria-label": "Welcome to the Late Market" });
+  const card = el("div", { class: "lm-welcome-card", role: "dialog", "aria-label": "The Late Market" });
   const face = document.createElement("img");
   face.className = "lm-welcome-face";
   face.src = "assets/sprites/siki.png";
   face.alt = "Siki the owl bookkeeper";
   face.width = 112;
   face.height = 112;
-  const owed = money(2400, 0);
-  // Zana's entrance: her painted portrait + line land as text always; the
-  // baked take voices it only when the text matches the manifest (UK text).
-  // Souq mode gets Souq-safe text and stays silent — never the wrong debt.
-  const zanaText = getMarketMode() === "souq"
-    ? "I'm Zana. You point, I chase. Say the word and we open the shutters."
-    : "I'm Zana. You point, I chase. First one's Harborne — say the word.";
-  const zanaPara = speakerPara("zana", zanaText);
+  // Zana speaks for herself: her bubble rides the card, karaoke and all.
+  const zana = speakerPara("zana", INTRO_ZANA);
   card.append(
     face,
-    el("h3", { text: "Psst — over here." }),
-    speakerPara("siki", `I'm Siki — I keep your books. That's Zana — she chases what's owed. ${owed} of yours is already sleeping out on that street.`),
-    zanaPara,
-    el("p", { class: "lm-hint", text: "The Shark walks past before the shutters open. What you do there follows you all week." }),
+    el("h3", { text: "One stall. Three days." }),
+    el("p", {
+      class: "lm-line-text",
+      text: `You did the work. The invoices went out weeks ago. The money is still out there — ${money(2400, 0)} nobody has paid — and every day it waits, the street takes a little more of it.`,
+    }),
+    el("p", {
+      class: "lm-hint",
+      text: "Siki keeps your books — she explains what every choice costs. Leave an invoice out there, and a stall lights.",
+    }),
+    zana,
     el("div", { class: "lm-choices" },
-      choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · meet the street`, () => {
+      choiceButton("Step into the street", "The Shark walks past before the shutters open", () => {
         wrap.remove();
         onDone();
       }),
@@ -872,21 +1014,9 @@ function showWelcome(onDone: () => void): void {
   );
   wrap.append(card);
   document.body.append(wrap);
-  const btn = wrap.querySelector<HTMLButtonElement>(".lm-choice");
-  btn?.focus();
-  // Voiced when the baked take exists (welcome_siki, eleven_v4); silent
-  // otherwise — the text always lands. Stop on close so it never bleeds.
-  // Siki speaks first, then Zana answers — chained on natural end so the
-  // takes never overlap. Closed early: the flag stops the chain, stop()
-  // kills the take, and the text has already landed for both.
-  let welcomeClosed = false;
-  const lineNodes = card.querySelectorAll<HTMLElement>(".lm-line-text");
-  const sikiNode = lineNodes[0];
-  const zanaNode = lineNodes[1];
-  if (sikiNode) void voice.speak("siki", `I'm Siki — I keep your books. That's Zana — she chases what's owed. ${owed} of yours is already sleeping out on that street.`, sikiNode, () => {
-    if (!welcomeClosed && zanaNode) void voice.speak("zana", zanaText, zanaNode);
-  });
-  card.querySelector(".lm-choice")?.addEventListener("click", () => { welcomeClosed = true; voice.stop(); }, { once: true });
+  wrap.querySelector<HTMLButtonElement>(".lm-choice")?.focus();
+  const zanaLine = zana.querySelector<HTMLElement>(".lm-line-text");
+  if (zanaLine) void voice.speak("zana", INTRO_ZANA, zanaLine);
 }
 
 /**
@@ -973,6 +1103,9 @@ function finale(): void {
     stageAppend(review);
   }
   for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "finale";
+  // The finale is the street's payoff — release the one-viewport compaction
+  // so the market reads at full size.
+  document.getElementById("street-slot")?.classList.remove("lm-street-compact");
   chapterSting("finale");
   noteSceneDay(4); // market close — the grade warms to dawn
   setProgress("Market close", 3);
@@ -983,6 +1116,7 @@ function finale(): void {
     entries: () => ledger.all(),
     street: streetCounters(),
     delta,
+    onSecondWeek: beginSecondWeek,
     onRestart: () => {
       ledger = new DecisionLedger();
       saveLedger();
@@ -1011,6 +1145,52 @@ function finale(): void {
       window.setTimeout(() => burst({ shape: "coin", count: 10, origin: r }), i * 90);
     });
   });
+}
+
+/**
+ * The Second Week — the scored procedural replay dealt from the finale.
+ * Fresh invoices, one score (what the street took), best-run kept. No
+ * DecisionLedger writes: this is practice, not the experiment, and the
+ * street strip keeps its cumulative memory — the stalls you lit stay lit.
+ */
+function beginSecondWeek(): void {
+  const sec = document.querySelector<HTMLElement>("#week2") ?? (() => {
+    const r = document.createElement("section");
+    r.className = "lm-chapter";
+    r.id = "week2";
+    stageAppend(r);
+    return r;
+  })();
+  for (const s of game.querySelectorAll("section.lm-chapter")) (s as HTMLElement).hidden = s.id !== "week2";
+  // Second-week beats are decisions again — one-viewport compaction back on.
+  document.getElementById("street-slot")?.classList.add("lm-street-compact");
+  sec.classList.add("lm-beat-compact");
+  setProgress("The second week", 3);
+  // A stored mid-run week resumes; a finished one re-deals from scratch.
+  let saved: Week2State | null = null;
+  try {
+    const raw = localStorage.getItem(WEEK2_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) as Week2State;
+      if (s && typeof s.day === "number" && Array.isArray(s.invoices) && !s.done) saved = s;
+    }
+  } catch { /* corrupt or private-mode: a fresh deal is fine */ }
+  runSecondWeek(
+    {
+      root: sec,
+      say,
+      noteStreet,
+      save: (s) => { try { localStorage.setItem(WEEK2_KEY, JSON.stringify(s)); } catch { /* private-mode */ } },
+      onDone: () => {
+        try { localStorage.removeItem(WEEK2_KEY); } catch { /* private-mode */ }
+        window.location.reload(); // the read-back closed — back to the title
+      },
+    },
+    // Every visit deals a different week: the point of the score is that
+    // the week is not memorised. (Tests deal fixed seeds; play does not.)
+    (Date.now() % 2147483646) | 0,
+    saved,
+  );
 }
 
 // ── Market picker (title screen) ──
@@ -1066,6 +1246,12 @@ optSimple?.addEventListener("change", () => {
   savePrefs();
   setSimpleLanguage(prefs.simpleLang);
 });
+
+// Zana's clock — timed key decisions (opt-out: countdowns stress some
+// players; the game must stay playable with the clock off).
+const optClock = document.getElementById("opt-gutclock") as HTMLInputElement | null;
+if (optClock) optClock.checked = gutClockEnabled();
+optClock?.addEventListener("change", () => setGutClockEnabled(optClock.checked));
 
 // ── Returning runner: the title screen reads your best week back. ──
 // The score-chase hook — your own verdict, quoted at you, daring a rematch.

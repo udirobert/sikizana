@@ -1247,7 +1247,7 @@ label.lm-hint { display: block; margin: .8rem 0 }
   font-size: 0.72em; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--lm-ink-dim); opacity: 0; transition: opacity 160ms;
 }
-.lm-choice.lm-kind-defer::after { content: "deferral · feeds the street" }
+.lm-choice.lm-kind-defer::after { content: "deferral · the street waits" }
 .lm-choice.lm-kind-chase::after { content: "chase · money comes home" }
 .lm-choice.lm-kind-pay_bill::after { content: "bill due today" }
 .lm-choice.lm-kind-skip_bill::after { content: "bill skipped · fees start" }
@@ -1323,3 +1323,135 @@ label.lm-hint { display: block; margin: .8rem 0 }
 .lm-street-books-toggle { background: none; border: 1px solid var(--lm-ink-dim); border-radius: 6px; color: var(--lm-ink-dim); font: inherit; font-size: 0.78em; padding: 0.1em 0.6em; cursor: pointer; margin-left: 0.6rem; }
 .lm-street-books-toggle:hover, .lm-street-books-toggle:focus-visible { border-color: var(--lm-amber); color: var(--lm-amber); }
 .lm-street-book-holdings { color: var(--lm-amber); }
+
+/* ── The Shark's stage (ch1 cold open) ──────────────────────────────
+   While he speaks, his offer sits front and centre: larger type, more
+   room, a faint lift. The choices below hold their breath — veiled but
+   visible. When the line lands, JS drops .lm-shark-stage and the
+   .lm-await veil, and the stage yields smoothly to the decision. The
+   global reduced-motion rule already kills the transitions. */
+section.lm-chapter > p.lm-line {
+  transition: font-size 520ms cubic-bezier(0.2, 0.7, 0.3, 1), padding 520ms cubic-bezier(0.2, 0.7, 0.3, 1), transform 520ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+section.lm-chapter.lm-shark-stage > p.lm-line {
+  font-size: 1.22em;
+  padding-block: 0.9rem;
+  transform: scale(1.03);
+  transform-origin: top center;
+}
+.lm-choices { transition: opacity 450ms ease }
+.lm-choices.lm-await { opacity: 0.45 }
+
+/* ── The council: Siki and Zana flank the options ─────────────────────
+   The product's dual persona made playable (web/DESIGN.md: Siki = explain,
+   Zana = chase/enforce). Wide viewports put the advisors on either side of
+   the choices — the decision sits between the angel and the dark one.
+   Narrow viewports stack the pair above, side by side, so the two-lens
+   reading survives the collapse. Advisor cards are quiet paper notes in
+   the same tag language as the choices, one accent edge per speaker. */
+.lm-council {
+  display: grid;
+  grid-template-areas: "siki choices zana";
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: 0.6rem; align-items: start; margin-top: 0.6rem;
+}
+.lm-counsel.siki { grid-area: siki }
+.lm-council-choices { grid-area: choices; min-width: 0 }
+.lm-counsel.zana { grid-area: zana }
+.lm-counsel {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  padding: 0.5rem 0.6rem 0.55rem;
+  background-color: var(--lm-bg-mid); color: var(--lm-ink);
+  background-image: var(--lm-board-img); background-size: var(--lm-board-size);
+  border-radius: var(--lm-radius-sm);
+  border-inline-start: 3px solid;
+  font-size: 0.85em; line-height: 1.4; opacity: 0.96;
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.25);
+  transform: rotate(var(--tilt, 0deg));
+}
+.lm-counsel.siki { border-color: var(--lm-siki); --tilt: -0.5deg }
+.lm-counsel.zana { border-color: var(--lm-zana); --tilt: 0.5deg }
+.lm-counsel .lm-speaker-fig { width: 2.1em; height: 2.1em; margin: 0 }
+.lm-counsel-name { font-weight: 700; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.08em }
+.lm-counsel.siki .lm-counsel-name { color: var(--lm-siki) }
+.lm-counsel.zana .lm-counsel-name { color: var(--lm-zana) }
+.lm-counsel-text { display: block }
+/* The pair stacks above the choices on narrow/embedded viewports. */
+@media (max-width: 779px) {
+  .lm-council {
+    grid-template-areas: "siki zana" "choices choices";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* ── The Shark's shadow: a one-per-run sweep across the stalls ──────
+   Fired (main.ts streetFx) only when the player kept the old debt by
+   refusing his prologue offer — the street is watching what you didn't
+   sell. Reduced motion: the sweep is replaced by the line alone. */
+@keyframes lm-shark-sweep {
+  from { transform: translateX(-120%); }
+  to   { transform: translateX(120%); }
+}
+#street-slot.lm-shark-sweep::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgb(10 8 24 / 0.55) 50%, transparent 70%);
+  animation: lm-shark-sweep 1.6s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  #street-slot.lm-shark-sweep::after { animation: none; opacity: 0 }
+}
+
+/* ── Narrated cinematic: Siki's line rides the film as a karaoke subtitle ──
+   The take (~11s) outruns the 8s cut; the film holds its last frame until
+   the line lands, so the subtitle is the living tail of the intro. */
+.lm-cine-sub {
+  position: absolute; left: 50%; bottom: 11vh; transform: translateX(-50%);
+  z-index: 1; width: min(680px, 88vw); margin: 0;
+  padding: 0.6rem 1rem; font-size: 1.06em; text-align: left;
+  background-color: rgba(20, 20, 40, 0.84);
+  border: 1px solid rgba(139, 134, 184, 0.35); border-radius: 12px 10px 12px 9px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.lm-cine-sub .lm-speaker-fig { width: 1.6em; height: 1.6em; vertical-align: -0.35em; }
+
+/* ── One-viewport beats (Nov 2026) ────────────────────────────────────
+   Decision screens must fit the first viewport: the whole point of the
+   game is reading one line and choosing — scrolling to find the choices
+   kills the gut call. During ch1's beats the street stays but slims
+   (painted scene 208px→132px, counter rail to a single row), the till
+   reads in one line, and the choice tags tighten. The finale releases
+   the compact street — the payoff wants the full market. */
+#street-slot.lm-street-compact .lm-street-stalls--scene { height: 132px }
+#street-slot.lm-street-compact .lm-street-stalls { height: 132px }
+#street-slot.lm-street-compact #counter-rail .lm-street-meta {
+  flex-direction: row; justify-content: center; align-items: baseline;
+  gap: 0.9rem; padding-block: 0.12rem; flex-wrap: wrap;
+}
+#street-slot.lm-street-compact #counter-rail .lm-street-books-toggle {
+  font-size: 0.82em; padding: 0.05rem 0.5rem;
+}
+/* The open street books overlay the beat instead of growing the strip. */
+#street-slot.lm-street-compact #counter-rail { position: relative }
+#street-slot.lm-street-compact #counter-rail .lm-street-books:not([hidden]) {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  width: min(560px, 92vw); margin: 0;
+}
+.lm-beat-compact .lm-till { padding: 0.28rem 0.8rem; }
+.lm-beat-compact .lm-till .lm-till-cap { font-size: 0.85em; }
+.lm-beat-compact .lm-till .lm-till-rows {
+  flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 1.1rem;
+}
+.lm-beat-compact .lm-day .lm-choice { padding: 0.5rem 0.9rem; }
+.lm-beat-compact .lm-day .lm-choices { gap: 0.4rem; margin-top: 0.45rem; }
+/* Refinements: the till reads as ONE line (caption + rows inline), the day
+   board trims its frame, and the counter rail loses its air. The books stay
+   in the flow below the clock — reference material, not the beat. */
+.lm-beat-compact .lm-till { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.15rem 1rem; }
+.lm-beat-compact .lm-till .lm-till-rows { display: contents; }
+.lm-beat-compact .lm-till .lm-till-row { display: inline-flex; align-items: baseline; gap: 0.35rem; }
+.lm-beat-compact .lm-day { padding: 0.55rem 0.9rem 0.65rem; }
+.lm-beat-compact .lm-day h3 { font-size: 0.95em; padding: 0.15rem 0.6rem; }
+.lm-beat-compact .lm-day .lm-choice .lm-choice-detail { font-size: 0.86em; }
+#ch1.lm-beat-compact { padding-bottom: 0.6rem; }
+#street-slot.lm-street-compact #counter-rail .lm-street-meta { gap: 0.7rem; }
+#street-slot.lm-street-compact #counter-rail .lm-street-tally { padding: 0; }

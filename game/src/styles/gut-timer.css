@@ -1,0 +1,76 @@
+/*
+ * Zana's clock — the optional decision countdown.
+ * Scoped entirely under .lm-gut; inherits tokens where they exist via
+ * var(--token, fallback) literals from tokens.css (amber #ffb454,
+ * night #141428, dim ink #c5c2d8, small tag radius 8px).
+ * Never focusable, never animated under reduced motion.
+ */
+
+.lm-gut {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 720px;
+  margin: 0.35rem auto 0;
+  padding: 0.35rem 0.65rem 0.4rem;
+  border: 1px solid rgba(139, 134, 184, 0.35);
+  border-radius: var(--lm-radius-sm, 8px);
+  background-color: rgba(20, 20, 40, 0.62);
+  font-size: 0.85em;
+}
+
+/* The thin amber depletion bar — a candle burning down, not a progress
+ * meter. Width transitions keep the depletion legible between ticks. */
+.lm-gut-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(139, 134, 184, 0.35);
+  overflow: hidden;
+}
+.lm-gut-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lm-amber, #ffb454);
+  transition: width 200ms linear;
+}
+
+/* Caption row: Zana's voice on the left, the seconds on the right. */
+.lm-gut-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  color: var(--lm-ink-dim, #c5c2d8);
+}
+.lm-gut-label { font-style: italic; }
+.lm-gut-secs {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--lm-amber, #ffb454);
+}
+
+/* Screen-reader channel: polite, sparse (3-2-1 and expiry only). The
+ * visible digits are aria-hidden so it never chatters per second. */
+.lm-gut-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Calm mode: static text countdown — the caller omits the bar entirely,
+ * this is a belt-and-braces guard if one is ever injected. */
+.lm-gut--calm .lm-gut-bar { display: none; }
+
+/* Time called: the clock rests. Text says it (never colour alone); the
+ * bar pairs with ledger-red, the money-out hue. */
+.lm-gut--called .lm-gut-label { color: var(--lm-ledger-red, #ff7b72); }
+.lm-gut--called .lm-gut-bar-fill { background: var(--lm-ledger-red, #ff7b72); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lm-gut-bar-fill { transition: none; }
+}

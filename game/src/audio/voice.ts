@@ -119,14 +119,17 @@ export class VoicePlayer {
    */
   async speak(speaker: Speaker, text: string, bubble: HTMLElement, onDone?: () => void): Promise<void> {
     this.stop();
-    if (!this.isEnabled()) return;
+    // Every exit fires onDone: callers use it to arm the decision clock,
+    // which must start when the line LANDS — spoken or not. A silent exit
+    // that never fires would leave the clock unarmed forever.
+    if (!this.isEnabled()) { onDone?.(); return; }
     const manifest = await this.loadManifest();
     const line = manifest?.lines[normalizeSpokenText(text)];
-    if (!line || line.speaker !== speaker) return;
+    if (!line || line.speaker !== speaker) { onDone?.(); return; }
 
     try {
       const timingRes = await fetch(line.timing);
-      if (!timingRes.ok) return;
+      if (!timingRes.ok) { onDone?.(); return; }
       this.timing = (await timingRes.json()) as TimingFile;
       // Highlight only when the alignment's char stream is the display text
       // verbatim (true in v1 — no acting tags). Otherwise play silently-correct.
@@ -149,7 +152,8 @@ export class VoicePlayer {
 
     audio.addEventListener("timeupdate", () => this.scheduleHighlight());
     audio.addEventListener("ended", () => { this.stop(); onDone?.(); });
-    void audio.play().catch(() => this.stop());
+    // Autoplay blocked → the line landed as text; the beat must go on.
+    void audio.play().catch(() => { this.stop(); onDone?.(); });
   }
 
   private scheduleHighlight(): void {

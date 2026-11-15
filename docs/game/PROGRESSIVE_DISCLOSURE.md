@@ -57,6 +57,35 @@ Before any new surface ships, ask: *can the player act on this right now?*
 If not, it waits for the threshold — a day boundary, first money moved,
 first stall lit — not for "the player might want it."
 
+## Second pass (Nov 15): do the drawers earn their keep?
+
+Re-reviewed against the usability literature (NN/g "Progressive Disclosure"
+2022; NN/g "Accordions on Desktop" 2024; NN/g "Accordions for Complex
+Website Content" 2020). The findings, condensed:
+
+- Progressive disclosure is for **advanced or rarely used** features.
+  Deferring anything the user needs for the current task is a self-own:
+  the pattern's win is learnability, its cost is interaction cost and
+  *hidden content most users never meet*.
+- Accordions **reduce visibility and increase interaction cost**. They are
+  justified only where users don't need to combine information across
+  sections — and users must predict what's inside **from the trigger
+  label alone**, so a vague trigger ("Details") predicts nothing.
+- Longer pages can beat collapsed sections: scanning is cheap, deciding
+  whether to click is not.
+
+Audited against our three surfaces:
+
+| Surface | Verdict | Change shipped |
+|---|---|---|
+| **The ledger** (invoice cards, `<details>` under the choices) | Wrong thing to hide — the cards ARE the game's core state, and the day's choice needs them. NN/g's combine-information test fails. | **Open by default.** It sits below the decision elements, so it costs the one-viewport beat nothing; collapse still works and the player's choice sticks for the run. |
+| **The street's books** (tally breakdown: value shed, late charges) | Right thing to hide — audit/explanation material, genuinely optional, gated on content (no all-zero noise). Kept as a drawer. | **Relabelled "Details" → "the books"** so the trigger previews its content. |
+| **Till hover popover** | Right thing to hide — delight/explanation on demand, the till itself always shows the three lines. Kept. | None. |
+
+The house rule survives with a sharpened second clause: *show the
+consequence, hide the instrument until it can act — and never hide the
+books behind a click the player has to guess the value of.*
+
 ## Open candidates (not yet done)
 
 - Stall inspect notes could deepen progressively (state line first,

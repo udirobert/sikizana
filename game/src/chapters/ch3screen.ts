@@ -4,6 +4,7 @@
  */
 import { el, clear, choiceButton } from "../ui/dom";
 import { speakerPara } from "../ui/characters";
+import { councilGrid } from "../ui/council";
 import { streetFocus } from "../ui/street";
 import {
   CH3_CLIENT,
@@ -135,9 +136,11 @@ export function runChapter3(deps: Ch3Deps): void {
         : teaser?.chosenOptionId === "wave_off"
           ? "You waved him off mid-week. He kept the smile. The number didn't move."
           : null,
-      sharkHint: !prologue ? null : prologue.chosenOptionId === "take_70"
+      sharkHint: !prologue ? null : (prologue.chosenOptionId ?? "").endsWith("take_70")
         ? "He remembers the old debt. Act like it."
-        : "You left his money on the table once. He remembers that too.",
+        : prologue.chosenOptionId === "counter_then_refuse"
+          ? "You tried his patience twice and walked. He remembers that best of all."
+          : "You left his money on the table once. He remembers that too.",
     };
   }
 
@@ -164,17 +167,34 @@ export function runChapter3(deps: Ch3Deps): void {
         el("p", { class: "lm-hint", text: "the rest of the invoice is theirs" }),
         ...(streetMemory().factorHint ? [el("p", { class: "lm-hint", text: streetMemory().factorHint! })] : []),
       ),
-      el("div", { class: "lm-choices" },
-        choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
-          const fee = CH3_INVOICE - streetOffers().factor.buyPrice;
-          deps.record(streetLedgerEntry("The Factor", fee, true));
-          sharkBeat();
-        }),
-        choiceButton("Turn him down", "Keep the debt — someone else is already smiling", () => {
-          deps.record(streetLedgerEntry("The Factor", 0, false));
-          sharkBeat();
-        }),
-      ),
+      // The council flanks the offer (text only — the Factor's bark owns
+      // the beat's voice). The street's own ledger reads back in the finale.
+      !isSouq()
+        ? councilGrid({
+            siki: "Selling the invoice at a discount has a name — factoring. The lawful alternative was the interest you never claimed.",
+            zana: "Take his money and the week's maths ends here. Turn him down and I keep the chase.",
+          }, el("div", { class: "lm-choices" },
+            choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
+              const fee = CH3_INVOICE - streetOffers().factor.buyPrice;
+              deps.record(streetLedgerEntry("The Factor", fee, true));
+              sharkBeat();
+            }),
+            choiceButton("Turn him down", "Keep the debt — someone else is already smiling", () => {
+              deps.record(streetLedgerEntry("The Factor", 0, false));
+              sharkBeat();
+            }),
+          ))
+        : el("div", { class: "lm-choices" },
+            choiceButton(`Take the Factor's money — ${gbp(o.factor.buyPrice)}`, "Cleared today", () => {
+              const fee = CH3_INVOICE - streetOffers().factor.buyPrice;
+              deps.record(streetLedgerEntry("The Factor", fee, true));
+              sharkBeat();
+            }),
+            choiceButton("Turn him down", "Keep the debt — someone else is already smiling", () => {
+              deps.record(streetLedgerEntry("The Factor", 0, false));
+              sharkBeat();
+            }),
+          ),
     );
   }
 
@@ -194,19 +214,35 @@ export function runChapter3(deps: Ch3Deps): void {
         el("p", { class: "lm-hint", text: "the daily number is the whole offer" }),
         ...(streetMemory().sharkHint ? [el("p", { class: "lm-hint", text: streetMemory().sharkHint! })] : []),
       ),
-      el("div", { class: "lm-choices" },
-        choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
-          const o2 = streetOffers();
-          // Their true take: termDays × daily − cashNow (the rest is still owed).
-          const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
-          deps.record(streetLedgerEntry("The Shark", fee, true));
-          debrief();
-        }),
-        choiceButton("Decline", "Keep the debt, keep the ladder", () => {
-          deps.record(streetLedgerEntry("The Shark", 0, false));
-          debrief();
-        }),
-      ),
+      !isSouq()
+        ? councilGrid({
+            siki: "The daily number is the whole offer. Small numbers hide in daylight — price the full term before you nod.",
+            zana: "He's betting you won't multiply the daily by the days. Don't oblige him.",
+          }, el("div", { class: "lm-choices" },
+            choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
+              const o2 = streetOffers();
+              // Their true take: termDays × daily − cashNow (the rest is still owed).
+              const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
+              deps.record(streetLedgerEntry("The Shark", fee, true));
+              debrief();
+            }),
+            choiceButton("Decline", "Keep the debt, keep the ladder", () => {
+              deps.record(streetLedgerEntry("The Shark", 0, false));
+              debrief();
+            }),
+          ))
+        : el("div", { class: "lm-choices" },
+            choiceButton(`Take the Shark's money — ${gbp(o.shark.cashNow)}`, `Today yes, then £${o.shark.daily} a day`, () => {
+              const o2 = streetOffers();
+              const fee = Math.max(0, Math.round(o2.shark.termDays * o2.shark.daily - o2.shark.cashNow));
+              deps.record(streetLedgerEntry("The Shark", fee, true));
+              debrief();
+            }),
+            choiceButton("Decline", "Keep the debt, keep the ladder", () => {
+              deps.record(streetLedgerEntry("The Shark", 0, false));
+              debrief();
+            }),
+          ),
     );
   }
 

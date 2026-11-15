@@ -19,6 +19,18 @@
 
 ## A1. Interactive prologue — the Shark beat becomes a real first decision
 
+> **Revision 2 (Nov 15, post-critique):** the owner's critique — "the
+> counter is refused and you're back to the same choice; the game feels
+> preconceived" — supersedes two of the rules below: the take no longer
+> stays cosmetic-only (the discount the Shark keeps lights a stall and
+> earns a tally line), and the counter is now a real second move with its
+> own recorded outcomes. What is NOT revised: the off-book rule (nothing
+> touches `state.cash`/`state.invoices`), the no-`feePaid` rule (the £720
+> must never enter `costOfNotActing()`), and the no-prefix `experimentId`.
+> The prologue clock is also gone — see `INTRO_AND_SKIP_POLICY.md` for the
+> reasoning; the gut clock stays on the pair days, where it measures
+> something.
+
 **Problem:** `coldOpen()` in `game/src/chapters/ch1screen.ts` is a voiceover
 plus one "Open the shutters" button. The scene resolves into the bookkeeping
 form on the first interaction. The player has not *done* anything yet.
@@ -32,22 +44,34 @@ ends with a ledger entry.
    *"That old debt of yours — the one from before your week. I'll take it
    off your hands. 70% of face, settled off the books."* Two or three
    choices, not one:
-   - **Take the 70%** → ledger entry `prologue_shark_accept`; the debt is
-     written off (flavour line: "settled — it never touched this week's
-     till"). The street reacts **cosmetically only**: extend the
-     `noteStreet` event with an optional `flair?: boolean` flag; when set,
-     `main.ts` adds a transient pulse class to the street row (removed
-     after ~1.5s or on next render). It must NOT feed `streetSession`
-     counters or `streetState()` — no stall lights, no £ enters the
-     tally, Ch.1–3 street semantics stay identical for accept/refuse.
-     (Earlier draft suggested `streetTake`; rejected — it would inflate
-     the "£X so far" tally and the funded-stall count with money no
-     debrief line explains.)
-   - **Refuse** → ledger entry `prologue_shark_refuse`; nothing changes
-     mechanically, but the refusal is recorded (it feeds the Ch.3 "decide
-     at zero" callback: *"you refused the Shark once. Remember that."*).
-   - **Counter** (optional third option, if cheap): ask for 85% → Shark
-     declines with a one-liner, same ledger shape as refuse.
+   - **Take the 70%** → recorded as `chosenOptionId: "take_70"`,
+     `npc.decision: "accept"`. The debt is gone, and the consequence is
+     visible but off-arithmetic: `noteStreet({ flair: true,
+     prologueLit: true })` — the flair pulse stays cosmetic, while
+     `prologueLit` (a session flag, NOT a counter and NOT `feePaid`)
+     lights one stall in `streetState()` and adds the tally breakdown
+     line "The old debt, sold to the Shark at 70: £720 stayed on the
+     street." `toStreet` and `costOfNotActing()` are unchanged — the
+     £720 never enters the till or the finale's week arithmetic. The
+     shutters beat whispers what happened ("£720 of it stayed on the
+     street, and one more stall is lit because of it").
+   - **Refuse** → recorded as `chosenOptionId: "refuse"`,
+     `npc.decision: "decline"`. Nothing lights; the shutters whisper
+     "nothing lit for him tonight". The refusal also feeds the Ch.3
+     "decide at zero" callback.
+   - **Counter — 85%** → a real second move, not a loop back. The Shark
+     declines with a one-liner and gives final terms ("Seventy, tonight —
+     or nothing"), then two choices:
+     - **Take the seventy** → recorded as `chosenOptionId:
+       "counter_then_take_70"`, `decision: "accept"`, same street
+       consequence as a direct take. Ch.2's `sharkTook` and Ch.3's
+       `sharkHint` match with `.endsWith("take_70")` so both take paths
+       read the same downstream.
+     - **Walk away** → recorded as `chosenOptionId:
+       "counter_then_refuse"`, `decision: "decline"`; Ch.3 remembers it
+       best of all ("You tried his patience twice and walked.").
+     The lesson is in the structure, not the copy: his first offer was
+     the anchor; the counter bought a laugh and the same number back.
 
    **Why off-book:** the offer must not touch `state.cash`, `state.invoices`,
    or `dayChoices()` — any real cash or invoice removal perturbs the 24 ch1

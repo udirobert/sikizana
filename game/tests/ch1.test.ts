@@ -41,10 +41,6 @@ function billKind(st: Ch1State, d: number, otherwise: string): string {
   return st.cash + arriving >= BILL.amount ? "pay_bill" : "skip_bill";
 }
 
-function daysPhrase(n: number): string {
-  return n === 1 ? "1 day" : `${n} days`;
-}
-
 /** The debrief's line items must price exactly what the lantern tallied. */
 function expectLinesSumToLantern(state: Ch1State) {
   const sum = deferralLines(state).reduce((t, l) => t + l.streetTake, 0);
@@ -104,9 +100,9 @@ describe("ch1 day shape (3-day stall screen)", () => {
     const { state } = createCh1State(20261109);
     const aChase = dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!;
     expect(aChase.invoiceId).toBe("inv-a");
-    expect(aChase.detail).toBe(`The full £2,400 lands in the till this week — in ${daysPhrase(PAIR_A_CHASE_CLEAR_DAYS)}.`);
+    expect(aChase.detail).toBe(`Zana goes today. The full £2,400 is here tomorrow morning — inside the week.`);
     expect(dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the full £2,400 lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`,
+      "It can wait — it'll come in its own time.",
     );
     expect(PAIR_A_DAY + PAIR_A_CHASE_CLEAR_DAYS).toBeLessThanOrEqual(CH1_DAYS);
     expect(PAIR_A_DAY + PAIR_A_DEFER_CLEAR_DAYS).toBeGreaterThan(CH1_DAYS);
@@ -115,9 +111,9 @@ describe("ch1 day shape (3-day stall screen)", () => {
     resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
     const bChase = dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!;
     expect(bChase.invoiceId).toBe("inv-b");
-    expect(bChase.detail).toBe(`The full £2,400 lands after the week closes — in ${daysPhrase(PAIR_B_CHASE_CLEAR_DAYS)}.`);
+    expect(bChase.detail).toBe(`Zana goes today. The full £2,400 is here tomorrow morning — after the close.`);
     expect(dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "defer")!.detail).toBe(
-      `Defer — the full £2,400 lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`,
+      "It can wait — it'll come in its own time.",
     );
     expect(PAIR_A_CHASE_CLEAR_DAYS).toBe(PAIR_B_CHASE_CLEAR_DAYS);
     expect(PAIR_A_DEFER_CLEAR_DAYS).toBe(PAIR_B_DEFER_CLEAR_DAYS);

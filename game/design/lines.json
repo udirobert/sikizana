@@ -424,6 +424,74 @@
    "speaker": "siki",
    "chapter": 1,
    "text": "I'm Siki — I keep your books. That's Zana — she chases what's owed. AED 11,520 of yours is already sleeping out on that street."
+  },
+  {
+   "id": "shutters_siki",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "The street keeps its books whether you open or not. Yours begin the moment you open the shutters."
+  },
+  {
+   "id": "council_day1_zana",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Harborne has the money. It chose not to hand it over. Go and get it."
+  },
+  {
+   "id": "council_day1_siki",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Chasing isn't rude — the law agrees. A late commercial invoice earns statutory interest from day one: base rate plus eight."
+  },
+  {
+   "id": "council_day2_zana",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Pay the bill. Or tomorrow I read you the late fee — louder."
+  },
+  {
+   "id": "council_day2_siki",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Parliament priced lateness in 1998: forty pounds fixed, plus interest at base plus eight. The street charges more, and calls it a favour."
+  },
+  {
+   "id": "council_day3_zana",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "Same invoice as day one. What you do today says who you are — not the weather."
+  },
+  {
+   "id": "council_day3_siki",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Identical numbers. One difference: when the money lands. Watch what your gut does with later."
+  },
+  {
+   "id": "react_defer_first",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "That's the first stall you lit. £2,400 sleeps out there tonight — it doesn't come home by itself."
+  },
+  {
+   "id": "cameo_bill_skipped",
+   "speaker": "collector",
+   "chapter": 1,
+   "tts_voice": "sy9S2anY0aQEh2FdIwrx",
+   "rate": 1,
+   "text": "I heard the street charging you. When you'd rather sell the account than keep the chase — I'm at the end of the row."
+  },
+  {
+   "id": "moment_shark_shadow",
+   "speaker": "zana",
+   "chapter": 1,
+   "text": "That shadow crossing the stalls — him. He prices patience, and he hasn't forgotten you kept yours."
+  },
+  {
+   "id": "moment_till_triage",
+   "speaker": "siki",
+   "chapter": 1,
+   "text": "Breathe. Still saveable, in order: what's owed to you, then what you owe. The street only wins the days you give it."
   }
  ]
 }

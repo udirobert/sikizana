@@ -4,6 +4,7 @@
  */
 import { el, clear, choiceButton } from "../ui/dom";
 import { speakerPara } from "../ui/characters";
+import { councilGrid } from "../ui/council";
 import {
   CH2_CLIENT,
   CH2_INVOICE,
@@ -21,6 +22,7 @@ import {
 } from "./ch2";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import { streetFocus } from "../ui/street";
+import { beatClock, type BeatClock } from "../ui/beatClock";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 import { money, remedy, isSouq, zakatNote, SOUQ_VO } from "../engine/market";
@@ -33,7 +35,10 @@ export interface Ch2Deps {
   pairEntries: () => LedgerEntry[]; // ch2_anchor_r* entries
   /** Full ledger, read-only: lets the desk remember the prologue (copy only). */
   entries?: () => readonly LedgerEntry[];
-  say: (speaker: Speaker, text: string) => void;
+  /** Audio bus marker — muted-safe; lines render as text regardless.
+   * onDone fires when the line lands (spoken take ended, or silent text —
+   * the commit clock arms there so the timer never races the VO). */
+  say: (speaker: Speaker, text: string, onDone?: () => void) => void;
   onTool?: (tool: "flip_the_anchor") => void;
 }
 
@@ -49,9 +54,13 @@ const gbp = (v: number) => money(v, 0);
 
 export function runChapter2(deps: Ch2Deps, seed: number): void {
   streetFocus("recede"); // desk work: the camera racks to the table
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const { state, rng } = createCh2State(seed);
   const { root } = deps;
   clear(root);
+  // Zana's clock on the floor beat: twelve seconds, then the desk takes
+  // silence as "no floor" — exactly what standing still means here.
+  let clock: BeatClock | null = null;
   // The stall chrome PERSISTS through every beat (the place doesn't clear to
   // a bare form — recovery plan §2.1, third-pass charge): the till shows the
   // money on the table, the ledger shows the claim. Only the stage below
@@ -97,7 +106,6 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const run = currentRun(state);
     clear(stage);
     renderChrome(run.anchor);
-    deps.say("collector", DESK_OPENERS[run.run] ?? DESK_OPENERS[0]!);
     // The desk remembers: if you named a floor last sitting, it names it
     // back at you — your number, before their number arrives. Copy only;
     // the sim never sees this line.
@@ -107,9 +115,10 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const prevFloor = run.run > 0 ? state.runs[(run.run - 1) as 0 | 1]?.floor ?? null : null;
     // The desk was listening before your week began: if the Shark took his
     // piece in the prologue, the Collector says so — text-only aside, UK
-    // path only. Copy reads the ledger; the sim never sees it.
+    // path only. Copy reads the ledger; the sim never sees it. The counter
+    // path that ends in taking the seventy counts as a take.
     const sharkTook = (deps.entries?.() ?? []).some(
-      (e) => e.experimentId === PROLOGUE_EXPERIMENT_ID && e.chosenOptionId === "take_70",
+      (e) => e.experimentId === PROLOGUE_EXPERIMENT_ID && (e.chosenOptionId ?? "").endsWith("take_70"),
     );
     stage.append(
       el("h3", { text: `Run ${run.run + 1} of 3` }),
@@ -138,15 +147,41 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     // recorded as null and excluded from the anchoring axis.
     const floor = el("input", { type: "number", min: "0", step: "10", placeholder: "e.g. 900", "aria-label": "Your minimum acceptable settlement (£)" });
     if (run.floor !== null) floor.value = String(run.floor);
+    // The council flanks the floor decision (text only — the Collector's
+    // opener owns this beat's voice). UK path: the souq keeps its flow.
     stage.append(
-      el("label", { class: "lm-hint", text: "Your minimum before you say yes (optional — decide it before their number moves you):" }, floor),
-      choiceButton("Set the floor", "", () => {
-        const v = floor.value.trim();
-        const n = Number(v);
-        run.floor = v !== "" && Number.isFinite(n) && n >= 0 ? n : null;
-        roundsLoop();
-      }),
+      !isSouq()
+        ? councilGrid({
+            siki: "An anchor is a number that does no work and still sets the range. His opener did exactly that.",
+            zana: "Name your floor before their number arrives. Then hold it.",
+          }, el("div", { class: "lm-choices" },
+            el("label", { class: "lm-hint", text: "Your minimum before you say yes (optional — decide it before their number moves you):" }, floor),
+            choiceButton("Set the floor", "", () => commitFloor()),
+          ))
+        : el("div", {},
+            el("label", { class: "lm-hint", text: "Your minimum before you say yes (optional — decide it before their number moves you):" }, floor),
+            choiceButton("Set the floor", "", () => commitFloor()),
+          ),
     );
+    const c = beatClock(stage, {
+      experimentId: `ch2_anchor_r${run.run + 1}`,
+      seconds: 12,
+      calm: reducedMotion,
+      onTimeout: () => commitFloor(),
+    });
+    clock = c;
+    // The Collector's opener holds the stage while it plays; Zana's clock
+    // arms only when the line lands, so reading time never eats the
+    // decision window.
+    deps.say("collector", DESK_OPENERS[run.run] ?? DESK_OPENERS[0]!, () => c.arm());
+    function commitFloor(): void {
+      const v = floor.value.trim();
+      const n = Number(v);
+      run.floor = v !== "" && Number.isFinite(n) && n >= 0 ? n : null;
+      clock?.picked(`floor_${run.floor ?? "none"}`);
+      clock = null;
+      roundsLoop();
+    }
   }
 
   function roundsLoop(): void {

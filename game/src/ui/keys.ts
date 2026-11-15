@@ -22,9 +22,11 @@ export function installChoiceKeys(game: HTMLElement): () => void {
   let current: HTMLElement[] = [];
   let queued = false;
 
-  /** The chapter on screen: the last section main.ts left visible. */
+  /** The chapter on screen: the last section main.ts left visible. Sections
+   *  live inside #game-cam, so the lookup must not be scoped to #game's
+   *  direct children. */
   const activeSection = (): HTMLElement => {
-    const sections = Array.from(game.querySelectorAll<HTMLElement>(":scope > section.lm-chapter")).filter((s) => !s.hidden);
+    const sections = Array.from(document.querySelectorAll<HTMLElement>("section.lm-chapter")).filter((s) => !s.hidden);
     return sections[sections.length - 1] ?? game;
   };
 

@@ -21,6 +21,8 @@ export interface FinaleDeps {
   /** Rationality Delta vs the player's best previous run, null on first run. */
   delta: { score: number; improved: boolean } | null;
   onRestart: () => void;
+  /** Deal the scored procedural "second week" (runSecondWeek). */
+  onSecondWeek?: () => void;
 }
 
 const gbp = (v: number) => money(v, 2);
@@ -203,6 +205,7 @@ export function runFinale(deps: FinaleDeps): void {
             : deps.delta.improved
               ? `${Math.abs(deps.delta.score).toFixed(0)} under your best — the street raises its prices next week`
               : `${Math.abs(deps.delta.score).toFixed(0)} over your best — take it back next week`, deps.onRestart),
+        ...(deps.onSecondWeek ? [choiceButton("Deal a second week", "Five days, fresh invoices, one score — what the street took", deps.onSecondWeek)] : []),
         choiceButton("Back to the title", "Close the books for tonight", () => window.location.reload()),
       ),
       // A footnote, not a choice. The week ends on the replay. The product

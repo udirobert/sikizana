@@ -1,5 +1,14 @@
 # Cold Open V2 — voiced cinematic (expensive track 1)
 
+> **Superseded 2026-11-15:** the shipped intro is the 8s moonrise cut with
+> Siki's line as a karaoke subtitle (film holds its last frame until the
+> take lands), then the story card — where Zana's baked line
+> (`welcome_zana`: "I'm Zana. You point, I chase. First one's Harborne —
+> say the word.") introduces her over the player's reading time — then the
+> Shark's cold open. Policy, skip etiquette, and the implementation
+> contract live in `INTRO_AND_SKIP_POLICY.md`. The 45s three-shot
+> storyboard below was the earlier plan; both welcome takes are now used.
+
 Status: in progress 2026-11-14. `welcome_siki` baked (eleven_v4, 170KB).
 `showWelcome()` speaks it with karaoke target; manifest-miss → silent.
 

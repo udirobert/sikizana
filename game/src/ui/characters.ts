@@ -12,7 +12,7 @@
 import { el } from "./dom";
 import type { Speaker } from "../audio/voice";
 
-const NAMES: Record<Speaker, string> = {
+export const NAMES: Record<Speaker, string> = {
   siki: "Siki",
   zana: "Zana",
   factor: "The Factor",

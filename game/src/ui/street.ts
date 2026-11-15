@@ -37,6 +37,10 @@ export interface StreetCounters {
    * few pounds a fictional daily haircut sheds.
    */
   held?: number;
+  /** The Shark took the old debt at 70% of face: the discount he keeps
+   *  (£720) lights a market stall. Session flag — never ledger feePaid
+   *  (the prologue must stay out of costOfNotActing's week arithmetic). */
+  prologueLit?: boolean;
 }
 
 export const STREET_TOTAL = 5;
@@ -67,7 +71,9 @@ export interface StreetState {
  * the right: the street changes when you leave it.
  */
 export function streetState(c: StreetCounters): StreetState {
-  const funded = c.deferrals + c.billSkipped + (c.toStreet > 0 ? 1 : 0);
+  // prologueLit: the market stall the Shark's discount funded — the street
+  // grows on everyone's lateness, his profit on yours included.
+  const funded = c.deferrals + c.billSkipped + (c.toStreet > 0 ? 1 : 0) + (c.prologueLit ? 1 : 0);
   const lit = Math.min(STREET_TOTAL, Math.max(1, STREET_BASE_LIT + funded));
   const shut = Math.min(lit, c.collected);
   return { lit, shut, total: STREET_TOTAL };
@@ -259,6 +265,9 @@ function tallyLines(c: StreetCounters): string[] {
     `Value shed while invoices sat unchased — ${money(shed, 0)}`,
     `Late charges on skipped bills — ${money(late, 0)}`,
     `Fees paid to stallholders — ${money(npc, 0)}`,
+    ...(c.prologueLit
+      ? [`The old debt, sold to the Shark at 70: ${money(Math.round(2400 * 0.3), 0)} stayed on the street`]
+      : []),
     `Deferrals ${c.deferrals} · collections that landed ${c.collected} · skipped bills ${c.billSkipped}`,
   ];
 }
@@ -381,10 +390,17 @@ export function renderStreet(c: StreetCounters): HTMLElement {
       pending.className = "lm-street-scene lm-street-scene--pending";
       stalls.append(pending);
       void streetScene().then((s) => {
+        // Guard the swap against the double-render race: if a newer
+        // renderStreet already moved sceneHost into a fresh row, this
+        // placeholder is detached — replacing it would STEAL the host
+        // (and its canvas) out of the live street into a dead row, and
+        // the street paints nothing until some later event re-renders.
         if (s && sceneHost) {
-          pending.replaceWith(sceneHost);
-          s.refresh(); // host just entered layout — size the renderer
-          s.setState(lit, shut);
+          if (pending.isConnected) {
+            pending.replaceWith(sceneHost);
+            s.setState(lit, shut);
+          }
+          if (sceneHost.isConnected) s.refresh(); // size the renderer wherever the host now lives
         }
       });
     }
@@ -443,7 +459,9 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     "aria-label": held > 0
       ? `${money(held, 0)} of your invoices are due and still unchased. Show the breakdown.`
       : `The stalls keep their books — ${taken}. Show the breakdown.`,
-    text: "Details",
+    // The label previews what's inside (NN/g: users must predict hidden
+    // content from the trigger alone — "Details" predicts nothing).
+    text: "the books",
   });
   const books = el("span", { class: "lm-street-books", hidden: true });
   for (const line of tallyLines(c)) books.append(el("span", { class: "lm-street-book-line", text: line }));

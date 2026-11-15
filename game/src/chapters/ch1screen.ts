@@ -15,6 +15,7 @@
 import { el, clear, choiceButton } from "../ui/dom";
 import { streetFocus } from "../ui/street";
 import { speakerPara } from "../ui/characters";
+import { councilGrid } from "../ui/council";
 import {
   BILL,
   CH1_DAYS,
@@ -23,9 +24,13 @@ import {
   resolveDay,
   deferralLines,
   netPosition,
+  PAIR_A_DAY,
+  PAIR_B_DAY,
   type Ch1State,
   type DayEffect,
 } from "./ch1";
+import { beatClock, type BeatClock } from "../ui/beatClock";
+import { gutCalls } from "../ui/gutTimer";
 import type { LedgerEntry } from "../engine/ledger";
 import type { Speaker } from "../audio/voice";
 import { money, isSouq, SOUQ_VO } from "../engine/market";
@@ -44,28 +49,84 @@ export const SHARK_PROLOGUE = {
   counter: "Eighty-five? Cute. Seventy, off the books, tonight — or nothing.",
 } as const;
 
+/**
+ * The council (Siki left, Zana right) — the product's dual persona made
+ * playable. Canon: web/DESIGN.md ("Siki = explain; Zana = chase/enforce,
+ * direct tone") and web/components/ZanaMascot.tsx ("the bad cop to Siki's
+ * good cop"). These strings are MANIFEST KEYS for the baked takes
+ * (council_day{1,2,3}_{siki,zana}) — display text == spoken text; do not
+ * reword without re-baking. UK path only: the souq runs its own lawful-fee
+ * fiction and its own Arabic takes.
+ */
+const COUNCIL: Record<number, { siki: string; zana: string }> = {
+  1: {
+    siki: "Chasing isn't rude — the law agrees. A late commercial invoice earns statutory interest from day one: base rate plus eight.",
+    zana: "Harborne has the money. It chose not to hand it over. Go and get it.",
+  },
+  2: {
+    siki: "Parliament priced lateness in 1998: forty pounds fixed, plus interest at base plus eight. The street charges more, and calls it a favour.",
+    zana: "Pay the bill. Or tomorrow I read you the late fee — louder.",
+  },
+  3: {
+    siki: "Identical numbers. One difference: when the money lands. Watch what your gut does with later.",
+    zana: "Same invoice as day one. What you do today says who you are — not the weather.",
+  },
+};
+
+/** Prologue council — TEXT ONLY (the Shark owns the beat's voice; the duo
+ *  mutters beside the choice, it doesn't compete with the offer). */
+const PROLOGUE_COUNCIL = {
+  offer: {
+    siki: "Selling what you're owed at a discount has a name: factoring. London has done it for centuries.",
+    zana: "Thirty per cent of £2,400 is his profit on your patience. Count it before you sign.",
+  },
+  counter: {
+    siki: "His first number was the anchor. Your eighty-five didn't move it — watch what the same seventy feels like now.",
+    zana: "He laughed. It's his number or the whole debt — know which one you're taking.",
+  },
+} as const;
+
+/**
+ * Unique moments — one-shot lines fired by specific choices, so the same
+ * week is never quite the same twice. All are manifest keys (byte-for-byte
+ * with design/lines.json). UK fiction (the 1998 Act / Quayline line stays
+ * off the souq path, where the fee is contractual, not statutory).
+ */
+const MOMENT_DEFER_FIRST = "That's the first stall you lit. £2,400 sleeps out there tonight — it doesn't come home by itself.";
+const MOMENT_BILL_CAMEO = "I heard the street charging you. When you'd rather sell the account than keep the chase — I'm at the end of the row.";
+const MOMENT_SHADOW = "That shadow crossing the stalls — him. He prices patience, and he hasn't forgotten you kept yours.";
+const MOMENT_TRIAGE = "Breathe. Still saveable, in order: what's owed to you, then what you owe. The street only wins the days you give it.";
+
 export interface Ch1Deps {
   root: HTMLElement;
   /** Persistent ledger — owned above (one spine across chapters). */
   record: (e: Omit<LedgerEntry, "id">) => void;
   /** All ch1 pair entries so far (for the debrief replay). */
   pairEntries: () => LedgerEntry[];
-  /** Audio bus marker — muted-safe; lines render as text regardless. */
-  say: (speaker: Speaker, text: string) => void;
+  /** Audio bus marker — muted-safe; lines render as text regardless.
+   * onDone fires when the line lands (spoken take ended, or silent text —
+   * callers arm the decision clock there so the timer never races the VO). */
+  say: (speaker: Speaker, text: string, onDone?: () => void) => void;
   /** Persist run state (localStorage; cleared on demand — privacy rails). */
   save: (state: Ch1State) => void;
   /** Fired when the chapter closes (main.ts chains to Chapter 2). */
   onTool?: (tool: "reminder_rule") => void;
   /** Street-moving events that don't create ledger entries. `flair` is a
-   *  cosmetic-only pulse — it must never feed street counters. */
-  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number }) => void;
+   *  cosmetic-only pulse — it must never feed street counters. `prologueLit`
+   *  lights the Shark-funded stall (session flag, not a counter). */
+  noteStreet: (ev: { deferral?: boolean; billSkipped?: boolean; collected?: number; lateFee?: number; streetTake?: number; flair?: boolean; held?: number; prologueLit?: boolean }) => void;
   /** One line of street world-texture per day (flavour only — no mechanics). */
   whisper?: (text: string) => void;
+  /** One-shot street effects (main.ts owns the strip): "shark-shadow" sweeps
+   *  the Shark's shadow across the stalls — fired once, only on the run
+   *  where the player kept the old debt. */
+  streetFx?: (fx: "shark-shadow") => void;
   /** Day counter → the street scene's dusk→dawn grade (presentation only). */
   sceneDay?: (day: number) => void;
-  /** True once the prologue offer has a ledger entry — a player who chose
-   *  but closed before Day 1 must not be offered it twice. */
-  prologueSettled?: () => boolean;
+  /** Erase this run and begin again from the cold open (the resume
+   *  screen's "Start the week over" — a first-class redo, not a hunt
+   *  through the title's privacy scrub). */
+  onRestart?: () => void;
 }
 
 const gbp = (v: number) => money(v, 2);
@@ -79,7 +140,13 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   const lantern = el("div", { class: "lm-lantern", "aria-live": "polite", text: "" });
   const till = el("div", { class: "lm-till lm-till-top", "aria-live": "polite" });
-  const ledgerStrip = el("details", { class: "lm-ledger" });
+  // The ledger is OPEN by default (NN/g accordions research: hidden content
+  // behind an ambiguous label is content most players never meet — and the
+  // invoice cards ARE the game's core state, the books the player is
+  // learning to read). It sits BELOW the decision elements, so on day
+  // beats it costs the one-viewport design nothing; a player can still
+  // collapse it, and their choice sticks for the run.
+  const ledgerStrip = el("details", { class: "lm-ledger", open: true });
   const dayPanel = el("div", { class: "lm-day" });
   // Till first: the money is the first viewport, choices second, ledger last.
   root.append(till, dayPanel, ledgerStrip, lantern);
@@ -91,7 +158,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   let lastLantern = 0;
   let tillToken = 0;
   // Reactive voices fire once per run — punctuation for firsts, not wallpaper.
-  const reacted = { collect: false, defer: false, bill: false };
+  const reacted = { collect: false, defer: false, bill: false, skipped: false, shadow: false, triage: false };
+  // Zana's clock on the timed beats: the prologue offer and the two pair days.
+  let clock: BeatClock | null = null;
   function tweenMoney(elm: HTMLElement, from: number, to: number, token: number): void {
     if (reducedMotion || from === to) { elm.textContent = gbp(to); return; }
     const t0 = performance.now(), dur = 650;
@@ -249,6 +318,12 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     document.getElementById("street-slot")?.classList.toggle("lm-street-pre", pre);
   }
 
+  /** One-viewport beats: slim the street strip while a decision is live
+   *  (the finale releases it — the payoff wants the full market). */
+  function streetCompact(on: boolean): void {
+    document.getElementById("street-slot")?.classList.toggle("lm-street-compact", on);
+  }
+
   function intro(): void {
     const resuming = saved !== null && saved.day > 1;
     // The cold open: minute one is a scene, not a ledger. The Shark walks
@@ -260,11 +335,21 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     streetAusterity(false); // a returning run is already inside the ledger era
     deps.say("siki", `The shutters were left open. Day ${state.day} of ${CH1_DAYS} — the books remember where you stopped.`);
     clear(dayPanel);
+    // The way back in is a choice, not a corridor: resume, or start the
+    // week over (a player who abandoned mid-run gets a first-class redo,
+    // not a hunt through the title's scrub button).
     dayPanel.append(
       el("h3", { "aria-label": `Day ${state.day} of ${CH1_DAYS}` },
         `Day ${state.day} of ${CH1_DAYS}`, weekDots(state.day)),
       el("p", { class: "lm-hint", text: `Back at the counter. The books remember where you stopped.` }),
       choiceButton("Back to the counter", `Resume at Day ${state.day}`, () => showDay()),
+      ...deps.onRestart
+        ? [(() => {
+            const b = choiceButton("Start the week over", `Erase this week's progress — the Shark gets another pass`, () => deps.onRestart?.());
+            b.classList.add("lm-choice-quiet");
+            return b;
+          })()]
+        : [],
     );
     renderChrome();
     persist();
@@ -272,20 +357,30 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function coldOpen(): void {
     streetAusterity(true);
-    deps.say("zana", "Heads up. Shark about — walk past him.");
+    streetCompact(true);
+    root.classList.add("lm-beat-compact");
     // The books don't exist yet dramatically — hide the empty chrome so the
     // first viewport is street, teeth, and the choice.
     lantern.hidden = true; till.hidden = true; ledgerStrip.hidden = true;
     clear(dayPanel);
     dayPanel.append(el("h3", { text: "Night. The Late Market." }));
 
-    // The prologue offer is ONCE per run: a player who picked but closed
-    // before Day 1 sees only the shutters, not a second ledger entry.
-    if (deps.prologueSettled?.()) return shutters();
+    // The prologue offer is once per RUN (state, not ledger): a replay from
+    // the title meets the Shark again; a player who picked but closed before
+    // Day 1 sees only the shutters, not a second offer.
+    if (state.prologueDone) return shutters();
 
-    dayPanel.append(
-      speakerPara("shark", "Nice stall. Everybody pays the street eventually — cash now, or a little each day."),
-      speakerPara("zana", "That's the Shark. He prices patience by the day."),
+    // The story card (main.ts) set the scene before this beat; here the
+    // Shark takes the stage. His offer renders hero-size at the top of the
+    // section while he speaks, the choices sit dimmed below — and when the
+    // line LANDS, the stage yields (smooth CSS shrink) and the veil lifts.
+    //
+    // No clock here — deliberately. The gut clock exists on the pair days,
+    // where gut-vs-deliberation IS the measured instrument; arming it on the
+    // very first beat of the game would only harvest first-click noise and
+    // quietly bias every recording after it (anchoring by pressure). The
+    // opening offer deserves deliberation; the pair days deserve instinct.
+    const choices = el("div", { class: "lm-choices lm-await" },
       ...(() => {
         const take = choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take"));
         take.classList.add("lm-choice-trap");
@@ -293,13 +388,24 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         refuse.classList.add("lm-choice-primary");
         const counter = choiceButton("Counter — 85%", "He will say no. Watch.", () => prologuePick("counter"));
         counter.classList.add("lm-choice-quiet");
-        return [el("div", { class: "lm-choices" }, take, refuse, counter)];
+        return [take, refuse, counter];
       })(),
     );
-    // The offer itself is the voiced beat — the bubble IS the presentation.
-    deps.say("shark", SHARK_PROLOGUE.offer);
+    dayPanel.append(
+      speakerPara("zana", "That's the Shark. He prices patience by the day."),
+      councilGrid(PROLOGUE_COUNCIL.offer, choices),
+    );
+    root.classList.add("lm-shark-stage");
+    deps.say("shark", SHARK_PROLOGUE.offer, () => {
+      root.classList.remove("lm-shark-stage");
+      choices.classList.remove("lm-await");
+    });
     persist();
   }
+
+  /** What the shutters beat whispers about the offer — set by the outcome
+   *  path, null when we arrive without playing the prologue this run. */
+  let prologueHint: string | null = null;
 
   /** The Shark's offer, recorded once. Off-book by design: the debt predates
    *  the week, so nothing touches state.cash, state.invoices, or
@@ -308,7 +414,8 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
    *  experimentId with NO ch1_/ch2_/ch3_ prefix (irrationalityProfile counts
    *  those), npc set but NEVER feePaid (costOfNotActing would inflate),
    *  deferred false. */
-  function prologuePick(kind: "take" | "refuse" | "counter"): void {
+  function prologueRecord(chosen: string, decision: "accept" | "decline", consequence: string): void {
+    state.prologueChoice = chosen; // drives the mid-week shadow beat if the debt was kept
     deps.record({
       chapter: 1,
       day: 0,
@@ -319,22 +426,74 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         { id: "refuse", label: "Refuse — keep the debt", framingVariable: "prologue_refuse", isDefault: true },
         { id: "counter_85", label: "Counter — 85%", framingVariable: "prologue_counter_85", isDefault: false },
       ],
-      chosenOptionId: kind === "take" ? "take_70" : kind === "counter" ? "counter_85" : "refuse",
+      chosenOptionId: chosen,
       deferred: false,
-      npc: {
-        npc: "The Shark",
-        decision: kind === "take" ? "accept" : kind === "counter" ? "counter" : "decline",
-      },
-      immediateConsequence:
-        kind === "take"
-          ? "Settled off the books — the old debt is gone; this week's till never saw it."
-          : kind === "counter"
-            ? "Countered at 85% — the Shark walked. The offer is gone."
-            : "Refused. The debt stays yours; the street keeps its own books.",
+      npc: { npc: "The Shark", decision },
+      immediateConsequence: consequence,
     });
-    if (kind === "take") deps.noteStreet({ flair: true }); // cosmetic pulse only
-    deps.say("shark", SHARK_PROLOGUE[kind === "take" ? "accept" : kind === "counter" ? "counter" : "refuse"]);
+  }
+
+  function prologuePick(kind: "take" | "refuse" | "counter"): void {
+    state.prologueDone = true; // per-run: resume skips the re-offer
+    if (kind === "counter") return counterOffer(); // move 2: his final terms
+    const took = kind === "take";
+    prologueRecord(
+      took ? "take_70" : "refuse",
+      took ? "accept" : "decline",
+      took
+        ? "Settled off the books — the old debt is gone; this week's till never saw it."
+        : "Refused. The debt stays yours; the street keeps its own books.",
+    );
+    // The take has a real, visible consequence: the discount the Shark keeps
+    // (£720 of £2,400) funds a market stall — the street grows on everyone's
+    // lateness, his profit on yours included. Refusing lights nothing.
+    deps.noteStreet({ flair: true, prologueLit: took });
+    prologueHint = took
+      ? `The old debt is gone — settled at seventy. ${money(Math.round(2400 * 0.3), 0)} of it stayed on the street, and one more stall is lit because of it.`
+      : "The whole debt is still yours — nothing lit for him tonight.";
+    deps.say("shark", SHARK_PROLOGUE[took ? "accept" : "refuse"]);
     shutters();
+  }
+
+  /** Move 2 — the counter bounced. His first offer was the anchor; your
+   *  eighty-five bought a laugh and a final "seventy or nothing". Same terms
+   *  as before, but now as an ultimatum: take it, or walk with the whole
+   *  debt. Both are real outcomes — recorded, and differently visible on
+   *  the street. */
+  function counterOffer(): void {
+    clear(dayPanel);
+    dayPanel.append(
+      el("h3", { text: "Night. The Late Market." }),
+      el("p", { class: "lm-hint", text: "He didn't move. Seventy, tonight — or nothing." }),
+      councilGrid(PROLOGUE_COUNCIL.counter, el("div", { class: "lm-choices lm-await" },
+        ...(() => {
+          const take = choiceButton("Take the seventy", `The debt is gone — ${money(Math.round(2400 * 0.3), 0)} stays on the street`, () => {
+            prologueRecord("counter_then_take_70", "accept",
+              "Countered at 85 — he came back at seventy, tonight or nothing. You took it. The old debt is gone; the discount lit a stall.");
+            deps.noteStreet({ flair: true, prologueLit: true });
+            prologueHint = `You tried for eighty-five and got his number back. The debt is gone — ${money(Math.round(2400 * 0.3), 0)} stayed on the street, and one more stall is lit because of it.`;
+            deps.say("shark", SHARK_PROLOGUE.accept);
+            shutters();
+          });
+          take.classList.add("lm-choice-trap");
+          const walk = choiceButton("Walk away", "The debt stays yours — nothing lights for him", () => {
+            prologueRecord("counter_then_refuse", "decline",
+              "Countered at 85 — he came back at seventy, tonight or nothing. You walked. The debt stays yours; nothing lit for him.");
+            prologueHint = "You tried for eighty-five, then walked. The whole debt is still yours — nothing lit for him tonight.";
+            deps.say("shark", SHARK_PROLOGUE.refuse);
+            shutters();
+          });
+          walk.classList.add("lm-choice-primary");
+          return [take, walk];
+        })(),
+      )),
+    );
+    root.classList.add("lm-shark-stage");
+    deps.say("shark", SHARK_PROLOGUE.counter, () => {
+      root.classList.remove("lm-shark-stage");
+      dayPanel.querySelector(".lm-choices")?.classList.remove("lm-await");
+    });
+    persist();
   }
 
   function shutters(): void {
@@ -342,7 +501,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     clear(dayPanel);
     dayPanel.append(
       el("h3", { text: "Night. The Late Market." }),
-      speakerPara("zana", "The street keeps its books whether you open or not. Open the shutters."),
+      ...(prologueHint ? [el("p", { class: "lm-hint", text: prologueHint })] : []),
+      // Recast (Nov 15): the usher line was Zana's — but she is the enforcer,
+      // not a concierge (canon: web/DESIGN.md "Zana = chase/enforce"). The
+      // guide/teacher voice is Siki's, so she opens the shutters beat.
+      speakerPara("siki", "The street keeps its books whether you open or not. Yours begin the moment you open the shutters."),
       el("div", { class: "lm-choices" },
         choiceButton("Open the shutters", `Day 1 of ${CH1_DAYS} · till ${money(1200)}`, () => showDay()),
       ),
@@ -400,6 +563,8 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   function showDay(): void {
     if (state.done) return debrief();
     streetAusterity(false); // Day 1: the ledger chrome arrives with the money
+    streetCompact(true);
+    root.classList.add("lm-beat-compact");
     const day = state.day;
     document.documentElement.style.setProperty("--lm-bg-deep", DAY_TINTS[day - 1] ?? DAY_TINTS[0]);
     deps.whisper?.(DAY_WHISPERS[(day - 1) % DAY_WHISPERS.length]!);
@@ -409,34 +574,82 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     root.append(till, dayPanel, ledgerStrip, lantern);
     const choices = dayChoices(state, day);
     const scene = DAY_SCENE[day];
-    // Souq day 1 gets its own cold-open line (the baked AR take carries
-    // the AED figures); the EN day scenes stay canonical on the UK path.
-    if (isSouq() && day === 1) deps.say("siki", SOUQ_VO.ch1Intro);
-    else if (scene) deps.say(scene.speaker, scene.line);
     clear(dayPanel);
+    const choicesEl = el("div", { class: "lm-choices" },
+      ...choices.map((c) => {
+        const b = choiceButton(c.label, c.detail, () => pick(c.id));
+        // The engine's own kind rides the card — hover reveals what kind
+        // of move this is (real data, not invented framing).
+        b.classList.add(`lm-kind-${c.kind}`);
+        // Visual weight: primary moves the till, traps feed the street,
+        // easy work is deliberately quiet.
+        if (c.kind === "chase" || c.kind === "pay_bill") b.classList.add("lm-choice-primary");
+        else if (c.kind === "defer" || c.kind === "skip_bill") b.classList.add("lm-choice-trap");
+        else b.classList.add("lm-choice-quiet");
+        return b;
+      }),
+    );
     dayPanel.append(
       el("h3", { "aria-label": `Day ${day} of ${CH1_DAYS}` },
         `Day ${day} of ${CH1_DAYS}`, weekDots(day)),
       el("p", { class: "lm-hint", text: dayHint(day) }),
-      el("div", { class: "lm-choices" },
-        ...choices.map((c) => {
-          const b = choiceButton(c.label, c.detail, () => pick(c.id));
-          // The engine's own kind rides the card — hover reveals what kind
-          // of move this is (real data, not invented framing).
-          b.classList.add(`lm-kind-${c.kind}`);
-          // Visual weight: primary moves the till, traps feed the street,
-          // easy work is deliberately quiet.
-          if (c.kind === "chase" || c.kind === "pay_bill") b.classList.add("lm-choice-primary");
-          else if (c.kind === "defer" || c.kind === "skip_bill") b.classList.add("lm-choice-trap");
-          else b.classList.add("lm-choice-quiet");
-          return b;
-        }),
-      ),
+      // The council: Siki and Zana flank the options on the UK path (the
+      // souq keeps its own Arabic flow — see COUNCIL's canon note).
+      !isSouq() && COUNCIL[day]
+        ? councilGrid(COUNCIL[day]!, choicesEl)
+        : choicesEl,
     );
+    // Zana's clock on the pair days: ten seconds, then the invoice sits —
+    // not chasing IS deferring, so standing still is the trap option. The
+    // bill day stays untimed on purpose (resource clarity beats pressure).
+    // Armed only once the day's council has landed, so the timer never
+    // races the voice.
+    if (day === PAIR_A_DAY || day === PAIR_B_DAY) {
+      const deferId = choices.find((c) => c.kind === "defer")?.id;
+      const c = beatClock(dayPanel, {
+        experimentId: day === PAIR_A_DAY ? "ch1_present_pair_a" : "ch1_present_pair_b",
+        seconds: 10,
+        calm: reducedMotion,
+        onTimeout: () => { if (deferId) pick(deferId); },
+      });
+      clock = c;
+      const arm = () => c.arm();
+      if (isSouq() && day === 1) deps.say("siki", SOUQ_VO.ch1Intro, arm);
+      else if (!isSouq()) speakCouncil(day, arm);
+      else if (scene) deps.say(scene.speaker, scene.line, arm);
+    } else {
+      clock?.cancel();
+      clock = null;
+      // Souq day 1 gets its own cold-open line (the baked AR take carries
+      // the AED figures); the EN day scenes stay canonical on the UK path.
+      if (isSouq() && day === 1) deps.say("siki", SOUQ_VO.ch1Intro);
+      else if (!isSouq()) speakCouncil(day);
+      else if (scene) deps.say(scene.speaker, scene.line);
+    }
+  }
+
+  /** The council speaks — Zana's read first (she's the situation), Siki's
+   *  answer second (she's the lesson). One voice at a time, chained through
+   *  onDone; the pair-day clock (if any) arms only after both land. The
+   *  one-shot moments take over a slot rather than adding a third line —
+   *  the surprise is the line, not an extra one. */
+  function speakCouncil(day: number, arm?: () => void): void {
+    const c = COUNCIL[day];
+    if (!c) return;
+    let zana = c.zana;
+    // The Shark's shadow: once, mid-week, only if the old debt was kept.
+    if (day >= 2 && !reacted.shadow && state.prologueChoice && !state.prologueChoice.endsWith("take_70")) {
+      reacted.shadow = true;
+      zana = MOMENT_SHADOW;
+      deps.streetFx?.("shark-shadow");
+    }
+    deps.say("zana", zana, () => deps.say("siki", c.siki, arm));
   }
 
   function pick(choiceId: string): void {
     if (state.done || state.day > CH1_DAYS) return;
+    clock?.picked(choiceId);
+    clock = null;
     const { effects, engineeredEntry } = resolveDay(state, state.day, choiceId);
     if (engineeredEntry) deps.record(engineeredEntry);
     // The street's running tally (the strip's "£X so far"): the value the
@@ -449,21 +662,48 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       collected: effects.collected,
     });
     // Firsts get a voice: Siki marks money landing, Zana marks the street
-    // being fed and the bill being killed. Text-only when unbaked.
+    // being fed and the bill being killed, the Collector marks the account
+    // he'd rather buy than let you chase. Collected and fired AFTER
+    // finishDay — its clear(root) would eat the bubbles, and an unbaked
+    // line's bubble IS its text. One voice at a time; if two fire, the
+    // later (the consequential one) is the line that lands.
+    const afterBeat: Array<[Speaker, string]> = [];
     if (effects.collected > 0 && !reacted.collect) {
       reacted.collect = true;
-      deps.say("siki", "There it is — the full face, on your till, not the street's.");
+      afterBeat.push(["siki", "There it is — the full face, on your till, not the street's."]);
     }
     if (effects.streetNote === "deferral" && !reacted.defer) {
       reacted.defer = true;
-      // The stallholder who just lit speaks. A second narrator here
-      // turns the beat back into a lecture.
+      // UK fiction only: the bark names the £2,400 (the souq's figures are
+      // dirhams and its own lawful-fee story).
+      if (!isSouq()) afterBeat.push(["zana", MOMENT_DEFER_FIRST]);
     }
     if (effects.day === BILL.dueDay && state.bill.paidDay !== null && !reacted.bill) {
       reacted.bill = true;
-      deps.say("zana", "Nobody owns a piece of your week now. Quayline is paid.");
+      afterBeat.push(["zana", "Nobody owns a piece of your week now. Quayline is paid."]);
+    }
+    if (effects.streetNote === "bill_skipped" && !reacted.skipped) {
+      reacted.skipped = true;
+      afterBeat.push(["collector", MOMENT_BILL_CAMEO]);
+    }
+    // The till-empty ending is the angel's one dramatic moment: Siki's
+    // triage goes LAST (after Zana's kill-mark, if any) so it's the line
+    // still on screen when the books close. (Unreachable from showDay:
+    // going red ends the week at the day close, never a morning.)
+    if (state.done && state.endedEarly === "till_empty" && !reacted.triage) {
+      reacted.triage = true;
+      afterBeat.push(["siki", MOMENT_TRIAGE]);
     }
     finishDay(effects);
+    // Voice the beats in order, chained through onDone so each is heard
+    // before the next (with one beat this is the single say it always was).
+    let bi = 0;
+    const speakBeat = (): void => {
+      if (bi >= afterBeat.length) return;
+      const [speaker, line] = afterBeat[bi++]!;
+      deps.say(speaker, line, speakBeat);
+    };
+    speakBeat();
   }
 
   function finishDay(effects: DayEffect): void {
@@ -531,7 +771,17 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     const entries = deps.pairEntries();
     const deferred = entries.filter((e) => e.deferred);
     const lines = deferralLines(state);
-    const stillOut = lines.filter((l) => l.stillOwed).reduce((t, l) => t + l.principal, 0);
+    // What never landed by the close — priced or not. A day-3 deferral
+    // starts its wait after the close, so it has no priced line item, but
+    // the debrief must still count it "on the street" or it contradicts
+    // the ledger strip sitting right below it.
+    const horizon = state.lastPlayedDay > 0 ? state.lastPlayedDay : CH1_DAYS;
+    const pricedIds = new Set(lines.map((l) => l.invoiceId));
+    const unpricedOwed = state.invoices
+      .filter((i) => !pricedIds.has(i.id))
+      .filter((i) => i.chasedDay === null && (i.paidDay === null || i.paidDay > horizon) && (i.deferredDay !== null || i.dueDay <= horizon))
+      .reduce((t, i) => t + i.principal, 0);
+    const stillOut = lines.filter((l) => l.stillOwed).reduce((t, l) => t + l.principal, 0) + unpricedOwed;
     const statutoryFloor = lines.reduce((t, l) => t + l.statutory, 0);
     const differed = entries.length >= 2 && deferred.length === 1;
     const bothChased = entries.length >= 2 && deferred.length === 0;
@@ -539,9 +789,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
     function beatPrices(): void {
       clear(dayPanel);
-      const price = isSouq()
-        ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
-        : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
+      const price = statutoryFloor === 0 && stillOut > 0
+        ? `${gbp0(stillOut)} did not come in. Its wait starts after the close — this week priced none of it.`
+        : isSouq()
+          ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
+          : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
       const name = differed
         ? "You deferred one and chased the other. The offers matched. Only when the money landed changed. That tilt is present bias."
         : bothChased
@@ -560,9 +812,25 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           ),
         ),
         speakerPara("siki", price),
+        // The deduction quotes the player's own sequence — path-aware, not
+        // a generic bias card. The bias naming lands after the evidence.
+        ...(entries.length >= 2 ? [el("p", {
+          class: "lm-hint",
+          text: `Your two rows, side by side: ${entries.slice().sort((a, b) => a.day - b.day).map((e) => `Day ${e.day} — ${e.deferred ? "left it" : "chased"}`).join(" · ")}.`,
+        })] : []),
         ...(state.endedEarly === "till_empty"
           ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
           : []),
+        ...(() => {
+          // Zana's clock read-back: the timed beats you didn't get to are
+          // the same money the debrief is pricing. Observation, not judgement.
+          const called = gutCalls()
+            .filter((c) => c.experimentId.startsWith("ch1_present_pair") && c.chosenOptionId === "time_called")
+            .length;
+          return called > 0
+            ? [el("p", { class: "lm-hint", text: `Zana's clock called it ${called === 1 ? "once" : `${called} times`} — the money you didn't get to is on that list.` })]
+            : [];
+        })(),
         el("div", { class: "lm-choices" },
           choiceButton("When an invoice falls due, chase it the same day", "Chapter 1 complete", () => closeBooks()),
         ),

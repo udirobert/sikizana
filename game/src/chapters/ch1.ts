@@ -186,6 +186,16 @@ export interface Ch1State {
   cash: number;
   invoices: Ch1Invoice[];
   bill: Ch1Bill;
+  /** The Shark's prologue was answered THIS RUN (per-run, not per-ledger:
+   *  a replay from the title must meet him again; the ledger keeps history).
+   *  Persisted so a player who picked but closed before Day 1 is not
+   *  re-offered on resume. */
+  prologueDone?: boolean;
+  /** The recorded prologue outcome (`take_70` / `refuse` /
+   *  `counter_then_take_70` / `counter_then_refuse`). Drives the once-per-run
+   *  Shark shadow beat mid-week when the player kept the debt — Ch.1 can't
+   *  read the ledger, so the choice travels on the run's save. */
+  prologueChoice?: string;
   /**
    * The street's take this run: the market value the invoices shed while they
    * sat unchased (the exact mirror of the card's falling "worth today").
@@ -379,14 +389,16 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     // day 3's identical wait lands after the week closes.
     const chaseDetail = isEngineered
       ? day === pair.first.day
-        ? `The full ${money(due.principal)} lands in the till this week — in ${dayWord(PAIR_A_CHASE_CLEAR_DAYS)}.`
-        : `The full ${money(due.principal)} lands after the week closes — in ${dayWord(PAIR_B_CHASE_CLEAR_DAYS)}.`
-      : `Chase — the full ${money(due.principal)} lands in ${dayWord(CHASE_CLEAR_DAYS)}.`;
-    const deferDetail = isEngineered
-      ? day === pair.first.day
-        ? `Defer — the full ${money(due.principal)} lands in ${PAIR_A_DEFER_CLEAR_DAYS} days instead.`
-        : `Defer — the full ${money(due.principal)} lands in ${PAIR_B_DEFER_CLEAR_DAYS} days instead.`
-      : `Defer — the full ${money(due.principal)} lands in ${DEFER_CLEAR_DAYS} days instead.`;
+        ? `Zana goes today. The full ${money(due.principal)} is here tomorrow morning — inside the week.`
+        : `Zana goes today. The full ${money(due.principal)} is here tomorrow morning — after the close.`
+      : `Zana goes today — the full ${money(due.principal)} lands tomorrow morning.`;
+    // The far cost stays abstract on the button; the debrief prices it in
+    // days and pounds. Spelling "10 days instead" here hands the player
+    // the arithmetic before the experiment runs, and the pair measures
+    // nothing. Identical wording on both pair arms — the arms differ only
+    // in the chase's landing, never here. The exact day counts stay in the
+    // ledger record (optionsShown) and the debrief.
+    const deferDetail = "It can wait — it'll come in its own time.";
     decisionChoices.push({ id: `chase-${due.id}`, label: `Chase ${due.client} — ${money(due.principal)}`, detail: chaseDetail, kind: "chase", invoiceId: due.id });
     decisionChoices.push({ id: `defer-${due.id}`, label: "Leave it for tomorrow", detail: deferDetail, kind: "defer", invoiceId: due.id });
   }

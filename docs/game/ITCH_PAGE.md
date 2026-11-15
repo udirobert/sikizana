@@ -13,7 +13,7 @@ A night market opens where your uncollected invoices sleep.
 "Your week in one line: the near cost always shouted loudest, and the far one barely whispered."
 
 ## Short description (1–2 lines)
-A financial-literacy game. You keep a stall open for one week while a night
+A financial-literacy game. You keep a stall open for three days while a night
 market buys every invoice you leave. Chase, or watch a stall light. Siki
 explains. Zana collects. The street keeps the ledger.
 
@@ -23,7 +23,7 @@ financial decision in the world: what to do about an overdue invoice.
 
 You keep a stall open for three days. Leave an invoice, and a stall on the
 street lights — the Factor, the Collector, or the Shark steps up and names
-their price. Chase it, and a stall shutters. The week ends on one number:
+their price. Chase it, and a stall shutters. The close is one number:
 what the street took.
 
 Then the Claims Desk puts a number down first, and a three-year customer
