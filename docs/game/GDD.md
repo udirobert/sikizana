@@ -205,7 +205,7 @@ Each chapter pairs **structurally symmetric** choices and changes exactly one va
 - **Setup:** a 3-year client (always 60 late) gone silent. The frame is relationship depth — every UI element highlights what you already put in.
 - **Engineered structure:** escalate/continue costs more resources than the prospect view supports; a rational replay exists and the debrief contrasts your choice with the prospective-only ledger ("decide at zero").
 - **Debrief:** show the decision twice — once with sunk-weighted framing, once prospective. Acknowledge sensible cases for continued investment.
-- **NPC scenes:** *The Factor* and *The Shark* step up in turn, each as a full-screen beat — one character, one number, one decision. The Factor's instant cash lands big in green (relief); the Shark's daily number lands big in red (the drip). Same staging, mirrored meaning.
+- **NPC scenes:** *The Factor* and *The Shark* step up in turn, each as a full-screen beat — one character, one number, one decision, plus one counter each (push the Factor on a die throw; flip the Shark's coin double-or-nothing — Nov 15 fun pass, see App. D). The Factor's instant cash lands big in green (relief); the Shark's daily number lands big in red (the drip). Same staging, mirrored meaning.
 
 ## A5. Finale — *You Were the Experiment / Market Close*
 
@@ -380,3 +380,22 @@ the jam build's source of truth.
 - **Persistence:** decision ledger (`lm.ledger.v1`) + Ch.1 mid-run state
   (`lm.ch1.v1`, cleared on chapter close) in localStorage only; title-screen
   purge clears both. Prefs now also carry `simpleLang`.
+- **Debrief-flip (Nov 15, post-freeze, user-overrode):** every chapter
+  debrief now asks first and names second — a graded deduction question on
+  the player's own rows before the voiced bias naming (Ch.1 gated on the
+  pair split; Ch.2 on the anchor chart; Ch.3 on money put in). Verdicts are
+  display-only; all baked takes survive verbatim; ledger/axes untouched.
+  Full scope + proof in `docs/game/DEBRIEF_FLIP_SCOPE.md`.
+- **Fun pass (Nov 15, post-freeze):** the machine reacts louder. (a) The
+  clean run lights the street gold with Zana's respect line; the
+  till-empty death dims the street, shudders the till, and holds "Close
+  the books" a beat (second week shares the dimming). (b) One taunt per
+  NPC, once per run, on the new beats. (c) The Factor takes one counter —
+  die 4+ nods at +8% today, else walks and bloods the Shark's advance
+  −15%. (d) The Shark takes one double-or-nothing coin flip — heads
+  doubles the cash now, tails leaves nothing now, the daily stands either
+  way (same expected value as the plain take; one ledger entry, counter
+  recorded in `optionsShown`). (e) Dust-motes drift across the street
+  (pure CSS, reduced-motion guarded) + three hawker whispers. Verified by
+  five jsdom play-through tests (`game/tests/fun-dom.test.ts`) covering
+  all four fate branches, the taunt, the gold run, and the death.
