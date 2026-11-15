@@ -29,7 +29,7 @@ const PAGE_URL = `http://127.0.0.1:${PORT}/`;
 
 const flagVal = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
 const MODE_ARG = flagVal("--mode");
-const mode = MODE_ARG === "video" ? "video" : MODE_ARG === "finale" ? "finale" : MODE_ARG === "ui" ? "ui" : "shots";
+const mode = MODE_ARG === "video" ? "video" : MODE_ARG === "finale" ? "finale" : MODE_ARG === "ui" ? "ui" : MODE_ARG === "souqshots" ? "souqshots" : "shots";
 const OUT = flagVal("--out") ?? join(ROOT, "screenshots");
 // Trailer segments (concat with ffmpeg): --seg a starts at the title and
 // plays ch1→ch2-run-2; --seg b starts fresh at ?ch=3 and plays Mareline→Shark.
@@ -100,29 +100,45 @@ await send("Emulation.setDeviceMetricsOverride", {
 await send("Page.navigate", { url: SEG === "b" ? `${PAGE_URL}?ch=3` : PAGE_URL });
 await sleep(1200);
 await evalJs("localStorage.clear()");
+// Shots/finale capture with Zana's clock OFF (the game's own opt-out):
+// headless audio is blocked, so the council lines land instantly and the
+// 10-second gut clock starts the moment Day 1 opens — a single PNG capture
+// (5–8 s with WebGL) can eat the whole window and auto-close the day under
+// the script's click. The video mode keeps the clock: its clicks land fast.
+if (mode === "shots" || mode === "finale" || mode === "souqshots") {
+  await evalJs('localStorage.setItem("lm.gutclock.v1","0")');
+}
 await send("Page.reload");
 await sleep(1200);
 
 // ── Click helpers ──────────────────────────────────────────────────────────
 const clickByText = async (needle) => {
+  // Visible-first: souq mode keeps a hidden twin of the shutters gate
+  // earlier in the DOM — clicking it is a silent no-op. Prefer the button
+  // the player would see; fall back to any match for hidden-but-live UI.
   const ok = await evalJs(`(() => {
-    const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes(${JSON.stringify(needle)}));
+    const bs = Array.from(document.querySelectorAll("button")).filter((x) => x.textContent.includes(${JSON.stringify(needle)}));
+    const b = bs.find((x) => x.offsetParent !== null) ?? bs[0];
     if (!b) return false; b.click(); return true;
   })()`);
   if (!ok) throw new Error(`button not found: "${needle}"`);
 };
 const clickIf = async (needle) => evalJs(`(() => {
-  const b = Array.from(document.querySelectorAll("button")).find((x) => x.textContent.includes(${JSON.stringify(needle)}));
+  const bs = Array.from(document.querySelectorAll("button")).filter((x) => x.textContent.includes(${JSON.stringify(needle)}));
+  const b = bs.find((x) => x.offsetParent !== null) ?? bs[0];
   if (!b) return false; b.click(); return true;
 })()`);
-/** Title → market pick → cinematic → welcome → Shark offer → shutters → stall. */
+/** Title → market pick → cinematic → story card → Shark offer → shutters → stall. */
 async function reachTheStall() {
   await clickByText("Begin — sound on");
   await sleep(700);
   if (await clickIf("London")) await sleep(400);
   await clickIf("Skip");
   await sleep(300);
-  await clickByText("Open the shutters"); // welcome card → cold open
+  // The story card's gate (was "Open the shutters" on the old welcome beat —
+  // the consequence pass gave the intro this card and moved the shutters
+  // button to the post-refuse gate).
+  await clickByText("Step into the street");
   await sleep(300);
   for (let i = 0; i < 160; i++) {
     const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
@@ -167,7 +183,79 @@ async function recordVideo() {
   };
   const loop = setInterval(() => void shot(), 100);
   try {
-    if (SEG === "b") {
+    if (SEG === "v3") {
+      // Trailer script v3 (docs/game/TRAILER_SCRIPT.md): prologue → day-1
+      // defer → day-2 bill → [souq frame inserted in post] → debrief → title.
+      // The mark() log gives the mux pass the exact souq-insert timestamp.
+      const mark = (name) => console.log(`[v3 t=${((Date.now() - t0) / 1000).toFixed(1)}s] ${name}`);
+      const pollFor = async (needle) => {
+        for (let i = 0; i < 160; i++) {
+          const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes(${JSON.stringify(needle)}))`);
+          if (up) return;
+          await s(250);
+        }
+        throw new Error(`poll timeout: "${needle}"`);
+      };
+      await s(4000); // title card
+      await clickByText("Begin — sound on"); await s(1500);
+      await clickByText("London"); await s(1200);
+      await clickIf("Skip"); await s(900);
+      await clickByText("Step into the street"); await s(1800);
+      await pollFor("Take the 70%");
+      await s(6000); // hold on the Shark's three buttons
+      mark("offer");
+      await clickByText("Refuse"); await s(2200);
+      await clickByText("Open the shutters"); // shutters gate
+      await pollFor("Leave it for tomorrow");
+      await s(4500); // Day 1 — the street reads £2,400
+      await clickByText("Leave it for tomorrow");
+      await s(5000); // Zana's bark, a stall lights
+      await clickByText("Next day");
+      await pollFor("Leave the bill");
+      await s(7000); // Day 2 — the bill is due
+      await clickByText("Leave the bill");
+      await s(4500); // the till answers the same morning
+      mark("souq-insert-point");
+      await clickByText("Close the books");
+      await s(9000); // debrief — the street's number
+      await clickByText("The two prices"); await s(6000);
+    } else if (SEG === "s") {
+      // One Souq frame, per the v3 script: "Do not play the week again."
+      // Empirical order: pick السوق → the bilingual title card (remedy AND
+      // the zakat label, in Arabic, with AED figures) → the narrated
+      // cinematic → the story card → Day 1 in dirhams.
+      const pollFor = async (needle) => {
+        for (let i = 0; i < 160; i++) {
+          const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes(${JSON.stringify(needle)}))`);
+          if (up) return;
+          await s(250);
+        }
+        throw new Error(`poll timeout: "${needle}"`);
+      };
+      await s(2500); // title card
+      await clickByText("Begin — sound on"); await s(1500);
+      await clickByText("السوق"); await s(1500);
+      await pollFor("Open the shutters"); // the souq title card: remedy + zakat
+      await s(3000); // hold the bilingual card
+      console.log("[souq card]", await evalJs("JSON.stringify(Array.from(document.querySelectorAll('button')).filter(b => b.textContent.includes('Open the shutters')).map(b => ({ vis: b.offsetParent !== null, dis: b.disabled, cls: b.className })))"));
+      await clickByText("Open the shutters"); await s(1500);
+      await clickIf("Skip"); // the narrated cinematic
+      // Post-cinematic: headless souq lands on Day 1 directly; a story
+      // card (when the runtime shows one) is clicked through either way.
+      for (let i = 0; i < 160; i++) {
+        const st = await evalJs(`(() => {
+          const bs = Array.from(document.querySelectorAll("button"));
+          const step = bs.find((b) => b.textContent.includes("Step into the street"));
+          if (step) { step.click(); return "step"; }
+          const defer = bs.find((b) => b.textContent.includes("Leave it for tomorrow"));
+          if (defer) return "day1";
+          return "";
+        })()`);
+        if (st === "day1") break;
+        await s(250);
+      }
+      await s(5000); // Day 1 in the souq — AED, Arabic VO text
+    } else if (SEG === "b") {
       await s(2600); // ch3 title card
       await clickByText("Begin — sound on"); await s(2200);
       await clickByText("Open the account"); await s(2800); // Mareline's history
@@ -225,8 +313,8 @@ async function shots() {
   await clickIf("London"); await s(600);
   await shot("v3_after_begin.png"); // cinematic bridge
   await clickIf("Skip"); await s(1200);
-  await shot("v3_cold_open.png"); // post-cinematic — the welcome beat (Siki & Zana introduce themselves)
-  await clickByText("Open the shutters"); await s(1200); // welcome card → Ch.1 cold open
+  await shot("v3_cold_open.png"); // the story card — Siki's stakes, Zana's intro
+  await clickByText("Step into the street"); await s(1200); // story card → the Shark takes the stage
   await shot("v3_welcome_done.png");
   // The Shark's offer lands after several voiced beats — poll for it.
   for (let i = 0; i < 160; i++) {
@@ -258,6 +346,56 @@ async function shots() {
   await shot("v3_debrief_street.png");
   await clickByText("The two prices"); await s(4200);
   await shot("v3_debrief_named.png"); // the two prices, bias named if the pair split
+}
+
+// ── Souq shots: the trailer's "one frame" of the other lawful market ──────
+// The v3 trailer beat 4 says "one frame: dirhams, and the zakat line" —
+// these stills become a ~14 s zoompan segment in the mux pass. Kept as a
+// shots-style run (no 10 fps loop): the continuous-capture load is what
+// makes headless flake on the souq path (compositor/network crashes).
+async function souqShots() {
+  mkdirSync(OUT, { recursive: true });
+  const shot = (name) => send("Page.captureScreenshot", { format: "png" }).then((r) => {
+    const p = join(OUT, name);
+    writeFileSync(p, Buffer.from(r.data, "base64"));
+    console.log(`screenshot → ${p}`);
+  });
+  const pollFor = async (needle) => {
+    for (let i = 0; i < 160; i++) {
+      const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes(${JSON.stringify(needle)}))`);
+      if (up) return;
+      await s(250);
+    }
+    throw new Error(`poll timeout: "${needle}"`);
+  };
+  await s(2500);
+  await clickByText("Begin — sound on"); await s(1500);
+  await clickByText("السوق"); await s(1500);
+  await pollFor("Open the shutters"); // gate 1: the market-pick detail card
+  await s(3000); // let the Arabic VO take land as text
+  await shot("v3_souq_card.png");
+  // The souq path stacks gates: the pick's detail card → the narrated
+  // cinematic → the bilingual title card (its own "Open the shutters") →
+  // the story card → Day 1. Click whichever gate is up until the day
+  // screen appears — each card is a one-click advance.
+  for (let i = 0; i < 200; i++) {
+    const st = await evalJs(`(() => {
+      const bs = Array.from(document.querySelectorAll("button"));
+      const defer = bs.find((b) => b.textContent.includes("Leave it for tomorrow"));
+      if (defer) return "day1";
+      const skip = bs.find((b) => b.textContent.includes("Skip"));
+      const step = bs.find((b) => b.textContent.includes("Step into the street"));
+      if (step) { step.click(); return "step"; }
+      if (skip) { skip.click(); return "skip"; }
+      const shut = bs.find((b) => b.textContent.includes("Open the shutters"));
+      if (shut) { shut.click(); return "shut"; }
+      return "";
+    })()`);
+    if (st === "day1") break;
+    await s(700);
+  }
+  await s(3000); // Day 1 in the souq — AED figures, Arabic VO text
+  await shot("v3_souq_day1.png");
 }
 
 // ── Finale mode: full run ch1→ch2→ch3→finale, screenshots at the payoff ────
@@ -402,6 +540,7 @@ try {
   if (mode === "video") await recordVideo();
   else if (mode === "ui") await uiProbe();
   else if (mode === "shots") await shots();
+  else if (mode === "souqshots") await souqShots();
   else await finale();
 } catch (e) {
   console.error("scenario failed:", e.message);

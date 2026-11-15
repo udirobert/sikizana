@@ -75,16 +75,30 @@ const COUNCIL: Record<number, { siki: string; zana: string }> = {
 };
 
 /** Prologue council — TEXT ONLY (the Shark owns the beat's voice; the duo
- *  mutters beside the choice, it doesn't compete with the offer). */
-const PROLOGUE_COUNCIL = {
-  offer: {
+ *  mutters beside the choice, it doesn't compete with the offer).
+ *  Market-aware at RENDER time (the market mode commits when the player
+ *  picks their door, long after this module loads, so this is a function,
+ *  not a module const): the souq run reads dirhams and its own lawful-fee
+ *  fiction, so "London" and the £2,400 face are UK variants only — the
+ *  souq gets the same lesson in its own money and without the London
+ *  colour (the moments already follow this rule; the prologue council
+ *  is text-only, so no take is affected). */
+function prologueCouncilOffer(): { siki: string; zana: string } {
+  if (isSouq()) {
+    return {
+      siki: "Selling what you're owed at a discount has a name: factoring. Merchants have done it for centuries.",
+      zana: `Thirty per cent of ${money(2400, 0)} is his profit on your patience. Count it before you sign.`,
+    };
+  }
+  return {
     siki: "Selling what you're owed at a discount has a name: factoring. London has done it for centuries.",
     zana: "Thirty per cent of £2,400 is his profit on your patience. Count it before you sign.",
-  },
-  counter: {
-    siki: "His first number was the anchor. Your eighty-five didn't move it — watch what the same seventy feels like now.",
-    zana: "He laughed. It's his number or the whole debt — know which one you're taking.",
-  },
+  };
+}
+
+const PROLOGUE_COUNCIL_COUNTER = {
+  siki: "His first number was the anchor. Your eighty-five didn't move it — watch what the same seventy feels like now.",
+  zana: "He laughed. It's his number or the whole debt — know which one you're taking.",
 } as const;
 
 /**
@@ -397,7 +411,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     );
     dayPanel.append(
       speakerPara("zana", "That's the Shark. He prices patience by the day."),
-      councilGrid(PROLOGUE_COUNCIL.offer, choices),
+      councilGrid(prologueCouncilOffer(), choices),
     );
     root.classList.add("lm-shark-stage");
     deps.say("shark", SHARK_PROLOGUE.offer, () => {
@@ -469,7 +483,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     dayPanel.append(
       el("h3", { text: "Night. The Late Market." }),
       el("p", { class: "lm-hint", text: "He didn't move. Seventy, tonight — or nothing." }),
-      councilGrid(PROLOGUE_COUNCIL.counter, el("div", { class: "lm-choices lm-await" },
+      councilGrid(PROLOGUE_COUNCIL_COUNTER, el("div", { class: "lm-choices lm-await" },
         ...(() => {
           const take = choiceButton("Take the seventy", `The debt is gone — ${money(Math.round(2400 * 0.3), 0)} stays on the street`, () => {
             prologueRecord("counter_then_take_70", "accept",

@@ -27,10 +27,11 @@ one closing paragraph of the pitch, not the pitch.
 
 | Artifact | Path | Status |
 |---|---|---|
-| itch.zip | `game/dist/itch.zip` | 174 files · top-level `index.html` · relative paths · audio + cinematic included · ~33 MB (rebuilt 2026-11-15 ~00:51 via `build-itch.mjs`, incl. cohesion + one-voice + viewport passes) |
-| Gameplay video | `game/out/gameplay-cut.mp4` | **HOLD — draft, not final.** 67 s silent cut recorded 2026-11-15 against the current flow (`record-run.mjs --mode video --seg a|b --gpu`; `reachTheStall` fixed for the welcome-beat flow). More game work is planned before the final cut. Narration doesn't fit: `game-video/narration_v2.mp3` runs 79 s against the 67 s cut, so muxing with `-shortest` would truncate the last ~12 s of VO. `trailer.mp4` (61 s) predates the Nov 15 flow fix — unverified, do not upload. Re-record segs a+b and re-time narration after the game work lands. |
+| itch.zip | `game/dist/itch.zip` | 202 files · top-level `index.html` · relative paths · audio + cinematic included · 45 MB (rebuilt 2026-11-15 ~14:45 via `build-itch.mjs`, incl. consequence pass, owl Zana, council-speaks-from-seat, day tiles, and the souq prologue-council dirham fix) |
+| Gameplay video | `game/out/trailer-final.mp4` | **FINAL — ready for upload.** 86 s narrated cut per `TRAILER_SCRIPT.md` v3 (`record-run.mjs --seg v3` + souq still beat + painted end card): prologue offer → day-1 defer → day-2 bill → the Souq frame (dirhams + zakat) → debrief → owl end card with the AI-disclosure credit line. Six baked Siki narration takes (`out/trailer-vo/tr3_*.mp3`, re-mixed at scene-mapped offsets) over the game's own market-music bed. Supersedes `gameplay-cut.mp4` (silent draft) and `trailer.mp4` (61 s, dog-era). |
 | Cover | `game/cover/cover_630x500.png` | 630×500 · Recraft V4.1 Vector base + composed title |
-| Screenshots | `game/screenshots/v3_*.png` | 12 genuine frames re-shot 2026-11-15 against the cohesion build. Lead order: market_pick → shark_offer → day1_stall, then day1_defer, day2_bill, debrief ×2. GIFs `game/out/gif-zana.gif` + `gif-souq.gif` for the body. Supersedes `v9/`–`v13/`. Page theme + lead order in `docs/game/ITCH_PAGE.md`; rationale in `docs/game/ITCH_BEST_PRACTICES.md`. |
+| Trailer end card | `game/out/trailer-painted-end-owl.png` | Painted end card re-generated with the owl Zana (the old card still showed the dog); discloses "Voices: ElevenLabs eleven-v4. Made for Zoud GameLab." |
+| Screenshots | `game/screenshots/v3_*.png` | 12 genuine frames re-shot 2026-11-15 PM against the FINAL build (owl Zana, council speaking from its seat, day tiles). Lead order: market_pick → shark_offer → day1_stall, then day1_defer, day2_bill, debrief ×2. GIFs `game/out/gif-zana.gif` + `gif-souq.gif` for the body — **gif-zana predates the owl; do not use it** (re-shoot if the body needs motion). Page theme + lead order in `docs/game/ITCH_PAGE.md`; rationale in `docs/game/ITCH_BEST_PRACTICES.md`. |
 | Concept doc | `docs/game/CONCEPT_DOC.pdf` | exactly Zoud's six sections, honest market section |
 | Judge's guide | `docs/game/JUDGE_GUIDE.pdf` | one-pager: what to look for (the three experiments) + how to play both markets |
 | Budget doc | `docs/game/BUDGET_DOC.pdf` | ≤ $26 total, milestone-aware, ElevenLabs Starter $6 |
@@ -205,7 +206,7 @@ pinned against exported product values (`tests/vectors.test.ts`).
 3. Uploads:
    - Concept doc PDF: `docs/game/CONCEPT_DOC.pdf` (or a public no-login link).
    - Judge's guide: `docs/game/JUDGE_GUIDE.pdf` — what to look for, one page.
-   - 2-minute gameplay video: **not final yet** — `game/out/gameplay-cut.mp4` (67 s, silent, recorded 2026-11-15) is a draft; the game gets more work first, then segs a+b are re-recorded and narration is re-timed to the final cut. Do not upload any existing mp4 as-is.
+   - 2-minute gameplay video: **upload `game/out/trailer-final.mp4`** (86 s, narrated, per the v3 trailer script; ends on the owl end card carrying the AI-disclosure line).
    - Project budget: `docs/game/BUDGET_DOC.pdf`.
    - AI disclosure (judges-only): ElevenLabs (audio) + Recraft (cover art).
 4. Submit with at least 12 h of buffer before AOE.

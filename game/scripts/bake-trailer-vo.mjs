@@ -31,9 +31,22 @@ const TAKES = [
   { id: "tr_close", at: 52.0, text: "The Late Market. Ten minutes. Free in your browser." },
 ];
 
+// Trailer script v3 (docs/game/TRAILER_SCRIPT.md — "record from this section"):
+// the ~90 s cut. Offsets are the NOMINAL beats from the script table; the
+// mux pass re-times them against the assembled timeline, so `at` is a hint,
+// not a contract. Same voice, same model/settings as the game's Siki takes.
+const TAKES_V3 = [
+  { id: "tr3_open", at: 0.5,  text: "A debt collector offers seventy percent, cash tonight. Take it, refuse it, or name your own number." },
+  { id: "tr3_street", at: 12.0, text: "Twenty-four hundred pounds is already on the street. Leave it, and a stall lights. That wait just became someone else's business." },
+  { id: "tr3_bill", at: 32.0, text: "The supplier's bill is due the next morning. Leave it, and the till answers the same day." },
+  { id: "tr3_souq", at: 48.0, text: "Same week, in dirhams. Lateness here is a fee you wrote yourself — and zakat on what you never collected." },
+  { id: "tr3_close", at: 62.0, text: "Market close. This is what is still on the street." },
+  { id: "tr3_end", at: 79.0, text: "The Late Market. Ten minutes. Free in your browser." },
+];
+
 mkdirSync(OUT, { recursive: true });
 
-for (const t of TAKES) {
+for (const t of [...TAKES, ...TAKES_V3]) {
   const mp3 = join(OUT, `${t.id}.mp3`);
   if (existsSync(mp3)) { console.log(`✓ ${t.id} (cached)`); continue; }
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voicesDoc.characters.siki.production_voice_id}`, {
@@ -50,4 +63,4 @@ for (const t of TAKES) {
   console.log(`✓ ${t.id}`);
 }
 
-console.log(JSON.stringify(TAKES.map(({ id, at }) => ({ id, at }))));
+console.log(JSON.stringify([...TAKES, ...TAKES_V3].map(({ id, at }) => ({ id, at }))));
