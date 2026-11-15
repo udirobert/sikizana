@@ -120,8 +120,11 @@ async function paintedTexture(name: string): Promise<Texture | null> {
   }
 }
 /* Painted sprites can't be recoloured per state like the baked SVG
- * strokes, so "dim" is a cool multiply-tint; "lit" is untinted white. */
-const PAINTED_DIM_TINT = 0x8f8aa8;
+ * strokes, so "dim" is a cool multiply-tint; "lit" is untinted white.
+ * The dim tint stays light enough to read as a presence, not an absence:
+ * the market exists before the player arrives, only the lit state is
+ * earned (lit keeps untinted paint + glow + £ badge — no confusion). */
+const PAINTED_DIM_TINT = 0xc9c2e4;
 
 function glowTexture(color: string): Texture {
   const key = `glow:${color}`;
@@ -448,7 +451,10 @@ export async function createStreetScene(
       s.glow.visible = st === "lit";
       s.shade.visible = st === "shut";
       if (st === "shut") drawShade(s);
-      s.root.alpha = st === "dim" ? 0.45 : st === "shut" ? 0.85 : 1;
+      // Dim stalls read as present-but-unlit silhouettes (the market exists
+    // before you arrive; only the lit state is earned). Lit keeps the glow
+    // + untinted paint + £ badge, so the states never collide.
+    s.root.alpha = st === "dim" ? 0.8 : st === "shut" ? 0.85 : 1;
     }
     applyDayGrade();
   }

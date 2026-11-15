@@ -147,8 +147,9 @@ describe("Ch1 clean run + till death", () => {
       await sleep(200);
     }
     await clickWait(root, "Next day", 900);
-    // Day 2: pay the bill.
-    await clickWait(root, "Quayline", 900);
+    // Day 2: pay the bill. ("Pay Quayline", not "Quayline" — the till's
+    // books toggle names the same client; the choice is the payment.)
+    await clickWait(root, "Pay Quayline", 900);
     await clickWait(root, "Next day", 900);
     // Day 3: chase again.
     for (let i = 0; i < 20; i++) {

@@ -167,13 +167,13 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   // The ledger is OPEN by default (NN/g accordions research: hidden content
   // behind an ambiguous label is content most players never meet — and the
   // invoice cards ARE the game's core state, the books the player is
-  // learning to read). It sits BELOW the decision elements, so on day
-  // beats it costs the one-viewport design nothing; a player can still
-  // collapse it, and their choice sticks for the run.
-  const ledgerStrip = el("details", { class: "lm-ledger", open: true });
+  // learning to read). The cards live in a drawer beside the decision,
+  // never a row in the page: the till's books line is the toggle, so
+  // opening the books moves no layout and adds no scroll. A player can
+  // still dismiss it; the one-line books always carry the state.
   const dayPanel = el("div", { class: "lm-day" });
-  // Till first: the money is the first viewport, choices second, ledger last.
-  root.append(till, dayPanel, ledgerStrip, lantern);
+  // Till first: the money is the first viewport, choices second.
+  root.append(till, dayPanel, lantern);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // ── Till delight: count-up tween + lantern pulse (display-only; the sim
@@ -269,7 +269,36 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       if (late > 0) bits.push(`${gbp0(late)} late`);
       if (billLive) bits.push(`you owe ${state.bill.client} ${gbp0(state.bill.amount)}`);
       if (bits.length) {
-        till.append(el("span", { class: "lm-till-books", text: bits.join(" · ") }));
+        // The books line IS the ledger toggle: one row carries the state
+        // and opens the detail, so no expandable row ever extends the page.
+        const ledgerToggle = el("button", {
+          class: "lm-till-books", type: "button",
+          "aria-expanded": String(ledgerOpen), "aria-controls": "lm-ledger-pop-ch1",
+        },
+          el("span", { text: bits.join(" · ") }),
+          el("span", { class: "lm-till-books-mark", "aria-hidden": "true", text: ledgerOpen ? "▴" : "▾" }),
+        );
+        const syncToggle = (): void => {
+          ledgerToggle.setAttribute("aria-expanded", String(ledgerOpen));
+          const mark = ledgerToggle.querySelector(".lm-till-books-mark");
+          if (mark) mark.textContent = ledgerOpen ? "▴" : "▾";
+        };
+        ledgerToggle.addEventListener("click", () => {
+          ledgerOpen = !ledgerOpen;
+          syncToggle();
+          syncLedgerPop();
+        });
+        ledgerToggle.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && ledgerOpen) {
+            ledgerOpen = false;
+            syncToggle();
+            syncLedgerPop();
+          }
+        });
+        till.append(ledgerToggle);
+      } else {
+        // Nothing live: no toggle, and a stray open state dies here.
+        ledgerOpen = false;
       }
     }
     // The week's most-watched number reports its own movement.
@@ -287,8 +316,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     }
     till.classList.toggle("lm-till-neg", net < 0);
 
-    clear(ledgerStrip);
-    ledgerStrip.append(el("summary", { text: "The ledger" }));
+    clear(ledgerPop);
     const day = state.day;
     for (const inv of state.invoices) {
       if (inv.paidDay !== null && inv.paidDay < day) continue; // collected — off the strip
@@ -308,7 +336,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       } else {
         status = `due day ${inv.dueDay}`;
       }
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: `lm-inv-card${inv.chasedDay !== null ? " lm-inv-chased" : " lm-inv-overdue"}`, "data-inv": inv.id },
           el("span", { class: "lm-inv-client", text: inv.client }),
           el("span", { class: "lm-inv-amt", text: gbp0(inv.principal) }),
@@ -318,7 +346,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     }
     // The supplier bill, while it is live.
     if (state.bill.paidDay === null && state.bill.skippedDay === null && day <= state.bill.dueDay) {
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: "lm-inv-card lm-inv-bill" },
           el("span", { class: "lm-inv-client", text: state.bill.client + " (your bill)" }),
           el("span", { class: "lm-inv-amt", text: gbp0(state.bill.amount) }),
@@ -329,7 +357,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       // The debt GROWS — the late charge is added on, and the till position
       // carries it, so this number going up is the till number going down.
       const owed = state.bill.amount + state.lateFees;
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: "lm-inv-card lm-inv-bill lm-inv-dead" },
           el("span", { class: "lm-inv-client", text: state.bill.client + " (your bill)" }),
           el("span", { class: "lm-inv-amt", text: gbp0(owed) }),
@@ -337,6 +365,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         ),
       );
     }
+
+    wireLedgerPop();
+    syncLedgerPop();
 
     // The street tally above the choices is the number. A second lantern
     // figure on the same screen splits the eye.
@@ -369,6 +400,31 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
    *  (the finale releases it — the payoff wants the full market). */
   function streetCompact(on: boolean): void {
     document.getElementById("street-slot")?.classList.toggle("lm-street-compact", on);
+  }
+
+  /** The ledger's cards live in a floating panel, not in the page: opening
+   *  the books moves no layout and adds no scrollable overflow. The pop is
+   *  a sibling of the camera rig — a transformed ancestor would contain a
+   *  fixed panel and defeat it (the fiction-mark precedent). One pop per
+   *  chapter; a fresh render hides the other chapters' strays, and the
+   *  panel follows its summary on open, close, resize, and chapter switch. */
+  let ledgerOpen = true; // the books start open beside the first decision
+  const ledgerPop = el("div", { class: "lm-ledger-pop", id: "lm-ledger-pop-ch1", role: "region", "aria-label": "The ledger", hidden: true });
+  let ledgerPopWired = false;
+  /** Show or hide the ledger drawer: a fixed panel beside the decision, so
+   *  the books never move layout or add scroll. A fresh render hides the
+   *  other chapters' strays; hiding the chapter hides its drawer. */
+  function syncLedgerPop(): void {
+    document.querySelectorAll(".lm-ledger-pop").forEach((p) => {
+      if (p !== ledgerPop) (p as HTMLElement).hidden = true;
+    });
+    ledgerPop.hidden = !ledgerOpen || root.hidden;
+    if (!ledgerPop.hidden && !ledgerPop.isConnected) document.body.append(ledgerPop);
+  }
+  function wireLedgerPop(): void {
+    if (ledgerPopWired) return;
+    ledgerPopWired = true;
+    new MutationObserver(syncLedgerPop).observe(root, { attributes: true, attributeFilter: ["hidden"] });
   }
 
   function intro(): void {
@@ -408,7 +464,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     root.classList.add("lm-beat-compact");
     // The books don't exist yet dramatically — hide the empty chrome so the
     // first viewport is street, teeth, and the choice.
-    lantern.hidden = true; till.hidden = true; ledgerStrip.hidden = true;
+    lantern.hidden = true; till.hidden = true;
     clear(dayPanel);
     dayPanel.append(el("h3", { text: "Night. The Late Market." }));
 
@@ -627,9 +683,9 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       deps.whisper?.(DAY_WHISPERS[(day - 1) % DAY_WHISPERS.length]!);
     }
     deps.sceneDay?.(day);
-    lantern.hidden = false; till.hidden = false; ledgerStrip.hidden = false;
+    lantern.hidden = false; till.hidden = false;
     renderChrome();
-    root.append(till, dayPanel, ledgerStrip, lantern);
+    root.append(till, dayPanel, lantern);
     const choices = dayChoices(state, day);
     const scene = DAY_SCENE[day];
     clear(dayPanel);
@@ -795,7 +851,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
   function finishDay(effects: DayEffect): void {
     clear(root); // re-render chrome with a pop on the till
-    root.append(till, dayPanel, ledgerStrip, lantern);
+    root.append(till, dayPanel, lantern);
     const day = effects.day;
     renderChrome(true);
     // Money actually landed in the till today (a chase cleared, or trade came
@@ -813,8 +869,10 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     // shutters on landing money. The arithmetic IS the animation — no
     // minigame invented, the numbers just refuse to sit still.
     if (streetFigure > 0) {
-      ledgerStrip.classList.add("lm-ledger-shed");
-      window.setTimeout(() => ledgerStrip.classList.remove("lm-ledger-shed"), 900);
+      // The shed lands on the books toggle — the row the player reads.
+      const booksToggle = till.querySelector(".lm-till-books");
+      booksToggle?.classList.add("lm-ledger-shed");
+      window.setTimeout(() => booksToggle?.classList.remove("lm-ledger-shed"), 900);
     }
     if (effects.collected > 0) deps.streetFx?.("shutter-blink");
     const figure = effects.cashDelta !== 0

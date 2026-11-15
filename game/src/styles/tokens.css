@@ -252,7 +252,7 @@ body {
 /* The day panel is the counter's main board — same painted planks as the
    stage, so Ch.1's narrative and Ch.2/3's stage read as one material. */
 .lm-day {
-  max-width: 720px; margin: 0.5rem auto; padding: 0.9rem 1.1rem 1rem;
+  max-width: 720px; margin: 0.35rem auto; padding: 0.8rem 1.1rem 0.9rem;
   background-color: var(--lm-bg-deep);
   background-image: var(--lm-board-img);
   background-size: var(--lm-board-size);
@@ -282,12 +282,18 @@ body {
 .lm-till-neg .lm-till-row-net .lm-till-line-val { color: var(--lm-ledger-red) }
 .lm-till-warn { color: var(--lm-ledger-red); font-size: 0.85em }
 /* The books in one line, under the money: what is owed to you, what is late,
-   what you owe. The ledger cards below are the detail — this is the part
-   a player must never have to scroll for. */
-.lm-till-books {
+   what you owe. The line IS the ledger toggle — the cards slide out beside
+   the decision instead of growing the page, so this is the part a player
+   must never have to scroll for. */
+button.lm-till-books {
   display: block; width: 100%; margin-top: 0.18rem;
+  background: none; border: none; padding: 0; font: inherit; text-align: left;
+  cursor: pointer;
   color: var(--lm-ink-dim); font-size: 0.82em; letter-spacing: 0.01em;
 }
+button.lm-till-books:hover { color: var(--lm-amber); }
+button.lm-till-books:focus-visible { outline: 2px solid var(--lm-focus); outline-offset: 2px; border-radius: 4px; }
+.lm-till-books-mark { margin-left: 0.4em; }
 .lm-pop { animation: lm-pop 480ms ease-out }
 @keyframes lm-pop {
   0% { transform: scale(1) }
@@ -409,9 +415,22 @@ body {
 .lm-title-panel .lm-title-erase {
   background: none; border: none; color: var(--lm-ink-dim); text-decoration: underline;
   cursor: pointer; font: inherit; font-size: 0.82em; margin-top: 1rem;
+}/* The open ledger is a drawer beside the decision, never a row in the page
+   (the street-books idiom, taken all the way): the till's books line is the
+   toggle, the cards slide out fixed at the viewport's right edge with their
+   own scroll. Fixed, never absolute — an absolute panel still extends the
+   document's scrollable overflow, and a transformed ancestor (the camera
+   rig) would contain it. No anchor math: right-centred fits every beat. */
+.lm-ledger-pop:not([hidden]) {
+  display: grid; gap: 0.4rem;
+  position: fixed; z-index: 60;
+  right: 12px; top: 50%; transform: translateY(-50%);
+  width: min(330px, 92vw); max-height: 78vh; overflow-y: auto;
+  background: var(--lm-bg-deep);
+  border: 1px solid rgba(139, 134, 184, 0.35); border-radius: 12px;
+  padding: 0.6rem; margin: 0;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
 }
-
-.lm-ledger { margin: 0 0 1rem; display: grid; gap: 0.4rem }
 .lm-ledger-cap { margin: 0; font-size: 0.92em; color: var(--lm-ink-dim); font-weight: 400 }
 .lm-inv-card {
   display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto;
@@ -472,7 +491,7 @@ body {
 .lm-stall svg * { fill: none; stroke: var(--lm-ink-dim); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round }
 .lm-stall.lit  { filter: drop-shadow(0 0 5px rgba(255,180,84,.75)) }
 .lm-stall.lit svg * { stroke: var(--lm-amber) }
-.lm-stall.dim  { opacity: 0.4 }
+.lm-stall.dim  { opacity: 0.75 }
 .lm-stall.shut { opacity: 0.5 }
 .lm-stall.shut svg * { stroke: var(--lm-ink-dim) }
 .lm-stall.shut::after {
@@ -631,7 +650,7 @@ label.lm-hint { display: block; margin: .8rem 0 }
   font-size: 3.1rem; font-weight: 700; line-height: 1.05; margin: 0.15rem 0 0.4rem;
   color: var(--lm-amber); font-variant-numeric: tabular-nums; text-align: center;
 }
-.lm-ledger > summary { cursor: pointer; color: var(--lm-ink-dim); margin: 0 0 0.4rem; font-weight: 400 }
+
 .lm-street-tally:focus-visible { outline: 2px solid var(--lm-amber); outline-offset: 2px; border-radius: 4px }
 .lm-street-tally[aria-expanded="true"] { color: var(--lm-amber) }
 .lm-street-books {
@@ -662,7 +681,7 @@ label.lm-hint { display: block; margin: .8rem 0 }
 #counter-rail {
   position: relative; z-index: 4;
   display: flex; align-items: center; justify-content: center; gap: 0.7rem;
-  min-height: 44px; padding: 0.3rem 1rem 0.4rem;
+  min-height: 34px; padding: 0.15rem 1rem 0.25rem;
   background-color: #3d2c1e;
   background-image:
     repeating-linear-gradient(90deg, transparent 0 118px, rgba(0, 0, 0, 0.16) 118px 120px),
@@ -782,7 +801,12 @@ label.lm-hint { display: block; margin: .8rem 0 }
    without scrolling. Compress chrome when vertical space is short, keep
    the decision in frame, never gate content — only density. */
 @media (max-height: 900px) {
-  #street-slot .lm-street-stalls { transform: scale(0.94); transform-origin: 50% 0 }
+  
+  #ch1 { padding-top: 0.25rem; }
+  #ch1 .lm-till { margin-top: 0.25rem; margin-bottom: 0.25rem; }
+
+  .lm-beat-compact .lm-day h3 { margin-top: 0.2rem; margin-bottom: 0.4rem; }
+  .lm-beat-compact .lm-day { padding-top: 0.7rem; padding-bottom: 0.8rem; }
   #street-slot.lm-street-recede .lm-street-stalls { transform: scale(0.9) translateY(6px) }
   .lm-street-whisper .lm-whisper-line:nth-child(n+2) { display: none }
   .lm-day h3, .lm-stage h3 { margin-top: 0.1rem; margin-bottom: 0.2rem }
@@ -790,7 +814,7 @@ label.lm-hint { display: block; margin: .8rem 0 }
   .lm-beat-head .lm-beat-art { width: 60px; height: 60px }
   .lm-day.lm-street-beat .lm-take, .lm-day.lm-debrief .lm-take { font-size: 1.45rem }
   .lm-line { margin: 0.3rem 0 }
-  #counter-rail { min-height: 40px }
+  #counter-rail { min-height: 32px }
 }
 .lm-collector { border-color: var(--lm-violet) }
 .lm-collector-today { font-size: 2em; font-weight: 700; margin: 0.3rem 0; color: var(--lm-violet) }
@@ -859,16 +883,6 @@ label.lm-hint { display: block; margin: .8rem 0 }
 .lm-welcome-card .lm-line { text-align: left }
 
 /* ── Delight pass (2026-11-14) ─────────────────────────────────────── */
-
-/* The honesty mark: one persistent label replaces per-card "fictional ·
-   indicative" repeats. Bottom-RIGHT, on a chip: the bottom-left corner
-   belongs to the ledger, and the fixed label used to land on top of it. */
-.lm-fiction-mark {
-  position: fixed; right: 12px; bottom: 10px; z-index: 5;
-  margin: 0; color: var(--lm-ink-dim); font-size: 0.78em; font-style: italic;
-  opacity: 0.72; pointer-events: none;
-  background: rgba(16, 16, 34, 0.55); border-radius: 6px; padding: 1px 8px;
-}
 
 /* Daybreak veil: a breath of dawn between ch1 days. JS skips it under
    prefers-reduced-motion; the fade itself is the whole effect. */
@@ -1498,18 +1512,26 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
   .lm-till-glow::after { content: none }
 }
 
-/* ── Narrated cinematic: Siki's line rides the film as a karaoke subtitle ──
+/* ── Narrated cinematic: Siki's intro card, centred over the film ─────────
    The take (~11s) outruns the 8s cut; the film holds its last frame until
-   the line lands, so the subtitle is the living tail of the intro. */
-.lm-cine-sub {
-  position: absolute; left: 50%; bottom: 11vh; transform: translateX(-50%);
-  z-index: 1; width: min(680px, 88vw); margin: 0;
-  padding: 0.6rem 1rem; font-size: 1.06em; text-align: left;
-  background-color: rgba(20, 20, 40, 0.84);
-  border: 1px solid rgba(139, 134, 184, 0.35); border-radius: 12px 10px 12px 9px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+   the line lands, so the card is the living tail of the intro — a face
+   and a full-size line, never a caption squeezed along the bottom edge. */
+.lm-cine-card {
+  position: relative; z-index: 1; width: min(560px, 88vw); margin: 0;
+  padding: 1.1rem 1.25rem 1rem; text-align: center;
+  background-color: var(--lm-surface);
+  background-image: var(--lm-board-img);
+  background-size: var(--lm-board-size);
+  border: 1px solid var(--lm-amber); border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
 }
-.lm-cine-sub .lm-speaker-fig { width: 1.6em; height: 1.6em; vertical-align: -0.35em; }
+.lm-cine-face {
+  width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--lm-amber); background: var(--lm-bg-mid);
+}
+.lm-cine-name { margin: 0.4rem 0 0.15rem; font-weight: 700; letter-spacing: 0.04em; }
+.lm-cine-line { margin: 0; font-size: 1.12em; }
+.lm-cine-card .lm-hint { margin-bottom: 0; }
 
 /* ── One-viewport beats (Nov 2026) ────────────────────────────────────
    Decision screens must fit the first viewport: the whole point of the
@@ -1523,8 +1545,8 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
    empty wooden band above the real one). */
 #street-slot.lm-street-hidden { display: none }
 
-#street-slot.lm-street-compact .lm-street-stalls--scene { height: 118px }
-#street-slot.lm-street-compact .lm-street-stalls { height: 118px }
+#street-slot.lm-street-compact .lm-street-stalls--scene { height: 84px }
+#street-slot.lm-street-compact .lm-street-stalls { height: 84px }
 #street-slot.lm-street-compact #counter-rail .lm-street-meta {
   flex-direction: row; justify-content: center; align-items: baseline;
   gap: 0.9rem; padding-block: 0.12rem; flex-wrap: wrap;
@@ -1563,9 +1585,10 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
 .lm-beat-compact .lm-till .lm-till-rows { display: contents; }
 .lm-beat-compact .lm-till .lm-till-row { display: inline-flex; align-items: baseline; gap: 0.35rem; }
 .lm-beat-compact .lm-day { padding: 0.55rem 0.9rem 0.65rem; }
-.lm-beat-compact .lm-day h3 { font-size: 0.95em; padding: 0.15rem 0.6rem; }
+.lm-beat-compact .lm-day h3 { font-size: 0.95em; padding: 0.15rem 0.6rem; margin: 0.3rem 0 0.7rem; }
+.lm-beat-compact .lm-day .lm-choice { padding: 0.65rem 0.9rem; }
 .lm-beat-compact .lm-day .lm-choice .lm-choice-detail { font-size: 0.86em; }
-#ch1.lm-beat-compact { padding-bottom: 0.6rem; }
+#ch1.lm-beat-compact { padding-bottom: 0.15rem; }
 #street-slot.lm-street-compact #counter-rail .lm-street-meta { gap: 0.7rem; }
 #street-slot.lm-street-compact #counter-rail .lm-street-tally { padding: 0; }
 

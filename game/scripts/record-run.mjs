@@ -100,14 +100,13 @@ await send("Emulation.setDeviceMetricsOverride", {
 await send("Page.navigate", { url: SEG === "b" ? `${PAGE_URL}?ch=3` : PAGE_URL });
 await sleep(1200);
 await evalJs("localStorage.clear()");
-// Shots/finale capture with Zana's clock OFF (the game's own opt-out):
+// Every capture runs with Zana's clock OFF (the game's own opt-out):
 // headless audio is blocked, so the council lines land instantly and the
 // 10-second gut clock starts the moment Day 1 opens — a single PNG capture
 // (5–8 s with WebGL) can eat the whole window and auto-close the day under
-// the script's click. The video mode keeps the clock: its clicks land fast.
-if (mode === "shots" || mode === "finale" || mode === "souqshots") {
-  await evalJs('localStorage.setItem("lm.gutclock.v1","0")');
-}
+// the script's click. The clock is opt-in and default-off for players, so
+// the trailer records the default experience: silent timing, no countdown.
+await evalJs('localStorage.setItem("lm.gutclock.v1","0")');
 await send("Page.reload");
 await sleep(1200);
 
@@ -128,27 +127,30 @@ const clickIf = async (needle) => evalJs(`(() => {
   const b = bs.find((x) => x.offsetParent !== null) ?? bs[0];
   if (!b) return false; b.click(); return true;
 })()`);
-/** Title → cinematic → story card → market pick → Shark offer → shutters → stall. */
-async function reachTheStall() {
-  await clickByText("Begin — sound on");
-  await sleep(700);
-  await clickIf("Skip");            // the cold open plays first (one scene)
-  await sleep(400);
-  // The story card's gate (was "Open the shutters" on the old welcome beat —
-  // the consequence pass gave the intro this card and moved the shutters
-  // button to the post-refuse gate).
-  await clickByText("Step into the street");
-  await sleep(400);
-  await clickIf("London");          // the market pick now comes after the story card
-  await sleep(400);
-  for (let i = 0; i < 160; i++) {
-    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
-    if (up) break;
+// Poll for a button the player could actually press: hidden pre-rendered
+// beats (the Shark's offer stages veiled while he speaks) must not satisfy
+// it, or screenshots catch the previous card and clicks land on nothing.
+const pollFor = async (needle, tries = 160) => {
+  for (let i = 0; i < tries; i++) {
+    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.offsetParent !== null && b.textContent.includes(${JSON.stringify(needle)}))`);
+    if (up) return;
     await sleep(250);
   }
+  throw new Error(`poll timeout: "${needle}"`);
+};
+
+/** Title → cinematic (Siki's card) → market pick → story card (Zana) → Shark offer → shutters → stall. */
+async function reachTheStall() {
+  await clickByText("Begin — sound on");
+  await clickIf("Skip"); // Siki's cinematic is skippable; headless also auto-advances
+  await pollFor("London"); // the market pick comes before the story card so the card's figures read in the picked currency
+  await clickByText("London");
+  await pollFor("Step into the street"); // Zana's story card
+  await clickByText("Step into the street");
+  await pollFor("Take the 70%"); // the Shark's offer lands after the voiced beats
   await clickByText("Refuse");
-  await sleep(300);
-  await clickByText("Open the shutters"); // shutters gate → Day 1
+  await pollFor("Open the shutters"); // shutters gate → Day 1
+  await clickByText("Open the shutters");
 }
 
 // ── Scenario: the 5-day run (video + shots both start here) ────────────────
@@ -199,8 +201,12 @@ async function recordVideo() {
       };
       await s(4000); // title card
       await clickByText("Begin — sound on"); await s(1500);
+      await clickIf("Skip"); // Siki's cinematic card is skippable; headless also auto-advances
+      await pollFor("London"); // the market pick
+      await s(2500); // hold the pick: the rail reads with the whole cast present
       await clickByText("London"); await s(1200);
-      await clickIf("Skip"); await s(900);
+      await pollFor("Step into the street"); // Zana's story card
+      await s(1500); // hold Zana's card
       await clickByText("Step into the street"); await s(1800);
       await pollFor("Take the 70%");
       await s(6000); // hold on the Shark's three buttons
@@ -235,6 +241,8 @@ async function recordVideo() {
       };
       await s(2500); // title card
       await clickByText("Begin — sound on"); await s(1500);
+      await clickIf("Skip"); // Siki's cinematic is skippable; headless also auto-advances
+      await pollFor("السوق"); // the market pick
       await clickByText("السوق"); await s(1500);
       await pollFor("Open the shutters"); // the souq title card: remedy + zakat
       await s(3000); // hold the bilingual card
@@ -309,31 +317,25 @@ async function shots() {
   });
   await s(2600);
   await shot("v3_title.png");
-  await clickByText("Begin — sound on"); await s(900);
-  await shot("v3_after_begin.png"); // the cold open — the film, before anything else
-  await clickIf("Skip"); await s(1200);
-  await shot("v3_cold_open.png"); // the story card — Siki's stakes, Zana's intro
-  await clickByText("Step into the street"); await s(1200); // story card → the market pick
-  await shot("v3_market_pick.png"); // both lawful markets on the table
-  await clickIf("London"); await s(800);
-  await shot("v3_welcome_done.png");
-  // The Shark's offer lands after several voiced beats — poll for it.
-  for (let i = 0; i < 160; i++) {
-    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Take the 70%"))`);
-    if (up) break;
-    await s(250);
-  }
+  await clickByText("Begin — sound on"); await s(2500);
+  await shot("v3_siki_card.png"); // Siki's intro card over the film — the centred face, full-size line
+  await clickIf("Skip");
+  await pollFor("London"); await s(1200);
+  await shot("v3_market_pick.png"); // both lawful markets on the table, the cast on the rail
+  await clickByText("London");
+  await pollFor("Step into the street"); await s(1200);
+  await shot("v3_zana_card.png"); // Zana's story card — her face, her voice, the stakes in writing
+  await clickByText("Step into the street"); // → the Shark walks past
+  // The Shark's offer stages veiled while he speaks; the frame must show
+  // the unveiled decision, not the card before it.
+  await pollFor("Take the 70%"); await s(3500);
   await shot("v3_shark_offer.png"); // the prologue decision, before the answer
   await clickByText("Refuse"); await s(1200);
   await shot("v3_shark_refused.png");
   await clickByText("Open the shutters"); await s(1500); // ch1's own gate before Day 1
   await shot("v3_day1_stall.png"); // £2,400 still on the street, Harborne already late
   // Day-1 choices land after the cold-open beats — poll for the defer button.
-  for (let i = 0; i < 160; i++) {
-    const up = await evalJs(`!!Array.from(document.querySelectorAll("button")).find((b) => b.textContent.includes("Leave it for tomorrow"))`);
-    if (up) break;
-    await s(250);
-  }
+  await pollFor("Leave it for tomorrow");
   const cap = async (label) => { const t = await evalJs(`[...document.querySelectorAll("#street-slot .lm-stall")].map(s=>s.dataset.kind+"="+s.className.replace("lm-stall ","")).join(" ")`); console.log(`[stalls ${label}] ${t}`); };
   await clickByText("Leave it for tomorrow"); await s(2600);
   await cap("d1");
@@ -371,6 +373,8 @@ async function souqShots() {
   };
   await s(2500);
   await clickByText("Begin — sound on"); await s(1500);
+  await clickIf("Skip"); // Siki's cinematic is skippable; headless also auto-advances
+  await pollFor("السوق"); // the market pick
   await clickByText("السوق"); await s(1500);
   await pollFor("Open the shutters"); // gate 1: the market-pick detail card
   await s(3000); // let the Arabic VO take land as text
@@ -483,7 +487,17 @@ async function uiProbe() {
     };
   })()`);
   check(fit && fit.choiceBottom <= 860, "day-1 choices sit inside 860px", JSON.stringify(fit));
-  check(fit && fit.stallH >= 100, "stalls read as a street", JSON.stringify(fit));
+  // The open ledger must never extend the page: its cards scroll inside a
+  // capped box, so day 1 with the books open still fits the first viewport.
+  const pageH = await evalJs(`document.documentElement.scrollHeight`);
+  check(pageH <= 860, "the open ledger never extends the page", String(pageH));
+  // The persistent fiction caption is gone: per-card (fictional) /
+  // (indicative) labels where the numbers sit carry the disclosure now.
+  const mark = await evalJs(`!!document.querySelector(".lm-fiction-mark")`);
+  check(mark === false, "no persistent fiction caption", String(mark));
+  // The compact street trades pixels for the no-scroll budget (presence is
+  // carried by the five figures + badges, not height); 70px is the floor.
+  check(fit && fit.stallH >= 70, "stalls read as a street", JSON.stringify(fit));
   check(fit && /still on the street|to the street/.test(fit.tally) && !fit.tally.includes("so far"), "street money is one line", fit && fit.tally);
   check(fit && /2,400/.test(fit.tally), "day 1 opens on Harborne's £2,400", fit && fit.tally);
   check(fit && fit.lecture === false, "the confession line is gone");
@@ -496,6 +510,9 @@ async function uiProbe() {
   await press("1", "Digit1", 49);
   check(/Day 1 closed/.test(await dayHeading()), "key 1 resolves the day");
   await press("Enter", "Enter", 13);
+  // The daybreak veil lifts on its own time — poll for the new heading
+  // instead of assuming the dwell covered it.
+  for (let i = 0; i < 40 && !/Day 2 of 3/.test(await dayHeading()); i++) await sleep(250);
   check(/Day 2 of 3/.test(await dayHeading()), "Enter takes a lone choice");
 
   // The finale's outbound door is an <a class="lm-choice">: it must never take a
@@ -510,13 +527,18 @@ async function uiProbe() {
   check(count >= 2, "renumbering survives the re-render", String(count));
 
   // Past the keyboard: play out the week and reach chapter 2's counter, where
-  // the desk's numbers are supposed to stack into a visible trail.
-  const pick = async (needle, dwell = 1600) => { await clickByText(needle); await sleep(dwell); };
+  // the desk's numbers are supposed to stack into a visible trail. Poll for
+  // each beat (voiced lines + the daybreak veil land on their own time —
+  // fixed sleeps made this path lucky, not deterministic).
+  const pick = async (needle, dwell = 1600) => { await pollFor(needle); await clickByText(needle); await sleep(dwell); };
   await pick("Pay");
   await pick("Next day");
   await pick("Leave it for tomorrow", 1200);
   await pick("Close the books");
   await pick("The two prices");
+  // Split runs earn the deduction question before the chapter door opens —
+  // answer it (any arm resolves; the probe is not graded on the verdict).
+  await clickIf("When the money landed");
   await pick("When an invoice falls due", 2200);
   await pick("Walk into the office");
   await evalJs(`(() => { const i = document.querySelector("input[type=number]"); if (i) { i.value = "1100"; i.dispatchEvent(new Event("input")); } return true; })()`);

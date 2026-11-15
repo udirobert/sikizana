@@ -152,20 +152,48 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
   const resume = saved !== null && !saved.done && saved.day > 1 && saved.day <= WEEK2_DAYS ? saved : null;
   const state: Week2State = resume ?? createWeek(seed).state;
 
+  // The ledger is OPEN by default and lives in a drawer beside the decision,
+  // never a row in the page: the till's books line is the toggle (mirrors
+  // ch1 — same arithmetic, read at a glance), so opening the books moves no
+  // layout and adds no scroll.
   const till = el("div", { class: "lm-till lm-till-top", "aria-live": "polite" });
-  const ledgerStrip = el("details", { class: "lm-ledger" });
   const dayPanel = el("div", { class: "lm-day" });
   const lantern = el("div", { class: "lm-lantern", "aria-live": "polite", text: "" });
   till.hidden = true;
-  ledgerStrip.hidden = true;
   lantern.hidden = true;
-  root.append(till, dayPanel, ledgerStrip, lantern);
+  // Till first: the money is the first viewport, choices second.
+  root.append(till, dayPanel, lantern);
 
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let lastLantern = 0;
 
   function persist(): void {
     deps.save(state);
+  }
+
+  /** The ledger's cards live in a floating panel, not in the page: opening
+   *  the books moves no layout and adds no scrollable overflow. The pop is
+   *  a sibling of the camera rig — a transformed ancestor would contain a
+   *  fixed panel and defeat it (the fiction-mark precedent). One pop per
+   *  chapter; a fresh render hides the other chapters' strays, and the
+   *  panel follows its summary on open, close, resize, and chapter switch. */
+  let ledgerOpen = true; // the books start open beside the first decision
+  const ledgerPop = el("div", { class: "lm-ledger-pop", id: "lm-ledger-pop-week2", role: "region", "aria-label": "The ledger", hidden: true });
+  let ledgerPopWired = false;
+  /** Show or hide the ledger drawer: a fixed panel beside the decision, so
+   *  the books never move layout or add scroll. A fresh render hides the
+   *  other chapters' strays; hiding the chapter hides its drawer. */
+  function syncLedgerPop(): void {
+    document.querySelectorAll(".lm-ledger-pop").forEach((p) => {
+      if (p !== ledgerPop) (p as HTMLElement).hidden = true;
+    });
+    ledgerPop.hidden = !ledgerOpen || root.hidden;
+    if (!ledgerPop.hidden && !ledgerPop.isConnected) document.body.append(ledgerPop);
+  }
+  function wireLedgerPop(): void {
+    if (ledgerPopWired) return;
+    ledgerPopWired = true;
+    new MutationObserver(syncLedgerPop).observe(root, { attributes: true, attributeFilter: ["hidden"] });
   }
 
   /** Week progress tiles — five days have a shape, not just a count. */
@@ -202,9 +230,52 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), rows);
     if (net < 0) till.append(el("span", { class: "lm-till-warn", text: "▼ in hand runs red" }));
     till.classList.toggle("lm-till-neg", net < 0);
+    // The books line IS the ledger toggle: one row carries the state and
+    // opens the detail, so no expandable row ever extends the page.
+    {
+      const live = state.invoices.filter((i) => i.paidDay === null || i.paidDay > state.day);
+      const face = live.reduce((s, i) => s + i.principal, 0);
+      const late = live
+        .filter((i) => i.dueDay < state.day && i.chasedDay === null)
+        .reduce((s, i) => s + i.principal, 0);
+      const billLive = state.bill.paidDay === null && !(state.bill.skippedDay !== null && state.bill.paidDay !== null);
+      const bits: string[] = [];
+      if (face > 0) bits.push(`owed to you ${money(face)}`);
+      if (late > 0) bits.push(`${money(late)} late`);
+      if (billLive) bits.push(`you owe ${state.bill.client} ${money(state.bill.amount)}`);
+      if (bits.length) {
+        const ledgerToggle = el("button", {
+          class: "lm-till-books", type: "button",
+          "aria-expanded": String(ledgerOpen), "aria-controls": "lm-ledger-pop-week2",
+        },
+          el("span", { text: bits.join(" · ") }),
+          el("span", { class: "lm-till-books-mark", "aria-hidden": "true", text: ledgerOpen ? "▴" : "▾" }),
+        );
+        const syncToggle = (): void => {
+          ledgerToggle.setAttribute("aria-expanded", String(ledgerOpen));
+          const mark = ledgerToggle.querySelector(".lm-till-books-mark");
+          if (mark) mark.textContent = ledgerOpen ? "▴" : "▾";
+        };
+        ledgerToggle.addEventListener("click", () => {
+          ledgerOpen = !ledgerOpen;
+          syncToggle();
+          syncLedgerPop();
+        });
+        ledgerToggle.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && ledgerOpen) {
+            ledgerOpen = false;
+            syncToggle();
+            syncLedgerPop();
+          }
+        });
+        till.append(ledgerToggle);
+      } else {
+        // Nothing live: no toggle, and a stray open state dies here.
+        ledgerOpen = false;
+      }
+    }
 
-    clear(ledgerStrip);
-    ledgerStrip.append(el("summary", { text: "The ledger" }));
+    clear(ledgerPop);
     for (const inv of state.invoices) {
       if (inv.paidDay !== null && inv.paidDay < day) continue; // collected — off the strip
       let status: string;
@@ -223,7 +294,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
       } else {
         status = `due day ${inv.dueDay}`;
       }
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: `lm-inv-card${inv.chasedDay !== null ? " lm-inv-chased" : " lm-inv-overdue"}`, "data-inv": inv.id },
           el("span", { class: "lm-inv-client", text: inv.client }),
           el("span", { class: "lm-inv-amt", text: money(inv.principal) }),
@@ -232,7 +303,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
       );
     }
     if (state.bill.paidDay === null && state.bill.skippedDay === null && day <= state.bill.dueDay) {
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: "lm-inv-card lm-inv-bill" },
           el("span", { class: "lm-inv-client", text: `${state.bill.client} (your bill)` }),
           el("span", { class: "lm-inv-amt", text: money(state.bill.amount) }),
@@ -241,7 +312,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
       );
     } else if (state.bill.skippedDay !== null && state.bill.paidDay === null) {
       const owedNow = state.bill.amount + state.lateFees;
-      ledgerStrip.append(
+      ledgerPop.append(
         el("div", { class: "lm-inv-card lm-inv-bill lm-inv-dead" },
           el("span", { class: "lm-inv-client", text: `${state.bill.client} (your bill)` }),
           el("span", { class: "lm-inv-amt", text: money(owedNow) }),
@@ -249,6 +320,9 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
         ),
       );
     }
+
+    wireLedgerPop();
+    syncLedgerPop();
 
     lantern.hidden = true;
     const lanternNow = state.streetTake;
@@ -297,9 +371,8 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     dayPanel.classList.remove("lm-street-beat", "lm-debrief");
     renderChrome();
     till.hidden = false;
-    ledgerStrip.hidden = false;
     lantern.hidden = false;
-    root.append(till, dayPanel, ledgerStrip, lantern);
+    root.append(till, dayPanel, lantern);
     const choices = dayChoices(state, day);
     clear(dayPanel);
     dayPanel.append(
@@ -334,7 +407,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
 
   function finishDay(effects: DayEffect): void {
     clear(root);
-    root.append(till, dayPanel, ledgerStrip, lantern);
+    root.append(till, dayPanel, lantern);
     renderChrome(true);
     if (effects.cashDelta > 0) till.classList.add("lm-till-glow");
 
@@ -434,7 +507,6 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     deps.say("siki", `The books remember where you stopped. Day ${resume.day} of ${WEEK2_DAYS}.`);
     renderChrome();
     till.hidden = false;
-    ledgerStrip.hidden = false;
     clear(dayPanel);
     dayPanel.append(
       el("h3", { "aria-label": `Day ${resume.day} of ${WEEK2_DAYS}` },

@@ -703,14 +703,6 @@ function begin(withSound: boolean): void {
   whisperEl.className = "lm-street-whisper";
   game.insertBefore(whisperEl, actorSlot);
 
-  // The honesty mark, once, always on screen — so the cards don't have to
-  // keep re-litigating "fictional · indicative" on every beat. The audit
-  // page is the proof; this is the label the rails ask for.
-  const fictionMark = document.createElement("p");
-  fictionMark.className = "lm-fiction-mark";
-  fictionMark.textContent = "Fictional figures · indicative · arithmetic audited in public";
-  game.append(fictionMark);
-
   // Market-bg parallax — the backdrop drifts a few px against the pointer.
   // Fine pointers only, never under reduced motion; CSS owns the smoothing.
   const bg = document.getElementById("market-bg");
@@ -932,11 +924,37 @@ const INTRO_LINE = {
  * Same rule: byte-for-byte with the manifest key; re-bake if reworded. */
 const INTRO_ZANA = "I'm Zana. You point, I chase. First one's Harborne — say the word.";
 
+/**
+ * Siki's intro card — the centred face of the narrated line. The film path
+ * plays her baked take over it with karaoke; the reduced-motion path shows
+ * the same card static behind Begin. The line text is byte-identical to
+ * INTRO_LINE in both paths (manifest rule); only the frame changes.
+ */
+function sikiIntroCard(lineText: string): { card: HTMLElement; line: HTMLElement } {
+  const line = el("span", { class: "lm-line-text", text: lineText });
+  const face = document.createElement("img");
+  face.className = "lm-cine-face";
+  face.src = "assets/sprites/siki.png";
+  face.alt = "";
+  face.width = 96;
+  face.height = 96;
+  const card = el("div", { class: "lm-cine-card", role: "dialog", "aria-label": "Siki" },
+    face,
+    el("p", { class: "lm-cine-name", text: "Siki — keeps your books" }),
+    el("p", { class: "lm-cine-line" }, line),
+    el("p", { class: "lm-hint", text: "She explains what every choice costs." }),
+  );
+  return { card, line };
+}
+
 function playCinematic(onDone: () => void): void {
   // The Souq gets its own cut and its own take — same grammar, sandstone
   // and brass. Mode is committed before the bridge runs, so it never lies.
   const souq = getMarketMode() === "souq";
   const film = souq ? "cinematic-souq" : "cinematic";
+  // The manifest key is the display text byte-for-byte (do not reword
+  // without re-baking): Siki's take, her face on the card, her voice over it.
+  const lineText = souq ? INTRO_LINE.souq : INTRO_LINE.uk;
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Replay affordance (best practice: force once, never again, never
   // silently): a returning player's skip says what it skips, so the intro
@@ -968,8 +986,11 @@ function playCinematic(onDone: () => void): void {
   });
   skip.addEventListener("click", finish);
   if (reduced) {
+    // No film, but the intro still belongs to Siki: the same card, static,
+    // behind Begin — so her line is never skipped along with the motion.
     wrap.append(
       el("img", { class: "lm-cine-poster", src: `cinematic/${film}-poster.jpg`, alt: "" }),
+      sikiIntroCard(lineText).card,
       skip,
     );
     document.body.append(wrap);
@@ -988,50 +1009,49 @@ function playCinematic(onDone: () => void): void {
   // of the intro, not a freeze: the karaoke is still moving.
   video.addEventListener("ended", () => { filmDone = true; settle(); });
   video.addEventListener("error", () => { filmDone = true; settle(); });
-  const lineText = souq ? INTRO_LINE.souq : INTRO_LINE.uk;
-  const sub = speakerPara("siki", lineText);
-  sub.classList.add("lm-cine-sub");
-  wrap.append(video, sub, skip);
+  const { card, line: lineNode } = sikiIntroCard(lineText);
+  wrap.append(video, card, skip);
   document.body.append(wrap);
   void video.play().catch(() => { filmDone = true; settle(); });
-  // Karaoke rides the timing file; the text always lands.
-  const lineNode = sub.querySelector<HTMLElement>(".lm-line-text");
-  if (lineNode) void voice.speak("siki", lineText, lineNode, () => { voiceDone = true; settle(); });
-  else { voiceDone = true; settle(); }
+  // Karaoke rides the timing file; the text always lands. The card holds
+  // while the take plays — the film's last frame is the backdrop, not
+  // the subject: Siki introduces herself, centred, at full type size.
+  void voice.speak("siki", lineText, lineNode, () => { voiceDone = true; settle(); });
 }
 
 /**
- * One story card after the narrated cinematic: the intro's last beat —
- * Siki has just spoken over the film; this card is the stakes in writing,
- * and Zana introduces HERSELF in her own voice (her take plays during the
- * player's reading time — no wall-clock cost, and clicking through into
- * the street hands the stage to the Shark, cutting her off cleanly).
+ * Zana's story card after the narrated cinematic: the intro's last beat.
+ * Siki had the film; this card belongs to Zana — her face, her voice
+ * first (the take plays during the player's reading time, no wall-clock
+ * cost; stepping into the street hands the stage to the Shark and cuts
+ * her off cleanly). Same stakes as Siki's line, from the blunt side:
+ * she doesn't explain the cost, she collects it.
  * Relatable by design (the jam's brief: everyday money decisions): work
  * done, invoice sent, money still waiting.
  */
 function showStoryCard(onDone: () => void): void {
   const wrap = el("div", { class: "lm-welcome" });
-  const card = el("div", { class: "lm-welcome-card", role: "dialog", "aria-label": "The Late Market" });
+  const card = el("div", { class: "lm-welcome-card", role: "dialog", "aria-label": "Zana" });
   const face = document.createElement("img");
   face.className = "lm-welcome-face";
-  face.src = "assets/sprites/siki.png";
-  face.alt = "Siki the owl bookkeeper";
+  face.src = "assets/sprites/zana.png";
+  face.alt = "Zana the chaser";
   face.width = 112;
   face.height = 112;
-  // Zana speaks for herself: her bubble rides the card, karaoke and all.
+  // Zana introduces herself: her bubble leads the card, karaoke and all.
   const zana = speakerPara("zana", INTRO_ZANA);
   card.append(
     face,
     el("h3", { text: "One stall. Three days." }),
+    zana,
     el("p", {
       class: "lm-line-text",
       text: `You did the work. The invoices went out weeks ago. The money is still out there — ${money(2400, 0)} nobody has paid — and every day it waits, the street takes a little more of it.`,
     }),
     el("p", {
       class: "lm-hint",
-      text: "Siki keeps your books — she explains what every choice costs. Leave an invoice out there, and a stall lights.",
+      text: "Zana chases what's owed. Leave an invoice out there, and a stall lights.",
     }),
-    zana,
     el("div", { class: "lm-choices" },
       choiceButton("Step into the street", "The Shark walks past before the shutters open", () => {
         wrap.remove();
