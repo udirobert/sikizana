@@ -34,7 +34,7 @@ Companion docs: `RESEARCH_VALIDATION.md` (evidence), `docs/BRAND.md` (voice rule
 The whole game lives on a single screen that is a place, not a form. Three
 things are always visible at once — the **till** (live cash), the **ledger**
 (one card per open invoice, ageing daily with a "worth today" price that
-grows), and the **street** (the shadow market outside). Each day you pick one
+falls), and the **street** (the shadow market outside). Each day you pick one
 action from a small vocabulary — serve walk-in work, chase an invoice, pay a
 supplier bill — then watch the till, the ledger, and the street react.
 Minute one is a scene before it is a screen: the Shark walks past your

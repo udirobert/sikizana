@@ -13,13 +13,17 @@ A night market opens where your uncollected invoices sleep.
 "Your week in one line: the near cost always shouted loudest, and the far one barely whispered."
 
 ## Short description (1–2 lines)
-A financial-literacy game. You keep a stall open for three days while a night
-market buys every invoice you leave. Chase, or watch a stall light. Siki
-explains. Zana collects. The street keeps the ledger.
+A financial-literacy game. Delay has a compounding price you never see — the
+street charges it; the law prices it. You keep a stall open for three days
+while a night market buys every invoice you leave. Chase, or watch a stall
+light. Siki explains. Zana collects. The street keeps the ledger.
 
 ## Long description
 The Late Market is a narrative management game about the least dramatic
 financial decision in the world: what to do about an overdue invoice.
+
+You will leave knowing one thing: delay has a compounding price you never
+see — the street charges it; the law prices it.
 
 You keep a stall open for three days. Leave an invoice, and a stall on the
 street lights — the Factor, the Collector, or the Shark steps up and names
@@ -62,8 +66,8 @@ free ladder (Zana's reminders) always collects for free.
   Full set: re-shoot with `node scripts/record-run.mjs --mode shots --gpu`.
 - GIFs in description body (a good GIF sells the game by itself):
   `game/out/gif-zana.gif` + `game/out/gif-souq.gif` (3 s, 480px).
-- Video: `game/out/trailer.mp4` (61 s cinematic cut). Gameplay cut per
-  `docs/game/TRAILER_SCRIPT.md` (v3, ~90 s) — see `docs/game/ITCH_BEST_PRACTICES.md`.
+- Video: `game/out/trailer-final.mp4` (86 s, narrated, per
+  `docs/game/TRAILER_SCRIPT.md` v3 — the Zoud submission cut).
 
 ## Page theme (match the game — featured pages always do)
 - Background: `#141428` (indigo night), text `#f2efe6`, links `#ffb454`.
