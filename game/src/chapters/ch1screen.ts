@@ -95,6 +95,9 @@ const PROLOGUE_COUNCIL = {
 const MOMENT_DEFER_FIRST = "That's the first stall you lit. £2,400 sleeps out there tonight — it doesn't come home by itself.";
 const MOMENT_BILL_CAMEO = "I heard the street charging you. When you'd rather sell the account than keep the chase — I'm at the end of the row.";
 const MOMENT_SHADOW = "That shadow crossing the stalls — him. He prices patience, and he hasn't forgotten you kept yours.";
+/** The good-run reward: the Shark's revised number. He prices distress —
+ *  clean books are the worst news he's had all week. */
+const MOMENT_COUNTER_78 = "He came back with a new number — seventy-eight, up from seventy. Clean books cost him profit. That's your discipline, priced by the street.";
 const MOMENT_TRIAGE = "Breathe. Still saveable, in order: what's owed to you, then what you owe. The street only wins the days you give it.";
 
 export interface Ch1Deps {
@@ -118,9 +121,10 @@ export interface Ch1Deps {
   /** One line of street world-texture per day (flavour only — no mechanics). */
   whisper?: (text: string) => void;
   /** One-shot street effects (main.ts owns the strip): "shark-shadow" sweeps
-   *  the Shark's shadow across the stalls — fired once, only on the run
-   *  where the player kept the old debt. */
-  streetFx?: (fx: "shark-shadow") => void;
+   *  the Shark's shadow across the stalls (refused prologue — the street is
+   *  watching what you didn't sell); "shutter-blink" pulses the strip as a
+   *  stall shutters on landing money. */
+  streetFx?: (fx: "shark-shadow" | "shutter-blink") => void;
   /** Day counter → the street scene's dusk→dawn grade (presentation only). */
   sceneDay?: (day: number) => void;
   /** Erase this run and begin again from the cold open (the resume
@@ -567,7 +571,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     root.classList.add("lm-beat-compact");
     const day = state.day;
     document.documentElement.style.setProperty("--lm-bg-deep", DAY_TINTS[day - 1] ?? DAY_TINTS[0]);
-    deps.whisper?.(DAY_WHISPERS[(day - 1) % DAY_WHISPERS.length]!);
+    // One whisper per day: the street keeps living while you decide. A clean
+    // run gets its own dread on the last morning — the hungry street knows
+    // whose fault the quiet is. (The trap paths already carry the drama;
+    // the good run must not also be the blank one.)
+    if (day === 3 && !reacted.defer && !reacted.skipped) {
+      deps.whisper?.("Three days, and nothing of yours has fed the street. It's watching you for it.");
+    } else {
+      deps.whisper?.(DAY_WHISPERS[(day - 1) % DAY_WHISPERS.length]!);
+    }
     deps.sceneDay?.(day);
     lantern.hidden = false; till.hidden = false; ledgerStrip.hidden = false;
     renderChrome();
@@ -638,9 +650,13 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (!c) return;
     let zana = c.zana;
     // The Shark's shadow: once, mid-week, only if the old debt was kept.
+    // The shadow's MESSAGE depends on how you've played: trap runs get the
+    // menace; disciplined runs get his revised number — clean books are the
+    // worst news he's had all week, and they cost him. The good path gets
+    // its own drama, not the quiet version of the trap path's.
     if (day >= 2 && !reacted.shadow && state.prologueChoice && !state.prologueChoice.endsWith("take_70")) {
       reacted.shadow = true;
-      zana = MOMENT_SHADOW;
+      zana = !reacted.defer && !reacted.skipped ? MOMENT_COUNTER_78 : MOMENT_SHADOW;
       deps.streetFx?.("shark-shadow");
     }
     deps.say("zana", zana, () => deps.say("siki", c.siki, arm));
@@ -721,6 +737,15 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     // trade can land in the same breath, and showing that gain under
     // "You left it" teaches the wrong lesson.
     const streetFigure = (effects.lanternDelta > 0 ? effects.lanternDelta : 0) + (effects.lateFeeDelta > 0 ? effects.lateFeeDelta : 0);
+    // Consequence-feel: the books themselves react. The ledger strip
+    // shudders as value sheds; the street blinks when one of its stalls
+    // shutters on landing money. The arithmetic IS the animation — no
+    // minigame invented, the numbers just refuse to sit still.
+    if (streetFigure > 0) {
+      ledgerStrip.classList.add("lm-ledger-shed");
+      window.setTimeout(() => ledgerStrip.classList.remove("lm-ledger-shed"), 900);
+    }
+    if (effects.collected > 0) deps.streetFx?.("shutter-blink");
     const figure = effects.cashDelta !== 0
       ? (effects.cashDelta > 0 ? `+${gbp(effects.cashDelta)}` : `−${gbp(-effects.cashDelta)}`)
       : null;

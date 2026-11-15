@@ -118,12 +118,25 @@ pinned against exported product values (`tests/vectors.test.ts`).
 - **Unique moments — one-shot beats fired by specific choices, so no two
   weeks read the same:** the first deferral gets Zana's bark naming your own
   figure ("That's the first stall you lit…"); skipping the bill summons the
-  Collector himself to your counter; keeping the old debt (refusing the
-  Shark, in either move) draws his shadow across the stalls once, mid-week,
-  with Zana's line over it; the till-empty ending gets Siki's emergency
-  triage ("Breathe. Still saveable, in order…") chained after Zana's
+  Collector himself to your counter; the till-empty ending gets Siki's
+  emergency triage ("Breathe. Still saveable, in order…") chained after Zana's
   kill-mark so both are heard. All one-per-run, all choice-triggered, all
   UK-fiction (the souq keeps its own lawful-fee story).
+- **The good run is NOT the quiet run:** the Shark prices distress, so clean
+  books are the worst news he gets all week — keep the debt AND play
+  disciplined and his shadow crosses the stalls carrying his REVISED number:
+  "Seventy-eight, up from seventy. Clean books cost him profit. That's your
+  discipline, priced by the street." (The anchor moved because YOUR facts
+  moved — the Chapter-2 lesson arriving as a reward.) A clean final morning
+  gets the hungry-street whisper instead of the static flavour text, and
+  trap runs keep the menace line. Both branches verified in-browser.
+- **Consequence-feel without invented minigames — the arithmetic IS the
+  animation:** the ledger strip shudders as value sheds, the street strip
+  blinks when a stall shutters on landing money, the till's money-landing
+  glow scatters coin sparkles. All stateless one-shots, all honouring
+  prefers-reduced-motion. The stake (£2,400) rides the title tagline and the
+  market doorways carry their remedy figures — the first click already meets
+  arithmetic, not two cinematic gates of it.
 - **The deduction quotes your run:** the Ch.1 debrief now shows your two
   rows side by side ("Day 1 — chased · Day 3 — left it") before the bias is
   named — the evidence lands before the lecture, on your own numbers.

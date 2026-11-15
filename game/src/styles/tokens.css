@@ -1401,6 +1401,44 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
   #street-slot.lm-shark-sweep::after { animation: none; opacity: 0 }
 }
 
+/* ── Consequence-feel: the books refuse to sit still ────────────────
+   The arithmetic IS the animation. The ledger strip shudders as value
+   sheds (the falling number has a body); the street strip blinks when a
+   stall shutters on landing money; the till's money-landing glow gets a
+   coin-sparkle. All are stateless one-shot classes, all honour
+   prefers-reduced-motion (the sounds and numbers carry the beat alone). */
+.lm-ledger-shed { animation: lm-ledger-shed 900ms ease-out }
+@keyframes lm-ledger-shed {
+  0% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0) }
+  20% { transform: translateX(-3px); box-shadow: inset 3px 0 0 0 var(--lm-ledger-red) }
+  40% { transform: translateX(3px); box-shadow: inset 3px 0 0 0 var(--lm-ledger-red) }
+  60% { transform: translateX(-2px); box-shadow: inset 3px 0 0 0 rgba(200, 80, 80, 0.6) }
+  80% { transform: translateX(1px) }
+  100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(0, 0, 0, 0) }
+}
+#street-slot.lm-shutter-blink { animation: lm-shutter-blink 900ms ease-out }
+@keyframes lm-shutter-blink {
+  0% { filter: brightness(1) }
+  30% { filter: brightness(1.45) saturate(1.2) }
+  100% { filter: brightness(1) }
+}
+/* Coin sparkle rides the existing money-landing glow: three amber flecks
+   scatter upward from the till on the pop. */
+.lm-till-glow::after {
+  content: "✦ ✧ ✦"; position: absolute; left: 50%; top: -0.4em; transform: translateX(-50%);
+  font-size: 0.7em; letter-spacing: 0.35em; color: var(--lm-amber);
+  pointer-events: none; animation: lm-coin-spark 900ms ease-out forwards;
+}
+@keyframes lm-coin-spark {
+  0% { opacity: 0; translate: 0 0.3em; scale: 0.7 }
+  30% { opacity: 1; scale: 1.1 }
+  100% { opacity: 0; translate: 0 -1.1em; scale: 0.8 }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-ledger-shed, #street-slot.lm-shutter-blink, .lm-till-glow::after { animation: none }
+  .lm-till-glow::after { content: none }
+}
+
 /* ── Narrated cinematic: Siki's line rides the film as a karaoke subtitle ──
    The take (~11s) outruns the 8s cut; the film holds its last frame until
    the line lands, so the subtitle is the living tail of the intro. */

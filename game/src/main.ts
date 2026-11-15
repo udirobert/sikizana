@@ -341,15 +341,23 @@ function streetWhisper(text: string): void {
 
 /** One-shot street effects for the moment beats: the Shark's shadow sweeps
  *  the stalls once, mid-week, only on the run where the player kept the old
- *  debt. CSS owns the sweep (reduced motion: the Zana line carries it). */
-function streetFx(fx: "shark-shadow"): void {
-  if (fx !== "shark-shadow") return;
+ *  debt (or, on a clean run, carries his revised number); "shutter-blink"
+ *  pulses the strip as a stall shutters on landing money. CSS owns both
+ *  (reduced motion: the spoken lines carry the beat). */
+function streetFx(fx: "shark-shadow" | "shutter-blink"): void {
   const slot = document.getElementById("street-slot");
   if (!slot || calmMotion()) return;
-  slot.classList.remove("lm-shark-sweep");
-  void slot.offsetWidth; // restart the animation if one is somehow alive
-  slot.classList.add("lm-shark-sweep");
-  window.setTimeout(() => slot.classList.remove("lm-shark-sweep"), 1800);
+  if (fx === "shark-shadow") {
+    slot.classList.remove("lm-shark-sweep");
+    void slot.offsetWidth; // restart the animation if one is somehow alive
+    slot.classList.add("lm-shark-sweep");
+    window.setTimeout(() => slot.classList.remove("lm-shark-sweep"), 1800);
+    return;
+  }
+  slot.classList.remove("lm-shutter-blink");
+  void slot.offsetWidth;
+  slot.classList.add("lm-shutter-blink");
+  window.setTimeout(() => slot.classList.remove("lm-shutter-blink"), 900);
 }
 
 function renderStreet(): void {
@@ -869,8 +877,8 @@ function showMarketPick(onDone: () => void): void {
       return c;
     };
     return [
-      mk(`${SOUQ_AR.londonName} — London`, "Pounds · interest set by law (the Late Payment Act)", "lm-market-uk", "/assets/sprites/awning.png", () => enter("uk")),
-      mk(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · a late fee in your own terms · Arabic throughout", "lm-market-souq", "/assets/sprites/cart.png", souqBeat),
+      mk(`${SOUQ_AR.londonName} — London`, "Pounds · the lawful price of lateness: £40 fixed plus base + 8%", "lm-market-uk", "/assets/sprites/awning.png", () => enter("uk")),
+      mk(`${SOUQ_AR.marketName} — The Souq`, "Dirhams · the fee is the one you wrote into your own terms · Arabic throughout", "lm-market-souq", "/assets/sprites/cart.png", souqBeat),
     ];
   };
 
