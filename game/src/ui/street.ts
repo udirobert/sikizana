@@ -14,6 +14,7 @@
  */
 import { el } from "./dom";
 import { money } from "../engine/market";
+import { sendTelemetry } from "../engine/telemetry";
 import { createStreetScene, streetSceneSupported, STALL_RECTS, type StreetScene } from "../scene/streetScene";
 
 export interface StreetCounters {
@@ -31,6 +32,8 @@ export interface StreetCounters {
   lateFees?: number;
   /** Fees paid to stallholders via npc.feePaid ledger entries. */
   npcFees?: number;
+  /** Per-NPC take: stall lights only from its own NPC's money (faithful model). */
+  npcTake?: { factor: number; collector: number; shark: number };
   /**
    * Face of invoices that are due and still unchased. This is the number
    * the street shows — the money that has not come in — rather than the
@@ -70,11 +73,22 @@ export interface StreetState {
  * collection visibly closes a stall on the left and a deferral lights one on
  * the right: the street changes when you leave it.
  */
+export function stallStates(c: StreetCounters): ("lit" | "dim")[] {
+  // Faithful model: one stall per named NPC, lit strictly by that NPC's money.
+  // Cart is the base (market predates you). Awning = market shed (deferrals/bills).
+  const npc = c.npcTake ?? { factor: 0, collector: 0, shark: 0 };
+  return [
+    "lit", // cart: always
+    c.deferrals + c.billSkipped > 0 ? "lit" : "dim", // awning: your waiting
+    npc.factor > 0 ? "lit" : "dim", // Factor: only his fee lights him
+    npc.collector > 0 ? "lit" : "dim", // Collector: only his commission
+    npc.shark > 0 || c.prologueLit ? "lit" : "dim", // Shark: his discount / prologue
+  ];
+}
+
 export function streetState(c: StreetCounters): StreetState {
-  // prologueLit: the market stall the Shark's discount funded — the street
-  // grows on everyone's lateness, his profit on yours included.
-  const funded = c.deferrals + c.billSkipped + (c.toStreet > 0 ? 1 : 0) + (c.prologueLit ? 1 : 0);
-  const lit = Math.min(STREET_TOTAL, Math.max(1, STREET_BASE_LIT + funded));
+  const states = stallStates(c);
+  const lit = states.filter((s) => s === "lit").length;
   const shut = Math.min(lit, c.collected);
   return { lit, shut, total: STREET_TOTAL };
 }
@@ -199,6 +213,15 @@ function svgNode(markup: string): SVGElement {
 
 /** One clause per stall per state — the meaning only; showStallNote()
  *  supplies the name and state word so the line never says them twice. */
+function stallAmount(kind: StallKind, c: StreetCounters): number {
+  const npc = c.npcTake ?? { factor: 0, collector: 0, shark: 0 };
+  if (kind === "factor") return npc.factor;
+  if (kind === "collector") return npc.collector;
+  if (kind === "shark") return npc.shark + (c.prologueLit ? Math.round(2400 * 0.3) : 0);
+  if (kind === "awning") return c.streetTake ?? 0;
+  return 0;
+}
+
 function stallNote(kind: StallKind, state: "shut" | "lit" | "dim"): string {
   if (state === "shut") return "one of your collections closed this stall.";
   switch (kind) {
@@ -229,7 +252,9 @@ function showStallNote(row: HTMLElement, kind: StallKind, state: "shut" | "lit" 
   const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
   const cap = name.charAt(0).toUpperCase() + name.slice(1);
   const note = stallNote(kind, state);
-  const parts: (Node | string)[] = [`${cap} — ${stateWord}. ${note.charAt(0).toUpperCase()}${note.slice(1)}`];
+  const amt = stallAmount(kind, c);
+  const amtSuffix = amt > 0 ? ` He has ${money(amt, 0)} off you.` : "";
+  const parts: (Node | string)[] = [`${cap} — ${stateWord}. ${note.charAt(0).toUpperCase()}${note.slice(1)}${amtSuffix}`];
   if (c.toStreet > 0) {
     // Inspection answers with real numbers: Zana's voice plus the dim
     // ledger line — flavour first, audit second (never invented values).
@@ -339,10 +364,11 @@ export function sceneStepUp(index: number | null): void {
 }
 
 function sceneHitButtons(stalls: HTMLElement, c: StreetCounters, row: HTMLElement): void {
-  const { lit, shut, total } = streetState(c);
+  const { shut, total } = streetState(c);
   for (let i = 0; i < total; i++) {
     const stall = STALLS[i]!;
-    const state = i < shut ? "shut" : i < lit ? "lit" : "dim";
+    const causal = stallStates(c)[i] ?? "dim";
+    const state = causal === "lit" && i < shut ? "shut" : causal;
     const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
     const rect = STALL_RECTS[i]!;
     const btn = el(
@@ -417,7 +443,9 @@ export function renderStreet(c: StreetCounters): HTMLElement {
     stalls.append(home);
     for (let i = 0; i < total; i++) {
       const stall = STALLS[i]!;
-      const state = i < shut ? "shut" : i < lit ? "lit" : "dim";
+      const causal = stallStates(c)[i] ?? "dim";
+      // Shuttered = was lit, now closed by a collection; dim stays dim.
+      const state = causal === "lit" && i < shut ? "shut" : causal;
       const stateWord = state === "lit" ? "lit" : state === "shut" ? "shuttered" : "dark";
       const span = el(
         "span",
@@ -449,7 +477,11 @@ export function renderStreet(c: StreetCounters): HTMLElement {
   // must read as a number, not an action. Class kept for probes/a11y.
   const taken = money(c.toStreet, 0);
   const held = c.held ?? 0;
-  const headline = held > 0 ? `${money(held, 0)} still on the street` : `${taken} to the street`;
+  // Live number leads: realised take + rate, face moves to breakdown.
+  const perDay = c.deferrals > 0 && c.streetTake > 0 ? Math.round((c.streetTake / Math.max(1, c.deferrals)) * 10) / 10 : 0;
+  const headline = c.toStreet > 0
+    ? `${taken} so far${perDay > 0 ? ` · £${perDay}/day` : ""}${held > 0 ? ` · ${money(held, 0)} still out` : ""}`
+    : held > 0 ? `${money(held, 0)} still on the street` : "Nothing to the street yet";
   const meta = el("div", { class: "lm-street-meta" });
   const tally = el("span", { class: "lm-street-cap lm-street-tally", text: headline });
   const toggle = el("button", {
@@ -461,7 +493,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
       : `The stalls keep their books — ${taken}. Show the breakdown.`,
     // The label previews what's inside (NN/g: users must predict hidden
     // content from the trigger alone — "Details" predicts nothing).
-    text: "the books",
+    text: `show the ${taken}`,
   });
   const books = el("span", { class: "lm-street-books", hidden: true });
   for (const line of tallyLines(c)) books.append(el("span", { class: "lm-street-book-line", text: line }));
@@ -473,6 +505,7 @@ export function renderStreet(c: StreetCounters): HTMLElement {
   if (c.toStreet > 0 || held > 0) {
     toggle.addEventListener("click", () => {
       const open = books.hidden;
+      try { sendTelemetry({ event: "books_opened", stage: "street" }); } catch { /* observation never breaks render */ }
       books.hidden = !open;
       books.classList.toggle("lm-street-books--open", open);
       toggle.setAttribute("aria-expanded", String(open));

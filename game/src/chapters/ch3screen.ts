@@ -20,6 +20,7 @@ import {
   Ch3State,
 } from "./ch3";
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
+import { profileCard } from "../ui/profileCard";
 import type { LedgerEntry } from "../engine/ledger";
 import { money, isSouq, SOUQ_VO } from "../engine/market";
 import { PROLOGUE_EXPERIMENT_ID } from "./ch1screen";
@@ -148,7 +149,7 @@ export function runChapter3(deps: Ch3Deps): void {
     const o = streetOffers();
     clear(stage);
     // The street's number is on the table now — the Factor's buy price.
-    renderTill(chrome.till, { value: o.factor.buyPrice, caption: "On the table", decimals: 0, note: `− ${gbp(CH3_INVOICE - o.factor.buyPrice)} the street keeps` });
+    renderTill(chrome.till, { value: o.factor.buyPrice, caption: "Their offer", decimals: 0, note: `− ${gbp(CH3_INVOICE - o.factor.buyPrice)} the street keeps · owed, not cash` });
     renderLedger(chrome.ledger, [
       { client: CH3_CLIENT, amount: CH3_INVOICE, status: `${CH3_DAYS_LATE} days late · the street wants to buy it`, tone: "dead" },
     ]);
@@ -201,7 +202,7 @@ export function runChapter3(deps: Ch3Deps): void {
   function sharkBeat(): void {
     const o = streetOffers();
     clear(stage);
-    renderTill(chrome.till, { value: o.shark.cashNow, caption: "On the table", decimals: 0, note: `then £${o.shark.daily} a day` });
+    renderTill(chrome.till, { value: o.shark.cashNow, caption: "Their offer", decimals: 0, note: `then £${o.shark.daily} a day · owed, not cash` });
     deps.say("shark", "A little now. A little each day. The daily number is small — that is rather the point.");
     // The close is a full-screen beat: the street goes quiet, one card, one
     // number. The daily figure is the whole trap, so it gets the whole card.
@@ -271,6 +272,12 @@ export function runChapter3(deps: Ch3Deps): void {
         stage.append(
           el("h3", { text: "Sunk cost" }),
           speakerPara("siki", "History is a fact. It is not a reason. Decide at zero: the prospect pays for the next chase, or it doesn't."),
+          profileCard({
+            key: "sunkCost",
+            value: state.rounds.length ? Math.round((state.rounds.filter((r) => r.action === "continue" || r.action === "escalate").length / state.rounds.length) * 100) : 0,
+            line: `You put in ${gbp(invested)} across ${state.rounds.filter((r) => r.action).length} rounds. Judged at zero, the account is ${gbp(p.total)}. One run suggests; it doesn't prove.`,
+            nameThat: "sunk cost — history priced as if it were prospect",
+          }, "Chapter 3"),
           choiceButton("To the finale", "Chapter 3 complete", () => deps.onTool?.("decide_at_zero")),
         );
       },

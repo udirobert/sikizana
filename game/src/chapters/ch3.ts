@@ -91,7 +91,7 @@ export function ch3LedgerEntry(state: Ch3State, round: Ch3Round): Omit<LedgerEnt
     chapter: 3,
     day: 40 + round.round * 3,
     experimentId: `ch3_continuation_r${round.round}`,
-    prompt: `${CH3_CLIENT}: silent, 60 days late (again). Push, escalate, or stop?`,
+    prompt: `${CH3_CLIENT}: silent, 60 days late (again). Best case the account pays next quarter; worst case it never does. Push, escalate, or stop?`,
     optionsShown: [
       { id: "continue", label: "Keep the line going", framingVariable: "sunk_relationship", isDefault: true },
       { id: "escalate", label: "Escalate — discount + call", framingVariable: "sunk_relationship_escalate", isDefault: false },

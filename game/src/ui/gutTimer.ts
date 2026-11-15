@@ -68,13 +68,13 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-/** Gut clock is opt-out: default ON, "0" turns it off, anything unexpected stays on. */
+/** Gut clock is opt-in: default OFF, "1" turns it on. Timeouts never commit a choice. */
 export function gutClockEnabled(): boolean {
   try {
     const s = storage();
-    return !s || s.getItem(CLOCK_KEY) !== "0";
+    return !!s && s.getItem(CLOCK_KEY) === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -82,7 +82,7 @@ export function setGutClockEnabled(on: boolean): void {
   try {
     storage()?.setItem(CLOCK_KEY, on ? "1" : "0");
   } catch {
-    /* private mode — the in-memory default (on) is the best we can do */
+    /* private mode — the clock stays off without storage to remember opt-in */
   }
 }
 
@@ -132,7 +132,16 @@ export function mountGutTimer(host: HTMLElement, opts: GutTimerOpts): GutTimerHa
   host.append(root);
 
   const totalMs = Math.max(0, opts.seconds * 1000);
-  const deadline = Date.now() + totalMs;
+  let deadline = Date.now() + totalMs;
+  // Pause on background tab: wall-clock deadline shifts by hidden time so
+  // alt-tab / slow machines never burn decision time.
+  const onVis = (): void => {
+    if (document.hidden) { (onVis as { _h?: number })._h = Date.now(); return; }
+    const h = (onVis as { _h?: number })._h;
+    if (h) { deadline += Date.now() - h; (onVis as { _h?: number })._h = undefined; }
+  };
+  try { document.addEventListener("visibilitychange", onVis); } catch { /* non-DOM test */ }
+  const cleanupVis = (): void => { try { document.removeEventListener("visibilitychange", onVis); } catch { /* noop */ } };
   let fired = false;
   let stopped = false;
   let announced = Number.POSITIVE_INFINITY;
@@ -159,6 +168,7 @@ export function mountGutTimer(host: HTMLElement, opts: GutTimerOpts): GutTimerHa
       if (fill) fill.style.width = "0%";
       secs.textContent = "0";
       opts.onTimeout();
+      cleanupVis();
     }
   };
 
@@ -168,6 +178,7 @@ export function mountGutTimer(host: HTMLElement, opts: GutTimerOpts): GutTimerHa
       interval = null;
     }
     stopped = true;
+    cleanupVis();
   };
 
   render();

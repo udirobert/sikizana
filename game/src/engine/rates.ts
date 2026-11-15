@@ -50,6 +50,45 @@ export function costOfDeferralPerDay(principal: number, basePct = DEFAULT_BASE_R
   return statutoryInterest(principal, 1, basePct);
 }
 
+/* ── The rate card (WS-D1) ───────────────────────────────────────────
+ * One source for every "cost of lateness" the game shows. Each entry says
+ * what kind of number it is, because the three kinds must never be read as
+ * the same quantity:
+ *   law        — a real figure (the 1998 Act).
+ *   indicative — a public UK range, labelled as indicative.
+ *   fictional  — the game's own street. Deliberately the worst market you
+ *                can hit; it is not a rate and must never be shown as one.
+ */
+export type RateKind = "law" | "indicative" | "fictional";
+
+export interface RateCardEntry {
+  id: "statute" | "factor" | "collector" | "street";
+  label: string;
+  kind: RateKind;
+  /** Annualised percentage where the figure IS a rate; null for the street. */
+  annualPct: number | null;
+  /** Per-day percentage of face, where that is how the figure is priced. */
+  perDayPct: number | null;
+  note: string;
+}
+
+/**
+ * The factoring market's price for an aged claim (the game's mid-point) and
+ * the law's price for the same claim. Both are real quantities: the first is
+ * what an invoice buyer would pay today, the second is what the claim is
+ * worth if you chase and enforce it.
+ */
+export function factorQuote(face: number, daysLate: number): { price: number; fee: number } {
+  const q = quoteFor("The Factor", face, daysLate);
+  return { price: q.marketBuyPrice, fee: face - q.marketBuyPrice };
+}
+
+/** The law's price for an aged claim: face plus interest and compensation. */
+export function enforcedPrice(face: number, daysLate: number): { price: number; entitlement: number } {
+  const e = statutoryEntitlement(face, daysLate);
+  return { price: face + e.total, entitlement: e.total };
+}
+
 function debtIsLateEligible(value: number): boolean {
   return value > 0;
 }
@@ -89,3 +128,40 @@ export function quoteFor(label: LateMarketQuote["counterpartyLabel"], faceValue:
     }
   }
 }
+
+/* The card itself lives at the bottom of the file: it reads the discount
+ * constants above, so it must be built after they exist. */
+export const RATE_CARD: RateCardEntry[] = [
+  {
+    id: "statute",
+    label: "The law — Late Payment of Commercial Debts (Interest) Act 1998",
+    kind: "law",
+    annualPct: statutoryRatePct(),
+    perDayPct: null,
+    note: "8% over the Bank of England base rate, plus fixed compensation (£40 / £70 / £100). A real figure.",
+  },
+  {
+    id: "factor",
+    label: "The factoring market — indicative UK range",
+    kind: "indicative",
+    annualPct: FACTOR_DISCOUNT_PCT_PER_MONTH * 12,
+    perDayPct: null,
+    note: "Roughly 6.75–9.75% a year plus a service fee. Indicative — the game prices it at one point in that range.",
+  },
+  {
+    id: "collector",
+    label: "Debt-buy commission — indicative UK range",
+    kind: "indicative",
+    annualPct: COLLECTOR_COMMISSION_PCT,
+    perDayPct: null,
+    note: "5–15% of the amount recovered. Indicative.",
+  },
+  {
+    id: "street",
+    label: "The street's market — fictional",
+    kind: "fictional",
+    annualPct: null,
+    perDayPct: null,
+    note: "The game's own street: the worst market you can hit, priced per day while the invoice sits. Fictional, and labelled as such everywhere it appears.",
+  },
+];

@@ -2,7 +2,7 @@
  * Beat clock — Zana's clock mounted on a decision beat.
  *
  * Wraps ui/gutTimer for the choice screens: mounts the countdown, records
- * the gut call (option + seconds taken, or "time_called"), and resolves the
+ * the gut call (option + seconds taken, or "time_called"), and never resolves the
  * beat as if the player stood still on expiry.
  *
  * The clock is ARMED, not started: the caller mounts it while the beat's
@@ -11,11 +11,10 @@
  * runs while the player can actually read the options — the timer never
  * races the voice.
  *
- * The instrument is an observation, never a gate: onTimeout defaults to the
- * quiet option (defer / no floor / the Shark walking on), which is also the
- * fiction-true outcome of not acting. When the pref is off the clock stays
- * invisible but the call is still logged — the debrief can still tell
- * deliberation from instinct.
+ * The instrument is an observation, never a gate: onTimeout must never pick
+ * an option, commit a floor, or write a ledger entry. When the pref is off
+ * the clock stays invisible but the call is still logged — the debrief can
+ * still tell deliberation from instinct.
  */
 import { mountGutTimer, gutClockEnabled, recordGutCall, type GutTimerHandle } from "./gutTimer";
 

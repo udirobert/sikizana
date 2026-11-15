@@ -182,18 +182,22 @@ body {
 /* The keycap: drawn from `data-key`, the same attribute the key handler reads,
    so the number on the button and the key that presses it cannot disagree.
    Hidden on touch, where there is no number to press. */
+/* The keycap rides ::before; the choice's own kind tag rides ::after. The two
+   used to fight over ::after, and because the kind rule never reset
+   `position`, the tag rendered absolutely at the top-right — on top of the
+   choice's title. One pseudo-element per job. */
 .lm-choice { position: relative }
 .lm-choice[data-key] { padding-right: 2.7rem }
-.lm-choice[data-key]::after {
+.lm-choice[data-key]::before {
   content: attr(data-key); position: absolute; top: 0.6rem; right: 0.65rem;
   min-width: 1.35em; padding: 0.02em 0.28em; text-align: center;
   font: 600 0.72em/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
   color: var(--lm-ink-dim); border: 1px solid var(--lm-ink-dim); border-radius: 5px;
   opacity: 0.55; transition: opacity 120ms, color 120ms, border-color 120ms;
 }
-.lm-choice[data-key]:hover::after,
-.lm-choice[data-key]:focus-visible::after { opacity: 1; color: var(--lm-amber); border-color: var(--lm-amber) }
-@media (hover: none) { .lm-choice[data-key]::after { display: none } .lm-choice[data-key] { padding-right: 1rem } }
+.lm-choice[data-key]:hover::before,
+.lm-choice[data-key]:focus-visible::before { opacity: 1; color: var(--lm-amber); border-color: var(--lm-amber) }
+@media (hover: none) { .lm-choice[data-key]::before { display: none } .lm-choice[data-key] { padding-right: 1rem } }
 
 .lm-lantern {
   position: fixed; top: 10px; right: 12px; z-index: 10;
@@ -552,6 +556,10 @@ body {
 /* ── Ch.2 floor chart + numeric inputs ───────────────────────────── */
 .lm-chart { display: grid; gap: .5rem; margin: .6rem 0 }.lm-chart-row { display: grid; grid-template-columns: minmax(200px, 1fr); gap: .2rem }
 .lm-bar { height: 14px; background: var(--lm-violet); border-radius: 4px; min-width: 4px }
+.lm-chart-track { position: relative; height: 14px; background: rgb(255 255 255 / 0.06); border-radius: 4px; }
+.lm-chart-track .lm-bar { position: absolute; inset: 0 auto 0 0; }
+.lm-chart-true { position: absolute; top: -4px; bottom: -4px; left: 100%; width: 2px; background: var(--lm-ledger-green); }
+.lm-chart-anchor { position: absolute; top: -3px; width: 2px; height: 20px; background: var(--lm-amber); }
 .lm-stage input[type="number"] {
   font: inherit; color: var(--lm-ink); background: var(--lm-bg-mid);
   border: 1px solid var(--lm-ink-dim); border-radius: 8px; padding: .4rem .6rem;
@@ -715,8 +723,8 @@ label.lm-hint { display: block; margin: .8rem 0 }
    Details, inspect line, stall captions — arrives with the first day,
    when money can actually move. Hit-areas stay but can't be pressed. */
 #street-slot.lm-street-pre .lm-street-meta,
-#street-slot.lm-street-pre .lm-stall-inspect { display: none; }
-#street-slot.lm-street-pre .lm-stall-hit { pointer-events: none; }
+#street-slot.lm-street-pre .lm-stall-inspect { display: none; }  #street-slot.lm-street-pre .lm-stall-hit { pointer-events: none; }
+  #street-slot.lm-street-pre + #game .lm-street-books-toggle, #street-slot.lm-street-pre .lm-street-books-toggle { display: none; }
 #street-slot.lm-street-pre .lm-stall-name,
 #street-slot.lm-street-pre .lm-stall-badge { visibility: hidden; }
 
@@ -847,11 +855,13 @@ label.lm-hint { display: block; margin: .8rem 0 }
 /* ── Delight pass (2026-11-14) ─────────────────────────────────────── */
 
 /* The honesty mark: one persistent label replaces per-card "fictional ·
-   indicative" repeats. Fixed corner, never interactive. */
+   indicative" repeats. Bottom-RIGHT, on a chip: the bottom-left corner
+   belongs to the ledger, and the fixed label used to land on top of it. */
 .lm-fiction-mark {
-  position: fixed; left: 12px; bottom: 10px; z-index: 5;
+  position: fixed; right: 12px; bottom: 10px; z-index: 5;
   margin: 0; color: var(--lm-ink-dim); font-size: 0.78em; font-style: italic;
-  opacity: 0.7; pointer-events: none;
+  opacity: 0.72; pointer-events: none;
+  background: rgba(16, 16, 34, 0.55); border-radius: 6px; padding: 1px 8px;
 }
 
 /* Daybreak veil: a breath of dawn between ch1 days. JS skips it under
@@ -1309,6 +1319,10 @@ label.lm-hint { display: block; margin: .8rem 0 }
 /* Till first: the money sits at the top of the chapter flow. */
 .lm-till-top { order: -1; }
 #ch1 { display: flex; flex-direction: column; }
+/* The hidden attribute must win. #ch1's display:flex overrides the UA
+   sheet's `[hidden] { display: none }`, so Ch.1's board stayed on screen
+   through Ch.2, Ch.3, the finale and the second week. */
+section.lm-chapter[hidden] { display: none !important; }
 #ch1 .lm-till { order: -1; }
 #ch1 .lm-day { order: 0; }
 /* Choice weighting: primary moves the till, trap feeds the street, quiet trails. */
@@ -1401,12 +1415,16 @@ section.lm-chapter.lm-shark-stage > p.lm-line {
 .lm-counsel.siki .lm-counsel-name { color: var(--lm-siki) }
 .lm-counsel.zana .lm-counsel-name { color: var(--lm-zana) }
 .lm-counsel-text { display: block }
-/* The pair stacks above the choices on narrow/embedded viewports. */
-@media (max-width: 779px) {
+/* The pair stacks above the choices on narrow/embedded viewports.
+   Hierarchy fix: choices own the full row so advice reads as notes,
+   not columns outshining the decision. */
+@media (max-width: 1100px) {
   .lm-council {
     grid-template-areas: "siki zana" "choices choices";
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
+  .lm-council-choices { min-width: 0; }
+  .lm-counsel { font-size: 0.82em; }
 }
 
 /* ── The Shark's shadow: a one-per-run sweep across the stalls ──────

@@ -234,7 +234,13 @@ export async function createStreetScene(
   app.canvas.setAttribute("aria-hidden", "true");
 
   const W = () => host.clientWidth || 1;
-  const scale = () => Math.min(1.15, Math.max(0.55, W() / 1150));
+  let viewH = SCENE_H;
+  const scale = () => {
+    const wScale = Math.min(1.15, Math.max(0.55, W() / 1150));
+    // Compact mode (132px host): shrink the cast so it fits instead of squashing.
+    const hScale = Math.max(0.5, viewH / SCENE_H);
+    return Math.min(wScale, hScale);
+  };
 
   /* Layers: ground → glows → figures → shade → motes → grade */
   const ground = new Container();
@@ -244,7 +250,7 @@ export async function createStreetScene(
   const grade = new Graphics();
   app.stage.addChild(ground, figures, shadeLayer, moteLayer, grade);
 
-  const baseline = () => SCENE_H - 26;
+  const baseline = () => viewH - 26;
   const figH = () => STALL_H * scale();
 
   /* ── Home pitch: Siki & Zana, bigger than the stalls ── */
@@ -357,7 +363,8 @@ export async function createStreetScene(
   /* ── Layout: positions from shared fractions ──
    * root.scale stays a pure multiplier (~1): all sizing lives in
    * targetH/fig.scale so hover/pulse pops never compound depth. */
-  function layout(): void {
+  function layout(nextH?: number): void {
+    if (typeof nextH === "number" && nextH > 0) viewH = nextH;
     const w = W();
     const sc = scale();
     const by = baseline();
@@ -395,7 +402,7 @@ export async function createStreetScene(
 
   function resizeGrade(): void {
     grade.clear();
-    grade.rect(0, 0, W(), SCENE_H).fill({ color: 0x000000, alpha: 0 });
+    grade.rect(0, 0, W(), viewH).fill({ color: 0x000000, alpha: 0 });
   }
 
   /* ── Motes — in-scene ember drift ── */
@@ -454,7 +461,7 @@ export async function createStreetScene(
     const g = Math.round(35 + (190 - 35) * t);
     const b = Math.round(80 + (120 - 80) * t);
     grade.clear();
-    grade.rect(0, 0, W(), SCENE_H).fill({ color: (r << 16) | (g << 8) | b, alpha: 0.05 + t * 0.07 });
+    grade.rect(0, 0, W(), viewH).fill({ color: (r << 16) | (g << 8) | b, alpha: 0.05 + t * 0.07 });
   }
 
   /* ── The Shark's shadow pass (day 1, once per scene lifetime) ──
@@ -578,10 +585,10 @@ export async function createStreetScene(
     // Motes rise and sway.
     if (!calm) {
       for (const m of motes) {
-        const cyc = ((t * m.speed) / SCENE_H + m.phase) % 1;
+        const cyc = ((t * m.speed) / viewH + m.phase) % 1;
         m.spr.position.set(
           m.x0 * W() + Math.sin(t * 0.8 + m.phase) * m.sway,
-          SCENE_H - cyc * (SCENE_H + 24) + 8,
+          viewH - cyc * (viewH + 24) + 8,
         );
         m.spr.alpha = 0.1 + Math.sin(cyc * Math.PI) * 0.3;
       }
@@ -592,7 +599,10 @@ export async function createStreetScene(
    * would bind to a 0×0 element. refresh() runs on attach + window resize. */
   const resizeRenderer = (): void => {
     const w = host.clientWidth || 800;
-    app.renderer.resize(w, SCENE_H);
+    // Compact mode slims the host (132px): lay out from the host height so
+    // the 208px bitmap is never squashed into it — the cast keeps shape.
+    viewH = host.clientHeight > 0 ? host.clientHeight : SCENE_H;
+    app.renderer.resize(w, viewH);
     layout();
   };
   window.addEventListener("resize", resizeRenderer);
@@ -621,7 +631,7 @@ export async function createStreetScene(
       void Promise.all(stalls.map(loadStallPaint)).then(() => applyState());
     },
     stallRects() {
-      const w = W(), h = SCENE_H;
+      const w = W(), h = viewH;
       return stalls.map((s) => {
         const fw = HIT_W * w;
         return {

@@ -96,11 +96,11 @@ describe("ch1 day shape (3-day stall screen)", () => {
     expect(c.some((x) => x.invoiceId === "inv-b")).toBe(false);
   });
 
-  it("pair days offer the pair with identical day counts — only the frame differs", () => {
+  it("pair days offer the pair with identical day counts AND identical wording", () => {
     const { state } = createCh1State(20261109);
     const aChase = dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "chase")!;
     expect(aChase.invoiceId).toBe("inv-a");
-    expect(aChase.detail).toBe(`Zana goes today. The full £2,400 is here tomorrow morning — inside the week.`);
+    expect(aChase.detail).toBe(`Zana goes today. The full £2,400 is here tomorrow morning.`);
     expect(dayChoices(state, PAIR_A_DAY).find((x) => x.kind === "defer")!.detail).toBe(
       "It can wait — it'll come in its own time.",
     );
@@ -111,7 +111,9 @@ describe("ch1 day shape (3-day stall screen)", () => {
     resolveDay(state, BILL.dueDay, dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!.id);
     const bChase = dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "chase")!;
     expect(bChase.invoiceId).toBe("inv-b");
-    expect(bChase.detail).toBe(`Zana goes today. The full £2,400 is here tomorrow morning — after the close.`);
+    // The arms must read identically: the copy may not say which one pays
+    // (WS-B2). The difference is WHEN the money lands, not what the button says.
+    expect(bChase.detail).toBe(aChase.detail);
     expect(dayChoices(state, PAIR_B_DAY).find((x) => x.kind === "defer")!.detail).toBe(
       "It can wait — it'll come in its own time.",
     );
@@ -138,11 +140,14 @@ describe("ch1 day shape (3-day stall screen)", () => {
     }
   });
 
-  it("yesterday's chase makes the bill button say the till can cover it", () => {
+  it("the bill button states terms only — never whether the till can cover it", () => {
     const { state } = createCh1State(20261109);
     resolveDay(state, 1, dayChoices(state, 1).find((x) => x.kind === "chase")!.id);
     const pay = dayChoices(state, BILL.dueDay).find((x) => x.kind === "pay_bill")!;
-    expect(pay.detail).toContain("stall stays open");
+    // WS-B1: the option may not carry the outcome. The player can do the
+    // arithmetic from the till above them.
+    expect(pay.detail).not.toMatch(/red|stall stays open|cover/i);
+    expect(pay.detail.length).toBeGreaterThan(0);
   });
 });
 

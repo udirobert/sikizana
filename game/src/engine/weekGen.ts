@@ -187,21 +187,17 @@ export function dayChoices(state: Week2State, day: number): DayChoice[] {
   const out: DayChoice[] = [];
   if (state.bill.dueDay === day && state.bill.paidDay === null && state.bill.skippedDay === null) {
     // Money promised for this morning is already in the till when the bill
-    // is paid — resolveDay collects before it spends, so the button counts it.
-    const arriving = state.invoices
-      .filter((i) => i.paidDay === day)
-      .reduce((s, i) => s + i.principal, 0);
-    const canCover = state.cash + arriving >= state.bill.amount;
+    // is paid — resolveDay collects before it spends.
     out.push({
       id: `pay_bill-${day}`,
       label: `Pay ${state.bill.client} — ${money(state.bill.amount)}`,
-      detail: canCover ? "Due today. Paid, the stall stays open." : "Due today. The till can't cover it — you'd run into the red.",
+      detail: "Due today. Paid out of the drawer.",
       kind: "pay_bill",
     });
     out.push({
       id: `skip_bill-${day}`,
       label: "Leave the bill",
-      detail: `${money(state.bill.amount)} stays owed, and ${money(state.bill.lateFee)} a day comes out of the till tomorrow — the street's money.`,
+      detail: `${money(state.bill.amount)} stays owed.`,
       kind: "skip_bill",
     });
   }

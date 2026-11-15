@@ -108,12 +108,13 @@ export function runFinale(deps: FinaleDeps): void {
     }
 
     function finishClose(): void {
-      // All stalls end shuttered — the market closes on your terms now.
+      // Keep the market standing but dark: shutter only stalls you closed,
+      // leave figures and amounts readable in the dark (no blank band).
       const cap = stage.querySelector(".lm-street-cap");
       if (cap) cap.textContent = " The Late Market · closed";
       clear(stage);
       const row = renderStreet(deps.street);
-      for (const s of row.querySelectorAll(".lm-stall")) s.className = "lm-stall shut";
+      // Do not force every stall shut — renderStreet already marks shut vs lit vs dim from the ledger.
       const cap2 = row.querySelector(".lm-street-cap");
       if (cap2) cap2.textContent = " The Late Market · closed";
       stage.append(
@@ -170,7 +171,9 @@ export function runFinale(deps: FinaleDeps): void {
           }
           return total;
         })(),
-        el("p", { class: "lm-hint", text: `To the street (NPC fees): ${gbp(c.toStreet)} · forgone ${remedy().label}: ${gbp(c.forgoneStatutory)}` }),
+        el("p", { class: "lm-price-row", }, el("span", { text: "To the street (fictional haircut + fees — same as the strip)" }), el("span", { text: gbp(c.toStreet) })),
+        el("p", { class: "lm-price-row", }, el("span", { text: `To the clock (${remedy().label}, unclaimed law — real figure)` }), el("span", { text: gbp(c.forgoneStatutory) })),
+        el("p", { class: "lm-hint", text: `Your week's habit cost ${gbp(c.toStreet + c.forgoneStatutory)} — the difference the habit made, split above. The country's late-payment bill is next — yours is the small number above.` }),
         // The souq market's second cost of deferral: the money you never
         // collected is still on your books, and commonly still in the zakat
         // base. Basis is the uncollected receivable only — street fees are

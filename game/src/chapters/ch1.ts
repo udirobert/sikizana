@@ -350,24 +350,17 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     // The ordinary day where the till can empty. No dressed-up numbers — just
     // the bill, what it costs, and what skipping costs.
     // Money promised for this morning is already in the till when the bill
-    // is paid — resolveDay collects before it spends — so the button has
-    // to count it, or yesterday's chase looks unaffordable on its payday.
-    const arriving = state.invoices
-      .filter((i) => i.paidDay === day)
-      .reduce((s, i) => s + i.principal, 0);
-    const canCover = state.cash + arriving >= state.bill.amount;
+    // is paid — resolveDay collects before it spends.
     decisionChoices.push({
       id: `pay_bill-${day}`,
       label: `Pay ${state.bill.client} — ${money(state.bill.amount)}`,
-      detail: canCover
-        ? "Due today. Paid, the stall stays open."
-        : "Due today. The till can't cover it — you'd run into the red.",
+      detail: "Due today. Paid out of the drawer.",
       kind: "pay_bill",
     });
     decisionChoices.push({
       id: `skip_bill-${day}`,
       label: "Leave the bill",
-      detail: `${money(state.bill.amount)} stays owed, and ${money(state.bill.lateFee)} a day comes out of the till tomorrow — the street's money.`,
+      detail: `${money(state.bill.amount)} stays owed.`,
       kind: "skip_bill",
     });
   }
@@ -388,9 +381,7 @@ export function dayChoices(state: Ch1State, day: number): DayChoice[] {
     // around them are the frame: day 1's money is in the till this week,
     // day 3's identical wait lands after the week closes.
     const chaseDetail = isEngineered
-      ? day === pair.first.day
-        ? `Zana goes today. The full ${money(due.principal)} is here tomorrow morning — inside the week.`
-        : `Zana goes today. The full ${money(due.principal)} is here tomorrow morning — after the close.`
+      ? `Zana goes today. The full ${money(due.principal)} is here tomorrow morning.`
       : `Zana goes today — the full ${money(due.principal)} lands tomorrow morning.`;
     // The far cost stays abstract on the button; the debrief prices it in
     // days and pounds. Spelling "10 days instead" here hands the player

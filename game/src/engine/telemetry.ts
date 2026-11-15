@@ -42,7 +42,28 @@ export interface RunFinished {
   replay: boolean;
 }
 
-export type TelemetryEvent = ChapterReached | RunFinished;
+export type TelemetryEvent = ChapterReached | RunFinished | ChoiceMade | BooksOpened | ProfileSeen;
+
+/** Local-only observation: choice + seconds since beat armed. Never sends ledger text. */
+export interface ChoiceMade {
+  event: "choice_made";
+  stage: string;
+  choiceId: string;
+  secondsTaken: number;
+  wasTimeout: boolean;
+}
+
+/** Local-only: strip breakdown opened. Measures whether live numbers get seen. */
+export interface BooksOpened {
+  event: "books_opened";
+  stage: string;
+}
+
+/** Local-only: per-chapter profile card seen. */
+export interface ProfileSeen {
+  event: "profile_card_seen";
+  stage: string;
+}
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
 

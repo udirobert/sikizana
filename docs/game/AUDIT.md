@@ -12,7 +12,16 @@ Three categories, and the distinction is the point:
   presented as a market rate.
 - **Derived** — computed from the above by a rule the game states in the copy.
 
-Run the suite yourself: `cd game && npm test -- --run` (84 tests, 10 files).
+Run the suite yourself: `cd game && npm test -- --run` (130 tests, 15 files).
+
+> **Re-audit, 2026-11-15 (post-remediation):** the finale's "To the street" line is
+> the same source as the strip's live tally (`streetSession` shed value +
+> late charges + ledger `feePaid`; ch1's chapter entry books `streetTake +
+> lateFees` as `streetFee`), reconciled to the penny — `tests/finale.test.ts`
+> and the `expectLinesSumToLantern` invariant in `tests/ch1.test.ts` fail if
+> they drift. Timeouts write `time_called` gut rows only, never ledger
+> entries (`tests/gutTimer.test.ts`), so no clock expiry can enter the axes.
+> `npx tsc --noEmit` is clean.
 
 ## The two remedies
 

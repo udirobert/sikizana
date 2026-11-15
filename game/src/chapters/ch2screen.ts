@@ -23,6 +23,7 @@ import {
 import { renderTill, renderLedger, makeStallChrome } from "../ui/stall";
 import { streetFocus } from "../ui/street";
 import { beatClock, type BeatClock } from "../ui/beatClock";
+import { profileCard } from "../ui/profileCard";
 import type { LedgerEntry } from "../engine/ledger";
 import { phrased } from "../i18n";
 import { money, remedy, isSouq, zakatNote, SOUQ_VO } from "../engine/market";
@@ -58,8 +59,8 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   const { state, rng } = createCh2State(seed);
   const { root } = deps;
   clear(root);
-  // Zana's clock on the floor beat: twelve seconds, then the desk takes
-  // silence as "no floor" — exactly what standing still means here.
+  // Zana's clock on the floor beat: twelve seconds of pure decision time, then
+  // it stops and leaves the beat open — silence never sets the floor.
   let clock: BeatClock | null = null;
   // The stall chrome PERSISTS through every beat (the place doesn't clear to
   // a bare form — recovery plan §2.1, third-pass charge): the till shows the
@@ -69,10 +70,10 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   const stage = el("div", { class: "lm-stage" });
   root.append(chrome.till, chrome.ledger, stage);
 
-  /** The stall chrome for this chapter: till = the number on the table;
+  /** The stall chrome for this chapter: till = their offer (never cash — F7),
    *  ledger = the claim card. `onTable` is the live number the desk shows. */
-  function renderChrome(onTable: number): void {
-    renderTill(chrome.till, { value: onTable, caption: "On the table", decimals: 0 });
+  function renderChrome(onTable: number, caption = "Their offer", note?: string): void {
+    renderTill(chrome.till, { value: onTable, caption, decimals: 0, ...(note ? { note } : {}) });
     renderLedger(chrome.ledger, [
       {
         client: CH2_CLIENT,
@@ -89,7 +90,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     deps.say("siki", isSouq()
       ? SOUQ_VO.ch2Intro
       : "The Claims Desk in the market buys settling. They open every negotiation with their number. Notice whose number is already on the table.");
-    renderChrome(CH2_INVOICE);
+    renderChrome(CH2_INVOICE, "Your claim");
     stage.append(
       el("h3", { text: "Chapter 2 · The Offer" }),
       speakerPara("siki", `One invoice. ${gbp(CH2_INVOICE)}. Sixty days aged. Three runs at the same desk.`),
@@ -105,7 +106,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
   function showRun(): void {
     const run = currentRun(state);
     clear(stage);
-    renderChrome(run.anchor);
+    renderChrome(run.anchor, "Their offer", "their number, not yours · owed, not cash");
     // The desk remembers: if you named a floor last sitting, it names it
     // back at you — your number, before their number arrives. Copy only;
     // the sim never sees this line.
@@ -167,7 +168,12 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       experimentId: `ch2_anchor_r${run.run + 1}`,
       seconds: 12,
       calm: reducedMotion,
-      onTimeout: () => commitFloor(),
+      onTimeout: () => {
+        // A timeout must never choose for the player: leave the beat open,
+        // record observation only (beatClock logs time_called). The floor stays yours.
+        const note = stage.querySelector(".lm-gut-note");
+        if (!note) stage.append(el("p", { class: "lm-hint lm-gut-note", text: "Zana's patience runs out. The choice stays yours." }));
+      },
     });
     clock = c;
     // The Collector's opener holds the stage while it plays; Zana's clock
@@ -191,9 +197,9 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const canCounter = run.counters.length < 2; // anchor + up to 2 counters
     // The till IS the number on the table — the player's floor is set against
     // it, so its movement is the anchor doing its work, made visible.
-    renderChrome(latest);
+    renderChrome(latest, "Their offer", "their number, not yours · owed, not cash");
     stage.append(
-      el("h3", { text: `Run ${run.run + 1}: on the table` }),
+      el("h3", { text: `Run ${run.run + 1}: their offer` }),
       el("p", { class: "lm-cash", text: gbp(latest) }),
       ...(run.counters.length > 0 ? [el("p", { class: "lm-line desk", text: "The desk slides a new number across. No comment." })] : []),
       // The trail: every number the desk has put down this sitting, in order.
@@ -209,8 +215,8 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     stage.append(
       ...(() => {
           const a = choiceButton("Accept " + gbp(latest), underFloor
-            ? `Under your floor of ${gbp(run.floor!)} — clears at their number anyway`
-            : "The invoice clears at their number", () => {
+            ? `Under your floor of ${gbp(run.floor!)}`
+            : "Settled today, at their number", () => {
             accept(state);
             deps.record(ch2LedgerEntry(state, snapshot(run)));
             nextRun();
@@ -267,7 +273,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
    *  feePaid — a flavour offer must not enter the Cost-of-Not-Acting tally. */
   function factorTeaser(): void {
     clear(stage);
-    renderChrome(CH2_INVOICE);
+    renderChrome(CH2_INVOICE, "Your claim");
     const teaser = Math.round(CH2_INVOICE * 0.4); // fictional taste of his real offer
     const figWrap = el("div", { class: "lm-beat-fig lm-factor-fig", "aria-hidden": "true" }, el("img", { class: "lm-beat-art", src: "assets/sprites/factor.png", alt: "" }));
     deps.say("factor", "You look like someone who'd rather have it today.");
@@ -279,7 +285,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         el("p", { class: "lm-hint", text: "a taste of his real offer" }),
       ),
       el("div", { class: "lm-choices" },
-        choiceButton(`Take it — ${gbp(teaser)}`, "Cash today; he's already gone", () => {
+        choiceButton(`Take it — ${gbp(teaser)}`, "Cash today.", () => {
           deps.record({
             chapter: 2,
             day: 23,
@@ -328,7 +334,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const probe = collectorProbe();
     clear(stage);
     // The Collector's number on the table — his buy price, not the claim.
-    renderChrome(probe.buyPrice);
+    renderChrome(probe.buyPrice, "Their offer", "his buy price, not your claim · owed, not cash");
     renderLedger(chrome.ledger, [
       { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · the Collector wants to buy it`, tone: "overdue" },
     ]);
@@ -343,7 +349,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
       el("div", { class: "lm-surface lm-collector" },
         el("p", { class: "lm-collector-today", text: `${gbp(probe.buyPrice)} today` }),
         el("p", { class: "lm-hint", text: probe.copy }),
-        el("p", { class: "lm-hint", text: "typical UK recovery commission runs 5–15%" }),
+        el("p", { class: "lm-hint", text: "typical UK recovery commission runs 5–15% (indicative)" }),
       ),
       el("div", { class: "lm-choices" },
         choiceButton(`Sell the debt — ${gbp(probe.buyPrice)}`, "Instant cash, relationship gone", () => {
@@ -371,7 +377,7 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
     const namedFloors = floorsSet.length >= 2;
     // The debrief reveals the true number — put it on the till, not just in
     // the prose (the place is the point; the fact that sat still is now shown).
-    renderTill(chrome.till, { value: ch2Prospect().total, caption: "What it is actually worth", decimals: 0 });
+    renderTill(chrome.till, { value: ch2Prospect().total, caption: "What it is actually worth", decimals: 0, note: `${gbp(CH2_INVOICE)} invoice + ${gbp(ch2Prospect().total - CH2_INVOICE)} entitlement` });
     renderLedger(chrome.ledger, [
       { client: CH2_CLIENT, amount: CH2_INVOICE, status: `${CH2_DAYS_LATE} days late · worth ${gbp(ch2Prospect().total)} to you`, tone: "chased" },
     ]);
@@ -384,10 +390,15 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         deps.say("siki", "Three runs. One invoice. Did your minimum move with their opening?");
         stage.append(
           el("h3", { text: "Your floors against their anchors" }),
-          el("div", { class: "lm-chart" }, ...rows.map((r, i) =>
+          el("p", { class: "lm-hint", text: `True worth ${gbp(ch2Prospect().total)} — dashed line. Bars are your floors, ticks are their anchors.` }),
+          el("div", { class: "lm-chart", role: "img", "aria-label": `True worth ${gbp(ch2Prospect().total)}. Your floors vs their anchors across ${rows.length} runs.` }, ...rows.map((r, i) =>
             el("div", { class: "lm-chart-row" },
               el("span", { text: `Run ${i + 1} · anchor ${gbp(r.anchor)} → floor ${r.floor === null ? "not set" : gbp(r.floor)}` }),
-              el("div", { class: "lm-bar", style: `width:${r.floor === null ? 0 : Math.min(100, (r.floor / ch2Prospect().total) * 100)}%` }),
+              el("div", { class: "lm-chart-track" },
+                el("div", { class: "lm-bar", style: `width:${r.floor === null ? 0 : Math.min(100, (r.floor / ch2Prospect().total) * 100)}%` }),
+                el("div", { class: "lm-chart-anchor", style: `left:${Math.min(100, (r.anchor / ch2Prospect().total) * 100)}%`, title: `Anchor ${gbp(r.anchor)}`, "aria-hidden": "true" }),
+                el("div", { class: "lm-chart-true", title: `True worth ${gbp(ch2Prospect().total)}`, "aria-hidden": "true" }),
+              ),
             ),
           )),
           choiceButton("Continue", "", next),
@@ -402,6 +413,14 @@ export function runChapter2(deps: Ch2Deps, seed: number): void {
         stage.append(
           el("h3", { text: "The anchor" }),
           speakerPara("siki", anchorLine),
+          profileCard({
+            key: "anchoring",
+            value: namedFloors && move > 0 ? Math.min(100, Math.round((move / ch2Prospect().total) * 100)) : 0,
+            line: rows.length
+              ? `${rows.map((r, i) => `Run ${i + 1}: their ${gbp(r.anchor)} → your floor ${r.floor === null ? "not set" : gbp(r.floor)}`).join(" · ")}. One run suggests; it doesn't prove.`
+              : "No floor was ever named — the anchor had nothing to push against.",
+            nameThat: "anchoring — the first number on the table moves your bottom line",
+          }, "Chapter 2"),
           el("p", { class: "lm-hint", text: `"Invoice ${gbp(CH2_INVOICE)}, 60 days late. ${remedy().quote(CH2_INVOICE, CH2_DAYS_LATE)} Settle ${gbp(ch2Prospect().total)}."` }),
           ...(isSouq() && walked && zakatNote(CH2_INVOICE)
             ? [el("p", { class: "lm-hint lm-zakat", text: zakatNote(CH2_INVOICE)! })]

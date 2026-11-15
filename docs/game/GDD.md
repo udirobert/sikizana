@@ -216,7 +216,7 @@ Each chapter pairs **structurally symmetric** choices and changes exactly one va
 
 ## A6. Cost of Not Acting ledger (meta-progression)
 
-Every NPC fee, every day of forgone statutory interest, every shipped-off relationship — accumulated as one running "what deferral paid the street." The finale totals it next to the (fictional, label-tagged) £11bn/44% UK stats.
+Every NPC fee, every day of forgone statutory interest, every shipped-off relationship — accumulated as one running "what deferral paid the street." The finale shows it SPLIT, never summed into one mystery number: "To the street" (fictional haircut + fees — the same figure as the strip's live tally, reconciled to the penny) and "To the clock" (unclaimed statutory entitlement — the real 1998 Act figure), then the habit's total gap, next to the (fictional, label-tagged) £11bn/44% UK stats. The country's bill is labelled as not-the-player's-share: "Yours this week was £X."
 
 ---
 

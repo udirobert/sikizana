@@ -194,12 +194,20 @@ const SEED = 20261109; // jam build: one canonical run for judging
  * ch1 street events (deferrals, skipped bill, collections) create NO ledger
  * entries, so they live in session counters; ch2/ch3 NPC fees do create ledger
  * entries, so they're read from the ledger. Both feed one counter. */
-const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0, held: 0, prologueLit: false };
+const streetSession = { deferrals: 0, billSkipped: 0, collected: 0, lateFees: 0, streetTake: 0, held: 0, prologueLit: false, npcTake: { factor: 0, collector: 0, shark: 0 } };
 
 function streetCounters(): StreetCounters {
   const all = ledger.all();
   let npcFees = 0;
-  for (const e of all) if (e.npc?.feePaid) npcFees += e.npc.feePaid;
+  const npcTake = { factor: streetSession.npcTake.factor, collector: streetSession.npcTake.collector, shark: streetSession.npcTake.shark };
+  for (const e of all) {
+    if (e.npc?.feePaid) {
+      npcFees += e.npc.feePaid;
+      if (e.npc.npc === "The Factor") npcTake.factor += e.npc.feePaid;
+      else if (e.npc.npc === "The Collector") npcTake.collector += e.npc.feePaid;
+      else if (e.npc.npc === "The Shark") npcTake.shark += e.npc.feePaid;
+    }
+  }
   // The street's money so far: ch1 shed value (the lantern) + late charges +
   // NPC fees from ch2/ch3. This is what the strip's "£X so far" tallies —
   // and the tally's breakdown lists the same three components, never a
@@ -213,6 +221,7 @@ function streetCounters(): StreetCounters {
     billSkipped: streetSession.billSkipped,
     lateFees: streetSession.lateFees,
     npcFees,
+    npcTake,
     held: streetSession.held,
     /** The Shark's stall claim: he took the old debt off your hands at 70%
      *  of face — the £720 he keeps lights a market stall (the market runs
@@ -784,19 +793,15 @@ function begin(withSound: boolean): void {
   const jump = Number(new URLSearchParams(location.search).get("ch") ?? 1);
   const chapter = ([1, 2, 3].includes(jump) ? jump : 1) || 1;
 
-  // First-run market pick: a scene beat, not a settings radio. Skipped for
-  // returning players, deep links (?market=, ?ch=), and anyone mid-run —
-  // the choice changes the remedy, so it must never yank a saved week.
-  if (shouldOfferMarketPick()) {
-    showMarketPick(() => beginChapter(chapter as 1 | 2 | 3));
-    return;
-  }
-  // The narrated intro (film + story card) is a FRESH RUN's first
-  // impression, not a per-browser one: it plays even when the market pick
-  // doesn't (mode already chosen, or an ?market= deep link). Mid-run
-  // resumes and chapter jumps go straight to the board.
-  if (chapter === 1 && loadCh1Save() === null && ledger.all().length === 0) {
-    playCinematic(() => showStoryCard(() => beginChapter(1)));
+  // First minute is one scene: cold open (film + story) first, market pick
+  // after. Default UK; Souq offered as a line inside the story card.
+  // Skipped for returning players, deep links, mid-run (remedy must not yank a saved week).
+  const fresh = chapter === 1 && loadCh1Save() === null && ledger.all().length === 0;
+  if (fresh) {
+    playCinematic(() => showStoryCard(() => {
+      if (shouldOfferMarketPick()) showMarketPick(() => beginChapter(1));
+      else beginChapter(1);
+    }));
     return;
   }
   beginChapter(chapter as 1 | 2 | 3);

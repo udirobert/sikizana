@@ -127,11 +127,11 @@ const opts = (over: Partial<Parameters<typeof mountGutTimer>[1]> = {}) => ({
   ...over,
 });
 
-/* ── Pref: on by default, opt-out persists ────────────────────────── */
+/* ── Pref: opt-in by default, the choice persists ─────────────────── */
 
 describe("gut clock pref", () => {
-  it("defaults to on", () => {
-    expect(gutClockEnabled()).toBe(true);
+  it("defaults to off — the clock observes, it never decides", () => {
+    expect(gutClockEnabled()).toBe(false);
   });
 
   it("round-trips through localStorage as lm.gutclock.v1", () => {
@@ -143,14 +143,14 @@ describe("gut clock pref", () => {
     expect(localStorage.getItem("lm.gutclock.v1")).toBe("1");
   });
 
-  it("stays on if the stored value is garbage (opt-out is explicit)", () => {
+  it("stays off if the stored value is garbage (opt-in is explicit)", () => {
     localStorage.setItem("lm.gutclock.v1", "junk");
-    expect(gutClockEnabled()).toBe(true);
+    expect(gutClockEnabled()).toBe(false);
   });
 
-  it("private mode: reads default to on, writes never throw", () => {
+  it("private mode: reads default to off, writes never throw", () => {
     vi.stubGlobal("localStorage", throwingStorage());
-    expect(gutClockEnabled()).toBe(true);
+    expect(gutClockEnabled()).toBe(false);
     expect(() => setGutClockEnabled(false)).not.toThrow();
   });
 });

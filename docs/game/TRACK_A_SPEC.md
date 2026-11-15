@@ -101,8 +101,10 @@ ends with a ledger entry.
   `ch1screen.ts` deliberately avoids the prefix for exactly this reason.
 - `npc` field may be set (`{ npc: "The Shark", decision: "accept" |
   "decline" }`) so the debrief can cite it — but **never set `feePaid`**:
-  `costOfNotActing().toStreet` sums `feePaid` on accepts, which would
-  inflate the street tally and the finale's Cost-of-Not-Acting ledger.
+  `costOfNotActing()` sums `streetFee` (ch1's shed value + late charges) plus
+  `feePaid` on accepts into the street tally, which would inflate the
+  finale's Cost-of-Not-Acting ledger and break its penny-reconciliation
+  with the strip.
 - `deferred`: set `false` explicitly. With a non-`ch1_` experimentId it is
   inert, but explicit beats implicit.
 - New `kind`/`experimentId` values must be checked against every

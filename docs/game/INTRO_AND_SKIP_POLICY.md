@@ -73,12 +73,13 @@ The consensus across design forums and post-mortems is unusually stable:
 
 ## Why the prologue has no clock
 
-The gut clock (Zana's countdown, opt-out in Options) survives on the
+The gut clock (Zana's countdown, opt-in in Options, default OFF) survives on the
 pair days and the ch2 floor — there it is an **instrument**: the whole
 point of the pair-day beat is that instinct and deliberation price the
-same numbers differently, and a timed choice is what makes the later
-debrief ("the clock called that one") meaningful. Standing still is the
-fiction-true default; the clock is opt-in for players who want the test.
+same numbers differently, and a timed beat is what makes the later
+debrief ("the clock called that one") meaningful. A timeout never picks
+and never writes a ledger entry — standing still leaves the choice yours;
+the clock is opt-in for players who want the test.
 
 The prologue is the wrong place for the same clock, for three reasons:
 

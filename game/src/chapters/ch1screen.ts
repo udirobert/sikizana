@@ -32,9 +32,11 @@ import {
 } from "./ch1";
 import { beatClock, type BeatClock } from "../ui/beatClock";
 import { gutCalls } from "../ui/gutTimer";
+import { profileCard } from "../ui/profileCard";
 import type { LedgerEntry } from "../engine/ledger";
+import { factorQuote } from "../engine/rates";
 import type { Speaker } from "../audio/voice";
-import { money, isSouq, SOUQ_VO } from "../engine/market";
+import { money, isSouq, SOUQ_VO, remedy } from "../engine/market";
 
 /**
  * The prologue's frozen VO contract (TRACK_A_SPEC A1): these strings are the
@@ -184,13 +186,14 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
   // Zana's clock on the timed beats: the prologue offer and the two pair days.
   let clock: BeatClock | null = null;
   function tweenMoney(elm: HTMLElement, from: number, to: number, token: number): void {
-    if (reducedMotion || from === to) { elm.textContent = gbp(to); return; }
+    // The till deals in whole pounds (F7 cohesion): pence live in the debrief prices, not the drawer.
+    if (reducedMotion || from === to) { elm.textContent = gbp0(to); return; }
     const t0 = performance.now(), dur = 650;
     const frame = (t: number) => {
       if (token !== tillToken) return; // a newer render supersedes this tween
       const p = Math.min(1, (t - t0) / dur);
       const e = 1 - Math.pow(1 - p, 3);
-      elm.textContent = gbp(from + (to - from) * e);
+      elm.textContent = gbp0(from + (to - from) * e);
       if (p < 1) requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
@@ -223,16 +226,22 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     const fromNet = prevTill?.net ?? net;
     const cashVal = document.createElement("span");
     cashVal.className = "lm-till-line-val";
-    tillGrid.append(
-      el("div", { class: "lm-till-row" },
-        el("span", { class: "lm-till-line-label", text: "Cash" }),
-        cashVal),
-    );
-    tweenMoney(cashVal, fromCash, state.cash, token);
+    // One number when nothing is owed (F7): Cash == In hand, so only In hand shows.
+    if (billOwed) {
+      tillGrid.append(
+        el("div", { class: "lm-till-row" },
+          el("span", { class: "lm-till-line-label", text: "Cash" }),
+          cashVal),
+      );
+      tweenMoney(cashVal, fromCash, state.cash, token);
+    } else {
+      prevTill = { cash: state.cash, net };
+    }
     if (billOwed) {
       tillGrid.append(el("div", { class: "lm-till-row lm-till-row-debt" },
         el("span", { class: "lm-till-line-label", text: `Owed to ${state.bill.client}` }),
-        el("span", { class: "lm-till-line-val", text: `− ${gbp(owed)}` })));
+        el("span", { class: "lm-till-line-val", text: `− ${gbp0(owed)}` })));
+
     }
     const netVal = document.createElement("span");
     netVal.className = "lm-till-num lm-till-line-val";
@@ -248,7 +257,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     if (netDelta !== 0 && !reducedMotion) {
       const chip = el("span", {
         class: `lm-till-delta ${netDelta > 0 ? "up" : "down"}`,
-        text: `${netDelta > 0 ? "+" : "−"}${gbp(Math.abs(netDelta))}`,
+        text: `${netDelta > 0 ? "+" : "−"}${gbp0(Math.abs(netDelta))}`,
       });
       chip.addEventListener("animationend", () => chip.remove());
       till.append(chip);
@@ -400,11 +409,11 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     // opening offer deserves deliberation; the pair days deserve instinct.
     const choices = el("div", { class: "lm-choices lm-await" },
       ...(() => {
-        const take = choiceButton("Take the 70%", "Old debt, settled off the books — this week's till never sees it", () => prologuePick("take"));
+        const take = choiceButton("Take the 70%", "70% of face, in cash tonight.", () => prologuePick("take"));
         take.classList.add("lm-choice-trap");
-        const refuse = choiceButton("Refuse", "Keep the debt. The street keeps its own books", () => prologuePick("refuse"));
+        const refuse = choiceButton("Refuse", "Keep the whole debt.", () => prologuePick("refuse"));
         refuse.classList.add("lm-choice-primary");
-        const counter = choiceButton("Counter — 85%", "He will say no. Watch.", () => prologuePick("counter"));
+        const counter = choiceButton("Counter — 85%", "85% of face.", () => prologuePick("counter"));
         counter.classList.add("lm-choice-quiet");
         return [take, refuse, counter];
       })(),
@@ -485,7 +494,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
       el("p", { class: "lm-hint", text: "He didn't move. Seventy, tonight — or nothing." }),
       councilGrid(PROLOGUE_COUNCIL_COUNTER, el("div", { class: "lm-choices lm-await" },
         ...(() => {
-          const take = choiceButton("Take the seventy", `The debt is gone — ${money(Math.round(2400 * 0.3), 0)} stays on the street`, () => {
+          const take = choiceButton("Take the seventy", "Seventy percent, in cash tonight.", () => {
             prologueRecord("counter_then_take_70", "accept",
               "Countered at 85 — he came back at seventy, tonight or nothing. You took it. The old debt is gone; the discount lit a stall.");
             deps.noteStreet({ flair: true, prologueLit: true });
@@ -494,7 +503,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
             shutters();
           });
           take.classList.add("lm-choice-trap");
-          const walk = choiceButton("Walk away", "The debt stays yours — nothing lights for him", () => {
+          const walk = choiceButton("Walk away", "Keep the whole debt.", () => {
             prologueRecord("counter_then_refuse", "decline",
               "Countered at 85 — he came back at seventy, tonight or nothing. You walked. The debt stays yours; nothing lit for him.");
             prologueHint = "You tried for eighty-five, then walked. The whole debt is still yours — nothing lit for him tonight.";
@@ -625,18 +634,22 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         ? councilGrid(COUNCIL[day]!, choicesEl)
         : choicesEl,
     );
-    // Zana's clock on the pair days: ten seconds, then the invoice sits —
-    // not chasing IS deferring, so standing still is the trap option. The
-    // bill day stays untimed on purpose (resource clarity beats pressure).
+    // Zana's clock on the pair days: ten seconds of pure decision time, then
+    // it stops and leaves the beat open — standing still never chooses.
+    // The bill day stays untimed on purpose (resource clarity beats pressure).
     // Armed only once the day's council has landed, so the timer never
     // races the voice.
     if (day === PAIR_A_DAY || day === PAIR_B_DAY) {
-      const deferId = choices.find((c) => c.kind === "defer")?.id;
       const c = beatClock(dayPanel, {
         experimentId: day === PAIR_A_DAY ? "ch1_present_pair_a" : "ch1_present_pair_b",
         seconds: 10,
         calm: reducedMotion,
-        onTimeout: () => { if (deferId) pick(deferId); },
+        onTimeout: () => {
+          // A timeout must never choose for the player: leave the beat open,
+          // record observation only (beatClock logs time_called). The choice stays yours.
+          const note = dayPanel.querySelector(".lm-gut-note");
+          if (!note) dayPanel.append(el("p", { class: "lm-hint lm-gut-note", text: "Zana's patience runs out. The choice stays yours." }));
+        },
       });
       clock = c;
       const arm = () => c.arm();
@@ -782,7 +795,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
     }
     if (effects.collected > 0) deps.streetFx?.("shutter-blink");
     const figure = effects.cashDelta !== 0
-      ? (effects.cashDelta > 0 ? `+${gbp(effects.cashDelta)}` : `−${gbp(-effects.cashDelta)}`)
+      ? (effects.cashDelta > 0 ? `+${gbp0(effects.cashDelta)}` : `−${gbp0(-effects.cashDelta)}`)
       : null;
     if (streetBeat) {
       // Compact street beat: the art carries the beat (painterly standard,
@@ -795,7 +808,7 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
         el("img", { class: "lm-beat-art", src: beatArt, alt: "", "aria-hidden": "true" }),
         el("div", { class: "lm-beat-titles" },
           el("h3", { text: effects.streetNote === "bill_skipped" ? "The bill stays." : "You left it." }),
-          ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: gbp(streetFigure) })] : []),
+          ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: gbp0(streetFigure) })] : []),
         ),
       );
       dayPanel.append(head);
@@ -849,11 +862,31 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
 
     function beatPrices(): void {
       clear(dayPanel);
-      const price = statutoryFloor === 0 && stillOut > 0
-        ? `${gbp0(stillOut)} did not come in. Its wait starts after the close — this week priced none of it.`
-        : isSouq()
-          ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
-          : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
+      // The two prices of the SAME claim, priced on the same window (WS-D2):
+      // chased and enforced, the claim is worth face + the statutory
+      // entitlement; if the street keeps it, the claim is worth face − the
+      // market's haircut. The gap between those two prices IS what the habit
+      // cost, and it splits between the street and the clock.
+      const two = lines.reduce((acc, l) => {
+        const enforced = l.principal + l.statutory;
+        const street = l.principal - l.streetTake;
+        const factor = factorQuote(l.principal, l.daysLate).price;
+        return {
+          face: acc.face + l.principal,
+          enforced: acc.enforced + enforced,
+          street: acc.street + street,
+          factor: acc.factor + factor,
+          gap: acc.gap + (enforced - street),
+        };
+      }, { face: 0, enforced: 0, street: 0, factor: 0, gap: 0 });
+      const streetTakeTotal = lines.reduce((t, l) => t + l.streetTake, 0);
+      const price = two.gap > 0
+        ? `${gbp0(two.face)} did not come in. Chased and enforced it pays ${gbp(two.enforced)}. The street's market pays ${gbp(two.street)}.`
+        : statutoryFloor === 0 && stillOut > 0
+          ? `${gbp0(stillOut)} did not come in. Its wait starts after the close — this week priced none of it.`
+          : isSouq()
+            ? `${gbp0(stillOut)} did not come in. Your own terms price that wait at ${gbp0(statutoryFloor)}.`
+            : `${gbp0(stillOut)} did not come in. The law prices that wait at ${gbp0(statutoryFloor)}.`;
       const name = differed
         ? "You deferred one and chased the other. The offers matched. Only when the money landed changed. That tilt is present bias."
         : bothChased
@@ -868,9 +901,20 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           el("img", { class: "lm-beat-art", src: "assets/sprites/siki.png", alt: "", "aria-hidden": "true" }),
           el("div", { class: "lm-beat-titles" },
             el("h3", { text: "Two prices, one wait" }),
-            el("p", { class: "lm-take", text: gbp0(statutoryFloor) }),
+            el("p", { class: "lm-take", text: two.gap > 0 ? gbp(two.gap) : gbp0(statutoryFloor) }),
           ),
         ),
+        // The receipt: three prices of the same claim, and the gap between
+        // them. Every figure is the engine's own — nothing is narrated.
+        ...(two.gap > 0 ? [
+          el("div", { class: "lm-surface lm-prices" },
+            el("p", { class: "lm-price-row lm-price-strong" }, el("span", { text: "Chased and enforced" }), el("span", { text: gbp(two.enforced) })),
+            el("p", { class: "lm-price-row" }, el("span", { text: "The factoring market (indicative)" }), el("span", { text: gbp(two.factor) })),
+            el("p", { class: "lm-price-row" }, el("span", { text: "The street's market (fictional)" }), el("span", { text: gbp(two.street) })),
+            el("p", { class: "lm-price-row lm-price-gap" }, el("span", { text: "What the habit cost you" }), el("span", { text: gbp(two.gap) })),
+            el("p", { class: "lm-hint", text: `Of that: ${gbp(streetTakeTotal)} to the street's haircut, ${gbp(statutoryFloor)} to the clock (${remedy().label}, unclaimed).` }),
+          ),
+        ] : []),
         speakerPara("siki", price),
         // The deduction quotes the player's own sequence — path-aware, not
         // a generic bias card. The bias naming lands after the evidence.
@@ -878,6 +922,14 @@ export function runChapter1(deps: Ch1Deps, seed: number, saved: Ch1State | null 
           class: "lm-hint",
           text: `Your two rows, side by side: ${entries.slice().sort((a, b) => a.day - b.day).map((e) => `Day ${e.day} — ${e.deferred ? "left it" : "chased"}`).join(" · ")}.`,
         })] : []),
+        profileCard({
+          key: "deferral",
+          value: entries.length ? Math.round((deferred.length / entries.length) * 100) : 0,
+          line: entries.length >= 2
+            ? `Day ${entries[0]!.day}: you ${entries[0]!.deferred ? "left it" : "chased"} · Day ${entries[entries.length - 1]!.day}: you ${entries[entries.length - 1]!.deferred ? "left it" : "chased"} — the same offer twice, only the timing moved. One run suggests; it doesn't prove.`
+            : "No paired decisions recorded — this axis went unmeasured.",
+          nameThat: "present bias — costs near today feel huge, costs far away feel like rounding",
+        }, "Chapter 1"),
         ...(state.endedEarly === "till_empty"
           ? [el("p", { class: "lm-hint", text: "The till ran empty. That is the price of leaving the bill." })]
           : []),

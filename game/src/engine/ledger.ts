@@ -75,17 +75,52 @@ export class DecisionLedger {
     return this.entries.filter((e) => e.experimentId === experimentId);
   }
 
-  /** Cost of Not Acting: fees paid to the street + forgone statutory entitlement. */
-  costOfNotActing(): { toStreet: number; forgoneStatutory: number } {
-    let toStreet = 0;
+  /**
+   * Cost of Not Acting — what the habit cost the player, and to whom.
+   *
+   * Two different pots of money, deliberately kept apart:
+   *  - `streetTake` — the market value the invoices shed while they sat
+   *    (Ch.1's fictional haircut: the discount the Factor would have taken).
+   *  - `npcFees` — fees the player handed to a stallholder outright.
+   *  - `forgoneStatutory` — the legal entitlement the player never claimed
+   *    (real money: statutory interest + s.5A fixed compensation).
+   *
+   * `total` is the difference between "chase and enforce" and "let it go":
+   * the claim is worth face + entitlement if you chase it, and face − the
+   * street's haircut if you do not. The gap between those two prices IS the
+   * cost of the habit, and it splits between the street and the clock.
+   */
+  costOfNotActing(): {
+    /** Everything that went to the street: shed value + fees paid. */
+    toStreet: number;
+    /** The market value the invoices shed while they sat unchased. */
+    streetTake: number;
+    /** Fees paid to stallholders (Factor/Collector/Shark). */
+    npcFees: number;
+    /** Statutory interest + s.5A compensation the player never claimed. */
+    forgoneStatutory: number;
+    /** streetTake + npcFees + forgoneStatutory. */
+    total: number;
+  } {
+    let streetTake = 0;
+    let npcFees = 0;
     let forgoneStatutory = 0;
     for (const e of this.entries) {
-      if (e.npc?.decision === "accept") toStreet += e.npc.feePaid ?? 0;
+      // Ch.1 records the street's earnings in streetFee — the cost of
+      // deferral, the game's central mechanic. It must reach the finale.
+      if (e.streetFee) streetTake += e.streetFee;
+      if (e.npc?.decision === "accept") npcFees += e.npc.feePaid ?? 0;
       if (e.forgoneEntitlement) {
         forgoneStatutory += (e.forgoneEntitlement.interest ?? 0) + (e.forgoneEntitlement.compensation ?? 0);
       }
     }
-    return { toStreet, forgoneStatutory };
+    return {
+      toStreet: streetTake + npcFees,
+      streetTake,
+      npcFees,
+      forgoneStatutory,
+      total: streetTake + npcFees + forgoneStatutory,
+    };
   }
 
   serialize(): string {

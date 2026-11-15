@@ -152,9 +152,10 @@ pinned against exported product values (`tests/vectors.test.ts`).
 - **Framing surgery:** the pair-day defer button no longer pre-computes
   "10 days instead" — near choice vivid, far cost abstract; the debrief
   prices it (the ledger record keeps the exact day counts).
-- **Zana's clock (opt-out, Options):** timed pair days only — the gut clock
-  measures something there (instinct vs the debrief's deliberation);
-  standing still is the fiction-true default. Gut calls are logged and the
+- **Zana's clock (opt-in, Options, default OFF):** timed pair days and the ch2
+  floor only — the gut clock measures something there (instinct vs the
+  debrief's deliberation). A timeout never picks, never writes a ledger
+  entry: it stops and leaves the beat open. Gut calls are logged and the
   debrief names the ones the clock called. The prologue is deliberately
   untimed: the game's first decision deserves deliberation, and a countdown
   on the first beat would only harvest noise and pressure-bias every

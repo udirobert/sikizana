@@ -104,7 +104,7 @@ export function verdictLine(profile: IrrationalityProfile): Verdict {
 export interface FinaleView {
   profile: IrrationalityProfile;
   axes: AxisEvidence[];
-  cost: { toStreet: number; forgoneStatutory: number };
+  cost: { toStreet: number; forgoneStatutory: number; streetTake?: number; npcFees?: number; total?: number };
   stats: StatCard[];
   /** True when the run skipped chapters (e.g. ?ch= jump) — axes are partial. */
   partial: boolean;

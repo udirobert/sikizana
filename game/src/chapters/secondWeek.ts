@@ -187,17 +187,18 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     const owed = billOwed ? state.bill.amount + state.lateFees : 0;
     const net = netPosition(state);
     const rows = el("div", { class: "lm-till-rows" });
-    rows.append(el("div", { class: "lm-till-row" },
-      el("span", { class: "lm-till-line-label", text: "Cash" }),
-      el("span", { class: "lm-till-line-val", text: money(state.cash, 2) })));
+    // One number when nothing is owed (F7 cohesion with Ch.1): Cash == In hand.
     if (billOwed) {
+      rows.append(el("div", { class: "lm-till-row" },
+        el("span", { class: "lm-till-line-label", text: "Cash" }),
+        el("span", { class: "lm-till-line-val", text: money(state.cash, 0) })));
       rows.append(el("div", { class: "lm-till-row lm-till-row-debt" },
         el("span", { class: "lm-till-line-label", text: `Owed to ${state.bill.client}` }),
-        el("span", { class: "lm-till-line-val", text: `− ${money(owed, 2)}` })));
+        el("span", { class: "lm-till-line-val", text: `− ${money(owed, 0)}` })));
     }
     rows.append(el("div", { class: "lm-till-row lm-till-row-net" },
       el("span", { class: "lm-till-line-label", text: "In hand" }),
-      el("span", { class: `lm-till-num lm-till-line-val${pop ? " lm-pop" : ""}`, text: money(net, 2) })));
+      el("span", { class: `lm-till-num lm-till-line-val${pop ? " lm-pop" : ""}`, text: money(net, 0) })));
     till.replaceChildren(el("span", { class: "lm-till-cap", text: "The till" }), rows);
     if (net < 0) till.append(el("span", { class: "lm-till-warn", text: "▼ in hand runs red" }));
     till.classList.toggle("lm-till-neg", net < 0);
@@ -251,7 +252,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
 
     lantern.hidden = true;
     const lanternNow = state.streetTake;
-    lantern.textContent = lanternNow > 0 ? `· ${money(lanternNow, 2)} ·` : "";
+    lantern.textContent = lanternNow > 0 ? `· ${money(lanternNow, 0)} ·` : "";
     if (lanternNow > lastLantern) {
       lantern.classList.remove("lm-lantern-pulse");
       void lantern.offsetWidth; // restart the animation
@@ -341,7 +342,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
     const streetBeat = effects.streetNote === "deferral" || effects.streetNote === "bill_skipped";
     const streetFigure = (effects.lanternDelta > 0 ? effects.lanternDelta : 0) + (effects.lateFeeDelta > 0 ? effects.lateFeeDelta : 0);
     const figure = effects.cashDelta !== 0
-      ? (effects.cashDelta > 0 ? `+${money(effects.cashDelta, 2)}` : `−${money(-effects.cashDelta, 2)}`)
+      ? (effects.cashDelta > 0 ? `+${money(effects.cashDelta, 0)}` : `−${money(-effects.cashDelta, 0)}`)
       : null;
     if (streetBeat) {
       const beatArt = effects.streetNote === "bill_skipped" ? "assets/sprites/parchment.png" : "assets/sprites/factor.png";
@@ -351,7 +352,7 @@ export function runSecondWeek(deps: SecondWeekDeps, seed: number, saved: Week2St
           el("img", { class: "lm-beat-art", src: beatArt, alt: "", "aria-hidden": "true" }),
           el("div", { class: "lm-beat-titles" },
             el("h3", { text: effects.streetNote === "bill_skipped" ? "The bill stays." : "You left it." }),
-            ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: money(streetFigure, 2) })] : []),
+            ...(streetFigure > 0 ? [el("p", { class: "lm-take", text: money(streetFigure, 0) })] : []),
           ),
         ),
       );
