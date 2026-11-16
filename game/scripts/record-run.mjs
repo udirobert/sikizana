@@ -24,12 +24,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = join(ROOT, "dist");
 if (!existsSync(join(DIST, "index.html"))) { console.error("dist/ not built — run `npm run build` first"); process.exit(1); }
 
-const PORT = 8791;
+const PORT = Number(process.env.LM_PORT ?? 8791);
 const PAGE_URL = `http://127.0.0.1:${PORT}/`;
 
 const flagVal = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : undefined; };
 const MODE_ARG = flagVal("--mode");
-const mode = MODE_ARG === "video" ? "video" : MODE_ARG === "finale" ? "finale" : MODE_ARG === "ui" ? "ui" : MODE_ARG === "souqshots" ? "souqshots" : "shots";
+const mode = MODE_ARG === "video" ? "video" : MODE_ARG === "finale" ? "finale" : MODE_ARG === "ui" ? "ui" : MODE_ARG === "souqshots" ? "souqshots" : MODE_ARG === "extra" ? "extra" : "shots";
 const OUT = flagVal("--out") ?? join(ROOT, "screenshots");
 // Trailer segments (concat with ffmpeg): --seg a starts at the title and
 // plays ch1→ch2-run-2; --seg b starts fresh at ?ch=3 and plays Mareline→Shark.
@@ -94,8 +94,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 await send("Page.enable");
 await send("Runtime.enable");
 // 1280×860 viewport via CDP (avoids the --window-size flag that crashed headless).
+const VW = Number(process.env.LM_W ?? 1280);
+const VH = Number(process.env.LM_H ?? 860);
 await send("Emulation.setDeviceMetricsOverride", {
-  width: 1280, height: 860, deviceScaleFactor: 1, mobile: false,
+  width: VW, height: VH, deviceScaleFactor: 1, mobile: false,
 });
 await send("Page.navigate", { url: SEG === "b" ? `${PAGE_URL}?ch=3` : PAGE_URL });
 await sleep(1200);
@@ -244,10 +246,9 @@ async function recordVideo() {
       await clickIf("Skip"); // Siki's cinematic is skippable; headless also auto-advances
       await pollFor("السوق"); // the market pick
       await clickByText("السوق"); await s(1500);
-      await pollFor("Open the shutters"); // the souq title card: remedy + zakat
+      await pollFor("Enter the souq"); // the souq title card: remedy + zakat
       await s(3000); // hold the bilingual card
-      console.log("[souq card]", await evalJs("JSON.stringify(Array.from(document.querySelectorAll('button')).filter(b => b.textContent.includes('Open the shutters')).map(b => ({ vis: b.offsetParent !== null, dis: b.disabled, cls: b.className })))"));
-      await clickByText("Open the shutters"); await s(1500);
+      await clickByText("Enter the souq"); await s(1500);
       await clickIf("Skip"); // the narrated cinematic
       // Post-cinematic: headless souq lands on Day 1 directly; a story
       // card (when the runtime shows one) is clicked through either way.
@@ -318,14 +319,15 @@ async function shots() {
   await s(2600);
   await shot("v3_title.png");
   await clickByText("Begin — sound on"); await s(2500);
-  await shot("v3_siki_card.png"); // Siki's intro card over the film — the centred face, full-size line
+  await shot("v3_after_begin.png"); // Siki's intro card over the film — the centred face, full-size line
   await clickIf("Skip");
   await pollFor("London"); await s(1200);
   await shot("v3_market_pick.png"); // both lawful markets on the table, the cast on the rail
   await clickByText("London");
   await pollFor("Step into the street"); await s(1200);
-  await shot("v3_zana_card.png"); // Zana's story card — her face, her voice, the stakes in writing
-  await clickByText("Step into the street"); // → the Shark walks past
+  await shot("v3_cold_open.png"); // Zana's story card — her face, her voice, the stakes in writing
+  await clickByText("Step into the street"); await s(1500); // → the Shark walks past
+  await shot("v3_welcome_done.png"); // the street, offer still veiled
   // The Shark's offer stages veiled while he speaks; the frame must show
   // the unveiled decision, not the card before it.
   await pollFor("Take the 70%"); await s(3500);
@@ -333,9 +335,20 @@ async function shots() {
   await clickByText("Refuse"); await s(1200);
   await shot("v3_shark_refused.png");
   await clickByText("Open the shutters"); await s(1500); // ch1's own gate before Day 1
+  // Day-1 choices land after the cold-open beats — poll for the defer button
+  // before the frame, so the stall shot catches the live decision.
+  await pollFor("Leave it for tomorrow"); await s(800);
   await shot("v3_day1_stall.png"); // £2,400 still on the street, Harborne already late
-  // Day-1 choices land after the cold-open beats — poll for the defer button.
-  await pollFor("Leave it for tomorrow");
+  // Layout check at the embed size: the drawer must sit beside the decision,
+  // not over it, and nothing may push the page past one viewport.
+  const layout = await evalJs(`(() => {
+    const r = (q) => { const e = document.querySelector(q); if (!e) return null; const b = e.getBoundingClientRect(); return { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height), right: Math.round(b.right), bottom: Math.round(b.bottom) }; };
+    const pop = r(".lm-ledger-pop"), day = r(".lm-day"), till = r(".lm-till-books");
+    const btns = [...document.querySelectorAll(".lm-choices button, .lm-day button")].map((b) => { const x = b.getBoundingClientRect(); return { t: b.textContent.trim().slice(0, 32), right: Math.round(x.right), left: Math.round(x.left), top: Math.round(x.top), bottom: Math.round(x.bottom) }; });
+    const se = document.scrollingElement;
+    return { pop, day, till, btns, scrollH: se.scrollHeight, scrollW: se.scrollWidth, innerH: window.innerHeight, innerW: window.innerWidth, overlapDay: !!(pop && day && pop.x < day.right && pop.right > day.x && pop.y < day.bottom && pop.bottom > day.y) };
+  })()`);
+  console.log("[layout day1]", JSON.stringify(layout, null, 1));
   const cap = async (label) => { const t = await evalJs(`[...document.querySelectorAll("#street-slot .lm-stall")].map(s=>s.dataset.kind+"="+s.className.replace("lm-stall ","")).join(" ")`); console.log(`[stalls ${label}] ${t}`); };
   await clickByText("Leave it for tomorrow"); await s(2600);
   await cap("d1");
@@ -349,6 +362,31 @@ async function shots() {
   await shot("v3_debrief_street.png");
   await clickByText("The two prices"); await s(4200);
   await shot("v3_debrief_named.png"); // the two prices, bias named if the pair split
+}
+
+// ── Extra mode: one frame at Day 1 — narrow-viewport checks (LM_W/LM_H) ────
+async function extra() {
+  mkdirSync(OUT, { recursive: true });
+  const shot = (name) => send("Page.captureScreenshot", { format: "png" }).then((r) => {
+    const p = join(OUT, name);
+    writeFileSync(p, Buffer.from(r.data, "base64"));
+    console.log(`screenshot → ${p}`);
+  });
+  await s(2600);
+  await clickByText("Begin — sound on");
+  await clickIf("Skip");
+  await pollFor("London");
+  await clickByText("London");
+  await pollFor("Step into the street");
+  await clickByText("Step into the street");
+  await pollFor("Take the 70%");
+  await clickByText("Refuse");
+  await pollFor("Open the shutters");
+  await clickByText("Open the shutters");
+  await pollFor("Leave it for tomorrow"); await s(800);
+  const st = await evalJs(`(() => { const p = document.querySelector(".lm-ledger-pop"); const b = document.querySelector(".lm-till-books"); return { popHidden: !p || p.hidden, aria: b && b.getAttribute("aria-expanded") }; })()`);
+  console.log(`[extra ${VW}x${VH}] ${JSON.stringify(st)}`);
+  await shot("extra_1024_day1.png");
 }
 
 // ── Souq shots: the trailer's "one frame" of the other lawful market ──────
@@ -376,9 +414,10 @@ async function souqShots() {
   await clickIf("Skip"); // Siki's cinematic is skippable; headless also auto-advances
   await pollFor("السوق"); // the market pick
   await clickByText("السوق"); await s(1500);
-  await pollFor("Open the shutters"); // gate 1: the market-pick detail card
+  await pollFor("Enter the souq"); // bilingual title card: remedy + zakat
   await s(3000); // let the Arabic VO take land as text
   await shot("v3_souq_card.png");
+  await clickByText("Enter the souq"); await s(1500);
   // The souq path stacks gates: the pick's detail card → the narrated
   // cinematic → the bilingual title card (its own "Open the shutters") →
   // the story card → Day 1. Click whichever gate is up until the day
@@ -391,6 +430,8 @@ async function souqShots() {
       const skip = bs.find((b) => b.textContent.includes("Skip"));
       const step = bs.find((b) => b.textContent.includes("Step into the street"));
       if (step) { step.click(); return "step"; }
+      const enter = bs.find((b) => b.textContent.includes("Enter the souq"));
+      if (enter) { enter.click(); return "enter"; }
       if (skip) { skip.click(); return "skip"; }
       const shut = bs.find((b) => b.textContent.includes("Open the shutters"));
       if (shut) { shut.click(); return "shut"; }
@@ -563,6 +604,7 @@ try {
   if (mode === "video") await recordVideo();
   else if (mode === "ui") await uiProbe();
   else if (mode === "shots") await shots();
+  else if (mode === "extra") await extra();
   else if (mode === "souqshots") await souqShots();
   else await finale();
 } catch (e) {
