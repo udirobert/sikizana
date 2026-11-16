@@ -399,3 +399,10 @@ the jam build's source of truth.
   (pure CSS, reduced-motion guarded) + three hawker whispers. Verified by
   five jsdom play-through tests (`game/tests/fun-dom.test.ts`) covering
   all four fate branches, the taunt, the gold run, and the death.
+- **Centred intro cards (post-critique):** the cinematic hands off to a
+  Siki card (her portrait + baked line) and a Zana card (her portrait +
+  her line first); each persona owns her own card. The persistent fiction
+  caption is gone; per-card (fictional)/(indicative) labels carry the
+  disclosure. Market-rail dim stalls carry alpha 0.80 + a lighter tint so
+  unlit stalls read as present. Day-1 stack fits the 860 itch embed with
+  the books open (ledger scrolls inside a capped box).

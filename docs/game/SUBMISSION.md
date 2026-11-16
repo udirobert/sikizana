@@ -175,6 +175,17 @@ pinned against exported product values (`tests/vectors.test.ts`).
   cards without a click (NN/g accordions research: hidden core state is
   state most players never meet); the street's tally drawer keeps its
   "the books" trigger (renamed from "Details").
+- **Centred intro cards (post-critique, Siki/Zana):** the cinematic now
+  hands off to a Siki card (her portrait + baked line, "She explains what
+  every choice costs") and a Zana card (her portrait + her line first,
+  blunt framing) — each persona owns her own card and her own perspective;
+  baked takes untouched. The persistent fiction caption is gone; per-card
+  (fictional)/(indicative) labels carry the disclosure.
+- **Market rail reads as a street:** dim stalls carry alpha 0.80 + a lighter
+  tint so unlit stalls read as present rather than empty.
+- **No-scroll fit:** day-1 stack (with the books open) fits the 860 itch
+  embed; the open ledger scrolls inside a capped box; measured at 860px
+  both open and closed.
 - **Line-placement fix:** say-bubbles now land inside the visible chapter
   section (they had been prepending to `#game` while chapters live under
   `#game-cam`) — keyboard focus scope and line cleanup now match what's on
